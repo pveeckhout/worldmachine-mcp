@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { describe, expect, it } from 'vitest';
-import { FAKE_WM, FIXTURES, recorder, waitUntil } from '../support/fake-wm.js';
+import { FAKE_WM, FIXTURES, isAlive, recorder, waitUntil } from '../support/fake-wm.js';
 
 const MAIN = fileURLToPath(new URL('../../dist/main.js', import.meta.url));
 
@@ -56,6 +56,19 @@ describe('stdio server', () => {
     await client.callTool({ name: 'list_devices', arguments: {} });
     await client.close();
     await waitUntil(() => record.lines().includes('system quit force'), 10_000);
+  });
+
+  it('leaves no World Machine behind shortly after close, even when it quits slowly', async () => {
+    const record = recorder();
+    const client = await startServer({
+      WORLD_MACHINE_BIN: FAKE_WM,
+      WORLD_MACHINE_ALLOWED_ROOTS: mkdtempSync(join(tmpdir(), 'smoke-')),
+      FAKE_WM_RECORD: record.path,
+      FAKE_WM_QUIT_DELAY_MS: '20000',
+    });
+    await client.callTool({ name: 'list_devices', arguments: {} });
+    await client.close();
+    await waitUntil(() => record.pids().length > 0 && !record.pids().some(isAlive), 3_000);
   });
 
   it('reports NOT_CONFIGURED when WORLD_MACHINE_BIN is missing', async () => {

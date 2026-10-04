@@ -11,7 +11,7 @@ import { buildCommand } from './command-builder.js';
 import { CommandQueue } from './command-queue.js';
 import { parseSystemInfo } from './parsers/system-info.js';
 import { type RawResponse, requireFrame, throwIfFailed } from './raw-response.js';
-import type { WorldMachineProcess } from './world-machine-process.js';
+import { KILL_ABORT, type QuitAbort, type WorldMachineProcess } from './world-machine-process.js';
 
 export type SessionOptions = {
   readonly executable: string | null;
@@ -20,8 +20,15 @@ export type SessionOptions = {
   readonly commandTimeoutMs: number;
   readonly idleTimeoutMs: number;
   readonly logger: Logger;
-  readonly startProcess: (executable: string, signal: AbortSignal) => Promise<WorldMachineProcess>;
+  readonly startProcess: (
+    executable: string,
+    signal: AbortSignal,
+    onSpawn: (proc: WorldMachineProcess) => void,
+  ) => Promise<WorldMachineProcess>;
 };
+
+/** How long each shutdown step may take; the main entry point derives it from the MCP client's kill budget. */
+export type ShutdownBudget = { readonly drainMs: number; readonly graceMs: number; readonly termMs: number };
 
 const OPEN_FAILED = 'Failed to open project.';
 
@@ -30,8 +37,11 @@ export class WorldMachineSession implements WorldMachineSessionPort {
   #state: SessionState = { kind: 'notRunning' };
   #starting: Promise<void> | undefined;
   #startAbort: AbortController | undefined;
+  /** The process of a start that has spawned but is not ready yet; shutdown and kill cannot reach it otherwise. */
+  #spawning: WorldMachineProcess | undefined;
   #stopping: Promise<void> | undefined;
   #process: WorldMachineProcess | undefined;
+  readonly #quitting = new Set<WorldMachineProcess>();
   #queue: CommandQueue | undefined;
   #systemInfo: SystemInfo | undefined;
   #idleTimer: NodeJS.Timeout | undefined;
@@ -83,15 +93,33 @@ export class WorldMachineSession implements WorldMachineSessionPort {
     return requireFrame((await this.execute([command]))[0]);
   }
 
-  async shutdown(): Promise<void> {
+  /** Without a budget the long sequence applies: full drain, 10 s grace, 2 s SIGTERM. */
+  async shutdown(budget?: ShutdownBudget): Promise<void> {
     this.#shutDown = true;
     this.#clearIdleTimer();
-    this.#startAbort?.abort();
+    if (budget)
+      this.#startAbort?.abort({ graceMs: budget.graceMs, termMs: budget.termMs } satisfies QuitAbort);
+    else this.#startAbort?.abort();
+    // A start that is past readiness is in setup: stop its process now instead of waiting for the setup commands.
+    if (this.#starting && this.#process) void this.#stop(budget);
     await this.#starting?.catch(() => undefined);
     if (this.#state.kind === 'ready' && this.#state.dirty) {
       this.#options.logger.warn('Shutting down with unsaved changes; they are discarded');
     }
-    await this.#stop();
+    await this.#stop(budget);
+  }
+
+  /** SIGKILLs every World Machine process this session owns, starting or stopping ones included. */
+  async kill(): Promise<void> {
+    this.#shutDown = true;
+    this.#clearIdleTimer();
+    this.#startAbort?.abort(KILL_ABORT);
+    const procs = new Set(this.#quitting);
+    if (this.#process) procs.add(this.#process);
+    if (this.#spawning) procs.add(this.#spawning);
+    await Promise.all([...procs].map((proc) => proc.terminate()));
+    await this.#starting?.catch(() => undefined);
+    await this.#stopping;
   }
 
   async #start(): Promise<void> {
@@ -113,7 +141,10 @@ export class WorldMachineSession implements WorldMachineSessionPort {
     const abort = new AbortController();
     this.#startAbort = abort;
     try {
-      proc = await this.#options.startProcess(executable, abort.signal);
+      proc = await this.#options.startProcess(executable, abort.signal, (spawned) => {
+        this.#spawning = spawned;
+      });
+      this.#spawning = undefined;
       const current = proc;
       this.#process = proc;
       proc.onExit(() => this.#onExit(current));
@@ -127,12 +158,21 @@ export class WorldMachineSession implements WorldMachineSessionPort {
       this.#armIdleTimer();
     } catch (error) {
       this.#reset();
-      await proc?.quit(2_000);
+      // A shutdown may already be quitting this process; kill() must reach it either way.
+      if (proc && !this.#quitting.has(proc)) {
+        this.#quitting.add(proc);
+        try {
+          await proc.quit(2_000);
+        } finally {
+          this.#quitting.delete(proc);
+        }
+      }
       throw error instanceof WorldMachineError
         ? error
         : new WorldMachineError('START_FAILED', `World Machine setup failed: ${String(error)}`);
     } finally {
       this.#startAbort = undefined;
+      this.#spawning = undefined;
     }
   }
 
@@ -176,18 +216,21 @@ export class WorldMachineSession implements WorldMachineSessionPort {
    * Detaches the current process, drains its queue, and quits it. Stops are chained, so every caller waits for
    * all earlier stops too. `#start` waits for this.
    */
-  #stop(): Promise<void> {
+  #stop(budget?: ShutdownBudget): Promise<void> {
     const proc = this.#process;
+    if (proc) this.#quitting.add(proc);
     const queue = this.#queue;
     this.#reset();
     const previous = this.#stopping;
     const current = (async () => {
       await previous;
-      await queue?.drain(new WorldMachineError('CRASHED', 'World Machine is shutting down'));
-      await proc?.quit();
+      const drained = queue?.drain(new WorldMachineError('CRASHED', 'World Machine is shutting down'));
+      await (budget ? withinMs(drained, budget.drainMs) : drained);
+      await proc?.quit(budget?.graceMs, budget?.termMs);
     })();
     this.#stopping = current;
     void current.finally(() => {
+      if (proc) this.#quitting.delete(proc);
       if (this.#stopping === current) this.#stopping = undefined;
     });
     return current;
@@ -236,5 +279,18 @@ export class WorldMachineSession implements WorldMachineSessionPort {
     this.#queue = undefined;
     this.#systemInfo = undefined;
     this.#state = { kind: 'notRunning' };
+  }
+}
+
+/** Resolves when the promise settles or after `ms`, whichever comes first. */
+async function withinMs(promise: Promise<void> | undefined, ms: number): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+  const expired = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, ms);
+  });
+  try {
+    await Promise.race([promise, expired]);
+  } finally {
+    clearTimeout(timer);
   }
 }

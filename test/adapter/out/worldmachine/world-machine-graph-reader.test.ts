@@ -24,7 +24,8 @@ function reader(extra: Record<string, string> = {}) {
     commandTimeoutMs: 2_000,
     idleTimeoutMs: 0,
     logger,
-    startProcess: (bin) => WorldMachineProcess.start({ bin, readyTimeoutMs: 5_000, logger, env }),
+    startProcess: (bin, signal, onSpawn) =>
+      WorldMachineProcess.start({ bin, readyTimeoutMs: 5_000, logger, env, signal, onSpawn }),
   });
   sessions.push(session);
   return { reader: new WorldMachineGraphReader(session), record };

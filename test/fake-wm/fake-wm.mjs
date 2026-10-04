@@ -17,6 +17,7 @@ const exit = (code) => {
 };
 
 record('START');
+record(`PID ${process.pid}`);
 log('Info', 'World Machine Program Log');
 log('Info', 'License Manager.Checkout: License checkout successful (product wmpro)');
 const startup = env.FAKE_WM_STARTUP ?? 'ok';
@@ -28,6 +29,7 @@ if (startup === 'exit') {
 if (startup === 'ok') log('Info', 'Startup: Completed. Transferring control into event loop.');
 
 let hung = false;
+let quitting = false;
 let partial = '';
 let pending = [];
 const work = [];
@@ -41,7 +43,10 @@ process.stdin.on('data', (chunk) => {
   pending = parts.slice(1);
   void drain();
 });
-process.stdin.on('end', () => exit(0));
+// Like the real one, a quit already in progress is not cut short by the console closing.
+process.stdin.on('end', () => {
+  if (!quitting) exit(0);
+});
 
 async function drain() {
   if (draining) return;
@@ -61,6 +66,7 @@ async function handle(line) {
   if (command === env.FAKE_WM_CRASH_ON) exit(139);
   if (command === env.FAKE_WM_DELAY_ON) await sleep(Number(env.FAKE_WM_DELAY_MS ?? '0'));
   if (command === 'system quit force') {
+    quitting = true;
     out('Exiting World Machine...\n');
     log('Info', 'License Manager.Checkin: License returned to license server');
     await sleep(Number(env.FAKE_WM_QUIT_DELAY_MS ?? '0'));

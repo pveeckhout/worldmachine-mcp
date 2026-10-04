@@ -9,7 +9,7 @@ import {
   WorldMachineSession,
 } from '../../../../src/adapter/out/worldmachine/world-machine-session.js';
 import type { WorldMachineError } from '../../../../src/domain/errors.js';
-import { captureLogger, FAKE_WM, fakeEnv, recorder, waitUntil } from '../../../support/fake-wm.js';
+import { captureLogger, FAKE_WM, fakeEnv, isAlive, recorder, waitUntil } from '../../../support/fake-wm.js';
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'session-')));
 mkdirSync(join(root, 'dir with space'));
@@ -34,8 +34,8 @@ function session(extra: Record<string, string> = {}, overrides: Partial<SessionO
     commandTimeoutMs: 2_000,
     idleTimeoutMs: 0,
     logger,
-    startProcess: (bin, signal) =>
-      WorldMachineProcess.start({ bin, readyTimeoutMs: 5_000, logger, env, signal }),
+    startProcess: (bin, signal, onSpawn) =>
+      WorldMachineProcess.start({ bin, readyTimeoutMs: 5_000, logger, env, signal, onSpawn }),
     ...overrides,
   });
   sessions.push(created);
@@ -118,11 +118,13 @@ describe('WorldMachineSession', () => {
     const { session: s } = session(
       {},
       {
-        startProcess: (bin) =>
+        startProcess: (bin, signal, onSpawn) =>
           WorldMachineProcess.start({
             bin,
             readyTimeoutMs: 5_000,
             logger,
+            signal,
+            onSpawn,
             env: fakeEnv(attempt++ === 0 ? { FAKE_WM_STARTUP: 'exit' } : {}),
           }),
       },
@@ -222,5 +224,103 @@ describe('WorldMachineSession', () => {
     const { session: s } = session();
     await s.shutdown();
     expect((await failure(s.ensureRunning())).code).toBe('START_FAILED');
+  });
+
+  it('bounds shutdown by the given budget when World Machine quits slowly', async () => {
+    const { session: s, record } = session({ FAKE_WM_QUIT_DELAY_MS: '5000' });
+    await s.ensureRunning();
+    const started = Date.now();
+    await s.shutdown({ drainMs: 0, graceMs: 300, termMs: 0 });
+    expect(Date.now() - started).toBeLessThan(3_000);
+    expect(record.pids().some(isAlive)).toBe(false);
+  });
+
+  it('caps the drain of a running batch at drainMs', async () => {
+    const { session: s, record } = session({ FAKE_WM_DELAY_ON: 'device list', FAKE_WM_DELAY_MS: '5000' });
+    await s.ensureRunning();
+    const running = failure(s.executeOne('device list'));
+    await waitUntil(() => record.lines().includes('device list'));
+    const started = Date.now();
+    await s.shutdown({ drainMs: 200, graceMs: 200, termMs: 200 });
+    expect(Date.now() - started).toBeLessThan(3_000);
+    expect(record.pids().some(isAlive)).toBe(false);
+    expect((await running).code).toBe('CRASHED');
+  });
+
+  it('kill() ends a slow shutdown promptly', async () => {
+    const { session: s, record } = session({ FAKE_WM_QUIT_DELAY_MS: '5000' });
+    await s.ensureRunning();
+    const shutdown = s.shutdown();
+    await waitUntil(() => record.lines().includes('system quit force'));
+    const started = Date.now();
+    await s.kill();
+    await shutdown;
+    expect(Date.now() - started).toBeLessThan(3_000);
+    expect(record.pids().some(isAlive)).toBe(false);
+  });
+
+  it('kill() also ends a start that is still waiting for readiness', async () => {
+    const { session: s, record } = session({ FAKE_WM_STARTUP: 'silent' });
+    const starting = failure(s.ensureRunning());
+    await waitUntil(() => record.lines().includes('START'));
+    const started = Date.now();
+    await s.kill();
+    expect((await starting).code).toBe('START_FAILED');
+    expect(Date.now() - started).toBeLessThan(3_000);
+    expect(record.pids().some(isAlive)).toBe(false);
+  });
+
+  it('shutdown with a signal budget ends a start that is not ready yet within the budget', async () => {
+    const { session: s, record } = session({ FAKE_WM_STARTUP: 'silent', FAKE_WM_QUIT_DELAY_MS: '20000' });
+    const starting = failure(s.ensureRunning());
+    await waitUntil(() => record.lines().includes('START'));
+    const started = Date.now();
+    await s.shutdown({ drainMs: 0, graceMs: 500, termMs: 0 });
+    expect(Date.now() - started).toBeLessThan(3_000);
+    expect((await starting).code).toBe('START_FAILED');
+    expect(record.pids().some(isAlive)).toBe(false);
+  });
+
+  it('kill() during a shutdown ends a start that is not ready yet at once', async () => {
+    const { session: s, record } = session({ FAKE_WM_STARTUP: 'silent', FAKE_WM_QUIT_DELAY_MS: '20000' });
+    const starting = failure(s.ensureRunning());
+    await waitUntil(() => record.lines().includes('START'));
+    const shutdown = s.shutdown();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const started = Date.now();
+    await s.kill();
+    expect(Date.now() - started).toBeLessThan(2_000);
+    expect(record.pids().some(isAlive)).toBe(false);
+    await shutdown;
+    expect((await starting).code).toBe('START_FAILED');
+  });
+
+  it('kill() ends a World Machine that is being quit after a failed setup', async () => {
+    const { session: s, record } = session(
+      { FAKE_WM_OPEN_ERROR: '1', FAKE_WM_QUIT_DELAY_MS: '20000' },
+      { defaultProject: project },
+    );
+    const starting = failure(s.ensureRunning());
+    await waitUntil(() => record.lines().includes('system quit force'));
+    const started = Date.now();
+    await s.kill();
+    expect(Date.now() - started).toBeLessThan(1_000);
+    expect(record.pids().some(isAlive)).toBe(false);
+    expect((await starting).code).toBe('WM_COMMAND_FAILED');
+  });
+
+  it('shutdown during setup applies its budget without waiting for the setup command', async () => {
+    const { session: s, record } = session({
+      FAKE_WM_DELAY_ON: 'system info',
+      FAKE_WM_DELAY_MS: '20000',
+      FAKE_WM_QUIT_DELAY_MS: '0',
+    });
+    const starting = failure(s.ensureRunning());
+    await waitUntil(() => record.lines().includes('system info'));
+    const started = Date.now();
+    await s.shutdown({ drainMs: 500, graceMs: 1_000, termMs: 300 });
+    expect(Date.now() - started).toBeLessThan(3_000);
+    await starting;
+    expect(record.pids().some(isAlive)).toBe(false);
   });
 });

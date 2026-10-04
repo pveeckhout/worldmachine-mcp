@@ -7,7 +7,10 @@ import { FsPathPolicy } from './adapter/out/fs/path-policy.js';
 import { resolveExecutable } from './adapter/out/worldmachine/locator.js';
 import { WorldMachineGraphReader } from './adapter/out/worldmachine/world-machine-graph-reader.js';
 import { WorldMachineProcess } from './adapter/out/worldmachine/world-machine-process.js';
-import { WorldMachineSession } from './adapter/out/worldmachine/world-machine-session.js';
+import {
+  type ShutdownBudget,
+  WorldMachineSession,
+} from './adapter/out/worldmachine/world-machine-session.js';
 import { GetStatusService } from './application/service/get-status-service.js';
 import { ListDevicesService } from './application/service/list-devices-service.js';
 import { type Config, loadConfig } from './config.js';
@@ -32,8 +35,8 @@ const session = new WorldMachineSession({
   commandTimeoutMs: config.commandTimeoutMs,
   idleTimeoutMs: config.idleTimeoutMs,
   logger,
-  startProcess: (bin, signal) =>
-    WorldMachineProcess.start({ bin, readyTimeoutMs: READY_TIMEOUT_MS, logger, signal }),
+  startProcess: (bin, signal, onSpawn) =>
+    WorldMachineProcess.start({ bin, readyTimeoutMs: READY_TIMEOUT_MS, logger, signal, onSpawn }),
 });
 const reader = new WorldMachineGraphReader(session);
 
@@ -46,17 +49,34 @@ const handle = serveStdio(() =>
   }),
 );
 
+// The SDK client ends stdin, waits 2 s, sends SIGTERM, waits 2 s, then SIGKILLs this process (spec section 9).
+const STDIN_END_BUDGET = { drainMs: 500, graceMs: 1_000, termMs: 300 } as const;
+const SIGNAL_BUDGET = { drainMs: 0, graceMs: 500, termMs: 0 } as const;
+
 let stopping: Promise<void> | undefined;
-function stop(reason: string): Promise<void> {
+function stop(reason: string, budget: ShutdownBudget): Promise<void> {
   stopping ??= (async () => {
-    logger.debug(`Stopping: ${reason}`);
-    await session.shutdown();
-    await handle.close();
-    process.exit(0);
+    try {
+      logger.debug(`Stopping: ${reason}`);
+      await session.shutdown(budget);
+      await handle.close();
+    } catch (error) {
+      logger.error(`Shutdown failed: ${String(error)}`);
+    } finally {
+      process.exit(0);
+    }
   })();
   return stopping;
 }
 
-process.stdin.once('end', () => void stop('stdin closed'));
-process.once('SIGINT', () => void stop('SIGINT'));
-process.once('SIGTERM', () => void stop('SIGTERM'));
+function onSignal(signal: string): void {
+  if (stopping === undefined) {
+    void stop(signal, SIGNAL_BUDGET);
+    return;
+  }
+  session.kill().catch((error: unknown) => logger.error(`Kill failed: ${String(error)}`));
+}
+
+process.stdin.once('end', () => void stop('stdin closed', STDIN_END_BUDGET));
+process.on('SIGINT', () => onSignal('SIGINT'));
+process.on('SIGTERM', () => onSignal('SIGTERM'));

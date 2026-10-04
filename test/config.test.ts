@@ -56,7 +56,21 @@ describe('loadConfig', () => {
     [{ WORLD_MACHINE_COMMAND_TIMEOUT_MS: '0' }, 'WORLD_MACHINE_COMMAND_TIMEOUT_MS'],
     [{ WORLD_MACHINE_COMMAND_TIMEOUT_MS: '1.5' }, 'WORLD_MACHINE_COMMAND_TIMEOUT_MS'],
     [{ WORLD_MACHINE_IDLE_TIMEOUT_MS: '-1' }, 'WORLD_MACHINE_IDLE_TIMEOUT_MS'],
+    [{ WORLD_MACHINE_COMMAND_TIMEOUT_MS: '2147483648' }, 'WORLD_MACHINE_COMMAND_TIMEOUT_MS'],
+    [{ WORLD_MACHINE_IDLE_TIMEOUT_MS: '2147483648' }, 'WORLD_MACHINE_IDLE_TIMEOUT_MS'],
+    [{ WORLD_MACHINE_COMMAND_TIMEOUT_MS: '9'.repeat(400) }, 'WORLD_MACHINE_COMMAND_TIMEOUT_MS'],
+    [{ WORLD_MACHINE_IDLE_TIMEOUT_MS: '9'.repeat(400) }, 'WORLD_MACHINE_IDLE_TIMEOUT_MS'],
   ])('rejects invalid %o', (env, name) => {
     expect(() => loadConfig(env, '/work', HOME)).toThrow(name);
+  });
+
+  it('accepts the largest timer value for both timeouts', () => {
+    const config = loadConfig(
+      { WORLD_MACHINE_COMMAND_TIMEOUT_MS: '2147483647', WORLD_MACHINE_IDLE_TIMEOUT_MS: '2147483647' },
+      '/work',
+      HOME,
+    );
+    expect(config.commandTimeoutMs).toBe(2_147_483_647);
+    expect(config.idleTimeoutMs).toBe(2_147_483_647);
   });
 });

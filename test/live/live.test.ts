@@ -22,8 +22,8 @@ describe.skipIf(!LIVE)('live World Machine', () => {
     commandTimeoutMs: 30_000,
     idleTimeoutMs: 0,
     logger,
-    startProcess: (bin, signal) =>
-      WorldMachineProcess.start({ bin, readyTimeoutMs: 120_000, logger, signal }),
+    startProcess: (bin, signal, onSpawn) =>
+      WorldMachineProcess.start({ bin, readyTimeoutMs: 120_000, logger, signal, onSpawn }),
   });
   const reader = new WorldMachineGraphReader(session);
   afterAll(() => session.shutdown(), 30_000);

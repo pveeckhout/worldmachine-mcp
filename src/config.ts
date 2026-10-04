@@ -56,11 +56,15 @@ function logLevel(value: string | undefined): LogLevel {
   return normalized;
 }
 
+// Node clamps timers above this to 1 ms.
+const MAX_TIMER_MS = 2_147_483_647;
+
 function integer(name: string, value: string | undefined, fallback: number, minimum: number): number {
   const trimmed = nonBlank(value);
   if (trimmed === undefined) return fallback;
-  if (!/^\d+$/.test(trimmed) || Number(trimmed) < minimum) {
-    throw new Error(`${name} must be an integer >= ${minimum}; got "${value}"`);
+  const parsed = Number(trimmed);
+  if (!/^\d+$/.test(trimmed) || parsed < minimum || parsed > MAX_TIMER_MS) {
+    throw new Error(`${name} must be an integer between ${minimum} and ${MAX_TIMER_MS}; got "${value}"`);
   }
-  return Number(trimmed);
+  return parsed;
 }

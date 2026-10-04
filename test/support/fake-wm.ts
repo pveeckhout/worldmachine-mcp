@@ -11,20 +11,35 @@ export function fakeEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   return { ...process.env, FAKE_WM_FIXTURES: FIXTURES, ...extra };
 }
 
-export function recorder(): { path: string; lines(): string[] } {
+export function recorder(): { path: string; lines(): string[]; pids(): number[] } {
   const path = join(mkdtempSync(join(tmpdir(), 'fake-wm-')), 'record.txt');
+  const all = (): string[] => {
+    try {
+      return readFileSync(path, 'utf8')
+        .split('\n')
+        .filter((line) => line !== '');
+    } catch {
+      return [];
+    }
+  };
   return {
     path,
-    lines: () => {
-      try {
-        return readFileSync(path, 'utf8')
-          .split('\n')
-          .filter((line) => line !== '');
-      } catch {
-        return [];
-      }
-    },
+    // PID lines are bookkeeping for process-liveness checks, not part of the console traffic.
+    lines: () => all().filter((line) => !line.startsWith('PID ')),
+    pids: () =>
+      all()
+        .filter((line) => line.startsWith('PID '))
+        .map((line) => Number(line.slice(4))),
   };
+}
+
+export function isAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function captureLogger(): Logger & { lines: string[] } {

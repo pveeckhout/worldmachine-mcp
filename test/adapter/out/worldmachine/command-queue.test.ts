@@ -3,7 +3,7 @@ import type { CommandChannel } from '../../../../src/adapter/out/worldmachine/ch
 import { CommandQueue } from '../../../../src/adapter/out/worldmachine/command-queue.js';
 import { WorldMachineProcess } from '../../../../src/adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineError } from '../../../../src/domain/errors.js';
-import { captureLogger, FAKE_WM, fakeEnv } from '../../../support/fake-wm.js';
+import { captureLogger, FAKE_WM, fakeEnv, waitUntil } from '../../../support/fake-wm.js';
 
 class FakeChannel implements CommandChannel {
   readonly written: string[][] = [];
@@ -102,12 +102,12 @@ describe('CommandQueue', () => {
     const channel = new FakeChannel();
     const queue = new CommandQueue(channel, { timeoutMs: 1_000, nudgeMs: 10, newBatchId: ids('a1') });
     const result = queue.execute(['x']);
-    await new Promise((resolve) => setTimeout(resolve, 45));
+    await waitUntil(() => channel.written.length >= 3, 1_000);
     expect(channel.written.slice(1).every((lines) => lines.length === 1 && lines[0] === '')).toBe(true);
-    expect(channel.written.length).toBeGreaterThanOrEqual(3);
     channel.emit(echo('a1', 0));
     await result;
     const writes = channel.written.length;
+    // A leaked interval could only add writes, so waiting several nudge periods cannot cause a false failure.
     await new Promise((resolve) => setTimeout(resolve, 40));
     expect(channel.written).toHaveLength(writes);
   });

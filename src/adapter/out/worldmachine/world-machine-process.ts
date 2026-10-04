@@ -6,6 +6,10 @@ import type { CommandChannel } from './channel.js';
 import { isLicenceText, parseLogLine } from './log-lines.js';
 
 export const READY_LINE = 'Startup: Completed. Transferring control into event loop.';
+/** Abort reason that makes a pending start SIGKILL World Machine instead of quitting it politely. */
+export const KILL_ABORT = 'kill';
+/** Abort reason that makes a pending start quit World Machine within the caller's shutdown budget. */
+export type QuitAbort = { readonly graceMs: number; readonly termMs: number };
 const RECENT_LINES = 10;
 // 'close' waits for stdout to drain; this bounds the wait if a grandchild keeps the pipe open.
 const STDIO_DRAIN_MS = 1_000;
@@ -16,6 +20,8 @@ export type ProcessOptions = {
   readonly logger: Logger;
   readonly env?: NodeJS.ProcessEnv;
   readonly signal?: AbortSignal;
+  /** Called synchronously once the process exists, before it is ready, so a caller can stop it while it starts. */
+  readonly onSpawn?: (proc: WorldMachineProcess) => void;
 };
 
 export class WorldMachineProcess implements CommandChannel {
@@ -55,6 +61,7 @@ export class WorldMachineProcess implements CommandChannel {
       env: options.env ?? process.env,
     });
     const proc = new WorldMachineProcess(child, options.logger);
+    options.onSpawn?.(proc);
     return new Promise((resolve, reject) => {
       let settled = false;
       const settle = () => {
@@ -68,7 +75,13 @@ export class WorldMachineProcess implements CommandChannel {
         const detail = proc.#recent.join('\n') || undefined;
         void stop().then(() => reject(new WorldMachineError('START_FAILED', message, detail)));
       };
-      const onAbort = () => fail('World Machine start was cancelled', () => proc.quit(5_000));
+      const onAbort = () =>
+        fail('World Machine start was cancelled', () => {
+          const reason: unknown = options.signal?.reason;
+          if (reason === KILL_ABORT) return proc.terminate();
+          if (isQuitAbort(reason)) return proc.quit(reason.graceMs, reason.termMs);
+          return proc.quit(5_000);
+        });
       const timer = setTimeout(
         () => fail(`World Machine did not become ready within ${options.readyTimeoutMs} ms`),
         options.readyTimeoutMs,
@@ -104,13 +117,18 @@ export class WorldMachineProcess implements CommandChannel {
     this.#child.stdin.write(lines.map((line) => `${line}\n`).join(''));
   }
 
-  /** `system quit force`, then SIGTERM, then SIGKILL (spec section 9). Resolves once the process is gone. */
-  async quit(graceMs = 10_000): Promise<void> {
+  /**
+   * `system quit force`, then SIGTERM, then SIGKILL (spec section 9). `termMs` 0 skips SIGTERM. Resolves once
+   * the process is gone.
+   */
+  async quit(graceMs = 10_000, termMs = 2_000): Promise<void> {
     if (this.#exited) return;
     this.#child.stdin?.write('system quit force\n');
     if (await this.#exitedWithin(graceMs)) return;
-    this.#child.kill('SIGTERM');
-    if (await this.#exitedWithin(2_000)) return;
+    if (termMs > 0) {
+      this.#child.kill('SIGTERM');
+      if (await this.#exitedWithin(termMs)) return;
+    }
     await this.terminate();
   }
 
@@ -144,4 +162,13 @@ export class WorldMachineProcess implements CommandChannel {
     }
     for (const listener of this.#lineListeners) listener(line);
   }
+}
+
+function isQuitAbort(reason: unknown): reason is QuitAbort {
+  return (
+    typeof reason === 'object' &&
+    reason !== null &&
+    typeof (reason as QuitAbort).graceMs === 'number' &&
+    typeof (reason as QuitAbort).termMs === 'number'
+  );
 }

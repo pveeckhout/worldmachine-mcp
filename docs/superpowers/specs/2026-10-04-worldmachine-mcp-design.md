@@ -227,7 +227,7 @@ Rules:
 - `open_project` and `create_project` return `REFUSED` when `dirty` unless `discard_unsaved: true`.
 - `unhealthy` sessions are restarted by the next `ensureRunning()`.
 - At most one World Machine process exists per server. A new process is started only after the previous one has exited.
-- The idle timer never fires while a command is in flight. Idle quit and shutdown let running command batches finish before sending `system quit force`.
+- The idle timer never fires while a command is in flight. Idle quit lets running command batches finish before sending `system quit force`. Process shutdown (section 9) waits for running batches only within its time budget.
 
 ## 7. MCP tools (v1)
 
@@ -284,7 +284,13 @@ Tool failures are returned as `isError: true` results. Protocol errors are left 
 - **Relative paths.** Project paths must be absolute; a relative path is refused with `REFUSED`, because the server's working directory is chosen by the MCP client and is not visible to the model.
 - **Opening.** `realpath` the file, require it to be inside a root after resolution, require the `.tmd` extension, and require a regular file (a directory named `*.tmd` is refused). If none of the configured roots exists, path tools return `NOT_CONFIGURED`.
 - **Saving.** `realpath` the parent directory, require it to be inside a root, require the `.tmd` extension. An existing target requires `overwrite: true`.
-- **Shutdown.** On stdin close, `SIGINT`, or `SIGTERM`: write `system quit force`, wait 10 s, then `SIGTERM`, then `SIGKILL`. A dirty session at shutdown is logged as a warning.
+- **Shutdown.** MCP clients built on the SDK end stdin, wait 2 s, send `SIGTERM`, wait 2 s, then `SIGKILL` the server, so process shutdown must finish World Machine inside that window or World Machine is orphaned with its licence seat.
+  - On stdin close: drain running batches for at most 500 ms, write `system quit force`, wait up to 1 s, `SIGTERM` World Machine, wait up to 300 ms, then `SIGKILL` it.
+  - On the first `SIGINT` or `SIGTERM` with no shutdown in progress: no drain, write `system quit force`, wait up to 500 ms, then `SIGKILL`.
+  - On any `SIGINT` or `SIGTERM` while a shutdown is already in progress: `SIGKILL` World Machine immediately.
+  - The server process exits 0 after World Machine is gone, even if a shutdown step fails.
+  - Idle quit is not bound by a client deadline and keeps the longer sequence: drain, `system quit force`, wait 10 s, `SIGTERM`, wait 2 s, `SIGKILL`.
+  - A dirty session at shutdown is logged as a warning.
 - **Idle timeout.** `WORLD_MACHINE_IDLE_TIMEOUT_MS`, default 15 minutes, `0` disables. Quits World Machine to return the licence seat. Skipped and logged when `dirty`.
 - **Logs.** World Machine log lines go to the server's stderr, filtered by `WORLD_MACHINE_LOG_LEVEL`. Licence lines are dropped. Log content never appears in tool results.
 
@@ -296,8 +302,8 @@ Tool failures are returned as `isError: true` results. Protocol errors are left 
 | `WORLD_MACHINE_ALLOWED_ROOTS` | working directory (see section 9) | project path roots |
 | `WORLD_MACHINE_DEFAULT_PROJECT` | none | project opened on launch |
 | `WORLD_MACHINE_LOG_LEVEL` | `info` | log channel verbosity |
-| `WORLD_MACHINE_COMMAND_TIMEOUT_MS` | `15000` | per-batch timeout |
-| `WORLD_MACHINE_IDLE_TIMEOUT_MS` | `900000` | idle quit, `0` disables |
+| `WORLD_MACHINE_COMMAND_TIMEOUT_MS` | `15000` | per-batch timeout (1 to 2147483647) |
+| `WORLD_MACHINE_IDLE_TIMEOUT_MS` | `900000` | idle quit, `0` disables (0 to 2147483647) |
 
 ## 11. Testing
 

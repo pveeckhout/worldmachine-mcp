@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { WorldMachineProcess } from '../../../../src/adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineError } from '../../../../src/domain/errors.js';
-import { captureLogger, FAKE_WM, fakeEnv, recorder, waitUntil } from '../../../support/fake-wm.js';
+import { captureLogger, FAKE_WM, fakeEnv, isAlive, recorder, waitUntil } from '../../../support/fake-wm.js';
 
 const started: WorldMachineProcess[] = [];
 afterEach(async () => {
@@ -121,5 +121,52 @@ describe('WorldMachineProcess', () => {
       message: 'World Machine start was cancelled',
     });
     expect(record.lines()).toEqual(['START', 'system quit force', 'EXIT']);
+  });
+
+  it('ends a starting process within the abort reason budget', async () => {
+    const record = recorder();
+    const controller = new AbortController();
+    const starting = WorldMachineProcess.start({
+      bin: FAKE_WM,
+      readyTimeoutMs: 5_000,
+      logger: captureLogger(),
+      env: fakeEnv({
+        FAKE_WM_STARTUP: 'silent',
+        FAKE_WM_QUIT_DELAY_MS: '20000',
+        FAKE_WM_RECORD: record.path,
+      }),
+      signal: controller.signal,
+    });
+    await waitUntil(() => record.lines().includes('START'));
+    const began = Date.now();
+    controller.abort({ graceMs: 200, termMs: 0 });
+    await expect(starting).rejects.toMatchObject({ code: 'START_FAILED' });
+    expect(Date.now() - began).toBeLessThan(3_000);
+    expect(record.pids().some(isAlive)).toBe(false);
+  });
+
+  it('calls onSpawn with the process before it is ready', async () => {
+    const record = recorder();
+    let spawned: WorldMachineProcess | undefined;
+    const starting = WorldMachineProcess.start({
+      bin: FAKE_WM,
+      readyTimeoutMs: 5_000,
+      logger: captureLogger(),
+      env: fakeEnv({ FAKE_WM_STARTUP: 'silent', FAKE_WM_RECORD: record.path }),
+      onSpawn: (proc) => {
+        spawned = proc;
+        started.push(proc);
+      },
+    });
+    let settled = false;
+    starting.then(
+      () => (settled = true),
+      () => (settled = true),
+    );
+    expect(spawned).toBeInstanceOf(WorldMachineProcess);
+    await waitUntil(() => record.lines().includes('START'), 2_000);
+    expect(settled).toBe(false);
+    await spawned?.terminate();
+    await expect(starting).rejects.toMatchObject({ code: 'START_FAILED' });
   });
 });
