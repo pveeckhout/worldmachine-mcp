@@ -2,7 +2,7 @@
 
 An [MCP](https://modelcontextprotocol.io) server that lets AI assistants inspect and edit [World Machine](https://www.world-machine.com) terrain projects through your own local World Machine installation.
 
-> **Status: design stage.** Nothing is implemented yet. The design is in [`docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md`](docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md). The sections below describe the planned v1 behaviour.
+> **Status: early development.** `get_world_machine_status` and `list_devices` work against World Machine build 4067 on Linux. The other tools listed below are planned. The design is in [`docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md`](docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md).
 
 ## How it works
 
@@ -35,7 +35,27 @@ Claude Code:
 claude mcp add worldmachine \
   --env WORLD_MACHINE_BIN=/path/to/WorldMachine-current-x64.AppImage \
   --env WORLD_MACHINE_ALLOWED_ROOTS=/path/to/your/terrain/projects \
+  --env DISPLAY=$DISPLAY \
+  --env WAYLAND_DISPLAY=$WAYLAND_DISPLAY \
+  --env XAUTHORITY=$XAUTHORITY \
+  --env XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR \
   -- npx -y @hoakt/worldmachine-mcp
+```
+
+Codex (`~/.codex/config.toml`):
+
+```toml
+[mcp_servers.worldmachine]
+command = "npx"
+args = ["-y", "@hoakt/worldmachine-mcp"]
+
+[mcp_servers.worldmachine.env]
+WORLD_MACHINE_BIN = "/path/to/WorldMachine-current-x64.AppImage"
+WORLD_MACHINE_ALLOWED_ROOTS = "/path/to/your/terrain/projects"
+DISPLAY = ":0"
+WAYLAND_DISPLAY = "wayland-0"
+XAUTHORITY = "/run/user/1000/.mutter-Xwaylandauth.XXXXXX"
+XDG_RUNTIME_DIR = "/run/user/1000"
 ```
 
 Any other MCP client that accepts a JSON configuration:
@@ -48,12 +68,18 @@ Any other MCP client that accepts a JSON configuration:
       "args": ["-y", "@hoakt/worldmachine-mcp"],
       "env": {
         "WORLD_MACHINE_BIN": "/path/to/WorldMachine-current-x64.AppImage",
-        "WORLD_MACHINE_ALLOWED_ROOTS": "/path/to/your/terrain/projects"
+        "WORLD_MACHINE_ALLOWED_ROOTS": "/path/to/your/terrain/projects",
+        "DISPLAY": ":0",
+        "WAYLAND_DISPLAY": "wayland-0",
+        "XAUTHORITY": "/run/user/1000/.mutter-Xwaylandauth.XXXXXX",
+        "XDG_RUNTIME_DIR": "/run/user/1000"
       }
     }
   }
 }
 ```
+
+**Linux note.** World Machine opens its window even in console mode. MCP clients that start servers with a minimal environment must pass the display variables (`DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY`, `XDG_RUNTIME_DIR`), as shown above. Use the values from your own session.
 
 ## Configuration
 
@@ -65,10 +91,11 @@ Any other MCP client that accepts a JSON configuration:
 | `WORLD_MACHINE_LOG_LEVEL` | `info` | verbosity of World Machine log output on the server's stderr |
 | `WORLD_MACHINE_COMMAND_TIMEOUT_MS` | `15000` | time limit per command batch |
 | `WORLD_MACHINE_IDLE_TIMEOUT_MS` | `900000` | idle time before World Machine is closed, `0` disables |
+| `DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY`, `XDG_RUNTIME_DIR` | none | passed through to World Machine; required on Linux desktops when the client does not forward them |
 
 If the working directory is `/` or your home directory and `WORLD_MACHINE_ALLOWED_ROOTS` is not set, tools that take a path refuse to run.
 
-## Tools (planned v1)
+## Tools (v1)
 
 | Read | Change |
 |---|---|
@@ -77,6 +104,8 @@ If the working directory is `/` or your home directory and `WORLD_MACHINE_ALLOWE
 | `get_device` | `update_device_parameters` |
 | `get_scene` | `connect_devices`, `disconnect_devices` |
 | `inspect_project` | `configure_scene`, `undo`, `redo` |
+
+Available now: get_world_machine_status, list_devices. The rest arrive with the next implementation plan.
 
 Builds and exports are planned for v2, and declarative graph specifications for v3.
 

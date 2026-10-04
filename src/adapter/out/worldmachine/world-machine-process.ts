@@ -1,0 +1,147 @@
+import { type ChildProcess, spawn } from 'node:child_process';
+import { createInterface } from 'node:readline';
+import { WorldMachineError } from '../../../domain/errors.js';
+import type { Logger } from '../../../logger.js';
+import type { CommandChannel } from './channel.js';
+import { isLicenceText, parseLogLine } from './log-lines.js';
+
+export const READY_LINE = 'Startup: Completed. Transferring control into event loop.';
+const RECENT_LINES = 10;
+// 'close' waits for stdout to drain; this bounds the wait if a grandchild keeps the pipe open.
+const STDIO_DRAIN_MS = 1_000;
+
+export type ProcessOptions = {
+  readonly bin: string;
+  readonly readyTimeoutMs: number;
+  readonly logger: Logger;
+  readonly env?: NodeJS.ProcessEnv;
+  readonly signal?: AbortSignal;
+};
+
+export class WorldMachineProcess implements CommandChannel {
+  readonly #child: ChildProcess;
+  readonly #logger: Logger;
+  readonly #lineListeners: ((line: string) => void)[] = [];
+  readonly #exitListeners: (() => void)[] = [];
+  readonly #recent: string[] = [];
+  readonly #exitPromise: Promise<void>;
+  #readyListener: (() => void) | undefined;
+  #exited = false;
+
+  private constructor(child: ChildProcess, logger: Logger) {
+    this.#child = child;
+    this.#logger = logger;
+    this.#exitPromise = new Promise((resolve) => {
+      const finish = (code: number | null, signal: NodeJS.Signals | null) => {
+        if (this.#exited) return;
+        this.#exited = true;
+        logger.debug(`World Machine exited (code ${code}, signal ${signal})`);
+        for (const listener of this.#exitListeners) listener();
+        resolve();
+      };
+      child.once('close', finish);
+      child.once('exit', (code, signal) => {
+        setTimeout(() => finish(code, signal), STDIO_DRAIN_MS).unref();
+      });
+    });
+    child.stdin?.on('error', (error) => logger.debug(`World Machine stdin error: ${error.message}`));
+    if (child.stdout) createInterface({ input: child.stdout }).on('line', (line) => this.#onLine(line));
+  }
+
+  /** Spawns World Machine with stdout and stderr merged at the fd level (spec section 5.1). */
+  static start(options: ProcessOptions): Promise<WorldMachineProcess> {
+    const child = spawn('/bin/sh', ['-c', 'exec "$0" --cli 2>&1', options.bin], {
+      stdio: ['pipe', 'pipe', 'ignore'],
+      env: options.env ?? process.env,
+    });
+    const proc = new WorldMachineProcess(child, options.logger);
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const settle = () => {
+        settled = true;
+        clearTimeout(timer);
+        options.signal?.removeEventListener('abort', onAbort);
+      };
+      const fail = (message: string, stop: () => Promise<void> = () => proc.terminate()) => {
+        if (settled) return;
+        settle();
+        const detail = proc.#recent.join('\n') || undefined;
+        void stop().then(() => reject(new WorldMachineError('START_FAILED', message, detail)));
+      };
+      const onAbort = () => fail('World Machine start was cancelled', () => proc.quit(5_000));
+      const timer = setTimeout(
+        () => fail(`World Machine did not become ready within ${options.readyTimeoutMs} ms`),
+        options.readyTimeoutMs,
+      );
+      child.once('error', (error) => fail(`Could not start World Machine: ${error.message}`));
+      proc.#exitListeners.push(() => fail('World Machine exited during startup'));
+      proc.#readyListener = () => {
+        if (settled) return;
+        settle();
+        proc.#readyListener = undefined;
+        resolve(proc);
+      };
+      if (options.signal?.aborted) onAbort();
+      else options.signal?.addEventListener('abort', onAbort, { once: true });
+    });
+  }
+
+  get exited(): boolean {
+    return this.#exited;
+  }
+
+  onLine(listener: (line: string) => void): void {
+    this.#lineListeners.push(listener);
+  }
+
+  onExit(listener: () => void): void {
+    this.#exitListeners.push(listener);
+  }
+
+  write(lines: readonly string[]): void {
+    if (this.#exited || !this.#child.stdin)
+      throw new WorldMachineError('CRASHED', 'World Machine is not running');
+    this.#child.stdin.write(lines.map((line) => `${line}\n`).join(''));
+  }
+
+  /** `system quit force`, then SIGTERM, then SIGKILL (spec section 9). Resolves once the process is gone. */
+  async quit(graceMs = 10_000): Promise<void> {
+    if (this.#exited) return;
+    this.#child.stdin?.write('system quit force\n');
+    if (await this.#exitedWithin(graceMs)) return;
+    this.#child.kill('SIGTERM');
+    if (await this.#exitedWithin(2_000)) return;
+    await this.terminate();
+  }
+
+  /** SIGKILL, resolving once the process is gone. */
+  async terminate(): Promise<void> {
+    if (!this.#exited) this.#child.kill('SIGKILL');
+    await this.#exitPromise;
+  }
+
+  #exitedWithin(ms: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(false), ms);
+      void this.#exitPromise.then(() => {
+        clearTimeout(timer);
+        resolve(true);
+      });
+    });
+  }
+
+  #onLine(line: string): void {
+    const log = parseLogLine(line);
+    if (log) {
+      this.#logger.worldMachine(log.level, log.text);
+      if (log.text.includes(READY_LINE)) this.#readyListener?.();
+      return;
+    }
+    // Startup diagnostics may reach a tool result, so they never include log or licence lines.
+    if (!isLicenceText(line)) {
+      this.#recent.push(line);
+      if (this.#recent.length > RECENT_LINES) this.#recent.shift();
+    }
+    for (const listener of this.#lineListeners) listener(line);
+  }
+}
