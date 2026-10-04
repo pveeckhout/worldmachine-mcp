@@ -1,0 +1,153 @@
+>>> project new blank force
+Created new blank project.
+[Info       ] Closing current project
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> device rename Gradient Grad A
+Renamed 'Gradient' to 'Grad A'
+<<<
+>>> device list
+Devices (1 total):
+  #1     Grad A                   (Gradient)
+
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (2 total):
+  #1     Grad A                   (Gradient)
+  #2     Gradient                
+
+<<<
+>>> device rename Gradient "Grad B"
+Renamed 'Gradient' to 'Grad B'
+<<<
+>>> device list
+Devices (2 total):
+  #1     Grad A                   (Gradient)
+  #2     Grad B                   (Gradient)
+
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (3 total):
+  #1     Grad A                   (Gradient)
+  #2     Grad B                   (Gradient)
+  #3     Gradient                
+
+<<<
+>>> device rename Gradient 'Grad C'
+Renamed 'Gradient' to 'Grad C'
+<<<
+>>> device list
+Devices (3 total):
+  #1     Grad A                   (Gradient)
+  #2     Grad B                   (Gradient)
+  #3     Grad C                   (Gradient)
+
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (4 total):
+  #1     Grad A                   (Gradient)
+  #2     Grad B                   (Gradient)
+  #3     Grad C                   (Gradient)
+  #4     Gradient                
+
+<<<
+>>> device rename #4 GradById
+Renamed '#4' to 'GradById'
+<<<
+>>> device list
+Devices (4 total):
+  #1     Grad A                   (Gradient)
+  #2     Grad B                   (Gradient)
+  #3     Grad C                   (Gradient)
+  #4     GradById                 (Gradient)
+
+<<<
+>>> device add Combiner
+Added 'Combiner'
+<<<
+>>> device list
+Devices (5 total):
+  #1     Grad A                   (Gradient)
+  #2     Grad B                   (Gradient)
+  #3     Grad C                   (Gradient)
+  #4     GradById                 (Gradient)
+  #5     Combiner                
+
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (6 total):
+  #1     Grad A                   (Gradient)
+  #2     Grad B                   (Gradient)
+  #3     Grad C                   (Gradient)
+  #4     GradById                 (Gradient)
+  #5     Combiner                
+  #6     Gradient                
+
+<<<
+>>> wire list Combiner
+Connections for 'Combiner':
+  Inputs:
+    [1] Primary Input <- (none)
+    [2] Primary Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> wire connect Gradient Combiner
+Connected 'Gradient' [1] -> 'Combiner' [1]
+<<<
+>>> wire list Combiner
+Connections for 'Combiner':
+  Inputs:
+    [1] Primary Input <- 'Gradient' [1]
+    [2] Primary Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> wire connect #4 #5
+Error: Error: Input '#5' is already connected. Disconnect first.
+<<<
+>>> wire list Combiner
+Connections for 'Combiner':
+  Inputs:
+    [1] Primary Input <- 'Gradient' [1]
+    [2] Primary Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> wire connect Grad A Combiner
+Error: Error: Source device not found: 'Grad'
+<<<
+>>> wire connect "Grad B" Combiner
+Error: Error: Input 'Combiner' is already connected. Disconnect first.
+<<<
+>>> wire list Combiner
+Connections for 'Combiner':
+  Inputs:
+    [1] Primary Input <- 'Gradient' [1]
+    [2] Primary Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<

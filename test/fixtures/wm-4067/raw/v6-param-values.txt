@@ -1,0 +1,88 @@
+>>> project new blank force
+Created new blank project.
+[Info       ] Closing current project
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (2 total):
+  #1     Gradient                
+  #2     Height Output           
+
+<<<
+>>> param list Gradient
+Parameters for 'Gradient' (Gradient):
+  Direction                 int       0
+  Width                     float     8 km
+  Tiling                    enum      Clamp
+
+<<<
+>>> param list Height Output
+Parameters for 'Height Output' (Height Output):
+  filename                  filename  <project>_<name>_<res>.png
+  format                    enum      PNG (16bit)
+  exportAlways              bool      false
+  tiled                     bool      true
+  writeButton               action    
+
+<<<
+>>> param get Gradient.Direction
+Gradient.Direction = 0
+<<<
+>>> param set Gradient.Direction 0.5
+Error: Error: Invalid integer value: 0.5
+<<<
+>>> param get Gradient.Direction
+Gradient.Direction = 0
+<<<
+>>> param set Gradient.Direction 2
+Set Gradient.Direction = 2
+<<<
+>>> param get Gradient.Direction
+Gradient.Direction = 2
+<<<
+>>> param get Height Output.exportAlways
+Height Output.exportAlways = false
+<<<
+>>> param set Height Output.exportAlways true
+Error: Error: No device selected. Use 'param set <device>.<param> <value>' or select a device first.
+<<<
+>>> param get Height Output.exportAlways
+Height Output.exportAlways = false
+<<<
+>>> param set Height Output.exportAlways 0
+Error: Error: No device selected. Use 'param set <device>.<param> <value>' or select a device first.
+<<<
+>>> param get Height Output.exportAlways
+Height Output.exportAlways = false
+<<<
+>>> param set Height Output.filename <WORK>/out.png
+Error: Error: No device selected. Use 'param set <device>.<param> <value>' or select a device first.
+<<<
+>>> param get Height Output.filename
+Height Output.filename = <project>_<name>_<res>.png
+<<<
+>>> param set Height Output.format PNG (16bit)
+Error: Error: No device selected. Use 'param set <device>.<param> <value>' or select a device first.
+<<<
+>>> param get Height Output.format
+Height Output.format = PNG (16bit)
+<<<
+>>> param list Height Output
+Parameters for 'Height Output' (Height Output):
+  filename                  filename  <project>_<name>_<res>.png
+  format                    enum      PNG (16bit)
+  exportAlways              bool      false
+  tiled                     bool      true
+  writeButton               action    
+
+<<<

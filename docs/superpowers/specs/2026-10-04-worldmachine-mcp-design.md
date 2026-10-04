@@ -40,6 +40,10 @@ Verified on 2026-10-04 against World Machine build 4067 (Dragontail Peak), Pro t
 11. An unquoted device name containing a space is accepted as the final argument (`param list Height Output`).
 12. `system quit force` exits cleanly and returns the licence seat (log line `License Manager.Checkin: License returned to license server`).
 13. Licence checkout success is logged as `License Manager.Checkout: License checkout successful`.
+14. On each stdin read, World Machine processes the lines left over from earlier reads plus only the first line of the newly read data; further lines in the same write wait until stdin becomes readable again (probe, 2026-10-04: two commands in one write produced only the first answer until another write arrived).
+15. An empty input line produces no output and causes pending lines to be processed (same probe).
+16. `device list` in an empty project prints `No devices in the current project.` instead of a header. With a filter argument, the header keeps the unfiltered total (`Devices (17 total):` above one matching row). (Verification note, V5.)
+17. A failed `project open` prints the plain line `Failed to open project.` with no `Error:` prefix, and leaves an empty project. (Verification note, V7.)
 
 ### Verification items (first tasks of the implementation plan)
 
@@ -141,6 +145,8 @@ spawn("/bin/sh", ["-c", 'exec "$0" --cli 2>&1', binPath], { stdio: ["pipe", "pip
 - `exec` replaces the shell; signals reach World Machine directly.
 - `binPath` is passed as `$0` and never interpolated into the script.
 - `--minimal` is not passed (user macros and blueprints stay available).
+
+Because of facts 14 and 15, writing a batch is not enough for World Machine to read all of it. While a batch is in flight, the adapter writes an empty line every 100 ms (the "nudge") until the batch's last sentinel has been answered or the batch fails. Empty lines produce no output, so framing is unaffected.
 
 Every command in a batch is followed by its own sentinel `__end_<id>_<n>`, where `<id>` is a random per-batch token and `<n>` is the command's index in the batch. World Machine answers each sentinel with `Error: Unknown command: '__end_<id>_<n>'. ...`, which closes the frame of command `<n>`. Within a frame, lines starting with `Error: ` are errors of that command; all other non-log lines are its output. The blank-line block terminator (fact 3) is not relied on. V1 and V2 confirm that this ordering holds.
 
@@ -265,7 +271,7 @@ Tool failures are returned as `isError: true` results. Protocol errors are left 
 | `NOT_CONFIGURED` | executable missing or not executable; no usable allowed root | none |
 | `START_FAILED` | spawn error, no readiness line within 60 s, licence checkout failure (V8) | state returns to `notRunning` |
 | `REFUSED` | dirty without `discard_unsaved`, existing target without `overwrite`, path not authorised, unsafe or ambiguous token | no command sent |
-| `WM_COMMAND_FAILED` | an `Error: ` line for a command | exact text in `worldMachineMessage` |
+| `WM_COMMAND_FAILED` | an `Error: ` line for a command, or a known unprefixed failure line (`Failed to open project.`, fact 17) | exact text in `worldMachineMessage` |
 | `TIMEOUT` | no sentinel within the batch timeout | state becomes `unhealthy` |
 | `CRASHED` | unexpected process exit | state becomes `unhealthy`; message states that unsaved changes were lost when `dirty` was set |
 | `UNEXPECTED_OUTPUT` | a parser cannot match output | includes a log-free raw snippet |

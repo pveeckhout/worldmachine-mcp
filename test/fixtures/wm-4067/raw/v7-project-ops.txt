@@ -1,0 +1,31 @@
+>>> project save <WORK>/capture.tmd
+Project saved to: <WORK>/capture.tmd
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> project undo
+Undo performed.
+<<<
+>>> project redo
+Redo performed.
+<<<
+>>> project save <WORK>/dir with space/capture.tmd
+Project saved to: <WORK>/dir with space/capture.tmd
+<<<
+>>> project open <WORK>/capture.tmd
+Opened: <WORK>/capture.tmd
+[Info       ] Open Project from file
+[Info       ] Closing current project
+<<<
+>>> project open <WORK>/dir with space/capture.tmd force
+Opened: <WORK>/dir with space/capture.tmd
+[Info       ] Open Project from file
+[Info       ] Closing current project
+<<<
+>>> project open <WORK>/missing.tmd force
+Failed to open project.
+[Info       ] Open Project from file
+[Info       ] Closing current project
+<<<
+>>> device list
+No devices in the current project.
+<<<

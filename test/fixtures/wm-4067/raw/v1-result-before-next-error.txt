@@ -1,0 +1,14 @@
+>>> system info
+World Machine System Info:
+  Version:  Build 4067 'Dragontail Peak'
+  Arch:     x64-AVX2 (256-bit)
+  Threads:  3 active of 4 max
+  Building: yes
+  Memory:   12 MB / 54413 MB limit
+  App Path: <APPDIR>/opt/worldmachine/variants/avx2/
+  Doc Path: <HOME>/Documents/WorldMachine/
+
+<<<
+>>> capture_bogus_command
+Error: Unknown command: 'capture_bogus_command'. Type 'help' for a list of commands.
+<<<
