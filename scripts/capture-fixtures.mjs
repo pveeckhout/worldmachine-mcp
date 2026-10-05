@@ -567,6 +567,11 @@ const scenarios = [
         'project close force',
       ]),
   ],
+  [
+    // What the console can set beyond scene and device parameters: the help of the groups not yet captured.
+    'help-more',
+    () => run(['help build', 'help export', 'help debug', 'help snapshot', 'help system', 'help group']),
+  ],
 ];
 
 // `npm run capture-fixtures -- <name> ...` captures only the named scenarios (system info always runs first).

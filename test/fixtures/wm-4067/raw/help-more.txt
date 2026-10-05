@@ -1,0 +1,55 @@
+>>> help build
+build commands:
+  build preview                   Trigger async preview build
+  build start [tiled]             Execute a full build
+  build status                    Show build status and progress
+  build stop                      Cancel current build or preview
+
+<<<
+>>> help export
+export commands:
+  export all                      Export all File Output devices (Pro)
+  export list                     List configured File Output devices (Pro)
+
+<<<
+>>> help debug
+debug commands:
+  debug devicetiming [device]     Show where each device's build time goes
+  debug get <key>                 Get a debug variable
+  debug list [filter]             List debug variables
+  debug pclear                    Clear all debug output packets
+  debug previewtiming [device|reset]  Inspect or reset interactive preview res scaling
+  debug reassign                  Reassign all device IDs in the world
+  debug remove <name>             Remove a stored debug packet
+  debug revert                    Reset all debug variables to defaults
+  debug set <key> <value>         Set a debug variable
+  debug style <reload|clear>      Reload or clear the app-wide stylesheet
+  debug unset <key>               Clear a debug variable
+  debug view [name]               Open the debug packet viewer
+  debug viewtargets               Show the current view targets and what the previewer got
+
+<<<
+>>> help snapshot
+snapshot commands:
+  snapshot create <name>          Create a snapshot of the current state
+  snapshot delete <name|#index>   Delete a snapshot
+  snapshot list                   List all snapshots
+  snapshot restore <name|#index>  Restore project from a snapshot
+
+<<<
+>>> help system
+system commands:
+  system heal [apply]             Diagnose and fix stale settings
+  system info                     Show system info
+  system purge                    Purge all build results
+  system quit [force]             Exit World Machine
+
+<<<
+>>> help group
+group commands:
+  group build <name|#index>       Build all devices in a group
+  group disable <name|#index>     Disable all devices in a group
+  group enable <name|#index>      Enable all devices in a group
+  group list [filter]             List all groups
+
+<<<

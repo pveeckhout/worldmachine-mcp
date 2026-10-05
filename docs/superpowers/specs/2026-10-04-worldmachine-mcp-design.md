@@ -67,6 +67,7 @@ Verified on 2026-10-04 against World Machine build 4067 (Dragontail Peak), Pro t
 38. With `scene lock on` (`Scene locked.`), every scene setter prints `Error: Error: Scene is locked. Use 'scene lock off' to unlock before making changes.`; `scene lock off` prints `Scene unlocked.` `scene resolution` accepted 7 and 100000 without complaint. (Same capture.)
 39. `project undo` after `device add` then `device rename` takes two steps: the first reverts the rename, the second removes the device; `project redo` replays both in order. (Capture `p2c-undo-names`, 2026-10-05.)
 40. `device add Layout Generator` printed `Added 'Shapes'`: a default name can differ from the type, and such a device is listed without a `(kind)` suffix (`#4     Shapes`). Of the candidate types tried, only `Thermal Weathering`, `Advanced Perlin`, and `Layout Generator` exist; none has a default name longer than 23 characters. (Same capture.)
+41. Build 4067's console has no command for world settings: `help` lists the groups analytics, build, debug, device, export, group, param, project, scene, snapshot, system, update, and wire, and none of them sets sea level, height scale or units, or the tiled-build layout. `build start [tiled]` runs a tiled build with the layout configured in the window. `scene` can select, lock, and change an existing scene but not create one; `group` can list, enable, disable, and build groups but not create them or assign devices. (Captures `help`, `help-more`, 2026-10-05.)
 
 ### Verification items (first tasks of the implementation plan)
 

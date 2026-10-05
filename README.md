@@ -118,6 +118,26 @@ Editing notes:
 
 Builds and exports are planned for v2, and declarative graph specifications for v3.
 
+## What the MCP can and cannot set up
+
+The server only does what World Machine's console can do, and it never edits the binary `.tmd` file itself. Some project setup therefore has to be done in the World Machine window, and saved into the project, before the AI assistant works on it.
+
+The MCP can set up:
+
+- the device graph: add, rename, enable or disable, and delete devices, and connect or disconnect them;
+- device parameters of type `float`, `int`, `bool`, and `enum`, including output-device switches such as File Output's `tiled`;
+- the current scene (render extent): its name, centre, size in km, and render resolution.
+
+Set these up in World Machine first, because its console (build 4067) has no command for them:
+
+- World settings: sea level (water level), height scale and units, and the world's overall extents;
+- the tiled-build layout: tile count, tile resolution, and overlap or blending (a tiled build uses whatever is configured there);
+- output file names and folders of File Output devices (`filename` parameters are refused, see Safety);
+- additional scenes: the console can select and change an existing scene but cannot create one;
+- device groups, macros, and blueprints: the console can list groups but cannot create them or assign devices to them.
+
+The console also offers builds, exports, snapshots, scene selection and locking, and group enable, disable, and build. The MCP does not expose these yet (builds and exports are planned for v2).
+
 ## Safety
 
 - Projects can only be opened or saved inside the allowed roots. Symlinks are resolved before the check.
