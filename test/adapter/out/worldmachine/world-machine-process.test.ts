@@ -2,7 +2,10 @@ import { copyFileSync, mkdirSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { WorldMachineProcess } from '../../../../src/adapter/out/worldmachine/world-machine-process.js';
+import {
+  KILL_ABORT,
+  WorldMachineProcess,
+} from '../../../../src/adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineError } from '../../../../src/domain/errors.js';
 import { captureLogger, FAKE_WM, fakeEnv, isAlive, recorder, waitUntil } from '../../../support/fake-wm.js';
 
@@ -85,6 +88,14 @@ describe('WorldMachineProcess', () => {
     const error = await startFailure({ FAKE_WM_STARTUP: 'exit' });
     expect(error.code).toBe('START_FAILED');
     expect(error.worldMachineMessage).toBe('fatal: simulated startup failure');
+  });
+
+  it('keeps a plain licence line out of the START_FAILED message and detail', async () => {
+    const error = await startFailure({ FAKE_WM_STARTUP: 'licence' });
+    expect(error.code).toBe('START_FAILED');
+    expect(error.worldMachineMessage).toBe('fatal: simulated startup failure');
+    expect(error.message).not.toMatch(/licen[cs]e/i);
+    expect(error.worldMachineMessage).not.toMatch(/licen[cs]e|denied/i);
   });
 
   it('adds a display hint when World Machine cannot open its window', async () => {
@@ -202,4 +213,35 @@ describe('WorldMachineProcess', () => {
     await waitUntil(() => record.lines().includes('DIALOG'));
     expect(proc.exited).toBe(false);
   });
+
+  it.each([
+    ['the default quit', undefined],
+    ['a kill reason', KILL_ABORT],
+  ])(
+    'rejects without waiting for readiness when the signal is already aborted (%s)',
+    async (_name, reason) => {
+      const record = recorder();
+      const controller = new AbortController();
+      controller.abort(reason);
+      let spawned: WorldMachineProcess | undefined;
+      const starting = WorldMachineProcess.start({
+        bin: FAKE_WM,
+        readyTimeoutMs: 5_000,
+        logger: captureLogger(),
+        env: fakeEnv({ FAKE_WM_STARTUP: 'silent', FAKE_WM_RECORD: record.path }),
+        signal: controller.signal,
+        onSpawn: (proc) => {
+          spawned = proc;
+          started.push(proc);
+        },
+      });
+      await expect(starting).rejects.toMatchObject({
+        code: 'START_FAILED',
+        message: 'World Machine start was cancelled',
+      });
+      expect(spawned).toBeInstanceOf(WorldMachineProcess);
+      expect(spawned?.exited).toBe(true);
+      expect(record.pids().some(isAlive)).toBe(false);
+    },
+  );
 });

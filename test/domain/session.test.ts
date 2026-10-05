@@ -15,6 +15,14 @@ describe('summarize', () => {
     });
   });
 
+  it('reports a fresh binding with dirty false when ready and clean', () => {
+    expect(summarize({ kind: 'ready', binding: { kind: 'fresh' }, dirty: false })).toEqual({
+      state: 'ready',
+      binding: { kind: 'fresh' },
+      dirty: false,
+    });
+  });
+
   it('reports the reason when unhealthy', () => {
     expect(summarize({ kind: 'unhealthy', reason: 'timeout' })).toEqual({
       state: 'unhealthy',

@@ -247,6 +247,21 @@ describe('WorldMachineSession', () => {
     expect((await running).code).toBe('SHUTTING_DOWN');
   });
 
+  it('rejects a batch whose own timeout fires inside the shutdown drain with TIMEOUT', async () => {
+    const { session: s, record } = session({ FAKE_WM_HANG_ON: 'device list' }, { commandTimeoutMs: 300 });
+    await s.ensureRunning();
+    const running = failure(s.executeOne('device list'));
+    await waitUntil(() => record.lines().includes('device list'));
+    const started = Date.now();
+    // The drain window (5 s) is far longer than the batch timeout (300 ms), so the timeout ends the drain.
+    await s.shutdown({ drainMs: 5_000, graceMs: 300, termMs: 300 });
+    expect(Date.now() - started).toBeLessThan(3_000);
+    expect((await running).code).toBe('TIMEOUT');
+    // Close-then-quit was still attempted (the hung fake ignores both), and the process is gone.
+    expect(record.lines()).toEqual(expect.arrayContaining(['project close force', 'system quit force']));
+    expect(record.pids().some(isAlive)).toBe(false);
+  });
+
   it('kill() ends a slow shutdown promptly', async () => {
     const { session: s, record } = session({ FAKE_WM_QUIT_DELAY_MS: '5000' });
     await s.ensureRunning();
@@ -378,6 +393,8 @@ describe('WorldMachineSession', () => {
     const running = failure(s.executeOne('device list'));
     await waitUntil(() => record.lines().includes('device list'));
     const queued = failure(s.executeOne('system info'));
+    // Let the queued call reach the queue (it has no observable effect before it runs) before the shutdown starts.
+    await new Promise((resolve) => setTimeout(resolve, 0));
     await s.shutdown({ drainMs: 100, graceMs: 500, termMs: 0 });
     expect((await queued).code).toBe('SHUTTING_DOWN');
     expect((await running).code).toBe('SHUTTING_DOWN');

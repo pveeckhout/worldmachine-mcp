@@ -26,6 +26,12 @@ if (startup === 'exit') {
   out('fatal: simulated startup failure\n');
   exit(3);
 }
+if (startup === 'licence') {
+  // Assumed: no capture shows a licence line outside the `[Level]` log form; this is the shape the filter must catch.
+  out('License Manager.Checkout: denied\n');
+  out('fatal: simulated startup failure\n');
+  exit(3);
+}
 if (startup === 'display') {
   out('qt.qpa.xcb: could not connect to display \n');
   exit(1);
