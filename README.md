@@ -2,7 +2,7 @@
 
 An [MCP](https://modelcontextprotocol.io) server that lets AI assistants inspect and edit [World Machine](https://www.world-machine.com) terrain projects through your own local World Machine installation.
 
-> **Status: early development.** `get_world_machine_status`, `list_devices`, `get_device`, `get_scene`, `inspect_project`, `open_project`, `create_project`, `save_project`, `undo`, and `redo` work against World Machine build 4067 on Linux. The other tools listed below are planned. The design is in [`docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md`](docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md).
+> **Status: early development.** All eighteen v1 tools listed below work against World Machine build 4067 on Linux. The design is in [`docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md`](docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md).
 
 ## How it works
 
@@ -105,7 +105,14 @@ If the working directory is `/` or your home directory and `WORLD_MACHINE_ALLOWE
 | `get_scene` | `connect_devices`, `disconnect_devices` |
 | `inspect_project` | `configure_scene`, `undo`, `redo` |
 
-Available now: every read tool, open_project, create_project, save_project, undo, and redo. Device and wiring edits arrive with Plan 2c.
+Editing notes:
+
+- Devices are referenced by name or by their stable id `#<n>`. Names match regardless of case; a name that several devices share is refused, so use the id.
+- `add_device` and `rename_device` refuse names that `list_devices` could not show unambiguously: leading or trailing spaces, a trailing `[disabled]` or `[bypassed]`, trailing parenthesised text after two or more spaces, `#<n>`, or more than 23 characters.
+- `update_device_parameters` takes World Machine's internal values, not the displayed units: a width of `0.5` can read back as `4 km`. It takes plain decimal numbers, enum options as their 0-based index, and booleans as `true` or `false` (or `1`, `0`, `yes`, `off`); World Machine itself would also take exponent forms, enum labels, and other boolean words, which the tool refuses so each value is checked before it is sent. Parameter names are case-sensitive. `action`, `other`, and `filename` parameters cannot be set; `filename` because World Machine would write build output outside the allowed roots. Each item reports the value World Machine reads back.
+- `set_device_enabled` and `disconnect_devices` read the result back, because World Machine prints the same confirmation whether or not anything changed.
+- Bypass is reported but cannot be set.
+- No edit is rolled back automatically; use `undo`. It reverts one step per call: one parameter, one scene setting, or one device edit. `add_device` with a name is two steps (add, then rename), so undo likely reverts the rename first (not yet captured). Undoing a delete restores the device with its wires.
 
 Builds and exports are planned for v2, and declarative graph specifications for v3.
 

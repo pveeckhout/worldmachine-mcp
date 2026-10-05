@@ -129,6 +129,97 @@ describe('fake World Machine', () => {
     expect(await outputs(session(), [command])).toEqual([[echo]]);
   });
 
+  it('selects an added device by name in any case and shows its info (spec fact 31)', async () => {
+    // raw/p2b-kind-markers.txt l.122-123; device info as in raw/p2a-edge-cases.txt l.48-53.
+    expect(
+      await outputs(session(), [
+        'project new blank force',
+        'device add Gradient',
+        'device select gradient',
+        'device info',
+      ]),
+    ).toEqual([
+      ['Created new blank project.'],
+      ["Added 'Gradient'"],
+      ['Selected: Gradient'],
+      ['Selected device:', '  Name:    Gradient', '  Type:    Gradient', '  Enabled: yes', '  Bypass:  no'],
+    ]);
+  });
+
+  it('selects the sample Erosion by name in another case', async () => {
+    expect(await outputs(session(), ['device select erosion', 'device info'])).toEqual([
+      ['Selected: Erosion'],
+      ['Selected device:', '  Name:    Erosion', '  Type:    Erosion', '  Enabled: yes', '  Bypass:  no'],
+    ]);
+  });
+
+  it('disables, enables, renames, and deletes added devices as captured', async () => {
+    expect(
+      await outputs(session(), [
+        'project new blank force',
+        'device add Gradient',
+        'device add Combiner',
+        'device disable #1',
+        'device list',
+        'device select #1',
+        'device info',
+        'device enable #1',
+        'device rename #1 Grad A',
+        'device list',
+        'device delete #2',
+        'device list',
+      ]),
+    ).toEqual([
+      ['Created new blank project.'],
+      ["Added 'Gradient'"],
+      ["Added 'Combiner'"],
+      // raw/p2b-graph-edits.txt l.34-35 and l.48-51.
+      ['Disabled: #1'],
+      [
+        'Devices (2 total):',
+        '  #1     Gradient                 [disabled]',
+        '  #2     Combiner                ',
+      ],
+      ['Selected: Gradient'],
+      ['Selected device:', '  Name:    Gradient', '  Type:    Gradient', '  Enabled: no', '  Bypass:  no'],
+      // raw/p2b-graph-edits.txt l.57-58.
+      ['Enabled: #1'],
+      // raw/v4-quoting.txt l.70-71 (echo) and l.16-18 (row of a renamed device).
+      ["Renamed '#1' to 'Grad A'"],
+      [
+        'Devices (2 total):',
+        '  #1     Grad A                   (Gradient)',
+        '  #2     Combiner                ',
+      ],
+      // raw/p2b-graph-edits.txt l.150-155.
+      ['Deleted: #2'],
+      ['Devices (1 total):', '  #1     Grad A                   (Gradient)'],
+    ]);
+  });
+
+  it('lists a device renamed to a 30-character name as its first 23 characters (spec fact 33)', async () => {
+    expect(
+      await outputs(session(), [
+        'project new blank force',
+        'device add Gradient',
+        'device rename #1 ABCDEFGHIJKLMNOPQRSTUVWXYZ0123',
+        'device list',
+      ]),
+    ).toEqual([
+      ['Created new blank project.'],
+      ["Added 'Gradient'"],
+      ["Renamed '#1' to 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123'"],
+      // raw/p2c-edits.txt l.64-69: the row shows the first 23 characters.
+      ['Devices (1 total):', '  #1     ABCDEFGHIJKLMNOPQRSTUVW  (Gradient)'],
+    ]);
+  });
+
+  it('reports a device it does not have as not found (raw/p2b-graph-edits.txt l.108-109)', async () => {
+    expect(
+      await outputs(session(), ['project new blank force', 'device enable capture_missing_device']),
+    ).toEqual([['Created new blank project.'], ["Error: Error: Device not found: 'capture_missing_device'"]]);
+  });
+
   it('rejects an unquoted name with a space when no device is selected (raw/v6-param-values.txt)', async () => {
     expect(await outputs(session(), ['param set Height Output.exportAlways true'])).toEqual([
       [NO_DEVICE_SELECTED],

@@ -36,7 +36,12 @@ describe('stdio server', () => {
     });
     const { tools } = await client.listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual([
+      'add_device',
+      'configure_scene',
+      'connect_devices',
       'create_project',
+      'delete_device',
+      'disconnect_devices',
       'get_device',
       'get_scene',
       'get_world_machine_status',
@@ -44,8 +49,11 @@ describe('stdio server', () => {
       'list_devices',
       'open_project',
       'redo',
+      'rename_device',
       'save_project',
+      'set_device_enabled',
       'undo',
+      'update_device_parameters',
     ]);
 
     const before = await client.callTool({ name: 'get_world_machine_status', arguments: {} });
@@ -54,6 +62,17 @@ describe('stdio server', () => {
 
     const list = await client.callTool({ name: 'list_devices', arguments: {} });
     expect((list.structuredContent as { devices: unknown[] }).devices).toHaveLength(17);
+
+    // The fake's first new id in the sample project is #536 (spec fact 30).
+    const added = await client.callTool({
+      name: 'add_device',
+      arguments: { type: 'Gradient', name: 'Grad A' },
+    });
+    expect(added.isError).toBeFalsy();
+    expect(added.structuredContent).toMatchObject({
+      device: { id: 536, name: 'Grad A', kind: 'Gradient' },
+      session: { state: 'ready', dirty: true },
+    });
     await client.close();
   });
 

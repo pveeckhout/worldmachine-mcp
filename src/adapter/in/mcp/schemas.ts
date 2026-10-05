@@ -1,4 +1,12 @@
 import * as z from 'zod/v4';
+import type { AddDeviceView } from '../../../application/port/in/command/add-device-command.js';
+import type { ConfigureSceneView } from '../../../application/port/in/command/configure-scene-command.js';
+import type { ConnectDevicesView } from '../../../application/port/in/command/connect-devices-command.js';
+import type { DeleteDeviceView } from '../../../application/port/in/command/delete-device-command.js';
+import type { DisconnectDevicesView } from '../../../application/port/in/command/disconnect-devices-command.js';
+import type { RenameDeviceView } from '../../../application/port/in/command/rename-device-command.js';
+import type { SetDeviceEnabledView } from '../../../application/port/in/command/set-device-enabled-command.js';
+import type { UpdateDeviceParametersView } from '../../../application/port/in/command/update-device-parameters-command.js';
 
 const projectBindingSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('fresh') }),
@@ -114,3 +122,135 @@ export const saveProjectInputSchema = z.object({
     ),
   overwrite: z.boolean().default(false).describe('Replace an existing file'),
 });
+
+// Plan 2c edit tools. New objects are strict, so a view field missing here fails at runtime, and each view schema is
+// tied to its view type, so a field missing from the view or typed differently fails the typecheck (decision D10).
+
+const deviceReferenceSchema = z
+  .string()
+  .min(1)
+  .describe('Device name, or its stable id as #<n> (see list_devices)');
+
+const portSchema = z
+  .number()
+  .int()
+  .min(1)
+  .optional()
+  .describe('1-based port number as get_device shows it; World Machine uses port 1 when omitted');
+
+export const addDeviceInputSchema = z.object({
+  type: z
+    .string()
+    .min(1)
+    .describe('Exact World Machine device type, such as Gradient, Erosion, or File Output'),
+  name: z
+    .string()
+    .min(1)
+    .optional()
+    .describe('Name for the new device; without it World Machine names the device after its type'),
+});
+
+export const renameDeviceInputSchema = z.object({
+  device: deviceReferenceSchema,
+  name: z.string().min(1).describe('New device name'),
+});
+
+export const setDeviceEnabledInputSchema = z.object({
+  device: deviceReferenceSchema,
+  enabled: z.boolean().describe('true to enable the device, false to disable it'),
+});
+
+export const deleteDeviceInputSchema = z.object({ device: deviceReferenceSchema });
+
+export const updateDeviceParametersInputSchema = z.object({
+  device: deviceReferenceSchema,
+  parameters: z
+    .record(z.string().min(1), z.union([z.string(), z.number(), z.boolean()]))
+    .describe('Parameter name, exactly as get_device lists it, to the new value'),
+});
+
+export const wireInputSchema = z.object({
+  source: deviceReferenceSchema.describe('Device whose output port the wire starts at: name or #<n>'),
+  source_port: portSchema,
+  destination: deviceReferenceSchema.describe('Device whose input port the wire ends at: name or #<n>'),
+  destination_port: portSchema,
+});
+
+export const configureSceneInputSchema = z.object({
+  name: z.string().min(1).optional().describe('New scene name'),
+  origin_km: z.object({ x: z.number(), y: z.number() }).optional().describe('Scene centre in km'),
+  size_km: z
+    .object({ width: z.number().positive(), height: z.number().positive() })
+    .optional()
+    .describe('Scene width and height in km'),
+  resolution: z.number().int().positive().optional().describe('Render resolution in pixels, a whole number'),
+});
+
+const deviceRefSchema = z.strictObject({ id: z.number().int(), name: z.string() });
+
+const editedDeviceSchema = z.strictObject({
+  id: z.number().int(),
+  name: z.string(),
+  kind: z.string().optional(),
+  enabled: z.boolean(),
+  bypassed: z.boolean().optional(),
+});
+
+const wireEndSchema = z.strictObject({ id: z.number().int(), name: z.string(), port: z.number().int() });
+
+export const addDeviceViewSchema = z.strictObject({
+  device: editedDeviceSchema,
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<AddDeviceView>;
+
+export const renameDeviceViewSchema = z.strictObject({
+  device: editedDeviceSchema,
+  previousName: z.string(),
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<RenameDeviceView>;
+
+export const setDeviceEnabledViewSchema = z.strictObject({
+  device: deviceRefSchema,
+  enabled: z.boolean(),
+  changed: z.boolean(),
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<SetDeviceEnabledView>;
+
+export const deleteDeviceViewSchema = z.strictObject({
+  deleted: editedDeviceSchema,
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<DeleteDeviceView>;
+
+export const updateDeviceParametersViewSchema = z.strictObject({
+  device: deviceRefSchema,
+  parameters: z.array(
+    z.strictObject({
+      name: z.string(),
+      type: z.string(),
+      requested: z.string(),
+      outcome: z.enum(['applied', 'rejected']),
+      value: z.string(),
+      worldMachineMessage: z.string().optional(),
+    }),
+  ),
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<UpdateDeviceParametersView>;
+
+export const connectDevicesViewSchema = z.strictObject({
+  source: wireEndSchema,
+  destination: wireEndSchema,
+  created: z.boolean(),
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<ConnectDevicesView>;
+
+export const disconnectDevicesViewSchema = z.strictObject({
+  source: wireEndSchema,
+  destination: wireEndSchema,
+  removed: z.boolean(),
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<DisconnectDevicesView>;
+
+export const configureSceneViewSchema = z.strictObject({
+  scene: sceneSchema,
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<ConfigureSceneView>;

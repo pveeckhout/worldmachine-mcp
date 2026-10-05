@@ -34,7 +34,8 @@ if (startup === 'ok') log('Info', 'Startup: Completed. Transferring control into
 
 let hung = false;
 let dirty = env.FAKE_WM_DIRTY_AT_START === '1';
-let selected = false;
+// undefined, SAMPLE_EROSION, or a device from `added`.
+let selected;
 // 'sample' is the 17-device startup project; 'empty' follows a blank project, a close, or a failed open.
 let project = 'sample';
 // Devices added with `device add`, listed after the project's own devices.
@@ -47,7 +48,7 @@ const firstFreeId = (next) => (next === 'sample' ? 536 : 1);
 let nextId = firstFreeId(project);
 const switchTo = (next) => {
   project = next;
-  selected = false;
+  selected = undefined;
   dirty = false;
   added = [];
   nextId = firstFreeId(next);
@@ -56,9 +57,14 @@ const switchTo = (next) => {
 // 'Gradient'; `device add Erosion` gives 'Erosion', raw/p2b-kind-markers.txt). Captured exception,
 // raw/v6b-param-set.txt l.13-14: `device add File Output` names the device 'Height Output'.
 const DEFAULT_NAMES = { 'File Output': 'Height Output' };
-// raw/device-list-sample.txt: two spaces, "#<id>" padded to 7, the name padded to 24.
-const deviceRow = ({ id, name }) => `  ${`#${id}`.padEnd(7)}${name.padEnd(24)}`;
-// The name of a row in that format (every captured name fits in 24 characters).
+// raw/device-list-sample.txt: two spaces, "#<id>" padded to 7, the name padded to 24. A device whose name differs
+// from its type adds " (<type>)" (raw/v4-quoting.txt l.16-18), a disabled one " [disabled]" after that
+// (raw/p2b-graph-edits.txt l.48-51, raw/p2b-kind-markers.txt l.97). Spec fact 32: the kind appears when the name
+// differs from the type and goes away when the device is renamed back (raw/p2c-edits.txt l.36, l.80).
+// Assumed: the comparison is case-sensitive; no capture renames a device to its type in another case.
+const deviceRow = ({ id, name, type, enabled }) =>
+  `  ${`#${id}`.padEnd(7)}${name.slice(0, 23).padEnd(24)}${name === type ? '' : ` (${type})`}${enabled ? '' : ' [disabled]'}`;
+// The name of a row in that format (names are cut to 23 characters, raw/p2c-edits.txt l.50-69, spec fact 33).
 const nameOfRow = (row) => row.slice(9, 33).trimEnd();
 const splitOnce = (text) => {
   const space = text.indexOf(' ');
@@ -69,6 +75,19 @@ const NO_DEVICE_SELECTED =
 const ERODE = new Set(['Erosion', '#35']);
 const isErosion = (ref) => project === 'sample' && ERODE.has(ref);
 const notFound = (ref) => process.stderr.write(`Error: Error: Device not found: '${ref}'\n`);
+const SAMPLE_EROSION = { id: 35, name: 'Erosion', type: 'Erosion', enabled: true };
+// Spec fact 31: `device select` matches names regardless of case (raw/p2b-kind-markers.txt l.122-123).
+const selectsSampleErosion = (ref) =>
+  project === 'sample' && (ref === '#35' || ref.toLowerCase() === 'erosion');
+// An added device by `#<id>`, or by name regardless of case (spec fact 31).
+// Assumed: with several devices of one name, the first added one is meant; no capture shows which one World Machine
+// picks. Assumed: enable, disable, rename, and delete match names the way `device select` does.
+const findAdded = (ref) => {
+  const id = /^#(\d+)$/.exec(ref);
+  return added.find((device) =>
+    id ? device.id === Number(id[1]) : device.name.toLowerCase() === ref.toLowerCase(),
+  );
+};
 let quitting = false;
 let partial = '';
 let pending = [];
@@ -206,17 +225,21 @@ async function handle(line) {
     if (!target.includes('.')) {
       // raw/v6-param-values.txt l.56-57: the first word of an unquoted name with a space has no dot, and World
       // Machine reads it as a parameter of the selected device (raw/v6b-param-set.txt l.75-76).
-      if (!selected) return void process.stderr.write(NO_DEVICE_SELECTED);
-      target = `Erosion.${target}`;
+      if (selected === undefined) return void process.stderr.write(NO_DEVICE_SELECTED);
+      target = `${selected.name}.${target}`;
     }
     dirty = true;
     out(`Set ${target} = ${value.replace(/^"(.*)"$/, '$1')}\n`);
     return;
   }
   if (command.startsWith('device add ')) {
-    // Assumed: every type is accepted; no capture adds an unknown type.
+    // World Machine rejects an unknown type (raw/p2c-edits.txt l.17-18, spec fact 32). The fake has no list of
+    // types, so it accepts every type; tests that need the rejection use a scripted session.
     const type = command.slice('device add '.length);
-    const device = { id: nextId++, name: DEFAULT_NAMES[type] ?? type };
+    const name = DEFAULT_NAMES[type] ?? type;
+    // Assumed: the type `device info` and `device list` show for `File Output` is 'Height Output', as the
+    // `param list` header of raw/v6b-param-set.txt l.39 shows; no capture shows its `device info`.
+    const device = { id: nextId++, name, type: name, enabled: true };
     added.push(device);
     dirty = true;
     out(`Added '${device.name}'\n`);
@@ -224,13 +247,50 @@ async function handle(line) {
   }
   if (command.startsWith('device select ')) {
     const ref = command.slice('device select '.length);
-    if (!isErosion(ref)) return void notFound(ref);
-    selected = true;
-    out('Selected: Erosion\n');
+    const device = selectsSampleErosion(ref) ? SAMPLE_EROSION : findAdded(ref);
+    if (device === undefined) return void notFound(ref);
+    selected = device;
+    out(`Selected: ${device.name}\n`);
     return;
   }
   if (command === 'device info') {
-    out(selected ? fixture('device-info-erosion.txt') : 'No device selected.\n');
+    if (selected === undefined) return void out('No device selected.\n');
+    if (selected === SAMPLE_EROSION) return void out(fixture('device-info-erosion.txt'));
+    // raw/p2a-edge-cases.txt l.48-54, raw/p2b-graph-edits.txt l.40-46. Bypass is not modelled.
+    out(
+      `Selected device:\n  Name:    ${selected.name}\n  Type:    ${selected.type}\n` +
+        `  Enabled: ${selected.enabled ? 'yes' : 'no'}\n  Bypass:  no\n\n`,
+    );
+    return;
+  }
+  // raw/p2b-graph-edits.txt l.34-35, 57-58, 150-151: the reference is echoed as given.
+  // Assumed: only devices added with `device add` change; any other reference, including the sample project's own
+  // devices, which the fake does not model, prints the not-found error of raw/p2b-graph-edits.txt l.108-115.
+  const stateChange = /^device (enable|disable|delete) (.+)$/.exec(command);
+  if (stateChange) {
+    const [, verb, ref] = stateChange;
+    const device = findAdded(ref);
+    if (device === undefined) return void notFound(ref);
+    dirty = true;
+    if (verb === 'delete') {
+      added = added.filter((other) => other !== device);
+      // Assumed: deleting the selected device clears the selection.
+      if (selected === device) selected = undefined;
+      return void out(`Deleted: ${ref}\n`);
+    }
+    device.enabled = verb === 'enable';
+    out(`${verb === 'enable' ? 'Enabled' : 'Disabled'}: ${ref}\n`);
+    return;
+  }
+  if (command.startsWith('device rename ')) {
+    // raw/v4-quoting.txt l.13-14 and l.70-71: the new name is the final argument and may contain spaces; the
+    // reference is echoed as given. The fake reads the reference as the first word (Plan 2c sends `#<id>`).
+    const [ref, name] = splitOnce(command.slice('device rename '.length));
+    const device = findAdded(ref);
+    if (device === undefined) return void notFound(ref);
+    device.name = name;
+    dirty = true;
+    out(`Renamed '${ref}' to '${name}'\n`);
     return;
   }
   for (const [prefix, file] of [

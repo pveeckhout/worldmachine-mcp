@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  assertReadableDeviceName,
+  findListedDevice,
   idOfReference,
   resolveDeviceReference,
 } from '../../../../src/adapter/out/worldmachine/device-reference.js';
@@ -76,5 +78,56 @@ describe('idOfReference', () => {
     expect(idOfReference('Erosion')).toBeUndefined();
     expect(idOfReference('#35 x')).toBeUndefined();
     expect(idOfReference('#')).toBeUndefined();
+  });
+});
+
+describe('findListedDevice', () => {
+  it('returns the listed device for #<id> and for a name in any case', () => {
+    expect(findListedDevice(SAMPLE, '#35')).toEqual({
+      id: 35,
+      name: 'Erosion',
+      enabled: true,
+      bypassed: false,
+    });
+    expect(findListedDevice(SAMPLE, 'erosion').id).toBe(35);
+  });
+
+  it('refuses a name or an id the list does not have', () => {
+    expect(thrown(() => findListedDevice(SAMPLE, 'Nope'))).toMatchObject({
+      code: 'REFUSED',
+      message: "No device 'Nope' in the current project; see list_devices",
+    });
+    expect(thrown(() => findListedDevice(SAMPLE, '#999'))).toMatchObject({ code: 'REFUSED' });
+  });
+
+  it('refuses a name several devices share', () => {
+    expect(thrown(() => findListedDevice(TWO_GRADIENTS, 'Gradient'))).toMatchObject({
+      code: 'REFUSED',
+      message: "Device name 'Gradient' is ambiguous; use #<id>",
+    });
+  });
+});
+
+describe('assertReadableDeviceName', () => {
+  it.each(['Grad A', 'Ridge (north)', 'Grad[disabled]', '#1a', 'ABCDEFGHIJKLMNOPQRSTUVW'])(
+    'accepts %j',
+    (name) => {
+      expect(() => assertReadableDeviceName(name)).not.toThrow();
+    },
+  );
+
+  it.each([
+    [' Grad', 'start or end with whitespace'],
+    ['Grad ', 'start or end with whitespace'],
+    ['Grad [disabled]', 'end with [disabled] or [bypassed]'],
+    ['Grad [bypassed]', 'end with [disabled] or [bypassed]'],
+    ['Grad  (Macro)', 'end with two spaces and parenthesised text'],
+    ['#12', 'look like a device id (#<n>)'],
+    ['ABCDEFGHIJKLMNOPQRSTUVWX', 'be longer than 23 characters'],
+  ])('refuses %j', (name, rule) => {
+    expect(thrown(() => assertReadableDeviceName(name))).toMatchObject({
+      code: 'REFUSED',
+      message: `Device name '${name}' must not ${rule}: device list could not show it unambiguously`,
+    });
   });
 });

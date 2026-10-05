@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WorldMachineError } from '../../src/domain/errors.js';
+import { WorldMachineError, worldMachineText } from '../../src/domain/errors.js';
 
 describe('WorldMachineError', () => {
   it('carries code, message, and the optional World Machine text', () => {
@@ -19,5 +19,23 @@ describe('WorldMachineError', () => {
 describe('SHUTTING_DOWN', () => {
   it('is a valid error code', () => {
     expect(new WorldMachineError('SHUTTING_DOWN', 'stopping').code).toBe('SHUTTING_DOWN');
+  });
+});
+
+describe('worldMachineText (spec section 8)', () => {
+  it('drops log lines and licence lines in either spelling', () => {
+    expect(
+      worldMachineText([
+        'Error: Error: Device not found: x',
+        '[Info       ] License Manager.Checkout: License checkout successful',
+        '[Warning    ] QIODevice::read (QSslSocket): device not open',
+        'Error: licence seat lost',
+      ]),
+    ).toBe('Error: Error: Device not found: x');
+  });
+
+  it('returns undefined when nothing remains', () => {
+    expect(worldMachineText(['Error: License expired'])).toBeUndefined();
+    expect(worldMachineText([])).toBeUndefined();
   });
 });

@@ -103,7 +103,7 @@ src/
   application/
     port/in/query/     <UseCase>Query + <UseCase>QueryPort, one file per port
     port/in/command/   <UseCase>Command + <UseCase>CommandPort, one file per port
-    port/out/          WorldMachineSessionPort, ProjectGraphReadPort, ProjectGraphWritePort, PathPolicyPort
+    port/out/          WorldMachineSessionPort, ProjectGraphReadPort, ProjectGraphWritePort, Device/Parameter/Wire/SceneEditPort, PathPolicyPort
     service/           one service per inbound port
   adapter/
     in/mcp/            tool registration, zod schemas, mapping to and from command/query objects
@@ -118,10 +118,14 @@ src/
 |---|---|
 | `WorldMachineSessionPort` | `ensureRunning()` (lazy launch and project binding), `status()` (never launches), `shutdown()` |
 | `ProjectGraphReadPort` | devices, device detail, parameters, wires, scene, project summary, as domain objects |
-| `ProjectGraphWritePort` | project open, new, save, undo, redo; device add, rename, enable, disable, delete; parameter set; wire connect and disconnect; scene configuration |
+| `ProjectGraphWritePort` | project open, new, save, undo, redo |
+| `DeviceEditPort` | device add, rename, enable, disable, delete |
+| `ParameterEditPort` | parameter set with per-item read-back |
+| `WireEditPort` | wire connect and disconnect |
+| `SceneEditPort` | scene configuration |
 | `PathPolicyPort` | resolve and authorise project paths against allowed roots |
 
-Query services depend only on `WorldMachineSessionPort` and `ProjectGraphReadPort`. Only command services receive `ProjectGraphWritePort`.
+Query services depend only on `WorldMachineSessionPort` and `ProjectGraphReadPort`. Only command services receive `ProjectGraphWritePort` or an edit port, and each edit service receives only the edit port it uses. Edit ports take device references as the tool call gives them; the adapter resolves them against its own `device list` and sends `#<id>`.
 
 ```mermaid
 C4Component
@@ -245,8 +249,8 @@ Rules:
 - The server does not launch World Machine at startup. The first tool call that needs it calls `ensureRunning()`. `get_world_machine_status` never launches it.
 - If `WORLD_MACHINE_DEFAULT_PROJECT` is set, it is authorised by the path policy *before* World Machine is launched. If the policy refuses it, the start fails with that error (`REFUSED`, or `NOT_CONFIGURED` when there are no allowed roots) and World Machine is not launched. There is no fallback to a fresh project.
 - On launch, the server runs `project open <path>` for an authorised default project, otherwise `project new default force` (subject to V3). The sample project is never left active.
-- Every successful command service call sets `dirty = true`, except `save_project`, which clears it, and `open_project` and `create_project`, which reset it.
-- After a lifecycle command that World Machine accepted without its confirmation line (`UNEXPECTED_OUTPUT`), undo and redo set `dirty`, and open and create set binding `fresh` and `dirty`, because World Machine may have acted. A command World Machine rejects with `Error:` changes neither.
+- Every successful command service call sets `dirty = true`, except `save_project`, which clears it, and `open_project` and `create_project`, which reset it. Edits that change nothing leave it alone: `set_device_enabled` when the read-back state equals the state before, `disconnect_devices` when no wire was removed, `connect_devices` for a wire that already existed, and `update_device_parameters` and `configure_scene` when World Machine rejected every item. A rejected or ineffective `add_device` (World Machine's `Error:` line, or a confirmed add with no new device in `device list`) fails with `WM_COMMAND_FAILED` and leaves it alone too. After World Machine accepted an edit command, a failed read-back sets it.
+- After a lifecycle command that World Machine accepted without its confirmation line (`UNEXPECTED_OUTPUT`), undo and redo set `dirty`, and open and create set binding `fresh` and `dirty`, because World Machine may have acted. A command World Machine rejects with `Error:` changes neither. For graph edits, a missing confirmation line is `UNEXPECTED_OUTPUT`; once World Machine accepted the command, `dirty` is set even if the read-back then fails, except that `add_device` sets it only when a new device appears or its read-back fails.
 - `open_project` and `create_project` return `REFUSED` when `dirty` unless `discard_unsaved: true`.
 - Command use cases (open, create, save, undo, redo, and Plan 2c's graph edits) run one at a time: a use case's precondition checks and its World Machine commands are never interleaved with another command use case.
 - Project lifecycle commands require World Machine's exact confirmation line (`Opened: <path>`, `Created new default project.`, `Project saved to: <path>`, `Undo performed.`, `Redo performed.`); any other output is `UNEXPECTED_OUTPUT`.
@@ -285,7 +289,7 @@ Devices are referenced by name or by `#<id>`. There is no raw console tool.
 
 Bypass is reported (`get_device`, `list_devices`) but not settable: `device bypass` toggles (fact 25), and v1 has no bypass tool. `list_devices` omits it for a disabled device (fact 29), so `get_device` is the authority.
 
-`update_device_parameters` reads `param list` first, validates every name and value against the reported type, and refuses the whole call if any item is invalid. It then applies all items in one batch, each `param set` followed by a `param get` of the same parameter, and reports per item the outcome and the value World Machine read back. Commands reference the device as `#<id>` (fact 18). Its description tells the model that numeric values are World Machine's internal values and that the read-back value shows the effect in display units. There is no automatic rollback; failure results point to `undo`.
+`update_device_parameters` reads `param list` first, validates every name and value against the reported type, and refuses the whole call if any item is invalid. It then applies all items in one batch, each `param set` followed by a `param get` of the same parameter, and reports per item the outcome and the value World Machine read back. Commands reference the device as `#<id>` (fact 18). Its description tells the model that numeric values are World Machine's internal values and that the read-back value shows the effect in display units. `filename`, `action`, and `other` parameters are refused (fact 36 and section 9). There is no automatic rollback; failure results point to `undo`.
 
 ## 8. Errors
 
@@ -299,8 +303,8 @@ Tool failures are returned as `isError: true` results. Protocol errors are left 
 |---|---|---|
 | `NOT_CONFIGURED` | executable missing or not executable; no usable allowed root | none |
 | `START_FAILED` | spawn error, no readiness line within 60 s, licence checkout failure (V8) | state returns to `notRunning`; when the startup detail contains a Qt display error (`could not connect to display`), the message adds a hint to pass `DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY`, and `XDG_RUNTIME_DIR` (see README) |
-| `REFUSED` | dirty without `discard_unsaved`, existing target without `overwrite`, path not authorised, unsafe or ambiguous token | no command sent, except for an ambiguous device name in `get_device`: it is refused after the read batch, which changes only World Machine's device selection |
-| `WM_COMMAND_FAILED` | an `Error: ` line for a command, or a known unprefixed failure line (`Failed to open project.`, fact 17) | exact text in `worldMachineMessage` |
+| `REFUSED` | dirty without `discard_unsaved`, existing target without `overwrite`, path not authorised, unsafe or ambiguous token; for edit tools also a device that `device list` does not show, a new device name `device list` could not read back (fact 33), a parameter name or value outside the forms `update_device_parameters` sends or an `action` or `other` parameter (facts 35, 36), a `filename` parameter (section 9), an invalid scene value, an empty set of parameters or scene fields, a bad port number, a missing input port, or a disconnect whose source name several devices share | no command sent, except for an ambiguous device name in `get_device`: it is refused after the read batch, which changes only World Machine's device selection; edit tools refuse after their own reads (`device list`, `param list`, `wire list`), which change nothing |
+| `WM_COMMAND_FAILED` | an `Error: ` line for a command, a known unprefixed failure line (`Failed to open project.`, fact 17), or a read-back showing that a command World Machine accepted had no effect (fact 23; section 7) | exact text in `worldMachineMessage` |
 | `TIMEOUT` | no sentinel within the batch timeout | state becomes `unhealthy` |
 | `CRASHED` | unexpected process exit | state becomes `unhealthy`; message states that unsaved changes were lost when `dirty` was set |
 | `UNEXPECTED_OUTPUT` | a parser cannot match output | includes a log-free raw snippet |
@@ -311,6 +315,7 @@ Tool failures are returned as `isError: true` results. Protocol errors are left 
 - **Command injection.** `CommandBuilder` rejects any token containing a character in `\x00`-`\x1f`, `\x7f`-`\x9f` (DEL and the C1 controls), U+2028, or U+2029, and any token starting with `__end_`. On `project open`, a free-text final argument ending in the word `force` is refused, because World Machine would read it as the force flag. Tokens whose quoting would be ambiguous under V4 are refused with `REFUSED`.
 - **No shell exposure.** Model-supplied text is only ever written to World Machine's stdin as validated tokens.
 - **Allowed roots.** `WORLD_MACHINE_ALLOWED_ROOTS`, separated by the platform path delimiter. When unset, the server's working directory is the only root, unless it is `/` or `$HOME`, in which case path tools return `NOT_CONFIGURED`.
+- **Output filenames.** `filename` parameters (where World Machine writes build output) are not settable through `update_device_parameters` in v1, because their paths would escape the allowed roots.
 - **Relative paths.** Project paths must be absolute; a relative path is refused with `REFUSED`, because the server's working directory is chosen by the MCP client and is not visible to the model.
 - **Opening.** `realpath` the file, require it to be inside a root after resolution, require the `.tmd` extension, and require a regular file (a directory named `*.tmd` is refused). If none of the configured roots exists, path tools return `NOT_CONFIGURED`.
 - **Saving.** `realpath` the parent directory, require it to be a root or inside one, require the `.tmd` extension. An existing target must be a regular file, not a symlink, and requires `overwrite: true`. A file or symlink created between that check and World Machine's write is an accepted residual risk on a single-user machine; the absence re-check before the save narrows it.

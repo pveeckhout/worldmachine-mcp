@@ -198,3 +198,21 @@ describe('parseDeviceList', () => {
     expect(code(() => parseDeviceList(lines))).toBe('UNEXPECTED_OUTPUT');
   });
 });
+
+describe('captured renamed and long-named rows (raw/p2c-edits.txt, spec facts 32 and 33)', () => {
+  const lists = captureSections('p2c-edits.txt').filter((section) => section.command === 'device list');
+  const fourth = (index: number) => parseDeviceList(lists[index]?.lines ?? [])[3];
+
+  it('reads a renamed device with its type as the kind (l.36 and l.170)', () => {
+    expect(fourth(1)).toEqual({ id: 4, name: 'Grad A B', kind: 'Gradient', enabled: true, bypassed: false });
+    expect(fourth(6)).toEqual({ id: 4, name: 'Grad A', kind: 'Gradient', enabled: true, bypassed: false });
+  });
+
+  it('reads a device renamed back to its type without a kind (l.80)', () => {
+    expect(fourth(5)).toEqual({ id: 4, name: 'Gradient', enabled: true, bypassed: false });
+  });
+
+  it('reads 23-character names whole and longer names as their first 23 characters (l.47, l.58, l.69)', () => {
+    for (const index of [2, 3, 4]) expect(fourth(index)?.name).toBe('ABCDEFGHIJKLMNOPQRSTUVW');
+  });
+});

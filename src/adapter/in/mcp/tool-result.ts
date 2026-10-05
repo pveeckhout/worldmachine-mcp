@@ -1,4 +1,4 @@
-import type { WorldMachineError } from '../../../domain/errors.js';
+import { type WorldMachineError, worldMachineText } from '../../../domain/errors.js';
 import type { SessionSummary } from '../../../domain/session.js';
 
 export function success(view: object) {
@@ -8,14 +8,12 @@ export function success(view: object) {
   };
 }
 
-const LICENCE = /licen[cs]e/i;
-
 export function failure(error: WorldMachineError, session: SessionSummary) {
-  // Last line of defence: licence text never leaves the server, whatever produced the error.
-  const worldMachineMessage = error.worldMachineMessage
-    ?.split('\n')
-    .filter((line) => !LICENCE.test(line))
-    .join('\n');
+  // Last line of defence: licence and log text never leave the server, whatever produced the error (spec section 8).
+  const worldMachineMessage =
+    error.worldMachineMessage === undefined
+      ? undefined
+      : worldMachineText(error.worldMachineMessage.split('\n'));
   const payload = {
     code: error.code,
     message: error.message,

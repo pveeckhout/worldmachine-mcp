@@ -15,6 +15,12 @@ import type { Scene } from '../../../../src/domain/scene.js';
 import { fixtureLines } from '../../out/worldmachine/parsers/fixture.js';
 
 const READY = { state: 'ready', binding: { kind: 'fresh' }, dirty: false } as const;
+const READY_DIRTY = { state: 'ready', binding: { kind: 'fresh' }, dirty: true } as const;
+const GRADIENT = { id: 1, name: 'Gradient', enabled: true, bypassed: false };
+const WIRE = {
+  source: { id: 1, name: 'Gradient', port: 1 },
+  destination: { id: 2, name: 'Combiner', port: 1 },
+};
 
 const SCENE: Scene = {
   name: 'Scene 1',
@@ -71,6 +77,44 @@ function deps(overrides: Partial<McpDependencies> = {}): McpDependencies {
     saveProject: { saveProject: async (c) => ({ session: READY, path: c.path ?? '/r/a.tmd' }) },
     undo: { undo: async () => ({ session: READY }) },
     redo: { redo: async () => ({ session: READY }) },
+    addDevice: { addDevice: async () => ({ device: GRADIENT, session: READY_DIRTY }) },
+    renameDevice: {
+      renameDevice: async (c) => ({
+        device: { ...GRADIENT, name: c.name, kind: 'Gradient' },
+        previousName: 'Gradient',
+        session: READY_DIRTY,
+      }),
+    },
+    setDeviceEnabled: {
+      setDeviceEnabled: async (c) => ({
+        device: { id: 1, name: 'Gradient' },
+        enabled: c.enabled,
+        changed: true,
+        session: READY_DIRTY,
+      }),
+    },
+    deleteDevice: { deleteDevice: async () => ({ deleted: GRADIENT, session: READY_DIRTY }) },
+    updateDeviceParameters: {
+      updateDeviceParameters: async () => ({
+        device: { id: 1, name: 'Gradient' },
+        parameters: [
+          { name: 'Width', type: 'float', requested: '0.5', outcome: 'applied', value: '4 km' },
+          // raw/p2c-edits.txt l.218-222 (spec fact 35).
+          {
+            name: 'Tiling',
+            type: 'enum',
+            requested: '99',
+            outcome: 'rejected',
+            value: 'Clamp',
+            worldMachineMessage: 'Error: Error: Enum index out of range (0-2): 99',
+          },
+        ],
+        session: READY_DIRTY,
+      }),
+    },
+    connectDevices: { connectDevices: async () => ({ ...WIRE, created: true, session: READY_DIRTY }) },
+    disconnectDevices: { disconnectDevices: async () => ({ ...WIRE, removed: false, session: READY }) },
+    configureScene: { configureScene: async () => ({ scene: SCENE, session: READY_DIRTY }) },
     currentSession: () => READY,
     ...overrides,
   };
@@ -97,10 +141,15 @@ async function connect(dependencies: McpDependencies): Promise<Client> {
 }
 
 describe('createMcpServer', () => {
-  it('registers all ten tools as closed-world, the five read tools as read-only', async () => {
+  it('registers all eighteen tools as closed-world, the five read tools as read-only', async () => {
     const { tools } = await (await connect(deps())).listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual([
+      'add_device',
+      'configure_scene',
+      'connect_devices',
       'create_project',
+      'delete_device',
+      'disconnect_devices',
       'get_device',
       'get_scene',
       'get_world_machine_status',
@@ -108,8 +157,11 @@ describe('createMcpServer', () => {
       'list_devices',
       'open_project',
       'redo',
+      'rename_device',
       'save_project',
+      'set_device_enabled',
       'undo',
+      'update_device_parameters',
     ]);
     const readTools = [
       'get_device',
@@ -300,6 +352,133 @@ describe('createMcpServer with parser output from the wm-4067 fixtures', () => {
       }),
     );
     const result = await client.callTool({ name: 'get_scene', arguments: {} });
+    expect(result.isError).toBe(true);
+  });
+});
+
+describe('createMcpServer edit tools', () => {
+  const ANNOTATIONS = (destructive: boolean, idempotent: boolean) => ({
+    readOnlyHint: false,
+    destructiveHint: destructive,
+    idempotentHint: idempotent,
+    openWorldHint: false,
+  });
+
+  it('annotates the eight edit tools as spec section 7 says', async () => {
+    const { tools } = await (await connect(deps())).listTools();
+    const annotations = Object.fromEntries(tools.map((tool) => [tool.name, tool.annotations]));
+    expect(annotations).toMatchObject({
+      add_device: ANNOTATIONS(false, false),
+      rename_device: ANNOTATIONS(false, true),
+      set_device_enabled: ANNOTATIONS(false, true),
+      update_device_parameters: ANNOTATIONS(false, true),
+      connect_devices: ANNOTATIONS(false, true),
+      disconnect_devices: ANNOTATIONS(false, true),
+      configure_scene: ANNOTATIONS(false, true),
+      delete_device: ANNOTATIONS(true, false),
+      save_project: ANNOTATIONS(true, false),
+    });
+  });
+
+  it('tells the model about internal values, display units, and undo in update_device_parameters', async () => {
+    const { tools } = await (await connect(deps())).listTools();
+    const description = tools.find((tool) => tool.name === 'update_device_parameters')?.description ?? '';
+    expect(description).toContain("World Machine's internal values");
+    expect(description).toContain('display units');
+    expect(description).toContain('undo');
+  });
+
+  it('maps snake_case arguments to command objects', async () => {
+    const seen: unknown[] = [];
+    const record =
+      <T>(view: T) =>
+      async (command: unknown) => {
+        seen.push(command);
+        return view;
+      };
+    const client = await connect(
+      deps({
+        addDevice: { addDevice: record({ device: GRADIENT, session: READY_DIRTY }) },
+        connectDevices: { connectDevices: record({ ...WIRE, created: true, session: READY_DIRTY }) },
+        disconnectDevices: { disconnectDevices: record({ ...WIRE, removed: true, session: READY_DIRTY }) },
+        configureScene: { configureScene: record({ scene: SCENE, session: READY_DIRTY }) },
+        updateDeviceParameters: {
+          updateDeviceParameters: record({
+            device: { id: 1, name: 'Gradient' },
+            parameters: [],
+            session: READY_DIRTY,
+          }),
+        },
+      }),
+    );
+    await client.callTool({ name: 'add_device', arguments: { type: 'Gradient' } });
+    await client.callTool({ name: 'add_device', arguments: { type: 'Gradient', name: 'Grad A' } });
+    await client.callTool({
+      name: 'connect_devices',
+      arguments: { source: 'Gradient', destination: '#2', destination_port: 2 },
+    });
+    await client.callTool({
+      name: 'disconnect_devices',
+      arguments: { source: '#1', source_port: 1, destination: '#2' },
+    });
+    await client.callTool({
+      name: 'configure_scene',
+      arguments: { origin_km: { x: 1.5, y: -2 }, size_km: { width: 8, height: 4 }, resolution: 1025 },
+    });
+    await client.callTool({
+      name: 'update_device_parameters',
+      arguments: { device: '#1', parameters: { Width: 0.5, exportAlways: true, Tiling: '1' } },
+    });
+    expect(seen).toEqual([
+      { type: 'Gradient' },
+      { type: 'Gradient', name: 'Grad A' },
+      { source: { device: 'Gradient' }, destination: { device: '#2', port: 2 } },
+      { source: { device: '#1', port: 1 }, destination: { device: '#2' } },
+      { originKm: { x: 1.5, y: -2 }, sizeKm: { width: 8, height: 4 }, resolution: 1025 },
+      { device: '#1', parameters: { Width: 0.5, exportAlways: true, Tiling: '1' } },
+    ]);
+  });
+
+  it.each([
+    ['add_device', { type: 'Gradient' }],
+    ['rename_device', { device: '#1', name: 'Grad A' }],
+    ['set_device_enabled', { device: '#1', enabled: false }],
+    ['delete_device', { device: '#1' }],
+    ['update_device_parameters', { device: '#1', parameters: { Width: 0.5 } }],
+    ['connect_devices', { source: '#1', destination: '#2' }],
+    ['disconnect_devices', { source: '#1', destination: '#2' }],
+    ['configure_scene', { resolution: 1025 }],
+  ])('returns %s views as structured content that matches its output schema', async (name, args) => {
+    const result = await (await connect(deps())).callTool({ name, arguments: args });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toBeDefined();
+  });
+
+  it('rejects a view with a field the output schema does not declare', async () => {
+    const client = await connect(
+      deps({
+        connectDevices: {
+          connectDevices: async () =>
+            ({ ...WIRE, created: true, session: READY_DIRTY, extra: 1 }) as unknown as Awaited<
+              ReturnType<McpDependencies['connectDevices']['connectDevices']>
+            >,
+        },
+      }),
+    );
+    const result = await client.callTool({
+      name: 'connect_devices',
+      arguments: { source: '#1', destination: '#2' },
+    });
+    expect(result.isError).toBe(true);
+  });
+
+  it.each([
+    ['configure_scene', { resolution: 1.5 }],
+    ['configure_scene', { size_km: { width: 0, height: 4 } }],
+    ['connect_devices', { source: '#1', destination: '#2', destination_port: 0 }],
+    ['add_device', { type: '' }],
+  ])('rejects invalid %s arguments through the schema', async (name, args) => {
+    const result = await (await connect(deps())).callTool({ name, arguments: args });
     expect(result.isError).toBe(true);
   });
 });

@@ -33,3 +33,52 @@ export function resolveDeviceReference(devices: readonly DeviceSummary[], refere
   const match = matches[0];
   return match === undefined ? reference : `#${match.id}`;
 }
+
+/**
+ * The listed device a reference names, for edit commands. Those always address a device as `#<id>`:
+ * `buildCommand` never emits quotes, so a name could only be sent as a final argument. A reference no listed device
+ * matches has no id to send and is refused before anything is sent (Plan 2c decision D3).
+ */
+export function findListedDevice(devices: readonly DeviceSummary[], reference: string): DeviceSummary {
+  const id = idOfReference(resolveDeviceReference(devices, reference));
+  const device = devices.find((candidate) => candidate.id === id);
+  if (device === undefined) {
+    throw new WorldMachineError(
+      'REFUSED',
+      `No device '${reference}' in the current project; see list_devices`,
+    );
+  }
+  return device;
+}
+
+// Name endings that parsers/device-list.ts reads as a state marker or a kind (spec facts 24 and 29).
+const MARKER_SUFFIX = /\s\[(?:disabled|bypassed)\]$/;
+const KIND_SUFFIX = /\s{2,}\([^()]+\)$/;
+const ID_LIKE = /^#\d+$/;
+/** `device list` shows at most the first 23 characters of a name (spec fact 33, raw/p2c-edits.txt l.50-69). */
+export const LISTED_NAME_LIMIT = 23;
+
+/**
+ * Refuses a new device name that `device list` could not show so that it reads back as the same name
+ * (backlog, Plan 2c gate; Plan 2c decision D5).
+ */
+export function assertReadableDeviceName(name: string): void {
+  const rule =
+    name !== name.trim()
+      ? 'start or end with whitespace'
+      : MARKER_SUFFIX.test(name)
+        ? 'end with [disabled] or [bypassed]'
+        : KIND_SUFFIX.test(name)
+          ? 'end with two spaces and parenthesised text'
+          : ID_LIKE.test(name)
+            ? 'look like a device id (#<n>)'
+            : name.length > LISTED_NAME_LIMIT
+              ? `be longer than ${LISTED_NAME_LIMIT} characters`
+              : undefined;
+  if (rule !== undefined) {
+    throw new WorldMachineError(
+      'REFUSED',
+      `Device name '${name}' must not ${rule}: device list could not show it unambiguously`,
+    );
+  }
+}

@@ -39,6 +39,8 @@ Done in Plan 2b (all items below; the fake's `device add` follows ruling P9).
 
 ## Plan 2c gate
 
+Done in Plan 2c, except the fake's `param set` value rejection: it stays deferred, because no Plan 2c test sends a value through the fake's `param set` (the parameter editor's tests replay captured output through a scripted session).
+
 - `src/application/port/out/world-machine-session-port.ts:14-16`: the `forgetReopen` doc comment was inserted between `exclusive`'s doc comment and `exclusive`, so that comment now sits above the wrong member. Move it back.
 - `test/fake-wm/fake-wm.mjs`: `param set` accepts values the real World Machine rejects: `1.5 km` and `1,5` for a float, `3.0` for an int, an unknown enum value (`raw/v6b-param-set.txt` l.96-97, 102-103, 117-118, 177-178). `update_device_parameters` must refuse these before sending (spec section 7); if a 2c test sends one through, the fake needs per-parameter type data first.
 - Edit tools resolve names with `resolveDeviceReference` after their own `device list`, inside `exclusive()` (Plan 2b ruling C1).
@@ -61,6 +63,7 @@ Done in Plan 2b (all items below; the fake's `device add` follows ruling P9).
 
 ## Robustness and hygiene
 
+- `LOG_LINE`/`LICENCE` exist three times: `src/domain/errors.ts` (`worldMachineText`), `src/adapter/out/worldmachine/log-lines.ts`, `src/logger.ts`; the domain should own them and the adapters import them.
 - `session.ts`: `summarize()` has no `never` exhaustiveness check.
 - `config.ts`: relative `WORLD_MACHINE_ALLOWED_ROOTS` entries resolve against `process.cwd()` instead of the injected `cwd`.
 - `logger.ts` and `log-lines.ts` duplicate the licence regex, and `emit()` itself does not filter.
@@ -73,3 +76,8 @@ Done in Plan 2b (all items below; the fake's `device add` follows ruling P9).
 - `package.json`: add `prepublishOnly: npm run build` before the first publish.
 - Capture script: async log lines between batches are attributed to the next batch's first command. `check-fixtures` patterns miss `/root/`, email addresses, and unscrubbed `/tmp` or `/var/folders` paths; widen them before the next capture.
 - Test temp directories leak: `locator.test.ts`, and `live.test.ts` (created at collection even when skipped).
+- Plan 2c final review, `world-machine-device-editor.ts`: the enable/disable read-back should require the `Selected:` line and compare the read-back name with the target (the 23-character rule of fact 33).
+- Plan 2c final review, `connect_devices`: "an existing wire is left alone (`created: false`)" does not hold when the source name is shared by several devices; add a caveat to the tool text or a source-side wire check.
+- Plan 2c final review: the "at least one" rules for `configure_scene` and `update_device_parameters` are enforced by the editors but absent from the input schemas.
+- Plan 2c final review, test gaps: missing `Enabled:`, `Disabled:`, and `Deleted:` confirmations; a command-level `Error:` for enable and delete; read-back error batches for disconnect.
+- Next live capture: the undo step count for add-then-rename, and `device add` of a type whose default name is longer than 23 characters (the add echo comparison is Assumed).

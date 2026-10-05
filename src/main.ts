@@ -5,14 +5,23 @@ import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import { createMcpServer } from './adapter/in/mcp/create-server.js';
 import { FsPathPolicy } from './adapter/out/fs/path-policy.js';
 import { resolveExecutable } from './adapter/out/worldmachine/locator.js';
+import { WorldMachineDeviceEditor } from './adapter/out/worldmachine/world-machine-device-editor.js';
 import { WorldMachineGraphReader } from './adapter/out/worldmachine/world-machine-graph-reader.js';
+import { WorldMachineParameterEditor } from './adapter/out/worldmachine/world-machine-parameter-editor.js';
 import { WorldMachineProcess } from './adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineProjectWriter } from './adapter/out/worldmachine/world-machine-project-writer.js';
+import { WorldMachineSceneEditor } from './adapter/out/worldmachine/world-machine-scene-editor.js';
 import {
   type ShutdownBudget,
   WorldMachineSession,
 } from './adapter/out/worldmachine/world-machine-session.js';
+import { WorldMachineWireEditor } from './adapter/out/worldmachine/world-machine-wire-editor.js';
+import { AddDeviceService } from './application/service/add-device-service.js';
+import { ConfigureSceneService } from './application/service/configure-scene-service.js';
+import { ConnectDevicesService } from './application/service/connect-devices-service.js';
 import { CreateProjectService } from './application/service/create-project-service.js';
+import { DeleteDeviceService } from './application/service/delete-device-service.js';
+import { DisconnectDevicesService } from './application/service/disconnect-devices-service.js';
 import { GetDeviceService } from './application/service/get-device-service.js';
 import { GetSceneService } from './application/service/get-scene-service.js';
 import { GetStatusService } from './application/service/get-status-service.js';
@@ -20,8 +29,11 @@ import { InspectProjectService } from './application/service/inspect-project-ser
 import { ListDevicesService } from './application/service/list-devices-service.js';
 import { OpenProjectService } from './application/service/open-project-service.js';
 import { RedoService } from './application/service/redo-service.js';
+import { RenameDeviceService } from './application/service/rename-device-service.js';
 import { SaveProjectService } from './application/service/save-project-service.js';
+import { SetDeviceEnabledService } from './application/service/set-device-enabled-service.js';
 import { UndoService } from './application/service/undo-service.js';
+import { UpdateDeviceParametersService } from './application/service/update-device-parameters-service.js';
 import { type Config, loadConfig } from './config.js';
 import { createLogger } from './logger.js';
 
@@ -50,6 +62,10 @@ const session = new WorldMachineSession({
 });
 const reader = new WorldMachineGraphReader(session);
 const writer = new WorldMachineProjectWriter(session);
+const devices = new WorldMachineDeviceEditor(session);
+const parameters = new WorldMachineParameterEditor(session);
+const wires = new WorldMachineWireEditor(session);
+const scene = new WorldMachineSceneEditor(session);
 
 const handle = serveStdio(() =>
   createMcpServer({
@@ -64,6 +80,14 @@ const handle = serveStdio(() =>
     saveProject: new SaveProjectService(session, pathPolicy, writer),
     undo: new UndoService(session, writer),
     redo: new RedoService(session, writer),
+    addDevice: new AddDeviceService(session, devices),
+    renameDevice: new RenameDeviceService(session, devices),
+    setDeviceEnabled: new SetDeviceEnabledService(session, devices),
+    deleteDevice: new DeleteDeviceService(session, devices),
+    updateDeviceParameters: new UpdateDeviceParametersService(session, parameters),
+    connectDevices: new ConnectDevicesService(session, wires),
+    disconnectDevices: new DisconnectDevicesService(session, wires),
+    configureScene: new ConfigureSceneService(session, scene),
     currentSession: () => session.status().session,
   }),
 );
