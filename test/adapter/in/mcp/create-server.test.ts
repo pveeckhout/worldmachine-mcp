@@ -196,6 +196,60 @@ describe('createMcpServer', () => {
     });
   });
 
+  it('states the at-least-one rule in the configure_scene and update_device_parameters descriptions', async () => {
+    const { tools } = await (await connect(deps())).listTools();
+    const description = (name: string) => tools.find((tool) => tool.name === name)?.description ?? '';
+    expect(description('configure_scene')).toContain('give at least one');
+    expect(description('update_device_parameters')).toContain('give at least one');
+  });
+
+  it('returns REFUSED, not a protocol error, for configure_scene with no fields', async () => {
+    let calls = 0;
+    const client = await connect(
+      deps({
+        configureScene: {
+          configureScene: async () => {
+            calls += 1;
+            throw new WorldMachineError('REFUSED', 'Give at least one of name, origin, size, or resolution');
+          },
+        },
+      }),
+    );
+    const result = await client.callTool({ name: 'configure_scene', arguments: {} });
+    expect(calls).toBe(1);
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(JSON.parse(content[0]?.text ?? '')).toMatchObject({
+      code: 'REFUSED',
+      message: 'Give at least one of name, origin, size, or resolution',
+    });
+  });
+
+  it('returns REFUSED, not a protocol error, for update_device_parameters with no parameters', async () => {
+    let calls = 0;
+    const client = await connect(
+      deps({
+        updateDeviceParameters: {
+          updateDeviceParameters: async () => {
+            calls += 1;
+            throw new WorldMachineError('REFUSED', 'Give at least one parameter to set');
+          },
+        },
+      }),
+    );
+    const result = await client.callTool({
+      name: 'update_device_parameters',
+      arguments: { device: '#1', parameters: {} },
+    });
+    expect(calls).toBe(1);
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(JSON.parse(content[0]?.text ?? '')).toMatchObject({
+      code: 'REFUSED',
+      message: 'Give at least one parameter to set',
+    });
+  });
+
   it('maps snake_case arguments to command objects', async () => {
     const seen: unknown[] = [];
     const client = await connect(

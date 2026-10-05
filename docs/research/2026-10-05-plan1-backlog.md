@@ -63,6 +63,7 @@ Done in Plan 2c, except the fake's `param set` value rejection: it stays deferre
 
 ## Robustness and hygiene
 
+- Done: `test/smoke/stdio.test.ts`: since Plan 2c's `add_device` smoke call, `npm run check` printed `[worldmachine-mcp] warn: Shutting down with unsaved changes; they are discarded`. Undo would not help (it marks the project dirty, spec §6); the smoke test now calls `create_project` with `discard_unsaved: true` after the add so the server shuts down clean.
 - `LOG_LINE`/`LICENCE` exist three times: `src/domain/errors.ts` (`worldMachineText`), `src/adapter/out/worldmachine/log-lines.ts`, `src/logger.ts`; the domain should own them and the adapters import them.
 - `session.ts`: `summarize()` has no `never` exhaustiveness check.
 - `config.ts`: relative `WORLD_MACHINE_ALLOWED_ROOTS` entries resolve against `process.cwd()` instead of the injected `cwd`.
@@ -78,6 +79,6 @@ Done in Plan 2c, except the fake's `param set` value rejection: it stays deferre
 - Test temp directories leak: `locator.test.ts`, and `live.test.ts` (created at collection even when skipped).
 - Done: Plan 2c final review, `world-machine-device-editor.ts`: the enable/disable read-back should require the `Selected:` line and compare the read-back name with the target (the 23-character rule of fact 33).
 - Done: Plan 2c final review, `connect_devices`: "an existing wire is left alone (`created: false`)" does not hold when the source name is shared by several devices; add a caveat to the tool text or a source-side wire check. (refused with a rename hint when ambiguous)
-- Plan 2c final review: the "at least one" rules for `configure_scene` and `update_device_parameters` are enforced by the editors but absent from the input schemas.
-- Plan 2c final review, test gaps: missing `Enabled:`, `Disabled:`, and `Deleted:` confirmations; a command-level `Error:` for enable and delete; read-back error batches for disconnect.
+- Done: Plan 2c final review: the "at least one" rules for `configure_scene` and `update_device_parameters` are enforced by the editors but absent from the input schemas. (JSON Schema cannot express it here, so the tool descriptions say it and the editors refuse with `REFUSED`, pinned by MCP tests.)
+- Done: Plan 2c final review, test gaps: missing `Enabled:`, `Disabled:`, and `Deleted:` confirmations; a command-level `Error:` for enable and delete; read-back error batches for disconnect.
 - Captured in `p2c-undo-names` (spec facts 39-40): add-then-rename is two undo steps. Still open: no device type with a default name longer than 23 characters was found among the candidates tried, so the add echo comparison for such names stays Assumed; a full list of World Machine's device types would settle it.

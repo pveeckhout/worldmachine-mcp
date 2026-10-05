@@ -323,6 +323,98 @@ describe('WorldMachineDeviceEditor.setDeviceEnabled', () => {
     expect(s.dirtyMarks()).toBe(1);
   });
 
+  it.each([
+    { verb: 'enable', line: 'Enabled: #1', before: DISABLED_GRADIENT_LIST, info: 'yes', dirty: 1 },
+    {
+      verb: 'disable',
+      line: 'Disabled: #1',
+      before: ['Devices (1 total):', '  #1     Gradient                '],
+      info: 'no',
+      dirty: 1,
+    },
+  ])(
+    'reports a missing $line confirmation as UNEXPECTED_OUTPUT, dirty marked because the read-back shows a change',
+    async ({ verb, before, info, dirty }) => {
+      const s = scriptedSession({
+        'device list': [{ output: before }],
+        // Assumed: a reply without the confirmation line; no capture shows one.
+        [`device ${verb} #1`]: [{ output: [] }],
+        'device select #1': [{ output: ['Selected: Gradient'] }],
+        'device info': [
+          {
+            output: [
+              'Selected device:',
+              '  Name:    Gradient',
+              '  Type:    Gradient',
+              `  Enabled: ${info}`,
+              '  Bypass:  no',
+            ],
+          },
+        ],
+      });
+      await expect(
+        new WorldMachineDeviceEditor(s.session).setDeviceEnabled('#1', verb === 'enable'),
+      ).rejects.toMatchObject({
+        code: 'UNEXPECTED_OUTPUT',
+        message: `Could not parse World Machine output for device ${verb}. This World Machine build may format it differently.`,
+      });
+      expect(s.batches).toEqual([['device list'], [`device ${verb} #1`, 'device select #1', 'device info']]);
+      expect(s.dirtyMarks()).toBe(dirty);
+    },
+  );
+
+  it('reports a missing confirmation as UNEXPECTED_OUTPUT with dirty unchanged when the state did not change', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: ['Devices (1 total):', '  #1     Gradient                '] }],
+      // Assumed: a reply without the confirmation line; no capture shows one.
+      'device enable #1': [{ output: [] }],
+      'device select #1': [{ output: ['Selected: Gradient'] }],
+      // raw/p2b-graph-edits.txt l.65-70: an enabled device.
+      'device info': [
+        {
+          output: [
+            'Selected device:',
+            '  Name:    Gradient',
+            '  Type:    Gradient',
+            '  Enabled: yes',
+            '  Bypass:  no',
+          ],
+        },
+      ],
+    });
+    await expect(new WorldMachineDeviceEditor(s.session).setDeviceEnabled('#1', true)).rejects.toMatchObject({
+      code: 'UNEXPECTED_OUTPUT',
+      message:
+        'Could not parse World Machine output for device enable. This World Machine build may format it differently.',
+    });
+    expect(s.batches).toEqual([['device list'], ['device enable #1', 'device select #1', 'device info']]);
+    expect(s.dirtyMarks()).toBe(0);
+  });
+
+  it.each(['enable', 'disable'] as const)(
+    "reports World Machine's text when device %s fails and leaves dirty alone (spec fact 25)",
+    async (verb) => {
+      const text = "Error: Error: Device not found: '#1'";
+      const s = scriptedSession({
+        'device list': [{ output: DISABLED_GRADIENT_LIST }],
+        // raw/p2b-graph-edits.txt l.109-115 (for a name; the reference form is Assumed).
+        [`device ${verb} #1`]: [{ errors: [text] }],
+        // Assumed: the rest of the batch fails the same way for a device that is not there.
+        'device select #1': [{ errors: [text] }],
+        'device info': [{ errors: ['Error: Error: No device selected'] }],
+      });
+      await expect(
+        new WorldMachineDeviceEditor(s.session).setDeviceEnabled('#1', verb === 'enable'),
+      ).rejects.toMatchObject({
+        code: 'WM_COMMAND_FAILED',
+        message: `World Machine rejected "device ${verb} #1"`,
+        worldMachineMessage: text,
+      });
+      expect(s.batches).toEqual([['device list'], [`device ${verb} #1`, 'device select #1', 'device info']]);
+      expect(s.dirtyMarks()).toBe(0);
+    },
+  );
+
   /** A scripted enable of #1 (listed as `listedName`), with the given select and info replies. */
   function enableScript(listedName: string, select: string[], infoName: string) {
     return scriptedSession({
@@ -419,6 +511,40 @@ describe('WorldMachineDeviceEditor.deleteDevice', () => {
       message: 'World Machine confirmed deleting #1, but device list still shows it',
     });
     expect(s.dirtyMarks()).toBe(1);
+  });
+
+  it('reports a missing Deleted line as UNEXPECTED_OUTPUT, with the project already marked modified', async () => {
+    const s = scriptedSession({
+      'device list': [
+        { output: DISABLED_GRADIENT_LIST },
+        { output: ['Devices (1 total):', '  #2     Combiner                '] },
+      ],
+      // Assumed: a reply without the confirmation line; no capture shows one.
+      'device delete #1': [{ output: [] }],
+    });
+    await expect(new WorldMachineDeviceEditor(s.session).deleteDevice('#1')).rejects.toMatchObject({
+      code: 'UNEXPECTED_OUTPUT',
+      message:
+        'Could not parse World Machine output for device delete. This World Machine build may format it differently.',
+    });
+    expect(s.batches).toEqual([['device list'], ['device delete #1', 'device list']]);
+    expect(s.dirtyMarks()).toBe(1);
+  });
+
+  it("reports World Machine's text when device delete fails and leaves dirty alone", async () => {
+    const text = "Error: Error: Device not found: '#1'";
+    const s = scriptedSession({
+      'device list': [{ output: DISABLED_GRADIENT_LIST }, { output: DISABLED_GRADIENT_LIST }],
+      // raw/p2b-graph-edits.txt l.186 (for a name; the reference form is Assumed).
+      'device delete #1': [{ errors: [text] }],
+    });
+    await expect(new WorldMachineDeviceEditor(s.session).deleteDevice('#1')).rejects.toMatchObject({
+      code: 'WM_COMMAND_FAILED',
+      message: 'World Machine rejected "device delete #1"',
+      worldMachineMessage: text,
+    });
+    expect(s.batches).toEqual([['device list'], ['device delete #1', 'device list']]);
+    expect(s.dirtyMarks()).toBe(0);
   });
 
   it('refuses a device the project does not list', async () => {

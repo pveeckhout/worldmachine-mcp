@@ -73,6 +73,17 @@ describe('stdio server', () => {
       device: { id: 536, name: 'Grad A', kind: 'Gradient' },
       session: { state: 'ready', dirty: true },
     });
+
+    // Undo would mark the project dirty (spec §6); a discarding create_project leaves a clean
+    // session so the server shuts down without the unsaved-changes warning.
+    const cleaned = await client.callTool({
+      name: 'create_project',
+      arguments: { discard_unsaved: true },
+    });
+    expect(cleaned.isError).toBeFalsy();
+    expect(cleaned.structuredContent).toMatchObject({
+      session: { dirty: false, binding: { kind: 'fresh' } },
+    });
     await client.close();
   });
 

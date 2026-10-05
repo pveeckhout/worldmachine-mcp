@@ -500,6 +500,7 @@ describe('WorldMachineWireEditor.disconnect', () => {
     await expect(editor(s).disconnect({ device: '#1' }, { device: '#2' })).rejects.toMatchObject({
       code: 'WM_COMMAND_FAILED',
     });
+    expect(s.batches).toEqual([['device list'], ['wire list #2'], ['wire disconnect #1 #2', 'wire list #2']]);
     expect(s.dirtyMarks()).toBe(1);
   });
 });
