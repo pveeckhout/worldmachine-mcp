@@ -11,11 +11,16 @@ export function parseSystemInfo(output: readonly string[]): SystemInfo {
   for (const line of output) {
     const version = VERSION.exec(line);
     if (version) {
+      // A second Version or Arch line is not output World Machine prints; it is unreadable, not "the last one wins".
+      if (build !== undefined) throw unexpectedOutput('system info', output);
       build = Number(version[1]);
       buildName = version[2];
     }
     const archMatch = ARCH.exec(line);
-    if (archMatch) arch = archMatch[1];
+    if (archMatch) {
+      if (arch !== undefined) throw unexpectedOutput('system info', output);
+      arch = archMatch[1];
+    }
   }
   if (build === undefined || buildName === undefined || arch === undefined) {
     throw unexpectedOutput('system info', output);

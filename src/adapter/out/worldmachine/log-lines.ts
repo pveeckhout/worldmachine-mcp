@@ -1,12 +1,11 @@
-export type LogLine = { readonly level: string; readonly text: string };
+import { LICENCE, LOG_LINE } from '../../../domain/errors.js';
 
-const LOG_LINE = /^\[([A-Za-z]+)\s*\] (.*)$/;
-const LICENCE = /licen[cs]e/i;
+export type LogLine = { readonly level: string; readonly text: string };
 
 export function parseLogLine(line: string): LogLine | undefined {
   const match = LOG_LINE.exec(line);
   if (!match) return undefined;
-  return { level: (match[1] ?? '').toLowerCase(), text: match[2] ?? '' };
+  return { level: (match[1] ?? '').toLowerCase(), text: line.slice(match[0].length) };
 }
 
 export function isLicenceText(text: string): boolean {

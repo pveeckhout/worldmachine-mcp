@@ -26,6 +26,18 @@ describe('parseSystemInfo', () => {
     }
   });
 
+  it.each([
+    ['version', "  Version:  Build 4068 'Other Peak'"],
+    ['arch', '  Arch:     x64'],
+  ])('fails with UNEXPECTED_OUTPUT when the %s line appears twice', (_name, extra) => {
+    try {
+      parseSystemInfo([...fixture, extra]);
+      expect.unreachable();
+    } catch (error) {
+      expect((error as WorldMachineError).code).toBe('UNEXPECTED_OUTPUT');
+    }
+  });
+
   it('fails with UNEXPECTED_OUTPUT and a snippet when the arch line is missing', () => {
     try {
       parseSystemInfo(['World Machine System Info:', "  Version:  Build 4067 'Dragontail Peak'"]);

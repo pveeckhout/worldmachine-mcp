@@ -13,7 +13,7 @@ import { WorldMachineError } from '../../../../src/domain/errors.js';
 import type { ProjectOverview } from '../../../../src/domain/project.js';
 import type { Scene } from '../../../../src/domain/scene.js';
 import type { SessionSummary } from '../../../../src/domain/session.js';
-import type { Logger } from '../../../../src/logger.js';
+import { createLogger, type Logger } from '../../../../src/logger.js';
 import { fixtureLines } from '../../out/worldmachine/parsers/fixture.js';
 
 const READY = { state: 'ready', binding: { kind: 'fresh' }, dirty: false } as const;
@@ -363,6 +363,25 @@ describe('createMcpServer', () => {
     expect(logged).toHaveLength(1);
     expect(logged[0]).toContain('list_devices');
     expect(logged[0]).toContain('boom License Manager.Checkout secret');
+  });
+
+  it('keeps licence lines in the stack of an unexpected error out of the log output', async () => {
+    const written: string[] = [];
+    const failing = deps({
+      listDevices: {
+        listDevices: async () => {
+          const error = new Error('boom');
+          error.stack = 'Error: boom\n    at License Manager.Checkout (seat.ts:1)\n    at run (run.ts:2)';
+          throw error;
+        },
+      },
+      logger: createLogger('debug', (chunk) => written.push(chunk)),
+    });
+    await (await connect(failing)).callTool({ name: 'list_devices', arguments: {} });
+    const output = written.join('');
+    expect(output).toContain('Unexpected error in list_devices');
+    expect(output).toContain('at run (run.ts:2)');
+    expect(output).not.toMatch(/licen[cs]e/i);
   });
 
   it('removes licence lines from the World Machine text in error results', async () => {

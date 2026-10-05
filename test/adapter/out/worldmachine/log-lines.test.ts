@@ -13,6 +13,10 @@ describe('parseLogLine', () => {
     });
   });
 
+  it('reads a log line with nothing after the level as empty text', () => {
+    expect(parseLogLine('[Info       ] ')).toEqual({ level: 'info', text: '' });
+  });
+
   it('ignores command output and error lines', () => {
     expect(parseLogLine('Devices (17 total):')).toBeUndefined();
     expect(parseLogLine("Error: Unknown command: 'x'. Type 'help' for a list of commands.")).toBeUndefined();

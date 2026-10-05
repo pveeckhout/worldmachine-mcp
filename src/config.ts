@@ -40,7 +40,7 @@ function allowedRoots(value: string | undefined, cwd: string, home: string): rea
     .split(path.delimiter)
     .map((entry) => entry.trim())
     .filter((entry) => entry !== '')
-    .map((entry) => path.resolve(entry));
+    .map((entry) => path.resolve(cwd, entry));
   if (configured.length > 0) return configured;
   const resolved = path.resolve(cwd);
   if (resolved === path.parse(resolved).root || resolved === path.resolve(home)) return null;

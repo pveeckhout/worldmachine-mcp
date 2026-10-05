@@ -75,13 +75,14 @@ export class FsPathPolicy implements PathPolicyPort {
 
   async #canonicalRoots(): Promise<string[]> {
     const roots = this.#requireRoots();
-    const canonical = (await Promise.all(roots.map((root) => realpath(root).catch(() => null)))).filter(
+    // A root must be an existing directory: a file can contain no project, so it does not count as configured.
+    const canonical = (await Promise.all(roots.map(canonicalDirectory))).filter(
       (root): root is string => root !== null,
     );
     if (canonical.length === 0) {
       throw new WorldMachineError(
         'NOT_CONFIGURED',
-        'None of the allowed project roots in WORLD_MACHINE_ALLOWED_ROOTS exist',
+        'None of the allowed project roots in WORLD_MACHINE_ALLOWED_ROOTS is an existing directory',
       );
     }
     return canonical;
@@ -106,4 +107,13 @@ function isInside(candidate: string, root: string): boolean {
     !relative.startsWith(`..${path.sep}`) &&
     !path.isAbsolute(relative)
   );
+}
+
+async function canonicalDirectory(root: string): Promise<string | null> {
+  try {
+    const canonical = await realpath(root);
+    return (await stat(canonical)).isDirectory() ? canonical : null;
+  } catch {
+    return null;
+  }
 }

@@ -22,8 +22,10 @@ export class WorldMachineError extends Error {
 
 // Spec section 8: World Machine text in a tool result never carries log lines or licence lines. The rule lives here,
 // beside the error type whose field it governs, so the MCP adapter and the World Machine adapter share it.
-const LOG_LINE = /^\[[A-Za-z]+\s*\] /;
-const LICENCE = /licen[cs]e/i;
+/** A World Machine log line: `[Level     ] text`. Group 1 is the level. */
+export const LOG_LINE = /^\[([A-Za-z]+)\s*\] /;
+/** World Machine licence text; never allowed into a tool result or a log line. */
+export const LICENCE = /licen[cs]e/i;
 
 /** World Machine's lines as a result may carry them: log and licence lines removed; undefined when none remain. */
 export function worldMachineText(lines: readonly string[]): string | undefined {

@@ -393,7 +393,7 @@ async function respond(deps: McpDependencies, tool: string, action: () => Promis
     if (error instanceof WorldMachineError) return failure(error, deps.currentSession());
     // The SDK turns a thrown handler error into an isError result carrying its raw message, so the
     // original text must not travel with it. It goes to the server log (stderr) instead.
-    // TODO: logger output is not licence-filtered yet (separate backlog item).
+    // The logger drops licence lines from every message.
     deps.logger.error(
       `Unexpected error in ${tool}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
     );

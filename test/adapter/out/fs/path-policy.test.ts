@@ -18,6 +18,7 @@ writeFileSync(join(outside, 'notes.txt'), '');
 symlinkSync(join(outside, 'secret.tmd'), join(root, 'link.tmd'));
 symlinkSync(outside, join(root, 'escape'));
 symlinkSync(root, join(base, 'root-link'));
+symlinkSync(join(outside, 'notes.txt'), join(base, 'file-link'));
 
 async function codeOf(promise: Promise<unknown>): Promise<string> {
   try {
@@ -72,6 +73,33 @@ describe('FsPathPolicy.authorizeExistingProject', () => {
         new FsPathPolicy([join(base, 'gone')]).authorizeExistingProject(join(root, 'nested', 'world.tmd')),
       ),
     ).toBe('NOT_CONFIGURED');
+  });
+
+  it('reports NOT_CONFIGURED when the only configured root is a regular file', async () => {
+    expect(
+      await codeOf(
+        new FsPathPolicy([join(root, 'notes.txt')]).authorizeExistingProject(
+          join(root, 'nested', 'world.tmd'),
+        ),
+      ),
+    ).toBe('NOT_CONFIGURED');
+  });
+
+  it('reports NOT_CONFIGURED when the only configured root is a symlink to a file', async () => {
+    expect(
+      await codeOf(
+        new FsPathPolicy([join(base, 'file-link')]).authorizeExistingProject(
+          join(root, 'nested', 'world.tmd'),
+        ),
+      ),
+    ).toBe('NOT_CONFIGURED');
+  });
+
+  it('ignores a file root next to a directory root', async () => {
+    const mixed = new FsPathPolicy([join(outside, 'notes.txt'), root]);
+    expect(await mixed.authorizeExistingProject(join(root, 'nested', 'world.tmd'))).toBe(
+      join(root, 'nested', 'world.tmd'),
+    );
   });
 
   it('reports NOT_CONFIGURED when there are no allowed roots', async () => {

@@ -28,4 +28,18 @@ describe('createLogger', () => {
       '[worldmachine-mcp] info: wm: Startup: Basic initialization finished.\n',
     ]);
   });
+
+  describe.each(['error', 'warn', 'info', 'debug'] as const)('%s', (method) => {
+    it('writes a multi-line message without its licence lines', () => {
+      const { logger, lines } = capture('debug');
+      logger[method]('first\nLicense Manager.Checkout: denied\nlast');
+      expect(lines).toEqual([`[worldmachine-mcp] ${method}: first\nlast\n`]);
+    });
+
+    it('writes nothing for a message that is only licence text', () => {
+      const { logger, lines } = capture('debug');
+      logger[method]('License denied\nlicence seat unavailable');
+      expect(lines).toEqual([]);
+    });
+  });
 });

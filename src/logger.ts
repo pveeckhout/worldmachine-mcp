@@ -1,7 +1,8 @@
+import { LICENCE } from './domain/errors.js';
+
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
 
 const RANK: Record<LogLevel, number> = { error: 0, warn: 1, info: 2, debug: 3 };
-const LICENCE = /licen[cs]e/i;
 
 export interface Logger {
   error(message: string): void;
@@ -23,7 +24,10 @@ export function createLogger(
   },
 ): Logger {
   const emit = (at: LogLevel, message: string) => {
-    if (RANK[at] <= RANK[level]) write(`[worldmachine-mcp] ${at}: ${message}\n`);
+    if (RANK[at] > RANK[level]) return;
+    // Spec section 8: licence lines never reach the log, whichever method or caller produced them.
+    const kept = message.split('\n').filter((line) => !LICENCE.test(line));
+    if (kept.length > 0) write(`[worldmachine-mcp] ${at}: ${kept.join('\n')}\n`);
   };
   return {
     error: (message) => emit('error', message),

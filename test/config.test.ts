@@ -45,6 +45,11 @@ describe('loadConfig', () => {
     expect(loadConfig({}, `${HOME}/`, HOME).allowedRoots).toBeNull();
   });
 
+  it('resolves relative allowed roots against the given working directory', () => {
+    const config = loadConfig({ WORLD_MACHINE_ALLOWED_ROOTS: `terrain${path.delimiter}/abs` }, '/work', HOME);
+    expect(config.allowedRoots).toEqual(['/work/terrain', '/abs']);
+  });
+
   it('treats blank values as unset', () => {
     const config = loadConfig({ WORLD_MACHINE_BIN: '  ', WORLD_MACHINE_ALLOWED_ROOTS: '' }, '/work', HOME);
     expect(config.bin).toBeNull();

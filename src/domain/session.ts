@@ -19,7 +19,13 @@ export function summarize(state: SessionState): SessionSummary {
       return { state: 'ready', binding: state.binding, dirty: state.dirty };
     case 'unhealthy':
       return { state: 'unhealthy', reason: state.reason };
-    default:
+    case 'notRunning':
+    case 'starting':
       return { state: state.kind };
+    default: {
+      // A new SessionState kind fails to compile here until it is summarised.
+      const unhandled: never = state;
+      return unhandled;
+    }
   }
 }
