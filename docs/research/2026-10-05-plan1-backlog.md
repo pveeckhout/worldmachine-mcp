@@ -23,6 +23,16 @@ Open items left after Plan 1 (foundation) merged on 2026-10-05, taken from the i
 - `command-builder.ts`: the REFUSED message and doc comment still say quoting is "unverified".
 - `test/fake-wm/fake-wm.mjs` (Plan 2a): `param set` splits the device reference at the first space, so `param set "Height Output".exportAlways true` echoes the wrong reference. Real output is `Set Height Output.exportAlways = true` (`raw/v6b-param-set.txt` l.55). No Plan 2a test uses it; fix it before Plan 2b tests rely on it.
 
+## Plan 2b gate (from the Plan 2a final review)
+
+- **Bug in merged code:** `parsers/device-list.ts` keeps World Machine's state marker in the name (`Gradient                 [disabled]`, spec fact 24). `list_devices` and `inspect_project` report a wrong name, and `get_device` by name fails with `UNEXPECTED_OUTPUT` for any disabled or bypassed device. Parse the marker into a state field.
+- Reopen the last clean opened project after an idle quit or crash (spec section 6). Without it, edits after a restart land in the default project.
+- `world-machine-project-writer.ts`: after an unconfirmed lifecycle command (`UNEXPECTED_OUTPUT`), the binding and `dirty` go stale although World Machine may have acted. Mark dirty before checking undo/redo confirmations; bind `fresh` (or mark unhealthy) after an unconfirmed open or create.
+- `world-machine-graph-reader.ts`: a device name shared by several devices resolves to the first listed id. Refuse ambiguous names with `REFUSED` and ask for `#<id>` (spec section 9).
+- `test/fake-wm/fake-wm.mjs`: `device add` marks the project modified but adds no device, so an empty project still lists none (ruling P9).
+- Move `ProjectCommandView` out of `open-project-command.ts` into its own file.
+- `create-server.test.ts`: call `get_device`, `get_scene`, and `inspect_project` with fixture-built parser output, so parser output and output schemas are checked together.
+
 ## Test coverage gaps
 
 - `create-server.ts`: the rethrow path for a non-`WorldMachineError` is untested. The SDK forwards its message unfiltered, bypassing the licence filter and the payload shape. Consider wrapping it in `respond()` as an internal error.

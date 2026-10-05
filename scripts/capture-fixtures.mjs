@@ -329,6 +329,76 @@ const scenarios = [
       return sections;
     },
   ],
+  [
+    // Plan 2b: outputs of the graph-edit and scene setters, their error shapes, and how state reads back.
+    'p2b-graph-edits',
+    async () => {
+      const sections = await run(['project new blank force']);
+      const source = await freshDevice(sections, 'Gradient');
+      const target = await freshDevice(sections, 'Combiner');
+      const s = `#${source.id}`;
+      const t = `#${target.id}`;
+      sections.push(
+        ...(await run([
+          `wire connect ${s} ${t}`,
+          `wire list ${t}`,
+          `device disable ${s}`,
+          `device select ${s}`,
+          'device info',
+          'device list',
+          `device disable ${s}`,
+          `device enable ${s}`,
+          `device select ${s}`,
+          'device info',
+          `device enable ${s}`,
+          `device bypass ${s}`,
+          `device select ${s}`,
+          'device info',
+          'device list',
+          `device bypass ${s}`,
+          `device select ${s}`,
+          'device info',
+          'device enable capture_missing_device',
+          'device disable capture_missing_device',
+          'device bypass capture_missing_device',
+          `wire disconnect ${s} ${t}`,
+          `wire list ${t}`,
+          `wire disconnect ${s} ${t}`,
+          `wire connect ${s} ${t}`,
+          `wire disconnect ${s}.1 ${t}.1`,
+          `wire list ${t}`,
+          `wire disconnect capture_missing_device ${t}`,
+          `device delete ${s}`,
+          'device list',
+          `wire list ${t}`,
+          'project undo',
+          'device list',
+          `wire list ${t}`,
+          'device delete capture_missing_device',
+          'scene name',
+          'scene name Capture Scene',
+          'scene name',
+          'scene origin 1.5 -2',
+          'scene origin abc 1',
+          'scene size',
+          'scene size 8 4',
+          'scene size 0 0',
+          'scene size abc 1',
+          'scene resolution',
+          'scene resolution 1025',
+          'scene resolution up',
+          'scene resolution down 2',
+          'scene resolution abc',
+          'scene show',
+          'project undo',
+          'scene show',
+          // End on a closed project so the quit shows no discard dialog (spec fact 19).
+          'project close force',
+        ])),
+      );
+      return sections;
+    },
+  ],
 ];
 
 // `npm run capture-fixtures -- <name> ...` captures only the named scenarios (system info always runs first).
@@ -372,6 +442,9 @@ try {
 } finally {
   // Lines wait behind unread input (spec fact 14), so nudge with empty lines until the child exits.
   if (child.exitCode === null && child.signalCode === null) {
+    // Close first: quitting a modified project opens a dialog and keeps the licence seat (spec facts 19-20).
+    child.stdin.write('project close force\n');
+    await new Promise((resolve) => setTimeout(resolve, 100));
     child.stdin.write('system quit force\n');
     for (let i = 0; i < 20 && child.exitCode === null && child.signalCode === null; i++) {
       await new Promise((resolve) => setTimeout(resolve, 100));

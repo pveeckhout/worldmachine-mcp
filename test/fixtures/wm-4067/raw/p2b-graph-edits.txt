@@ -1,0 +1,255 @@
+>>> project new blank force
+Created new blank project.
+[Info       ] Closing current project
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> device add Combiner
+Added 'Combiner'
+<<<
+>>> device list
+Devices (2 total):
+  #1     Gradient                
+  #2     Combiner                
+
+<<<
+>>> wire connect #1 #2
+Connected '#1' [1] -> '#2' [1]
+<<<
+>>> wire list #2
+Connections for '#2':
+  Inputs:
+    [1] Primary Input <- 'Gradient' [1]
+    [2] Primary Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> device disable #1
+Disabled: #1
+<<<
+>>> device select #1
+Selected: Gradient
+<<<
+>>> device info
+Selected device:
+  Name:    Gradient
+  Type:    Gradient
+  Enabled: no
+  Bypass:  no
+
+<<<
+>>> device list
+Devices (2 total):
+  #1     Gradient                 [disabled]
+  #2     Combiner                
+
+<<<
+>>> device disable #1
+Disabled: #1
+<<<
+>>> device enable #1
+Enabled: #1
+<<<
+>>> device select #1
+Selected: Gradient
+<<<
+>>> device info
+Selected device:
+  Name:    Gradient
+  Type:    Gradient
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> device enable #1
+Enabled: #1
+<<<
+>>> device bypass #1
+Set bypass: #1
+<<<
+>>> device select #1
+Selected: Gradient
+<<<
+>>> device info
+Selected device:
+  Name:    Gradient
+  Type:    Gradient
+  Enabled: yes
+  Bypass:  yes
+
+<<<
+>>> device list
+Devices (2 total):
+  #1     Gradient                 [bypassed]
+  #2     Combiner                
+
+<<<
+>>> device bypass #1
+Removed bypass: #1
+<<<
+>>> device select #1
+Selected: Gradient
+<<<
+>>> device info
+Selected device:
+  Name:    Gradient
+  Type:    Gradient
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> device enable capture_missing_device
+Error: Error: Device not found: 'capture_missing_device'
+<<<
+>>> device disable capture_missing_device
+Error: Error: Device not found: 'capture_missing_device'
+<<<
+>>> device bypass capture_missing_device
+Error: Error: Device not found: 'capture_missing_device'
+<<<
+>>> wire disconnect #1 #2
+Disconnected '#1' [1] -> '#2' [1]
+<<<
+>>> wire list #2
+Connections for '#2':
+  Inputs:
+    [1] Primary Input <- (none)
+    [2] Primary Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> wire disconnect #1 #2
+Disconnected '#1' [1] -> '#2' [1]
+<<<
+>>> wire connect #1 #2
+Connected '#1' [1] -> '#2' [1]
+<<<
+>>> wire disconnect #1.1 #2.1
+Disconnected '#1' [1] -> '#2' [1]
+<<<
+>>> wire list #2
+Connections for '#2':
+  Inputs:
+    [1] Primary Input <- (none)
+    [2] Primary Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> wire disconnect capture_missing_device #2
+Error: Error: Source device not found: 'capture_missing_device'
+<<<
+>>> device delete #1
+Deleted: #1
+<<<
+>>> device list
+Devices (1 total):
+  #2     Combiner                
+
+<<<
+>>> wire list #2
+Connections for '#2':
+  Inputs:
+    [1] Primary Input <- (none)
+    [2] Primary Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> project undo
+Undo performed.
+<<<
+>>> device list
+Devices (2 total):
+  #1     Gradient                
+  #2     Combiner                
+
+<<<
+>>> wire list #2
+Connections for '#2':
+  Inputs:
+    [1] Primary Input <- (none)
+    [2] Primary Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> device delete capture_missing_device
+Error: Error: Device not found: 'capture_missing_device'
+<<<
+>>> scene name
+Scene name: 'Main Extents'
+<<<
+>>> scene name Capture Scene
+Renamed scene from 'Main Extents' to 'Capture Scene'
+<<<
+>>> scene name
+Scene name: 'Capture Scene'
+<<<
+>>> scene origin 1.5 -2
+Set scene origin to (1.50, -2.00) km
+<<<
+>>> scene origin abc 1
+Error: Error: Invalid coordinates.
+<<<
+>>> scene size
+Scene size: 8.00 x 8.00 km
+Use 'scene size <width_km> <height_km>' to change.
+<<<
+>>> scene size 8 4
+Set scene size to 8.00 x 4.00 km
+<<<
+>>> scene size 0 0
+Error: Error: Width and height must be positive numbers.
+<<<
+>>> scene size abc 1
+Error: Error: Width and height must be positive numbers.
+<<<
+>>> scene resolution
+Scene resolution: 1024
+<<<
+>>> scene resolution 1025
+Set scene resolution to 1025
+<<<
+>>> scene resolution up
+Resolution: 1025 -> 2049
+<<<
+>>> scene resolution down 2
+Resolution: 2049 -> 513
+<<<
+>>> scene resolution abc
+Error: Error: Usage: scene resolution [value|up|down] [count]
+<<<
+>>> scene show
+Scene 'Capture Scene' (index 0 of 1):
+  Origin (center): 1.50, -2.00 km
+  Size:            8.00 x 4.00 km
+  Lower-left:      -2.50, -4.00 km
+  Upper-right:     5.50, 0.00 km
+  Resolution:      513
+  Locked:          no
+<<<
+>>> project undo
+Undo performed.
+<<<
+>>> scene show
+Scene 'Capture Scene' (index 0 of 1):
+  Origin (center): 1.50, -2.00 km
+  Size:            8.00 x 4.00 km
+  Lower-left:      -2.50, -4.00 km
+  Upper-right:     5.50, 0.00 km
+  Resolution:      2049
+  Locked:          no
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<

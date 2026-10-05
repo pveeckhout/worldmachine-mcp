@@ -50,6 +50,11 @@ Verified on 2026-10-04 against World Machine build 4067 (Dragontail Peak), Pro t
 21. Empty and missing cases print plain lines: `No groups in the current project.`, `No device selected.` (`device info` with no selection), and `Error: Error: Device not found: '<name>'` for `device select`. `#<id>` is accepted by `device select`, `param list`, and `wire list` (whose header then echoes `'#<id>'`). An unconnected output port prints `-> (none)`; a device without inputs prints an empty `Inputs:` section. (Capture `p2a-edge-cases`, 2026-10-05.)
 22. `project undo` and `project redo` always print `Undo performed.` / `Redo performed.`, including when there is nothing to undo or redo, so World Machine gives no signal whether anything changed. (Same capture.)
 23. `project save <path>` into a directory that does not exist printed `Project saved to: <path>` but wrote no file. World Machine's save confirmation is not evidence that the file exists. (Same capture.)
+24. `device list` marks a device's state after its name: `#1     Gradient                 [disabled]` or `[bypassed]`. `device info` adds `Enabled: yes|no` and `Bypass: yes|no` lines. (Capture `p2b-graph-edits`, 2026-10-05.)
+25. `device enable`, `device disable`, and `device delete` print `Enabled: <ref>`, `Disabled: <ref>`, and `Deleted: <ref>`, echoing the reference as given. Enable and disable print the same line when the device is already in that state. `device bypass` toggles and prints `Set bypass: <ref>` or `Removed bypass: <ref>`. A missing device prints `Error: Error: Device not found: '<ref>'`. (Same capture.)
+26. `wire disconnect <source>[.port] <dest>[.port]` prints `Disconnected '<src>' [n] -> '<dst>' [m]` even when no such connection exists, so its confirmation is not evidence that a wire was removed; only `wire list` shows it. A missing source prints `Error: Error: Source device not found: '<ref>'`. `wire connect` prints `Connected '<src>' [n] -> '<dst>' [m]`. (Same capture.)
+27. Scene setters print `Renamed scene from '<old>' to '<new>'`, `Set scene origin to (<x>, <y>) km`, `Set scene size to <w> x <h> km`, `Set scene resolution to <n>`, and `Resolution: <old> -> <new>` for `up`/`down`. Values are printed with two decimals. Invalid input prints `Error: Error: Invalid coordinates.`, `Error: Error: Width and height must be positive numbers.` (also for `0 0`), or `Error: Error: Usage: scene resolution [value|up|down] [count]`. `scene resolution 1025` was accepted as given. (Same capture.)
+28. `project undo` reverts one step of the graph or the scene: after a delete it restored the device under its old `#<id>`, and after several scene setters it reverted only the last one. (Same capture.)
 
 ### Verification items (first tasks of the implementation plan)
 
@@ -235,6 +240,7 @@ Rules:
 - Command use cases (open, create, save, undo, redo, and Plan 2b's graph edits) run one at a time: a use case's precondition checks and its World Machine commands are never interleaved with another command use case.
 - Project lifecycle commands require World Machine's exact confirmation line (`Opened: <path>`, `Created new default project.`, `Project saved to: <path>`, `Undo performed.`, `Redo performed.`); any other output is `UNEXPECTED_OUTPUT`.
 - `unhealthy` sessions are restarted by the next `ensureRunning()`.
+- When World Machine stopped by idle quit, or exited unexpectedly while `dirty` was false, and the binding was `opened { path }`, the next start re-authorises `path` through the path policy and opens it instead of the default project. As for the default project, a refusal or a failed open fails the start; there is no fallback to another project. (Planned for Plan 2b; until it lands, a restart opens the default project and reports binding `fresh`.)
 - Once shutdown has begun, every tool except `get_world_machine_status` returns `SHUTTING_DOWN` before any precondition check; `get_world_machine_status` keeps answering and reports `stopping`.
 - At most one World Machine process exists per server. A new process is started only after the previous one has exited.
 - The idle timer never fires while a command is in flight. Idle quit lets running command batches finish before sending `system quit force`. Process shutdown (section 9) waits for running batches only within its time budget.
@@ -247,24 +253,26 @@ All tools declare `inputSchema` and `outputSchema`; a tool without arguments dec
 |---|---|---|---|
 | `get_world_machine_status` | query | readOnly | `configured`, executable, build number and build name, session state, binding, dirty. Does not launch. |
 | `list_devices` | query | readOnly | optional filter, non-empty when present (omit it to list everything) |
-| `get_device` | query | readOnly | id, name, type, state, parameters, wires |
+| `get_device` | query | readOnly | id, name, type, state (`enabled`, `bypassed`), parameters, wires |
 | `get_scene` | query | readOnly | name, origin, size, resolution, lock |
 | `inspect_project` | query | readOnly | binding (in `session`), current scene, all scenes, device count and list, groups |
 | `open_project` | command | not destructive | path, `discard_unsaved` |
 | `create_project` | command | not destructive | `discard_unsaved` |
 | `add_device` | command | not destructive | exact type, optional name |
 | `rename_device` | command | not destructive, idempotent | |
-| `set_device_enabled` | command | not destructive, idempotent | enabled flag |
+| `set_device_enabled` | command | not destructive, idempotent | enabled flag; the confirmation repeats whether or not anything changed (fact 25), so the same batch reads `device info` back; the result reports the read-back state and `changed`; a mismatch is `WM_COMMAND_FAILED`; dirty only when changed |
 | `update_device_parameters` | command | not destructive, idempotent | map of name to value, per-item outcome |
 | `connect_devices` | command | not destructive, idempotent | source and destination with optional port |
-| `disconnect_devices` | command | not destructive, idempotent | |
-| `configure_scene` | command | not destructive, idempotent | name, origin, size, resolution, each optional |
+| `disconnect_devices` | command | not destructive, idempotent | `wire list` of the destination before and after (fact 26: the confirmation is printed even when nothing was connected); when the wire is absent, no command is sent and the result is success with `removed: false`; a wire still present afterwards is `WM_COMMAND_FAILED`; dirty only when removed |
+| `configure_scene` | command | not destructive, idempotent | name, origin, size, resolution, each optional, at least one; resolution is a positive integer (World Machine's `up`/`down` steps are not exposed); each setter requires its confirmation line (fact 27), then `scene show` reports the result |
 | `delete_device` | command | destructive | |
 | `save_project` | command | destructive (annotations cannot depend on arguments, and `overwrite: true` replaces a file) | path optional when binding is `opened`; existing target requires `overwrite: true`; success is verified on disk (fact 23): the target must exist as a regular file with a modification time not earlier than the start of the save, truncated to the second, otherwise `WM_COMMAND_FAILED`; without `overwrite`, the target is checked again for absence immediately before the save command |
 | `undo` | command | not destructive | the description states that World Machine does not report whether anything was undone (fact 22) |
 | `redo` | command | not destructive | the description states that World Machine does not report whether anything was redone (fact 22) |
 
 Devices are referenced by name or by `#<id>`. There is no raw console tool.
+
+Bypass is reported (`get_device`, `list_devices`) but not settable: `device bypass` toggles (fact 25), and v1 has no bypass tool.
 
 `update_device_parameters` reads `param list` first, validates every name and value against the reported type, and refuses the whole call if any item is invalid. It then applies all items in one batch, each `param set` followed by a `param get` of the same parameter, and reports per item the outcome and the value World Machine read back. Commands reference the device as `#<id>` (fact 18). Its description tells the model that numeric values are World Machine's internal values and that the read-back value shows the effect in display units. There is no automatic rollback; failure results point to `undo`.
 
