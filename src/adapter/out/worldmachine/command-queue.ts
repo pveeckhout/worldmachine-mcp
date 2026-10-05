@@ -77,8 +77,12 @@ export class CommandQueue {
       try {
         this.#channel.write(commands.flatMap((command, index) => [command, sentinel(batchId, index)]));
       } catch (error) {
-        this.#finish();
-        reject(error);
+        // Closing also rejects this batch (it is active) and makes later batches fail with the same error.
+        this.#close(
+          error instanceof WorldMachineError
+            ? error
+            : new WorldMachineError('CRASHED', 'World Machine stopped accepting commands'),
+        );
       }
     });
   }

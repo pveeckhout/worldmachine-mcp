@@ -138,6 +138,47 @@ describe('CommandQueue', () => {
   });
 });
 
+describe('CommandQueue channel failures', () => {
+  it('rejects a throwing write with a typed CRASHED error and refuses later batches', async () => {
+    const channel = new FakeChannel();
+    channel.write = () => {
+      throw new Error('EPIPE: /secret/path');
+    };
+    const queue = new CommandQueue(channel, { timeoutMs: 1_000, nudgeMs: 0, newBatchId: ids('a1', 'a2') });
+    const first = await rejection(queue.execute(['one']));
+    expect(first).toBeInstanceOf(WorldMachineError);
+    expect(first.code).toBe('CRASHED');
+    expect(first.message).toBe('World Machine stopped accepting commands');
+    expect(first.message).not.toContain('EPIPE');
+    const second = await rejection(queue.execute(['two']));
+    expect(second).toBe(first);
+  });
+
+  it('keeps a WorldMachineError thrown by write as it is', async () => {
+    const channel = new FakeChannel();
+    const failure = new WorldMachineError('CRASHED', 'World Machine is not running');
+    channel.write = () => {
+      throw failure;
+    };
+    const queue = new CommandQueue(channel, { timeoutMs: 1_000, nudgeMs: 0 });
+    expect(await rejection(queue.execute(['one']))).toBe(failure);
+  });
+
+  it('reacts to a late exit reported by its channel by rejecting promptly with CRASHED', async () => {
+    const channel = new FakeChannel();
+    channel.onExit = (listener) => {
+      queueMicrotask(listener);
+    };
+    const queue = new CommandQueue(channel, { timeoutMs: 5_000, nudgeMs: 0, newBatchId: ids('a1') });
+    const outcome = await Promise.race([
+      rejection(queue.execute(['one'])),
+      new Promise<string>((resolve) => setTimeout(() => resolve('slow'), 500)),
+    ]);
+    expect(outcome).not.toBe('slow');
+    expect((outcome as WorldMachineError).code).toBe('CRASHED');
+  });
+});
+
 describe('CommandQueue with the fake World Machine', () => {
   const started: WorldMachineProcess[] = [];
   afterEach(async () => {
@@ -154,6 +195,21 @@ describe('CommandQueue with the fake World Machine', () => {
     started.push(proc);
     return new CommandQueue(proc, nudgeMs === undefined ? { timeoutMs } : { timeoutMs, nudgeMs });
   }
+
+  it('rejects with the exit error when built on a process that already exited', async () => {
+    const proc = await WorldMachineProcess.start({
+      bin: FAKE_WM,
+      readyTimeoutMs: 5_000,
+      logger: captureLogger(),
+      env: fakeEnv(),
+    });
+    started.push(proc);
+    await proc.quit();
+    const queue = new CommandQueue(proc, { timeoutMs: 5_000 });
+    const error = await rejection(queue.execute(['system info']));
+    expect(error.code).toBe('CRASHED');
+    expect(error.message).toBe('World Machine exited unexpectedly');
+  });
 
   it('frames real output, including errors from stderr, in order', async () => {
     const queue = await queueFor();

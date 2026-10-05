@@ -112,7 +112,12 @@ export class WorldMachineProcess implements CommandChannel {
     this.#lineListeners.push(listener);
   }
 
+  /** A listener added after the exit still fires, asynchronously so callers can finish their own setup first. */
   onExit(listener: () => void): void {
+    if (this.#exited) {
+      queueMicrotask(listener);
+      return;
+    }
     this.#exitListeners.push(listener);
   }
 

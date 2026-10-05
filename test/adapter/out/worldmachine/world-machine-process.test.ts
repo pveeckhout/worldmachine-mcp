@@ -60,6 +60,17 @@ describe('WorldMachineProcess', () => {
     expect(record.lines()).toEqual(['START', 'project close force', 'system quit force', 'EXIT']);
   });
 
+  it('fires an exit listener registered after the process exited, asynchronously', async () => {
+    const { proc } = await start();
+    await proc.quit();
+    let calls = 0;
+    proc.onExit(() => calls++);
+    expect(calls).toBe(0);
+    await waitUntil(() => calls === 1);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(calls).toBe(1);
+  });
+
   it('delivers every output line before exit listeners run', async () => {
     const { proc } = await start();
     const events: string[] = [];
