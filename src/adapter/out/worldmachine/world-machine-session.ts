@@ -154,11 +154,36 @@ export class WorldMachineSession implements WorldMachineSessionPort {
     else this.#startAbort?.abort();
     // A start that is past readiness is in setup: stop its process now instead of waiting for the setup commands.
     if (this.#starting && this.#process) void this.#stop(budget);
-    await this.#starting?.catch(() => undefined);
+    await this.#awaitStartWithin(budget);
     if (this.#state.kind === 'ready' && this.#state.dirty) {
       this.#options.logger.warn('Shutting down with unsaved changes; they are discarded');
     }
     await this.#stop(budget);
+  }
+
+  /**
+   * A failed setup quits its process with its own fixed budget; a shutdown with a budget must not wait longer
+   * than that budget in total. When the wait ends, whatever the start is still quitting is SIGKILLed (spec section 9).
+   */
+  async #awaitStartWithin(budget: ShutdownBudget | undefined): Promise<void> {
+    const starting = this.#starting?.catch(() => undefined);
+    if (!starting || !budget) {
+      await starting;
+      return;
+    }
+    let timer: NodeJS.Timeout | undefined;
+    const expired = new Promise<'expired'>((resolve) => {
+      timer = setTimeout(() => resolve('expired'), budget.drainMs + budget.graceMs + budget.termMs);
+    });
+    try {
+      if ((await Promise.race([starting.then(() => 'done' as const), expired])) === 'done') return;
+    } finally {
+      clearTimeout(timer);
+    }
+    const procs = new Set(this.#quitting);
+    if (this.#spawning) procs.add(this.#spawning);
+    await Promise.all([...procs].map((proc) => proc.terminate()));
+    await starting;
   }
 
   /** SIGKILLs every World Machine process this session owns, starting or stopping ones included. */

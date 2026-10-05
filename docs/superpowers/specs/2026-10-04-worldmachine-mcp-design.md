@@ -326,7 +326,7 @@ Tool failures are returned as `isError: true` results. Protocol errors are left 
   - On stdin close: drain running batches for at most 500 ms, quit, wait up to 1 s, `SIGTERM` World Machine, wait up to 300 ms, then `SIGKILL` it.
   - On the first `SIGINT` or `SIGTERM` with no shutdown in progress: no drain, quit, wait up to 500 ms, then `SIGKILL`.
   - On any `SIGINT` or `SIGTERM` while a shutdown is already in progress: `SIGKILL` World Machine immediately.
-  - The server process exits 0 after World Machine is gone, even if a shutdown step fails.
+  - The server process exits 0 after World Machine is gone, even if a shutdown step fails. On a repeated signal the server `SIGKILL`s World Machine and exits within 1 s; the exit code is 1 only if World Machine is not confirmed gone by then.
   - Idle quit is not bound by a client deadline and keeps the longer sequence: drain, quit, wait 10 s, `SIGTERM`, wait 2 s, `SIGKILL`. Idle quit is still skipped while the session is dirty, so it never discards work.
   - A dirty session at shutdown is logged as a warning.
 - **Idle timeout.** `WORLD_MACHINE_IDLE_TIMEOUT_MS`, default 15 minutes, `0` disables. Quits World Machine to return the licence seat. Skipped and logged when `dirty`.

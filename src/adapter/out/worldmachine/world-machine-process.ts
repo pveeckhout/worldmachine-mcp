@@ -23,6 +23,8 @@ export type ProcessOptions = {
   readonly logger: Logger;
   readonly env?: NodeJS.ProcessEnv;
   readonly signal?: AbortSignal;
+  /** Replaces `node:child_process` spawn, so a test can make the launch itself fail. */
+  readonly spawn?: typeof spawn;
   /** Called synchronously once the process exists, before it is ready, so a caller can stop it while it starts. */
   readonly onSpawn?: (proc: WorldMachineProcess) => void;
 };
@@ -36,21 +38,19 @@ export class WorldMachineProcess implements CommandChannel {
   readonly #exitPromise: Promise<void>;
   #readyListener: (() => void) | undefined;
   #exited = false;
+  /** 'exit' observed; `exited` waits for 'close' so the last output lines are delivered first. */
+  #exitSeen = false;
+  #resolveExit: () => void = () => undefined;
 
   private constructor(child: ChildProcess, logger: Logger) {
     this.#child = child;
     this.#logger = logger;
     this.#exitPromise = new Promise((resolve) => {
-      const finish = (code: number | null, signal: NodeJS.Signals | null) => {
-        if (this.#exited) return;
-        this.#exited = true;
-        logger.debug(`World Machine exited (code ${code}, signal ${signal})`);
-        for (const listener of this.#exitListeners) listener();
-        resolve();
-      };
-      child.once('close', finish);
+      this.#resolveExit = resolve;
+      child.once('close', (code, signal) => this.#finish(code, signal));
       child.once('exit', (code, signal) => {
-        setTimeout(() => finish(code, signal), STDIO_DRAIN_MS).unref();
+        this.#exitSeen = true;
+        setTimeout(() => this.#finish(code, signal), STDIO_DRAIN_MS).unref();
       });
     });
     child.stdin?.on('error', (error) => logger.debug(`World Machine stdin error: ${error.message}`));
@@ -59,10 +59,18 @@ export class WorldMachineProcess implements CommandChannel {
 
   /** Spawns World Machine with stdout and stderr merged at the fd level (spec section 5.1). */
   static start(options: ProcessOptions): Promise<WorldMachineProcess> {
-    const child = spawn('/bin/sh', ['-c', 'exec "$0" --cli 2>&1', options.bin], {
-      stdio: ['pipe', 'pipe', 'ignore'],
-      env: options.env ?? process.env,
-    });
+    let child: ChildProcess;
+    try {
+      child = (options.spawn ?? spawn)('/bin/sh', ['-c', 'exec "$0" --cli 2>&1', options.bin], {
+        stdio: ['pipe', 'pipe', 'ignore'],
+        env: options.env ?? process.env,
+      });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      return Promise.reject(
+        new WorldMachineError('START_FAILED', `Could not start World Machine: ${reason}`),
+      );
+    }
     const proc = new WorldMachineProcess(child, options.logger);
     options.onSpawn?.(proc);
     return new Promise((resolve, reject) => {
@@ -91,7 +99,17 @@ export class WorldMachineProcess implements CommandChannel {
         () => fail(`World Machine did not become ready within ${options.readyTimeoutMs} ms`),
         options.readyTimeoutMs,
       );
-      child.once('error', (error) => fail(`Could not start World Machine: ${error.message}`));
+      // Without a pid nothing was launched, so there is no process to wait for.
+      child.on('error', (error) => {
+        if (settled) {
+          // A second 'error' (or one after start) must not become an uncaught exception.
+          options.logger.debug(`World Machine process error after startup settled: ${error.message}`);
+          return;
+        }
+        fail(`Could not start World Machine: ${error.message}`, () =>
+          child.pid === undefined ? proc.#abandon() : proc.terminate(),
+        );
+      });
       proc.#exitListeners.push(() => fail('World Machine exited during startup'));
       proc.#readyListener = () => {
         if (settled) return;
@@ -122,7 +140,7 @@ export class WorldMachineProcess implements CommandChannel {
   }
 
   write(lines: readonly string[]): void {
-    if (this.#exited || !this.#child.stdin)
+    if (this.#exited || this.#exitSeen || !this.#child.stdin)
       throw new WorldMachineError('CRASHED', 'World Machine is not running');
     this.#child.stdin.write(lines.map((line) => `${line}\n`).join(''));
   }
@@ -151,6 +169,21 @@ export class WorldMachineProcess implements CommandChannel {
     } finally {
       clearInterval(nudge);
     }
+  }
+
+  #finish(code: number | null, signal: NodeJS.Signals | null): void {
+    if (this.#exited) return;
+    this.#exited = true;
+    this.#exitSeen = true;
+    this.#logger.debug(`World Machine exited (code ${code}, signal ${signal})`);
+    for (const listener of this.#exitListeners) listener();
+    this.#resolveExit();
+  }
+
+  /** Marks a process that never launched as gone, so `exited` and `write()` agree with reality. */
+  #abandon(): Promise<void> {
+    this.#finish(null, null);
+    return Promise.resolve();
   }
 
   /** SIGKILL, resolving once the process is gone. */

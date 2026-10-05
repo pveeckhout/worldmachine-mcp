@@ -82,6 +82,9 @@ export class CommandQueue {
       try {
         this.#channel.write(commands.flatMap((command, index) => [command, sentinel(batchId, index)]));
       } catch (error) {
+        // The process has exited but its exit listener has not run yet (output may still be draining). Keep the
+        // batch pending: that listener closes the queue with the exit error, which the session maps to lost changes.
+        if (error instanceof WorldMachineError && error.code === 'CRASHED') return;
         if (!(error instanceof WorldMachineError)) {
           this.#logger?.debug(
             `Command write failed: ${error instanceof Error ? error.message : String(error)}`,

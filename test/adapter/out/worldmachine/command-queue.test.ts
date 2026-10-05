@@ -56,6 +56,20 @@ describe('CommandQueue', () => {
     ]);
   });
 
+  it('leaves a batch pending when the write finds the process already exited, so the exit error wins', async () => {
+    const channel = new FakeChannel();
+    channel.write = () => {
+      throw new WorldMachineError('CRASHED', 'World Machine is not running');
+    };
+    const queue = new CommandQueue(channel, { timeoutMs: 1_000, nudgeMs: 0, newBatchId: ids('a1') });
+    const result = rejection(queue.execute(['system info']));
+    await flush();
+    channel.exit();
+    const error = await result;
+    expect(error.code).toBe('CRASHED');
+    expect(error.message).toBe('World Machine exited unexpectedly');
+  });
+
   it('serialises batches: the second is written only after the first completes', async () => {
     const channel = new FakeChannel();
     const queue = new CommandQueue(channel, { timeoutMs: 1_000, nudgeMs: 0, newBatchId: ids('a1', 'a2') });
@@ -167,9 +181,9 @@ describe('CommandQueue channel failures', () => {
     expect(logger.lines).toEqual(['debug: Command write failed: EPIPE: write failed']);
   });
 
-  it('keeps a WorldMachineError thrown by write as it is', async () => {
+  it('keeps a WorldMachineError other than CRASHED thrown by write as it is', async () => {
     const channel = new FakeChannel();
-    const failure = new WorldMachineError('CRASHED', 'World Machine is not running');
+    const failure = new WorldMachineError('REFUSED', 'not allowed');
     channel.write = () => {
       throw failure;
     };

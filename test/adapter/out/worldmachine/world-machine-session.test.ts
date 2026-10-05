@@ -296,6 +296,43 @@ describe('WorldMachineSession', () => {
     expect(record.pids().some(isAlive)).toBe(false);
   });
 
+  it('reports lost changes when a batch is written after the process exited but before it closed', async () => {
+    const exitListeners: (() => void)[] = [];
+    let lineListener: (line: string) => void = () => undefined;
+    let exitSeen = false;
+    const stub = {
+      exited: false,
+      onLine: (listener: (line: string) => void) => {
+        lineListener = listener;
+      },
+      onExit: (listener: () => void) => exitListeners.push(listener),
+      write: (lines: readonly string[]) => {
+        if (exitSeen) throw new WorldMachineError('CRASHED', 'World Machine is not running');
+        for (const line of lines) {
+          if (line === 'system info') lineListener("  Version:  Build 4067 'Dragontail Peak'");
+          if (line === 'system info') lineListener('  Arch:     x64-AVX2 (256-bit)');
+          if (line === 'project new default force') lineListener('Created new default project.');
+          if (line.startsWith('__end_')) lineListener(`Error: Unknown command: '${line}'`);
+        }
+      },
+      quit: () => Promise.resolve(),
+      terminate: () => Promise.resolve(),
+    };
+    const { session: s } = session(
+      {},
+      { startProcess: () => Promise.resolve(stub as unknown as WorldMachineProcess) },
+    );
+    await s.ensureRunning();
+    s.markDirty();
+    exitSeen = true;
+    const pending = failure(s.executeOne('device list'));
+    await new Promise((resolve) => setImmediate(resolve));
+    for (const listener of exitListeners) listener();
+    const error = await pending;
+    expect(error.code).toBe('CRASHED');
+    expect(error.message).toContain('unsaved changes were lost');
+  });
+
   it('kill() during a shutdown ends a start that is not ready yet at once', async () => {
     const { session: s, record } = session({ FAKE_WM_STARTUP: 'silent', FAKE_WM_QUIT_DELAY_MS: '20000' });
     const starting = failure(s.ensureRunning());
@@ -319,6 +356,20 @@ describe('WorldMachineSession', () => {
     await waitUntil(() => record.lines().includes('system quit force'));
     const started = Date.now();
     await s.kill();
+    expect(Date.now() - started).toBeLessThan(1_000);
+    expect(record.pids().some(isAlive)).toBe(false);
+    expect((await starting).code).toBe('WM_COMMAND_FAILED');
+  });
+
+  it('shutdown applies its own budget to a failed setup that is already quitting a hung World Machine', async () => {
+    const { session: s, record } = session(
+      { FAKE_WM_OPEN_ERROR: '1', FAKE_WM_QUIT_DELAY_MS: '20000' },
+      { defaultProject: project },
+    );
+    const starting = failure(s.ensureRunning());
+    await waitUntil(() => record.lines().includes('system quit force'));
+    const started = Date.now();
+    await s.shutdown({ drainMs: 100, graceMs: 200, termMs: 200 });
     expect(Date.now() - started).toBeLessThan(1_000);
     expect(record.pids().some(isAlive)).toBe(false);
     expect((await starting).code).toBe('WM_COMMAND_FAILED');

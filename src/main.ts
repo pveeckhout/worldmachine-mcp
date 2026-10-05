@@ -11,10 +11,7 @@ import { WorldMachineParameterEditor } from './adapter/out/worldmachine/world-ma
 import { WorldMachineProcess } from './adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineProjectWriter } from './adapter/out/worldmachine/world-machine-project-writer.js';
 import { WorldMachineSceneEditor } from './adapter/out/worldmachine/world-machine-scene-editor.js';
-import {
-  type ShutdownBudget,
-  WorldMachineSession,
-} from './adapter/out/worldmachine/world-machine-session.js';
+import { WorldMachineSession } from './adapter/out/worldmachine/world-machine-session.js';
 import { WorldMachineWireEditor } from './adapter/out/worldmachine/world-machine-wire-editor.js';
 import { AddDeviceService } from './application/service/add-device-service.js';
 import { ConfigureSceneService } from './application/service/configure-scene-service.js';
@@ -36,6 +33,7 @@ import { UndoService } from './application/service/undo-service.js';
 import { UpdateDeviceParametersService } from './application/service/update-device-parameters-service.js';
 import { type Config, loadConfig } from './config.js';
 import { createLogger } from './logger.js';
+import { createSignalShutdown } from './signal-shutdown.js';
 
 const READY_TIMEOUT_MS = 60_000;
 const { version } = createRequire(import.meta.url)('../package.json') as { version: string };
@@ -95,32 +93,20 @@ const handle = serveStdio(() =>
 
 // The SDK client ends stdin, waits 2 s, sends SIGTERM, waits 2 s, then SIGKILLs this process (spec section 9).
 const STDIN_END_BUDGET = { drainMs: 500, graceMs: 1_000, termMs: 300 } as const;
+const KILL_BOUND_MS = 1_000;
 const SIGNAL_BUDGET = { drainMs: 0, graceMs: 500, termMs: 0 } as const;
 
-let stopping: Promise<void> | undefined;
-function stop(reason: string, budget: ShutdownBudget): Promise<void> {
-  stopping ??= (async () => {
-    try {
-      logger.debug(`Stopping: ${reason}`);
-      await session.shutdown(budget);
-      await handle.close();
-    } catch (error) {
-      logger.error(`Shutdown failed: ${String(error)}`);
-    } finally {
-      process.exit(0);
-    }
-  })();
-  return stopping;
-}
+const shutdown = createSignalShutdown({
+  stop: async (reason) => {
+    await session.shutdown(reason === 'stdin closed' ? STDIN_END_BUDGET : SIGNAL_BUDGET);
+    await handle.close();
+  },
+  kill: () => session.kill(),
+  exit: (code) => process.exit(code),
+  logger,
+  boundMs: KILL_BOUND_MS,
+});
 
-function onSignal(signal: string): void {
-  if (stopping === undefined) {
-    void stop(signal, SIGNAL_BUDGET);
-    return;
-  }
-  session.kill().catch((error: unknown) => logger.error(`Kill failed: ${String(error)}`));
-}
-
-process.stdin.once('end', () => void stop('stdin closed', STDIN_END_BUDGET));
-process.on('SIGINT', () => onSignal('SIGINT'));
-process.on('SIGTERM', () => onSignal('SIGTERM'));
+process.stdin.once('end', () => shutdown.trigger('stdin closed'));
+process.on('SIGINT', () => shutdown.trigger('SIGINT'));
+process.on('SIGTERM', () => shutdown.trigger('SIGTERM'));

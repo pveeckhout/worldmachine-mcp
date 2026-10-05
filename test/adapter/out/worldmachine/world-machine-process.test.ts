@@ -1,9 +1,13 @@
+import type { ChildProcess, spawn } from 'node:child_process';
+import { EventEmitter } from 'node:events';
 import { copyFileSync, mkdirSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { PassThrough } from 'node:stream';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   KILL_ABORT,
+  READY_LINE,
   WorldMachineProcess,
 } from '../../../../src/adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineError } from '../../../../src/domain/errors.js';
@@ -255,4 +259,83 @@ describe('WorldMachineProcess', () => {
       expect(record.pids().some(isAlive)).toBe(false);
     },
   );
+
+  describe('with an injected spawn', () => {
+    const options = (spawnFn: typeof spawn) => ({
+      bin: FAKE_WM,
+      readyTimeoutMs: 5_000,
+      logger: captureLogger(),
+      env: fakeEnv(),
+      spawn: spawnFn,
+    });
+
+    it('rejects START_FAILED when the child emits an error, leaving nothing running', async () => {
+      const child = new EventEmitter() as ChildProcess;
+      let spawned: WorldMachineProcess | undefined;
+      const spawnFn = (() => {
+        setImmediate(() => child.emit('error', new Error('spawn /bin/sh EAGAIN')));
+        return child;
+      }) as unknown as typeof spawn;
+      const starting = WorldMachineProcess.start({
+        ...options(spawnFn),
+        onSpawn: (proc) => (spawned = proc),
+      });
+      await expect(starting).rejects.toMatchObject({
+        code: 'START_FAILED',
+        message: 'Could not start World Machine: spawn /bin/sh EAGAIN',
+      });
+      expect(spawned).toBeInstanceOf(WorldMachineProcess);
+      expect(spawned?.exited).toBe(true);
+    });
+
+    it('survives a second error event from the child', async () => {
+      const child = new EventEmitter() as ChildProcess;
+      const spawnFn = (() => {
+        setImmediate(() => child.emit('error', new Error('first')));
+        return child;
+      }) as unknown as typeof spawn;
+      const logger = captureLogger();
+      await expect(WorldMachineProcess.start({ ...options(spawnFn), logger })).rejects.toMatchObject({
+        code: 'START_FAILED',
+      });
+      expect(() => child.emit('error', new Error('second'))).not.toThrow();
+      expect(logger.lines).toContain('debug: World Machine process error after startup settled: second');
+    });
+
+    it('rejects START_FAILED when spawn throws synchronously', async () => {
+      const spawnFn = (() => {
+        throw new Error('spawn E2BIG');
+      }) as unknown as typeof spawn;
+      await expect((async () => WorldMachineProcess.start(options(spawnFn)))()).rejects.toMatchObject({
+        code: 'START_FAILED',
+        message: 'Could not start World Machine: spawn E2BIG',
+      });
+    });
+    it('refuses to write between exit and close but still delivers late output before onExit', async () => {
+      const child = Object.assign(new EventEmitter(), {
+        pid: 4242,
+        stdin: new PassThrough(),
+        stdout: new PassThrough(),
+        kill: () => true,
+      });
+      const spawnFn = (() => child) as unknown as typeof spawn;
+      const starting = WorldMachineProcess.start(options(spawnFn));
+      child.stdout.write(`[Info       ] ${READY_LINE}\n`);
+      const proc = await starting;
+      const events: string[] = [];
+      proc.onLine((line) => events.push(line));
+      proc.onExit(() => events.push('<exit>'));
+      child.emit('exit', 0, null);
+      expect(() => proc.write(['system info'])).toThrow(
+        expect.objectContaining({ code: 'CRASHED', message: 'World Machine is not running' }),
+      );
+      child.stdout.write('late line\n');
+      await waitUntil(() => events.includes('late line'));
+      expect(events).toEqual(['late line']);
+      child.stdout.end();
+      child.emit('close', 0, null);
+      await waitUntil(() => proc.exited);
+      expect(events).toEqual(['late line', '<exit>']);
+    });
+  });
 });

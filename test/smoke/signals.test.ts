@@ -149,4 +149,23 @@ describe.each(['SIGTERM', 'SIGINT'] as const)('%s', (signal) => {
     expect(record.lines()).toEqual([]);
     expect(record.pids()).toEqual([]);
   });
+
+  it('exits 0 on a repeated signal once SIGKILL has removed World Machine', async () => {
+    const { record, server } = fakeServer({ FAKE_WM_QUIT_DELAY_MS: '20000' });
+    await handshake(server);
+    await server.request('tools/call', { name: 'list_devices', arguments: {} });
+    await waitUntil(() => record.pids().length > 0, 5_000);
+    const fakePids = record.pids();
+
+    server.child.kill(signal);
+    await waitUntil(() => record.lines().includes('system quit force'), 3_000);
+    const began = Date.now();
+    server.child.kill(signal);
+    const exit = await withTimeout(server.exited, 3_000, 'exit');
+
+    expect(exit).toEqual({ code: 0, signal: null });
+    expect(Date.now() - began).toBeLessThan(3_000);
+    await waitUntil(() => !fakePids.some(isAlive), 3_000);
+    expect(isAlive(server.child.pid ?? 0)).toBe(false);
+  });
 });
