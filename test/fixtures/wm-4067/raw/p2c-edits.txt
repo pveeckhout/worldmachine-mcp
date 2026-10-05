@@ -1,0 +1,345 @@
+>>> project new blank force
+Created new blank project.
+[Info       ] Closing current project
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device add Combiner
+Added 'Combiner'
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device add NoSuchDeviceType
+Error: Error: Device type not found: 'NoSuchDeviceType'
+<<<
+>>> device list
+Devices (4 total):
+  #1     Gradient                
+  #2     Combiner                
+  #3     Height Output           
+  #4     Gradient                
+
+<<<
+>>> device rename #4 Grad A B
+Renamed '#4' to 'Grad A B'
+<<<
+>>> device list
+Devices (4 total):
+  #1     Gradient                
+  #2     Combiner                
+  #3     Height Output           
+  #4     Grad A B                 (Gradient)
+
+<<<
+>>> device rename #4 ABCDEFGHIJKLMNOPQRSTUVW
+Renamed '#4' to 'ABCDEFGHIJKLMNOPQRSTUVW'
+<<<
+>>> device list
+Devices (4 total):
+  #1     Gradient                
+  #2     Combiner                
+  #3     Height Output           
+  #4     ABCDEFGHIJKLMNOPQRSTUVW  (Gradient)
+
+<<<
+>>> device rename #4 ABCDEFGHIJKLMNOPQRSTUVWX
+Renamed '#4' to 'ABCDEFGHIJKLMNOPQRSTUVWX'
+<<<
+>>> device list
+Devices (4 total):
+  #1     Gradient                
+  #2     Combiner                
+  #3     Height Output           
+  #4     ABCDEFGHIJKLMNOPQRSTUVW  (Gradient)
+
+<<<
+>>> device rename #4 ABCDEFGHIJKLMNOPQRSTUVWXYZ0123
+Renamed '#4' to 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123'
+<<<
+>>> device list
+Devices (4 total):
+  #1     Gradient                
+  #2     Combiner                
+  #3     Height Output           
+  #4     ABCDEFGHIJKLMNOPQRSTUVW  (Gradient)
+
+<<<
+>>> device rename #4 Gradient
+Renamed '#4' to 'Gradient'
+<<<
+>>> device list
+Devices (4 total):
+  #1     Gradient                
+  #2     Combiner                
+  #3     Height Output           
+  #4     Gradient                
+
+<<<
+>>> device rename #4 Grad A
+Renamed '#4' to 'Grad A'
+<<<
+>>> wire connect #4 #2
+Connected '#4' [1] -> '#2' [1]
+<<<
+>>> wire list #2
+Connections for '#2':
+  Inputs:
+    [1] Primary Input <- 'Grad A' [1]
+    [2] Primary Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> wire list #4
+Connections for '#4':
+  Inputs:
+  Outputs:
+    [1] Primary Output -> 'Combiner' [1]
+
+<<<
+>>> wire connect #4 #2
+Error: Error: Input '#2' is already connected. Disconnect first.
+<<<
+>>> wire connect #1.1 #2.2
+Connected '#1' [1] -> '#2' [2]
+<<<
+>>> wire list #2
+Connections for '#2':
+  Inputs:
+    [1] Primary Input <- 'Grad A' [1]
+    [2] Primary Input <- 'Gradient' [1]
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> wire disconnect #1.1 #2.2
+Disconnected '#1' [1] -> '#2' [2]
+<<<
+>>> wire connect #1.3 #2.2
+Error: Error: Output port not found on '#1'
+<<<
+>>> wire connect #1 #2.9
+Error: Error: Input port not found on '#2'
+<<<
+>>> wire list #2
+Connections for '#2':
+  Inputs:
+    [1] Primary Input <- 'Grad A' [1]
+    [2] Primary Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> wire connect #2 #2
+Error: Error: Input '#2' is already connected. Disconnect first.
+<<<
+>>> wire list #2
+Connections for '#2':
+  Inputs:
+    [1] Primary Input <- 'Grad A' [1]
+    [2] Primary Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> device delete #4
+Deleted: #4
+<<<
+>>> wire list #2
+Connections for '#2':
+  Inputs:
+    [1] Primary Input <- (none)
+    [2] Primary Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> project undo
+Undo performed.
+<<<
+>>> device list
+Devices (4 total):
+  #1     Gradient                
+  #2     Combiner                
+  #3     Height Output           
+  #4     Grad A                   (Gradient)
+
+<<<
+>>> wire list #2
+Connections for '#2':
+  Inputs:
+    [1] Primary Input <- 'Grad A' [1]
+    [2] Primary Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> param set #1.Direction -1
+Set #1.Direction = -1
+<<<
+>>> param get #1.Direction
+#1.Direction = -1
+<<<
+>>> param set #1.Width -0.5
+Set #1.Width = -0.5
+<<<
+>>> param get #1.Width
+#1.Width = -4 km
+<<<
+>>> param set #1.Width 1e-1
+Set #1.Width = 1e-1
+<<<
+>>> param get #1.Width
+#1.Width = 800 m
+<<<
+>>> param set #1.Width .5
+Set #1.Width = .5
+<<<
+>>> param get #1.Width
+#1.Width = 4 km
+<<<
+>>> param set #1.Tiling Mirrored Repeat
+Set #1.Tiling = Mirrored Repeat
+<<<
+>>> param get #1.Tiling
+#1.Tiling = Mirrored Repeat
+<<<
+>>> param set #1.Tiling clamp
+Set #1.Tiling = clamp
+<<<
+>>> param get #1.Tiling
+#1.Tiling = Clamp
+<<<
+>>> param set #1.Tiling 99
+Error: Error: Enum index out of range (0-2): 99
+<<<
+>>> param get #1.Tiling
+#1.Tiling = Clamp
+<<<
+>>> param set #3.exportAlways no
+Set #3.exportAlways = no
+<<<
+>>> param get #3.exportAlways
+#3.exportAlways = false
+<<<
+>>> param set #3.exportAlways on
+Set #3.exportAlways = on
+<<<
+>>> param get #3.exportAlways
+#3.exportAlways = true
+<<<
+>>> param set #3.exportAlways TRUE
+Set #3.exportAlways = TRUE
+<<<
+>>> param get #3.exportAlways
+#3.exportAlways = true
+<<<
+>>> param set #1.width 1
+Error: Error: Parameter 'width' not found on device '#1'.
+<<<
+>>> param get #1.Width
+#1.Width = 4 km
+<<<
+>>> param get #1.width
+Error: Error: Parameter 'width' not found on device '#1'.
+<<<
+>>> param set #3.writeButton 1
+Error: Error: Parameter type not supported for console assignment.
+<<<
+>>> param list #3
+Parameters for 'Height Output' (Height Output):
+  filename                  filename  <project>_<name>_<res>.png
+  format                    enum      PNG (16bit)
+  exportAlways              bool      true
+  tiled                     bool      true
+  writeButton               action    
+
+<<<
+>>> param get #1.Direction
+#1.Direction = -1
+<<<
+>>> param set #1.Direction 5
+Set #1.Direction = 5
+<<<
+>>> param set #1.Width 1
+Set #1.Width = 1
+<<<
+>>> project undo
+Undo performed.
+<<<
+>>> param get #1.Direction
+#1.Direction = 5
+<<<
+>>> param get #1.Width
+#1.Width = 4 km
+<<<
+>>> project undo
+Undo performed.
+<<<
+>>> param get #1.Direction
+#1.Direction = -1
+<<<
+>>> param get #1.Width
+#1.Width = 4 km
+<<<
+>>> scene lock on
+Scene locked.
+<<<
+>>> scene name Locked Name
+Error: Error: Scene is locked. Use 'scene lock off' to unlock before making changes.
+<<<
+>>> scene origin 1 1
+Error: Error: Scene is locked. Use 'scene lock off' to unlock before making changes.
+<<<
+>>> scene size 4 4
+Error: Error: Scene is locked. Use 'scene lock off' to unlock before making changes.
+<<<
+>>> scene resolution 512
+Error: Error: Scene is locked. Use 'scene lock off' to unlock before making changes.
+<<<
+>>> scene show
+Scene 'Main Extents' (index 0 of 1):
+  Origin (center): 4.00, 4.00 km
+  Size:            8.00 x 8.00 km
+  Lower-left:      0.00, 0.00 km
+  Upper-right:     8.00, 8.00 km
+  Resolution:      1024
+  Locked:          yes
+<<<
+>>> scene lock off
+Scene unlocked.
+<<<
+>>> scene resolution 7
+Set scene resolution to 7
+<<<
+>>> scene resolution 100000
+Set scene resolution to 100000
+<<<
+>>> scene show
+Scene 'Main Extents' (index 0 of 1):
+  Origin (center): 4.00, 4.00 km
+  Size:            8.00 x 8.00 km
+  Lower-left:      0.00, 0.00 km
+  Upper-right:     8.00, 8.00 km
+  Resolution:      100000
+  Locked:          no
+<<<
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> param set #35.groupBasic 1
+Set #35.groupBasic = 1
+<<<
+>>> param get #35.groupBasic
+#35.groupBasic = 
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<
