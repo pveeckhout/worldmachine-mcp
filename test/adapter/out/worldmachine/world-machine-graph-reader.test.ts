@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -7,6 +7,11 @@ import { WorldMachineGraphReader } from '../../../../src/adapter/out/worldmachin
 import { WorldMachineProcess } from '../../../../src/adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineSession } from '../../../../src/adapter/out/worldmachine/world-machine-session.js';
 import { captureLogger, FAKE_WM, fakeEnv, recorder } from '../../../support/fake-wm.js';
+
+const lines = (name: string) =>
+  readFileSync(new URL(`../../../fixtures/wm-4067/${name}`, import.meta.url), 'utf8')
+    .split('\n')
+    .filter((line) => line !== '');
 
 const sessions: WorldMachineSession[] = [];
 afterEach(async () => {
@@ -35,7 +40,7 @@ describe('WorldMachineGraphReader.listDevices', () => {
   it('lists devices from World Machine', async () => {
     const devices = await reader().reader.listDevices();
     expect(devices).toHaveLength(17);
-    expect(devices[0]).toEqual({ id: 1, name: 'Height Output' });
+    expect(devices[0]).toEqual({ id: 1, name: 'Height Output', enabled: true, bypassed: false });
   });
 
   it('lists devices when a log line interrupts the output', async () => {
@@ -86,6 +91,33 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
 
   it('reads a device by name', async () => {
     expect((await reader().reader.getDevice('Erosion')).id).toBe(35);
+  });
+
+  it('reads a disabled device by name when device list marks it [disabled]', async () => {
+    const infoOutput = [
+      'Selected device:',
+      '  Name:    Gradient',
+      '  Type:    Gradient',
+      '  Enabled: no',
+      '  Bypass:  no',
+    ];
+    const frame = (command: string, output: string[]) => ({ command, output, errors: [] });
+    const session = {
+      assertAcceptingCalls: () => undefined,
+      execute: async () => [
+        frame('device select "Gradient"', []),
+        frame('device info', infoOutput),
+        frame('param list "Gradient"', lines('param-list-erosion.txt')),
+        frame('wire list "Gradient"', lines('wire-list-erosion.txt')),
+        frame('device list', [
+          'Devices (2 total):',
+          '  #1     Gradient                 [disabled]',
+          '  #2     Combiner                ',
+        ]),
+      ],
+    } as unknown as WorldMachineSession;
+    const device = await new WorldMachineGraphReader(session).getDevice('Gradient');
+    expect(device).toMatchObject({ id: 1, name: 'Gradient', enabled: false });
   });
 
   it('reports a missing device', async () => {

@@ -21,7 +21,7 @@ describe('ListDevicesService', () => {
     const graph: ProjectGraphReadPort = {
       async listDevices(filter) {
         calls.push(`listDevices:${filter}`);
-        return [{ id: 1, name: 'Height Output' }];
+        return [{ id: 1, name: 'Height Output', enabled: true, bypassed: false }];
       },
       getDevice: async () => {
         throw new Error('unused');
@@ -34,7 +34,7 @@ describe('ListDevicesService', () => {
       },
     };
     expect(await new ListDevicesService(session, graph).listDevices({ filter: 'Height' })).toEqual({
-      devices: [{ id: 1, name: 'Height Output' }],
+      devices: [{ id: 1, name: 'Height Output', enabled: true, bypassed: false }],
       session: { state: 'ready', binding: { kind: 'fresh' }, dirty: false },
     });
     expect(calls).toEqual(['listDevices:Height']);

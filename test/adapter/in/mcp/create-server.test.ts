@@ -31,7 +31,7 @@ function deps(overrides: Partial<McpDependencies> = {}): McpDependencies {
     },
     listDevices: {
       listDevices: async ({ filter }) => ({
-        devices: [{ id: 1, name: filter ?? 'Height Output' }],
+        devices: [{ id: 1, name: filter ?? 'Height Output', enabled: true, bypassed: false }],
         session: READY,
       }),
     },
@@ -178,7 +178,10 @@ describe('createMcpServer', () => {
       name: 'list_devices',
       arguments: { filter: 'Erosion' },
     });
-    expect(result.structuredContent).toEqual({ devices: [{ id: 1, name: 'Erosion' }], session: READY });
+    expect(result.structuredContent).toEqual({
+      devices: [{ id: 1, name: 'Erosion', enabled: true, bypassed: false }],
+      session: READY,
+    });
   });
 
   it('rejects an empty filter through the schema', async () => {

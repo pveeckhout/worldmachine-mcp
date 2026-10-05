@@ -2,6 +2,8 @@ export type DeviceSummary = {
   readonly id: number;
   readonly name: string;
   readonly kind?: string;
+  readonly enabled: boolean;
+  readonly bypassed: boolean;
 };
 
 export type Parameter = { readonly name: string; readonly type: string; readonly value: string };
