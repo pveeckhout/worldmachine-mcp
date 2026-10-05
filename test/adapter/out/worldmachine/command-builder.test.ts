@@ -45,6 +45,14 @@ describe('buildCommand', () => {
   ])('refuses %s', (_label, words) => {
     refused(() => buildCommand(words));
   });
+
+  it('appends suffix words after the tail', () => {
+    expect(buildCommand(['project', 'open'], '/p/a b.tmd', ['force'])).toBe('project open /p/a b.tmd force');
+  });
+
+  it('refuses unsafe suffix words', () => {
+    refused(() => buildCommand(['project', 'open'], '/p/a.tmd', ['for ce']));
+  });
 });
 
 describe('sentinels', () => {

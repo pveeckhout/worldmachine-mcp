@@ -22,14 +22,18 @@ function assertSafe(value: string): void {
  * contain spaces (spec section 2, fact 11). Quoting rules are unverified (V4), so a space anywhere but the tail,
  * and any quote or backslash, is refused (spec section 9: ambiguous tokens are refused).
  */
-export function buildCommand(words: readonly string[], tail?: string): string {
-  for (const word of words) {
+export function buildCommand(
+  words: readonly string[],
+  tail?: string,
+  suffix: readonly string[] = [],
+): string {
+  for (const word of [...words, ...suffix]) {
     assertSafe(word);
     if (word === '' || /[\s"'\\]/.test(word)) {
       throw new WorldMachineError('REFUSED', `"${word}" must be a single word without spaces`);
     }
   }
-  if (tail === undefined) return words.join(' ');
+  if (tail === undefined) return [...words, ...suffix].join(' ');
   assertSafe(tail);
   if (/["'\\]/.test(tail)) {
     throw new WorldMachineError(
@@ -43,7 +47,7 @@ export function buildCommand(words: readonly string[], tail?: string): string {
       'The final argument must not be blank or start or end with spaces',
     );
   }
-  return [...words, tail].join(' ');
+  return [...words, tail, ...suffix].join(' ');
 }
 
 export function sentinel(batchId: string, index: number): string {

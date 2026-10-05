@@ -1,0 +1,13 @@
+Connections for 'Erosion':
+  Inputs:
+    [1] Primary Input <- 'Flow Restructure' [1]
+    [2] Water input  <- (none)
+    [3] Bedrock Structure Value <- (none)
+  Outputs:
+    [1] Primary Output -> 'Thermal Weathering' [1]
+    [2] Flow Mask    -> 'Vegetation Layer' [2]
+                     -> 'Vegetation Layer' [2]
+    [3] Wear Mask    -> 'Rock and Soil' [5]
+    [4] Deposition Mask -> 'Rock and Soil' [6]
+    [5] Soil Mask    -> 'Rock and Soil' [2]
+

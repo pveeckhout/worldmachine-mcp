@@ -1,0 +1,7 @@
+Scene 'Main Extents' (index 0 of 1):
+  Origin (center): 4.00, 4.00 km
+  Size:            8.00 x 8.00 km
+  Lower-left:      0.00, 0.00 km
+  Upper-right:     8.00, 8.00 km
+  Resolution:      1024
+  Locked:          no

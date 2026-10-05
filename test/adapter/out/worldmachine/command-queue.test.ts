@@ -188,4 +188,16 @@ describe('CommandQueue with the fake World Machine', () => {
     expect(bogus?.errors[0]).toMatch(/^Error: Unknown command: 'bogus'/);
     expect(info?.output[0]).toBe('World Machine System Info:');
   });
+
+  it('abort fails the running batch and refuses queued ones with the given reason', async () => {
+    const channel = new FakeChannel();
+    const queue = new CommandQueue(channel, { timeoutMs: 1_000, nudgeMs: 0, newBatchId: ids('a1', 'a2') });
+    const running = queue.execute(['x']);
+    const queued = queue.execute(['y']);
+    await flush();
+    queue.abort(new WorldMachineError('SHUTTING_DOWN', 'stop'));
+    expect((await rejection(running)).code).toBe('SHUTTING_DOWN');
+    expect((await rejection(queued)).code).toBe('SHUTTING_DOWN');
+    expect(channel.written).toHaveLength(1);
+  });
 });

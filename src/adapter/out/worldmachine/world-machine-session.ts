@@ -3,13 +3,14 @@ import type {
   SessionStatus,
   WorldMachineSessionPort,
 } from '../../../application/port/out/world-machine-session-port.js';
-import { WorldMachineError } from '../../../domain/errors.js';
+import { type ErrorCode, WorldMachineError } from '../../../domain/errors.js';
 import { type ProjectBinding, type SessionState, summarize } from '../../../domain/session.js';
 import type { SystemInfo } from '../../../domain/system-info.js';
 import type { Logger } from '../../../logger.js';
 import { buildCommand } from './command-builder.js';
 import { CommandQueue } from './command-queue.js';
 import { parseSystemInfo } from './parsers/system-info.js';
+import { OPEN_FAILED, requireCreatedLine, requireOpenedLine } from './project-confirmations.js';
 import { type RawResponse, requireFrame, throwIfFailed } from './raw-response.js';
 import { KILL_ABORT, type QuitAbort, type WorldMachineProcess } from './world-machine-process.js';
 
@@ -30,7 +31,15 @@ export type SessionOptions = {
 /** How long each shutdown step may take; the main entry point derives it from the MCP client's kill budget. */
 export type ShutdownBudget = { readonly drainMs: number; readonly graceMs: number; readonly termMs: number };
 
-const OPEN_FAILED = 'Failed to open project.';
+const SHUTTING_DOWN_MESSAGE = 'The server is shutting down';
+const LOST_CHANGES = 'World Machine exited unexpectedly; unsaved changes were lost';
+// Errors that describe the request or World Machine's answer, not the shutdown; they keep their code.
+const KEEP_DURING_SHUTDOWN = new Set<ErrorCode>([
+  'NOT_CONFIGURED',
+  'REFUSED',
+  'WM_COMMAND_FAILED',
+  'UNEXPECTED_OUTPUT',
+]);
 
 export class WorldMachineSession implements WorldMachineSessionPort {
   readonly #options: SessionOptions;
@@ -47,6 +56,7 @@ export class WorldMachineSession implements WorldMachineSessionPort {
   #idleTimer: NodeJS.Timeout | undefined;
   #inFlight = 0;
   #shutDown = false;
+  #exclusiveTail: Promise<unknown> = Promise.resolve();
 
   constructor(options: SessionOptions) {
     this.#options = options;
@@ -55,9 +65,24 @@ export class WorldMachineSession implements WorldMachineSessionPort {
   status(): SessionStatus {
     return {
       executable: this.#options.executable,
-      session: summarize(this.#state),
+      session: this.#shutDown ? { state: 'stopping' } : summarize(this.#state),
       ...(this.#systemInfo ? { systemInfo: this.#systemInfo } : {}),
     };
+  }
+
+  /** Throws SHUTTING_DOWN once shutdown began; callers check it before any precondition (spec section 6). */
+  assertAcceptingCalls(): void {
+    if (this.#shutDown) throw new WorldMachineError('SHUTTING_DOWN', SHUTTING_DOWN_MESSAGE);
+  }
+
+  exclusive<T>(action: () => Promise<T>): Promise<T> {
+    const run = this.#exclusiveTail.then(() => {
+      // Checked when the action would start, so actions queued before the stop are refused too (spec section 6).
+      this.assertAcceptingCalls();
+      return action();
+    });
+    this.#exclusiveTail = run.catch(() => undefined);
+    return run;
   }
 
   ensureRunning(): Promise<void> {
@@ -69,6 +94,7 @@ export class WorldMachineSession implements WorldMachineSessionPort {
   }
 
   async execute(commands: readonly string[]): Promise<readonly RawResponse[]> {
+    this.assertAcceptingCalls();
     this.#inFlight++;
     this.#clearIdleTimer();
     try {
@@ -81,6 +107,14 @@ export class WorldMachineSession implements WorldMachineSessionPort {
       } catch (error) {
         if (error instanceof WorldMachineError && error.code === 'TIMEOUT')
           await this.#markUnhealthy(proc, error.message);
+        if (
+          error instanceof WorldMachineError &&
+          error.code === 'CRASHED' &&
+          this.#state.kind === 'unhealthy' &&
+          this.#state.reason === LOST_CHANGES
+        ) {
+          throw new WorldMachineError('CRASHED', LOST_CHANGES);
+        }
         throw error;
       }
     } finally {
@@ -91,6 +125,18 @@ export class WorldMachineSession implements WorldMachineSessionPort {
 
   async executeOne(command: string): Promise<RawResponse> {
     return requireFrame((await this.execute([command]))[0]);
+  }
+
+  /** Records that the open project has unsaved changes (spec section 6). */
+  markDirty(): void {
+    if (this.#state.kind === 'ready') this.#state = { ...this.#state, dirty: true };
+    this.#armIdleTimer();
+  }
+
+  /** Records which project is open after an open, a new project, or a save; clears unsaved changes. */
+  bind(binding: ProjectBinding): void {
+    if (this.#state.kind === 'ready') this.#state = { kind: 'ready', binding, dirty: false };
+    this.#armIdleTimer();
   }
 
   /** Without a budget the long sequence applies: full drain, 10 s grace, 2 s SIGTERM. */
@@ -130,11 +176,11 @@ export class WorldMachineSession implements WorldMachineSessionPort {
         'WORLD_MACHINE_BIN is not set or does not point to an executable file',
       );
     }
-    if (this.#shutDown) throw new WorldMachineError('START_FAILED', 'The server is shutting down');
+    if (this.#shutDown) throw new WorldMachineError('SHUTTING_DOWN', SHUTTING_DOWN_MESSAGE);
     const defaultProject = await this.#authorizeDefaultProject();
     await this.#stopping;
     await this.#process?.terminate();
-    if (this.#shutDown) throw new WorldMachineError('START_FAILED', 'The server is shutting down');
+    if (this.#shutDown) throw new WorldMachineError('SHUTTING_DOWN', SHUTTING_DOWN_MESSAGE);
     this.#reset();
     this.#state = { kind: 'starting' };
     let proc: WorldMachineProcess | undefined;
@@ -166,6 +212,9 @@ export class WorldMachineSession implements WorldMachineSessionPort {
         } finally {
           this.#quitting.delete(proc);
         }
+      }
+      if (this.#shutDown && !(error instanceof WorldMachineError && KEEP_DURING_SHUTDOWN.has(error.code))) {
+        throw new WorldMachineError('SHUTTING_DOWN', SHUTTING_DOWN_MESSAGE);
       }
       throw error instanceof WorldMachineError
         ? error
@@ -204,11 +253,14 @@ export class WorldMachineSession implements WorldMachineSessionPort {
           OPEN_FAILED,
         );
       }
+      requireOpenedLine(opened, defaultProject);
       return { kind: 'opened', path: defaultProject };
     }
-    throwIfFailed(
-      requireFrame((await queue.execute([buildCommand(['project', 'new', 'default', 'force'])]))[0]),
+    const created = requireFrame(
+      (await queue.execute([buildCommand(['project', 'new', 'default', 'force'])]))[0],
     );
+    throwIfFailed(created);
+    requireCreatedLine(created);
     return { kind: 'fresh' };
   }
 
@@ -224,8 +276,10 @@ export class WorldMachineSession implements WorldMachineSessionPort {
     const previous = this.#stopping;
     const current = (async () => {
       await previous;
-      const drained = queue?.drain(new WorldMachineError('CRASHED', 'World Machine is shutting down'));
+      const reason = new WorldMachineError('SHUTTING_DOWN', SHUTTING_DOWN_MESSAGE);
+      const drained = queue?.drain(reason);
       await (budget ? withinMs(drained, budget.drainMs) : drained);
+      queue?.abort(reason);
       await proc?.quit(budget?.graceMs, budget?.termMs);
     })();
     this.#stopping = current;
@@ -240,7 +294,8 @@ export class WorldMachineSession implements WorldMachineSessionPort {
     if (proc !== this.#process) return;
     this.#clearIdleTimer();
     if (this.#state.kind !== 'unhealthy') {
-      this.#state = { kind: 'unhealthy', reason: 'World Machine exited unexpectedly' };
+      const lost = this.#state.kind === 'ready' && this.#state.dirty;
+      this.#state = { kind: 'unhealthy', reason: lost ? LOST_CHANGES : 'World Machine exited unexpectedly' };
     }
   }
 

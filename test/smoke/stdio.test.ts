@@ -35,7 +35,18 @@ describe('stdio server', () => {
       FAKE_WM_RECORD: record.path,
     });
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name).sort()).toEqual(['get_world_machine_status', 'list_devices']);
+    expect(tools.map((tool) => tool.name).sort()).toEqual([
+      'create_project',
+      'get_device',
+      'get_scene',
+      'get_world_machine_status',
+      'inspect_project',
+      'list_devices',
+      'open_project',
+      'redo',
+      'save_project',
+      'undo',
+    ]);
 
     const before = await client.callTool({ name: 'get_world_machine_status', arguments: {} });
     expect(before.structuredContent).toMatchObject({ configured: true, session: { state: 'notRunning' } });

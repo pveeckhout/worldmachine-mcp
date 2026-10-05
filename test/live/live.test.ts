@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -7,18 +7,20 @@ import { resolveExecutable } from '../../src/adapter/out/worldmachine/locator.js
 import { throwIfFailed } from '../../src/adapter/out/worldmachine/raw-response.js';
 import { WorldMachineGraphReader } from '../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
 import { WorldMachineProcess } from '../../src/adapter/out/worldmachine/world-machine-process.js';
+import { WorldMachineProjectWriter } from '../../src/adapter/out/worldmachine/world-machine-project-writer.js';
 import { WorldMachineSession } from '../../src/adapter/out/worldmachine/world-machine-session.js';
-import { createLogger } from '../../src/logger.js';
+import { captureLogger } from '../support/fake-wm.js';
 
 const executable = resolveExecutable(process.env.WORLD_MACHINE_BIN ?? null);
 const LIVE = process.env.WM_LIVE === '1' && executable !== null;
 
 describe.skipIf(!LIVE)('live World Machine', () => {
-  const logger = createLogger('warn');
+  const logger = captureLogger();
+  const liveRoot = mkdtempSync(join(tmpdir(), 'wm-live-'));
   const session = new WorldMachineSession({
     executable,
     defaultProject: undefined,
-    pathPolicy: new FsPathPolicy([mkdtempSync(join(tmpdir(), 'wm-live-'))]),
+    pathPolicy: new FsPathPolicy([liveRoot]),
     commandTimeoutMs: 30_000,
     idleTimeoutMs: 0,
     logger,
@@ -26,6 +28,7 @@ describe.skipIf(!LIVE)('live World Machine', () => {
       WorldMachineProcess.start({ bin, readyTimeoutMs: 120_000, logger, signal, onSpawn }),
   });
   const reader = new WorldMachineGraphReader(session);
+  const writer = new WorldMachineProjectWriter(session);
   afterAll(() => session.shutdown(), 30_000);
 
   it('starts, reports the build, and binds a fresh project', async () => {
@@ -66,8 +69,28 @@ describe.skipIf(!LIVE)('live World Machine', () => {
     expect(list?.output[0]).toMatch(/^Devices \(\d+ total\):$/);
   }, 60_000);
 
-  it('returns the licence seat on shutdown', async () => {
+  it('reads the scene, the project overview, and a device', async () => {
+    expect((await reader.getScene()).resolution).toBeGreaterThan(0);
+    const overview = await reader.inspectProject();
+    expect(overview.scenes.length).toBeGreaterThan(0);
+    const first = overview.devices[0];
+    expect(first).toBeDefined();
+    if (first === undefined) return;
+    const device = await reader.getDevice(`#${first.id}`);
+    expect(device.name).toBe(first.name);
+  }, 60_000);
+
+  it('saves to disk and marks undo as an unsaved change', async () => {
+    const path = join(liveRoot, 'live save.tmd');
+    await writer.saveProject(path, false);
+    expect(statSync(path).isFile()).toBe(true);
+    await writer.undo();
+    expect(session.status().session.dirty).toBe(true);
+  }, 60_000);
+
+  it('returns the licence seat on shutdown even with unsaved changes', async () => {
     await session.shutdown();
-    expect(session.status().session).toEqual({ state: 'notRunning' });
+    expect(session.status().session).toEqual({ state: 'stopping' });
+    expect(logger.lines.some((line) => /License returned to license server/.test(line))).toBe(true);
   }, 30_000);
 });

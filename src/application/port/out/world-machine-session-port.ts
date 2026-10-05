@@ -11,4 +11,6 @@ export interface WorldMachineSessionPort {
   ensureRunning(): Promise<void>;
   status(): SessionStatus;
   shutdown(): Promise<void>;
+  /** Runs command use cases one at a time: checks and commands of one never interleave with another's. */
+  exclusive<T>(action: () => Promise<T>): Promise<T>;
 }

@@ -1,0 +1,4 @@
+Scenes (1 total):
+  [0] 'Main Extents' - 12.0x12.0 km, res 2049 *
+
+* = current scene

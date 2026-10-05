@@ -3,8 +3,19 @@ import { createMcpHandler } from '@modelcontextprotocol/server';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createMcpServer, type McpDependencies } from '../../../../src/adapter/in/mcp/create-server.js';
 import { WorldMachineError } from '../../../../src/domain/errors.js';
+import type { Scene } from '../../../../src/domain/scene.js';
 
 const READY = { state: 'ready', binding: { kind: 'fresh' }, dirty: false } as const;
+
+const SCENE: Scene = {
+  name: 'Scene 1',
+  index: 0,
+  count: 1,
+  originKm: { x: 0, y: 0 },
+  sizeKm: { width: 10, height: 10 },
+  resolution: 1024,
+  locked: false,
+};
 
 function deps(overrides: Partial<McpDependencies> = {}): McpDependencies {
   return {
@@ -24,6 +35,33 @@ function deps(overrides: Partial<McpDependencies> = {}): McpDependencies {
         session: READY,
       }),
     },
+    getDevice: {
+      getDevice: async () => ({
+        device: {
+          id: 1,
+          name: 'Height Output',
+          type: 'HeightOutput',
+          enabled: true,
+          bypassed: false,
+          parameters: [],
+          inputs: [],
+          outputs: [],
+        },
+        session: READY,
+      }),
+    },
+    getScene: { getScene: async () => ({ scene: SCENE, session: READY }) },
+    inspectProject: {
+      inspectProject: async () => ({
+        project: { scene: SCENE, scenes: [], deviceCount: 0, devices: [], groups: [] },
+        session: READY,
+      }),
+    },
+    openProject: { openProject: async (c) => ({ session: READY, path: c.path }) },
+    createProject: { createProject: async () => ({ session: READY }) },
+    saveProject: { saveProject: async (c) => ({ session: READY, path: c.path ?? '/r/a.tmd' }) },
+    undo: { undo: async () => ({ session: READY }) },
+    redo: { redo: async () => ({ session: READY }) },
     currentSession: () => READY,
     ...overrides,
   };
@@ -50,13 +88,74 @@ async function connect(dependencies: McpDependencies): Promise<Client> {
 }
 
 describe('createMcpServer', () => {
-  it('registers both tools as read-only and closed-world', async () => {
+  it('registers all ten tools as closed-world, the five read tools as read-only', async () => {
     const { tools } = await (await connect(deps())).listTools();
-    expect(tools.map((tool) => tool.name).sort()).toEqual(['get_world_machine_status', 'list_devices']);
+    expect(tools.map((tool) => tool.name).sort()).toEqual([
+      'create_project',
+      'get_device',
+      'get_scene',
+      'get_world_machine_status',
+      'inspect_project',
+      'list_devices',
+      'open_project',
+      'redo',
+      'save_project',
+      'undo',
+    ]);
+    const readTools = [
+      'get_device',
+      'get_scene',
+      'get_world_machine_status',
+      'inspect_project',
+      'list_devices',
+    ];
     for (const tool of tools) {
-      expect(tool.annotations).toMatchObject({ readOnlyHint: true, openWorldHint: false });
+      if (readTools.includes(tool.name)) {
+        expect(tool.annotations).toMatchObject({
+          readOnlyHint: true,
+          destructiveHint: false,
+          openWorldHint: false,
+        });
+      } else {
+        expect(tool.annotations).toMatchObject({ openWorldHint: false });
+      }
       expect(tool.outputSchema).toBeDefined();
     }
+  });
+
+  it('marks save_project as destructive and the other commands as not destructive', async () => {
+    const { tools } = await (await connect(deps())).listTools();
+    const hints = Object.fromEntries(tools.map((t) => [t.name, t.annotations?.destructiveHint]));
+    expect(hints).toMatchObject({
+      save_project: true,
+      open_project: false,
+      create_project: false,
+      undo: false,
+      redo: false,
+    });
+  });
+
+  it('maps snake_case arguments to command objects', async () => {
+    const seen: unknown[] = [];
+    const client = await connect(
+      deps({
+        openProject: {
+          openProject: async (c) => {
+            seen.push(c);
+            return { session: READY, path: c.path };
+          },
+        },
+        saveProject: {
+          saveProject: async (c) => {
+            seen.push(c);
+            return { session: READY, path: '/r/a.tmd' };
+          },
+        },
+      }),
+    );
+    await client.callTool({ name: 'open_project', arguments: { path: '/r/b.tmd', discard_unsaved: true } });
+    await client.callTool({ name: 'save_project', arguments: {} });
+    expect(seen).toEqual([{ path: '/r/b.tmd', discardUnsaved: true }, { overwrite: false }]);
   });
 
   it('returns status as structured content', async () => {

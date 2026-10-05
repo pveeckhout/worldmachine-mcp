@@ -1,6 +1,6 @@
-import { realpath, stat } from 'node:fs/promises';
+import { lstat, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
-import type { PathPolicyPort } from '../../../application/port/out/path-policy-port.js';
+import type { PathPolicyPort, SaveTarget } from '../../../application/port/out/path-policy-port.js';
 import { WorldMachineError } from '../../../domain/errors.js';
 
 export class FsPathPolicy implements PathPolicyPort {
@@ -11,18 +11,9 @@ export class FsPathPolicy implements PathPolicyPort {
   }
 
   async authorizeExistingProject(input: string): Promise<string> {
-    const roots = this.#requireRoots();
+    const canonicalRoots = await this.#canonicalRoots();
     if (!path.isAbsolute(input))
       throw new WorldMachineError('REFUSED', `Project paths must be absolute: ${input}`);
-    const canonicalRoots = (await Promise.all(roots.map((root) => realpath(root).catch(() => null)))).filter(
-      (root): root is string => root !== null,
-    );
-    if (canonicalRoots.length === 0) {
-      throw new WorldMachineError(
-        'NOT_CONFIGURED',
-        'None of the allowed project roots in WORLD_MACHINE_ALLOWED_ROOTS exist',
-      );
-    }
     let resolved: string;
     try {
       resolved = await realpath(input);
@@ -54,6 +45,46 @@ export class FsPathPolicy implements PathPolicyPort {
       );
     }
     return resolved;
+  }
+
+  async authorizeSaveTarget(input: string): Promise<SaveTarget> {
+    const refused = new WorldMachineError(
+      'REFUSED',
+      `Not a writable .tmd project path inside the allowed roots: ${input}`,
+    );
+    const canonicalRoots = await this.#canonicalRoots();
+    if (!path.isAbsolute(input) || path.extname(input).toLowerCase() !== '.tmd') throw refused;
+    let directory: string;
+    try {
+      directory = await realpath(path.dirname(input));
+    } catch {
+      throw refused;
+    }
+    if (!canonicalRoots.some((root) => directory === root || isInside(directory, root))) throw refused;
+    const target = path.join(directory, path.basename(input));
+    try {
+      const stats = await lstat(target);
+      if (!stats.isFile() || stats.isSymbolicLink()) throw refused;
+      return { path: target, exists: true };
+    } catch (error) {
+      if (error === refused) throw error;
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { path: target, exists: false };
+      throw refused;
+    }
+  }
+
+  async #canonicalRoots(): Promise<string[]> {
+    const roots = this.#requireRoots();
+    const canonical = (await Promise.all(roots.map((root) => realpath(root).catch(() => null)))).filter(
+      (root): root is string => root !== null,
+    );
+    if (canonical.length === 0) {
+      throw new WorldMachineError(
+        'NOT_CONFIGURED',
+        'None of the allowed project roots in WORLD_MACHINE_ALLOWED_ROOTS exist',
+      );
+    }
+    return canonical;
   }
 
   #requireRoots(): readonly string[] {

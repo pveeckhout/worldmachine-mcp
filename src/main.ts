@@ -7,12 +7,21 @@ import { FsPathPolicy } from './adapter/out/fs/path-policy.js';
 import { resolveExecutable } from './adapter/out/worldmachine/locator.js';
 import { WorldMachineGraphReader } from './adapter/out/worldmachine/world-machine-graph-reader.js';
 import { WorldMachineProcess } from './adapter/out/worldmachine/world-machine-process.js';
+import { WorldMachineProjectWriter } from './adapter/out/worldmachine/world-machine-project-writer.js';
 import {
   type ShutdownBudget,
   WorldMachineSession,
 } from './adapter/out/worldmachine/world-machine-session.js';
+import { CreateProjectService } from './application/service/create-project-service.js';
+import { GetDeviceService } from './application/service/get-device-service.js';
+import { GetSceneService } from './application/service/get-scene-service.js';
 import { GetStatusService } from './application/service/get-status-service.js';
+import { InspectProjectService } from './application/service/inspect-project-service.js';
 import { ListDevicesService } from './application/service/list-devices-service.js';
+import { OpenProjectService } from './application/service/open-project-service.js';
+import { RedoService } from './application/service/redo-service.js';
+import { SaveProjectService } from './application/service/save-project-service.js';
+import { UndoService } from './application/service/undo-service.js';
 import { type Config, loadConfig } from './config.js';
 import { createLogger } from './logger.js';
 
@@ -28,10 +37,11 @@ try {
 }
 
 const logger = createLogger(config.logLevel);
+const pathPolicy = new FsPathPolicy(config.allowedRoots);
 const session = new WorldMachineSession({
   executable: resolveExecutable(config.bin),
   defaultProject: config.defaultProject,
-  pathPolicy: new FsPathPolicy(config.allowedRoots),
+  pathPolicy,
   commandTimeoutMs: config.commandTimeoutMs,
   idleTimeoutMs: config.idleTimeoutMs,
   logger,
@@ -39,12 +49,21 @@ const session = new WorldMachineSession({
     WorldMachineProcess.start({ bin, readyTimeoutMs: READY_TIMEOUT_MS, logger, signal, onSpawn }),
 });
 const reader = new WorldMachineGraphReader(session);
+const writer = new WorldMachineProjectWriter(session);
 
 const handle = serveStdio(() =>
   createMcpServer({
     version,
     getStatus: new GetStatusService(session),
     listDevices: new ListDevicesService(session, reader),
+    getDevice: new GetDeviceService(session, reader),
+    getScene: new GetSceneService(session, reader),
+    inspectProject: new InspectProjectService(session, reader),
+    openProject: new OpenProjectService(session, pathPolicy, writer),
+    createProject: new CreateProjectService(session, writer),
+    saveProject: new SaveProjectService(session, pathPolicy, writer),
+    undo: new UndoService(session, writer),
+    redo: new RedoService(session, writer),
     currentSession: () => session.status().session,
   }),
 );

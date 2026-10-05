@@ -5,7 +5,8 @@ export type ErrorCode =
   | 'WM_COMMAND_FAILED'
   | 'TIMEOUT'
   | 'CRASHED'
-  | 'UNEXPECTED_OUTPUT';
+  | 'UNEXPECTED_OUTPUT'
+  | 'SHUTTING_DOWN';
 
 export class WorldMachineError extends Error {
   readonly code: ErrorCode;

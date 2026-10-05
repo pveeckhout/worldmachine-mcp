@@ -28,7 +28,7 @@ function reader(extra: Record<string, string> = {}) {
       WorldMachineProcess.start({ bin, readyTimeoutMs: 5_000, logger, env, signal, onSpawn }),
   });
   sessions.push(session);
-  return { reader: new WorldMachineGraphReader(session), record };
+  return { reader: new WorldMachineGraphReader(session), session, record };
 }
 
 describe('WorldMachineGraphReader.listDevices', () => {
@@ -51,6 +51,77 @@ describe('WorldMachineGraphReader.listDevices', () => {
   it('refuses a filter containing a newline before anything is sent', async () => {
     const { reader: r, record } = reader();
     await expect(r.listDevices('x\nproject close force')).rejects.toMatchObject({ code: 'REFUSED' });
+    expect(record.lines()).toEqual([]);
+  });
+});
+
+describe('WorldMachineGraphReader device, scene, and project reads', () => {
+  it('reads a device by #id', async () => {
+    const { reader: r, record } = reader();
+    const device = await r.getDevice('#35');
+    expect(device).toMatchObject({
+      id: 35,
+      name: 'Erosion',
+      type: 'Erosion',
+      enabled: true,
+      bypassed: false,
+    });
+    expect(device.parameters).toHaveLength(20);
+    expect(device.inputs[0]).toEqual({
+      port: 1,
+      name: 'Primary Input',
+      source: { device: 'Flow Restructure', port: 1 },
+    });
+    expect(device.outputs).toHaveLength(5);
+    expect(record.lines()).toEqual(
+      expect.arrayContaining([
+        'device select #35',
+        'device info',
+        'param list #35',
+        'wire list #35',
+        'device list',
+      ]),
+    );
+  });
+
+  it('reads a device by name', async () => {
+    expect((await reader().reader.getDevice('Erosion')).id).toBe(35);
+  });
+
+  it('reports a missing device', async () => {
+    await expect(reader().reader.getDevice('Nope')).rejects.toMatchObject({
+      code: 'WM_COMMAND_FAILED',
+      worldMachineMessage: "Error: Error: Device not found: 'Nope'",
+    });
+  });
+
+  it('refuses a device reference containing a quote before anything is sent', async () => {
+    const { reader: r, record } = reader();
+    await expect(r.getDevice('A"B')).rejects.toMatchObject({ code: 'REFUSED' });
+    expect(record.lines()).toEqual([]);
+  });
+
+  it('reads the current scene', async () => {
+    expect(await reader().reader.getScene()).toMatchObject({
+      name: 'Main Extents',
+      resolution: 2049,
+      locked: false,
+    });
+  });
+
+  it('inspects the project in one batch', async () => {
+    const overview = await reader().reader.inspectProject();
+    expect(overview.scene.name).toBe('Main Extents');
+    expect(overview.scenes).toHaveLength(1);
+    expect(overview.devices).toHaveLength(17);
+    expect(overview.deviceCount).toBe(17);
+    expect(overview.groups).toHaveLength(5);
+  });
+
+  it('refuses get_device with SHUTTING_DOWN during shutdown, before checking the reference', async () => {
+    const { reader: r, session, record } = reader();
+    await session.shutdown();
+    await expect(r.getDevice('A"B')).rejects.toMatchObject({ code: 'SHUTTING_DOWN' });
     expect(record.lines()).toEqual([]);
   });
 });

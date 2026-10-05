@@ -16,11 +16,21 @@ describe('ListDevicesService', () => {
         session: { state: 'ready', binding: { kind: 'fresh' }, dirty: false },
       }),
       async shutdown() {},
+      exclusive: (action) => action(),
     };
     const graph: ProjectGraphReadPort = {
       async listDevices(filter) {
         calls.push(`listDevices:${filter}`);
         return [{ id: 1, name: 'Height Output' }];
+      },
+      getDevice: async () => {
+        throw new Error('unused');
+      },
+      getScene: async () => {
+        throw new Error('unused');
+      },
+      inspectProject: async () => {
+        throw new Error('unused');
       },
     };
     expect(await new ListDevicesService(session, graph).listDevices({ filter: 'Height' })).toEqual({
@@ -35,9 +45,19 @@ describe('ListDevicesService', () => {
       ensureRunning: async () => {},
       status: () => ({ executable: null, session: { state: 'notRunning' } }),
       async shutdown() {},
+      exclusive: (action) => action(),
     };
     const graph: ProjectGraphReadPort = {
       listDevices: () => Promise.reject(new WorldMachineError('NOT_CONFIGURED', 'no bin')),
+      getDevice: async () => {
+        throw new Error('unused');
+      },
+      getScene: async () => {
+        throw new Error('unused');
+      },
+      inspectProject: async () => {
+        throw new Error('unused');
+      },
     };
     await expect(new ListDevicesService(session, graph).listDevices({})).rejects.toMatchObject({
       code: 'NOT_CONFIGURED',

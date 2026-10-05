@@ -8,7 +8,7 @@ import {
   type SessionOptions,
   WorldMachineSession,
 } from '../../../../src/adapter/out/worldmachine/world-machine-session.js';
-import type { WorldMachineError } from '../../../../src/domain/errors.js';
+import { WorldMachineError } from '../../../../src/domain/errors.js';
 import { captureLogger, FAKE_WM, fakeEnv, isAlive, recorder, waitUntil } from '../../../support/fake-wm.js';
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'session-')));
@@ -200,7 +200,7 @@ describe('WorldMachineSession', () => {
     expect((await queued).output.length).toBeGreaterThan(0);
     const lines = record.lines();
     expect(lines.indexOf('system quit force')).toBeGreaterThan(lines.indexOf('device list') + 1);
-    expect(s.status().session).toEqual({ state: 'notRunning' });
+    expect(s.status().session).toEqual({ state: 'stopping' });
   });
 
   it('cancels a start that is still waiting for readiness when shut down', async () => {
@@ -208,7 +208,7 @@ describe('WorldMachineSession', () => {
     const starting = failure(s.ensureRunning());
     await waitUntil(() => record.lines().includes('START'));
     await s.shutdown();
-    expect((await starting).code).toBe('START_FAILED');
+    expect((await starting).code).toBe('SHUTTING_DOWN');
     expect(record.lines().at(-1)).toBe('EXIT');
   });
 
@@ -223,7 +223,7 @@ describe('WorldMachineSession', () => {
   it('refuses to start after shutdown', async () => {
     const { session: s } = session();
     await s.shutdown();
-    expect((await failure(s.ensureRunning())).code).toBe('START_FAILED');
+    expect((await failure(s.ensureRunning())).code).toBe('SHUTTING_DOWN');
   });
 
   it('bounds shutdown by the given budget when World Machine quits slowly', async () => {
@@ -244,7 +244,7 @@ describe('WorldMachineSession', () => {
     await s.shutdown({ drainMs: 200, graceMs: 200, termMs: 200 });
     expect(Date.now() - started).toBeLessThan(3_000);
     expect(record.pids().some(isAlive)).toBe(false);
-    expect((await running).code).toBe('CRASHED');
+    expect((await running).code).toBe('SHUTTING_DOWN');
   });
 
   it('kill() ends a slow shutdown promptly', async () => {
@@ -265,7 +265,7 @@ describe('WorldMachineSession', () => {
     await waitUntil(() => record.lines().includes('START'));
     const started = Date.now();
     await s.kill();
-    expect((await starting).code).toBe('START_FAILED');
+    expect((await starting).code).toBe('SHUTTING_DOWN');
     expect(Date.now() - started).toBeLessThan(3_000);
     expect(record.pids().some(isAlive)).toBe(false);
   });
@@ -277,7 +277,7 @@ describe('WorldMachineSession', () => {
     const started = Date.now();
     await s.shutdown({ drainMs: 0, graceMs: 500, termMs: 0 });
     expect(Date.now() - started).toBeLessThan(3_000);
-    expect((await starting).code).toBe('START_FAILED');
+    expect((await starting).code).toBe('SHUTTING_DOWN');
     expect(record.pids().some(isAlive)).toBe(false);
   });
 
@@ -292,7 +292,7 @@ describe('WorldMachineSession', () => {
     expect(Date.now() - started).toBeLessThan(2_000);
     expect(record.pids().some(isAlive)).toBe(false);
     await shutdown;
-    expect((await starting).code).toBe('START_FAILED');
+    expect((await starting).code).toBe('SHUTTING_DOWN');
   });
 
   it('kill() ends a World Machine that is being quit after a failed setup', async () => {
@@ -322,5 +322,138 @@ describe('WorldMachineSession', () => {
     expect(Date.now() - started).toBeLessThan(3_000);
     await starting;
     expect(record.pids().some(isAlive)).toBe(false);
+  });
+
+  it('tracks unsaved changes and resets them on bind', async () => {
+    const { session: s } = session();
+    s.markDirty();
+    expect(s.status().session.state).toBe('notRunning');
+    await s.ensureRunning();
+    s.markDirty();
+    expect(s.status().session).toEqual({ state: 'ready', binding: { kind: 'fresh' }, dirty: true });
+    s.bind({ kind: 'opened', path: '/p/x.tmd' });
+    expect(s.status().session).toEqual({
+      state: 'ready',
+      binding: { kind: 'opened', path: '/p/x.tmd' },
+      dirty: false,
+    });
+  });
+
+  it('refuses calls with SHUTTING_DOWN once shutdown has begun', async () => {
+    const { session: s, record } = session();
+    await s.shutdown();
+    expect((await failure(s.executeOne('device list'))).code).toBe('SHUTTING_DOWN');
+    expect(record.lines()).toEqual([]);
+  });
+
+  it('reports stopping and refuses exclusive actions once shutdown has begun', async () => {
+    const { session: s } = session();
+    await s.ensureRunning();
+    let ran = false;
+    const stopping = s.shutdown();
+    expect(s.status().session).toEqual({ state: 'stopping' });
+    const refused = await failure(
+      s.exclusive(async () => {
+        ran = true;
+      }),
+    );
+    await stopping;
+    expect(refused.code).toBe('SHUTTING_DOWN');
+    expect(ran).toBe(false);
+  });
+
+  it('can idle-quit again once a dirty session becomes clean', async () => {
+    const { session: s, record } = session({}, { idleTimeoutMs: 200 });
+    await s.ensureRunning();
+    s.markDirty();
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(record.lines()).not.toContain('system quit force');
+    s.bind({ kind: 'fresh' });
+    await waitUntil(() => record.lines().includes('system quit force'));
+  });
+
+  it('refuses batches still queued when the shutdown drain ends', async () => {
+    const { session: s, record } = session({ FAKE_WM_DELAY_ON: 'device list', FAKE_WM_DELAY_MS: '3000' });
+    await s.ensureRunning();
+    const running = failure(s.executeOne('device list'));
+    await waitUntil(() => record.lines().includes('device list'));
+    const queued = failure(s.executeOne('system info'));
+    await s.shutdown({ drainMs: 100, graceMs: 500, termMs: 0 });
+    expect((await queued).code).toBe('SHUTTING_DOWN');
+    expect((await running).code).toBe('SHUTTING_DOWN');
+  });
+
+  it('rejects an unconfirmed default project with UNEXPECTED_OUTPUT', async () => {
+    const { session: s } = session({ FAKE_WM_NEW_SILENT: '1' });
+    const starting = failure(s.ensureRunning());
+    const error = await starting;
+    expect(error.code).toBe('UNEXPECTED_OUTPUT');
+  });
+
+  it('runs exclusive actions one at a time', async () => {
+    const { session: s } = session();
+    const order: string[] = [];
+    const slow = s.exclusive(async () => {
+      order.push('a-start');
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      order.push('a-end');
+    });
+    const fast = s.exclusive(async () => {
+      order.push('b');
+    });
+    await Promise.all([slow, fast]);
+    expect(order).toEqual(['a-start', 'a-end', 'b']);
+  });
+
+  it('refuses an exclusive action queued before shutdown when its turn comes', async () => {
+    const { session: s } = session();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let bRan = false;
+    let aStarted = false;
+    const a = s.exclusive(async () => {
+      aStarted = true;
+      await gate;
+      return 'a';
+    });
+    await waitUntil(() => aStarted);
+    const b = failure(
+      s.exclusive(async () => {
+        bRan = true;
+      }),
+    );
+    const stopping = s.shutdown();
+    release();
+    expect(await a).toBe('a');
+    expect((await b).code).toBe('SHUTTING_DOWN');
+    await stopping;
+    expect(bRan).toBe(false);
+  });
+
+  it('keeps running exclusive actions after one rejects', async () => {
+    const { session: s } = session();
+    const a = failure(
+      s.exclusive(async () => {
+        throw new WorldMachineError('REFUSED', 'nope');
+      }),
+    );
+    const b = s.exclusive(async () => 'b');
+    expect((await a).code).toBe('REFUSED');
+    expect(await b).toBe('b');
+  });
+
+  it('names lost changes when World Machine crashes while dirty', async () => {
+    const { session: s } = session({ FAKE_WM_CRASH_ON: 'device list' });
+    await s.ensureRunning();
+    s.markDirty();
+    const error = await failure(s.executeOne('device list'));
+    expect(error.code).toBe('CRASHED');
+    expect(error.message).toBe('World Machine exited unexpectedly; unsaved changes were lost');
+    expect(s.status().session).toEqual({
+      state: 'unhealthy',
+      reason: 'World Machine exited unexpectedly; unsaved changes were lost',
+    });
   });
 });

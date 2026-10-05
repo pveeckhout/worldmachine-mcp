@@ -11,6 +11,9 @@ export const KILL_ABORT = 'kill';
 /** Abort reason that makes a pending start quit World Machine within the caller's shutdown budget. */
 export type QuitAbort = { readonly graceMs: number; readonly termMs: number };
 const RECENT_LINES = 10;
+const DISPLAY_ERROR = /could not connect to display/i;
+const DISPLAY_HINT =
+  ' World Machine could not open its window. Pass DISPLAY, WAYLAND_DISPLAY, XAUTHORITY, and XDG_RUNTIME_DIR in the MCP server environment (see README).';
 // 'close' waits for stdout to drain; this bounds the wait if a grandchild keeps the pipe open.
 const STDIO_DRAIN_MS = 1_000;
 
@@ -73,7 +76,9 @@ export class WorldMachineProcess implements CommandChannel {
         if (settled) return;
         settle();
         const detail = proc.#recent.join('\n') || undefined;
-        void stop().then(() => reject(new WorldMachineError('START_FAILED', message, detail)));
+        const fullMessage =
+          detail !== undefined && DISPLAY_ERROR.test(detail) ? message + DISPLAY_HINT : message;
+        void stop().then(() => reject(new WorldMachineError('START_FAILED', fullMessage, detail)));
       };
       const onAbort = () =>
         fail('World Machine start was cancelled', () => {
@@ -118,18 +123,29 @@ export class WorldMachineProcess implements CommandChannel {
   }
 
   /**
-   * `system quit force`, then SIGTERM, then SIGKILL (spec section 9). `termMs` 0 skips SIGTERM. Resolves once
+   * `project close force` and `system quit force`, then SIGTERM, then SIGKILL (spec section 9). `termMs` 0 skips SIGTERM. Resolves once
    * the process is gone.
    */
   async quit(graceMs = 10_000, termMs = 2_000): Promise<void> {
     if (this.#exited) return;
+    // Spec facts 19-20: a modified project turns `system quit force` into a modal dialog and a killed World
+    // Machine keeps its licence seat, so close the project first, as its own write (spec section 9).
+    // Facts 14-15: World Machine reads one new line per read, so nudge until both have been read.
+    this.#child.stdin?.write('project close force\n');
     this.#child.stdin?.write('system quit force\n');
-    if (await this.#exitedWithin(graceMs)) return;
-    if (termMs > 0) {
-      this.#child.kill('SIGTERM');
-      if (await this.#exitedWithin(termMs)) return;
+    const nudge = setInterval(() => {
+      if (!this.#exited) this.#child.stdin?.write('\n');
+    }, 100);
+    try {
+      if (await this.#exitedWithin(graceMs)) return;
+      if (termMs > 0) {
+        this.#child.kill('SIGTERM');
+        if (await this.#exitedWithin(termMs)) return;
+      }
+      await this.terminate();
+    } finally {
+      clearInterval(nudge);
     }
-    await this.terminate();
   }
 
   /** SIGKILL, resolving once the process is gone. */

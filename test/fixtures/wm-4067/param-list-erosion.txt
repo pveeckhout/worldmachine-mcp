@@ -1,0 +1,22 @@
+Parameters for 'Erosion' (Erosion):
+  Amount                    float     60.0
+  featureScale              float     400 m
+  groupBasic                other     
+  Hardness                  float     0.47
+  Capacity                  float     0.56
+  soil0                     float     14 m
+  soilScour                 float     0.1
+  groupAdv                  other     
+  soilDiffuse               float     0.7
+  massB                     float     0.0
+  wallAng                   float     74.0°
+  rockCrystal               float     0.75
+  Uplift                    float     0 m
+  waterMasking              float     16.0
+  groupMask                 other     
+  maskStr                   float     1.0
+  Structure                 float     0.429
+  soilMask                  enum      Presence Mask
+  maskSoil                  bool      true
+  compatibility             bool      false
+

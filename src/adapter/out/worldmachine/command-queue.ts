@@ -53,6 +53,12 @@ export class CommandQueue {
     await this.#tail;
   }
 
+  /** Refuses queued batches and fails the running one with `reason`; used when a shutdown's drain time is up. */
+  abort(reason: WorldMachineError): void {
+    this.#draining ??= reason;
+    this.#close(reason);
+  }
+
   #run(commands: readonly string[]): Promise<readonly RawResponse[]> {
     if (this.#closed) return Promise.reject(this.#closed);
     if (commands.length === 0) return Promise.resolve([]);

@@ -1,0 +1,7 @@
+Groups (5 total):
+  [#0] Create your Terrain      (6 devices)
+  [#1] Export Basics            (4 devices)
+  [#2] Texture & View           (5 devices)
+  [#3] Welcome to World Machine! (0 devices)
+  [#4] Material Maps            (2 devices)
+

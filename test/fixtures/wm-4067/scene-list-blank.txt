@@ -1,0 +1,4 @@
+Scenes (1 total):
+  [0] 'Main Extents' - 8.0x8.0 km, res 1024 *
+
+* = current scene

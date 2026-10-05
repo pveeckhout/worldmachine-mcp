@@ -2,7 +2,7 @@
 
 An [MCP](https://modelcontextprotocol.io) server that lets AI assistants inspect and edit [World Machine](https://www.world-machine.com) terrain projects through your own local World Machine installation.
 
-> **Status: early development.** `get_world_machine_status` and `list_devices` work against World Machine build 4067 on Linux. The other tools listed below are planned. The design is in [`docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md`](docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md).
+> **Status: early development.** `get_world_machine_status`, `list_devices`, `get_device`, `get_scene`, `inspect_project`, `open_project`, `create_project`, `save_project`, `undo`, and `redo` work against World Machine build 4067 on Linux. The other tools listed below are planned. The design is in [`docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md`](docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md).
 
 ## How it works
 
@@ -105,7 +105,7 @@ If the working directory is `/` or your home directory and `WORLD_MACHINE_ALLOWE
 | `get_scene` | `connect_devices`, `disconnect_devices` |
 | `inspect_project` | `configure_scene`, `undo`, `redo` |
 
-Available now: get_world_machine_status, list_devices. The rest arrive with the next implementation plan.
+Available now: every read tool, open_project, create_project, save_project, undo, and redo. Device and wiring edits arrive with Plan 2b.
 
 Builds and exports are planned for v2, and declarative graph specifications for v3.
 
@@ -113,6 +113,7 @@ Builds and exports are planned for v2, and declarative graph specifications for 
 
 - Projects can only be opened or saved inside the allowed roots. Symlinks are resolved before the check.
 - Saving never overwrites an existing file unless the tool call says so explicitly.
+- Quitting always closes the project first, so World Machine shuts down normally and returns the licence seat; unsaved changes are discarded when the server stops.
 - Opening or creating a project refuses to discard unsaved changes unless the tool call says so explicitly.
 - There is no tool for running arbitrary World Machine console commands.
 - World Machine log output, including licence information, is never returned to the AI assistant.

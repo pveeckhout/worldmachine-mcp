@@ -54,7 +54,7 @@ describe('WorldMachineProcess', () => {
     await proc.quit();
     expect(proc.exited).toBe(true);
     expect(exitEvents).toBe(1);
-    expect(record.lines()).toEqual(['START', 'system quit force', 'EXIT']);
+    expect(record.lines()).toEqual(['START', 'project close force', 'system quit force', 'EXIT']);
   });
 
   it('delivers every output line before exit listeners run', async () => {
@@ -85,6 +85,18 @@ describe('WorldMachineProcess', () => {
     const error = await startFailure({ FAKE_WM_STARTUP: 'exit' });
     expect(error.code).toBe('START_FAILED');
     expect(error.worldMachineMessage).toBe('fatal: simulated startup failure');
+  });
+
+  it('adds a display hint when World Machine cannot open its window', async () => {
+    const error = await startFailure({ FAKE_WM_STARTUP: 'display' });
+    expect(error.code).toBe('START_FAILED');
+    expect(error.message).toContain('DISPLAY, WAYLAND_DISPLAY, XAUTHORITY, and XDG_RUNTIME_DIR');
+    expect(error.worldMachineMessage).toContain('could not connect to display');
+  });
+
+  it('does not add the display hint to other startup failures', async () => {
+    const error = await startFailure({ FAKE_WM_STARTUP: 'exit' });
+    expect(error.message).not.toContain('DISPLAY');
   });
 
   it('fails with START_FAILED when World Machine never becomes ready, after the process is gone', async () => {
@@ -120,7 +132,7 @@ describe('WorldMachineProcess', () => {
       code: 'START_FAILED',
       message: 'World Machine start was cancelled',
     });
-    expect(record.lines()).toEqual(['START', 'system quit force', 'EXIT']);
+    expect(record.lines()).toEqual(['START', 'project close force', 'system quit force', 'EXIT']);
   });
 
   it('ends a starting process within the abort reason budget', async () => {
@@ -168,5 +180,26 @@ describe('WorldMachineProcess', () => {
     expect(settled).toBe(false);
     await spawned?.terminate();
     await expect(starting).rejects.toMatchObject({ code: 'START_FAILED' });
+  });
+
+  it('closes a modified project before quitting so no dialog blocks the quit', async () => {
+    const record = recorder();
+    const { proc } = await start({ FAKE_WM_RECORD: record.path, FAKE_WM_DIRTY_AT_START: '1' });
+    const started = Date.now();
+    await proc.quit(2_000, 0);
+    expect(Date.now() - started).toBeLessThan(1_500);
+    const lines = record.lines();
+    expect(lines.indexOf('project close force')).toBeGreaterThan(-1);
+    expect(lines.indexOf('project close force')).toBeLessThan(lines.indexOf('system quit force'));
+    expect(lines).not.toContain('DIALOG');
+    expect(lines.at(-1)).toBe('EXIT');
+  });
+
+  it('the fake shows the dialog when a modified project is quit without closing it', async () => {
+    const record = recorder();
+    const { proc } = await start({ FAKE_WM_RECORD: record.path, FAKE_WM_DIRTY_AT_START: '1' });
+    proc.write(['system quit force', '']);
+    await waitUntil(() => record.lines().includes('DIALOG'));
+    expect(proc.exited).toBe(false);
   });
 });

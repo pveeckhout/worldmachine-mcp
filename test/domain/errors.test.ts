@@ -15,3 +15,9 @@ describe('WorldMachineError', () => {
     expect(new WorldMachineError('TIMEOUT', 'late').worldMachineMessage).toBeUndefined();
   });
 });
+
+describe('SHUTTING_DOWN', () => {
+  it('is a valid error code', () => {
+    expect(new WorldMachineError('SHUTTING_DOWN', 'stopping').code).toBe('SHUTTING_DOWN');
+  });
+});

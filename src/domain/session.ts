@@ -7,7 +7,7 @@ export type SessionState =
   | { readonly kind: 'unhealthy'; readonly reason: string };
 
 export type SessionSummary = {
-  readonly state: SessionState['kind'];
+  readonly state: SessionState['kind'] | 'stopping';
   readonly binding?: ProjectBinding;
   readonly dirty?: boolean;
   readonly reason?: string;

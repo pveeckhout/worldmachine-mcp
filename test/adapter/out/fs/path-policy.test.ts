@@ -116,3 +116,37 @@ describe('FsPathPolicy.authorizeExistingProject', () => {
     expect(await codeOf(policy.authorizeExistingProject(tmdOutside))).toBe('REFUSED');
   });
 });
+
+describe('FsPathPolicy.authorizeSaveTarget', () => {
+  const policy = new FsPathPolicy([root]);
+
+  it('accepts a new file directly in a root and in a subdirectory', async () => {
+    expect(await policy.authorizeSaveTarget(join(root, 'new.tmd'))).toEqual({
+      path: join(root, 'new.tmd'),
+      exists: false,
+    });
+    expect(await policy.authorizeSaveTarget(join(root, 'nested', 'new.TMD'))).toEqual({
+      path: join(root, 'nested', 'new.TMD'),
+      exists: false,
+    });
+  });
+
+  it('reports an existing regular file', async () => {
+    expect(await policy.authorizeSaveTarget(join(root, 'nested', 'world.tmd'))).toEqual({
+      path: join(root, 'nested', 'world.tmd'),
+      exists: true,
+    });
+  });
+
+  it.each([
+    ['a missing directory', () => join(root, 'no-such-dir', 'x.tmd')],
+    ['a directory outside the roots', () => join(outside, 'x.tmd')],
+    ['a symlinked directory pointing outside', () => join(root, 'escape', 'x.tmd')],
+    ['an existing symlink target', () => join(root, 'link.tmd')],
+    ['a non-.tmd name', () => join(root, 'x.txt')],
+    ['an existing directory with a .tmd name', () => join(root, 'folder.tmd')],
+    ['a relative path', () => 'x.tmd'],
+  ])('refuses %s', async (_label, input) => {
+    expect(await codeOf(policy.authorizeSaveTarget(input()))).toBe('REFUSED');
+  });
+});

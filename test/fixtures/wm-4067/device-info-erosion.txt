@@ -1,0 +1,6 @@
+Selected device:
+  Name:    Erosion
+  Type:    Erosion
+  Enabled: yes
+  Bypass:  no
+
