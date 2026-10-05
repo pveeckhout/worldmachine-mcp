@@ -33,6 +33,11 @@ Open items left after Plan 1 (foundation) merged on 2026-10-05, taken from the i
 - Move `ProjectCommandView` out of `open-project-command.ts` into its own file.
 - `create-server.test.ts`: call `get_device`, `get_scene`, and `inspect_project` with fixture-built parser output, so parser output and output schemas are checked together.
 
+## Plan 2c gate
+
+- `test/fake-wm/fake-wm.mjs`: `param set` accepts values the real World Machine rejects: `1.5 km` and `1,5` for a float, `3.0` for an int, an unknown enum value (`raw/v6b-param-set.txt` l.96-97, 102-103, 117-118, 177-178). `update_device_parameters` must refuse these before sending (spec section 7); if a 2c test sends one through, the fake needs per-parameter type data first.
+- Edit tools resolve names with `resolveDeviceReference` after their own `device list`, inside `exclusive()` (Plan 2b ruling C1).
+
 ## Test coverage gaps
 
 - `create-server.ts`: the rethrow path for a non-`WorldMachineError` is untested. The SDK forwards its message unfiltered, bypassing the licence filter and the payload shape. Consider wrapping it in `respond()` as an internal error.

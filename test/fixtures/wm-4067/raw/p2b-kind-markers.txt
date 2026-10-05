@@ -1,0 +1,128 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> device disable #309
+Disabled: #309
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output) [disabled]
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> device bypass #309
+Set bypass: #309
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output) [disabled]
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> device bypass #319
+Set bypass: #319
+<<<
+>>> device disable #319
+Disabled: #319
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output) [disabled]
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro) [disabled]
+  #373   Rock and Soil           
+
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device add Erosion
+Added 'Erosion'
+<<<
+>>> device list Gradient
+Devices (20 total):
+  #536   Gradient                
+  #537   Gradient                
+
+<<<
+>>> device list Erosion
+Devices (20 total):
+  #35    Erosion                 
+  #538   Erosion                 
+
+<<<
+>>> device select gradient
+Selected: Gradient
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<

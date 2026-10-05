@@ -399,6 +399,47 @@ const scenarios = [
       return sections;
     },
   ],
+  [
+    // Plan 2b: where `device list` puts state markers on a row that also has a (kind) suffix, and in which order
+    // two markers appear (a: disable then bypass; b: bypass then disable).
+    'p2b-kind-markers',
+    async () => {
+      // The sample project is the startup project (spec fact 8); `project new default` recreates it (V3).
+      const sections = await run(['project new default force', 'device list']);
+      const kinded = sections[1].lines.flatMap((line) => {
+        const match = DEVICE_ROW.exec(line);
+        return match?.[3] === undefined ? [] : [{ id: Number(match[1]), name: match[2], kind: match[3] }];
+      });
+      const first = kinded[0];
+      const last = kinded.at(-1);
+      if (!first || !last || first.id === last.id) {
+        throw new Error('p2b-kind-markers needs two devices with a (kind) suffix in the default project');
+      }
+      const a = `#${first.id}`;
+      const b = `#${last.id}`;
+      sections.push(
+        ...(await run([
+          `device disable ${a}`,
+          'device list',
+          `device bypass ${a}`,
+          'device list',
+          `device bypass ${b}`,
+          `device disable ${b}`,
+          'device list',
+          // Plan 2b fake fidelity: duplicate names and the next id, another type's default name, name case.
+          'device add Gradient',
+          'device add Gradient',
+          'device add Erosion',
+          'device list Gradient',
+          'device list Erosion',
+          'device select gradient',
+          // Disable and bypass modify the project; close it so the quit shows no discard dialog (spec fact 19).
+          'project close force',
+        ])),
+      );
+      return sections;
+    },
+  ],
 ];
 
 // `npm run capture-fixtures -- <name> ...` captures only the named scenarios (system info always runs first).
