@@ -76,8 +76,8 @@ Done in Plan 2c, except the fake's `param set` value rejection: it stays deferre
 - `package.json`: add `prepublishOnly: npm run build` before the first publish.
 - Capture script: async log lines between batches are attributed to the next batch's first command. `check-fixtures` patterns miss `/root/`, email addresses, and unscrubbed `/tmp` or `/var/folders` paths; widen them before the next capture.
 - Test temp directories leak: `locator.test.ts`, and `live.test.ts` (created at collection even when skipped).
-- Plan 2c final review, `world-machine-device-editor.ts`: the enable/disable read-back should require the `Selected:` line and compare the read-back name with the target (the 23-character rule of fact 33).
-- Plan 2c final review, `connect_devices`: "an existing wire is left alone (`created: false`)" does not hold when the source name is shared by several devices; add a caveat to the tool text or a source-side wire check.
+- Done: Plan 2c final review, `world-machine-device-editor.ts`: the enable/disable read-back should require the `Selected:` line and compare the read-back name with the target (the 23-character rule of fact 33).
+- Done: Plan 2c final review, `connect_devices`: "an existing wire is left alone (`created: false`)" does not hold when the source name is shared by several devices; add a caveat to the tool text or a source-side wire check. (refused with a rename hint when ambiguous)
 - Plan 2c final review: the "at least one" rules for `configure_scene` and `update_device_parameters` are enforced by the editors but absent from the input schemas.
 - Plan 2c final review, test gaps: missing `Enabled:`, `Disabled:`, and `Deleted:` confirmations; a command-level `Error:` for enable and delete; read-back error batches for disconnect.
 - Captured in `p2c-undo-names` (spec facts 39-40): add-then-rename is two undo steps. Still open: no device type with a default name longer than 23 characters was found among the candidates tried, so the add echo comparison for such names stays Assumed; a full list of World Machine's device types would settle it.

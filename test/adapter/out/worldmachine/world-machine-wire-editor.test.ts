@@ -143,6 +143,69 @@ describe('WorldMachineWireEditor.connect', () => {
     expect(s.batches).toEqual([['device list'], ['wire list #2']]);
   });
 
+  // Assumed: constructed from the row format of raw/p2b-kind-markers.txt l.112-113 (two devices of one name,
+  // spec fact 30) with small ids; no capture lists exactly these devices.
+  const SHARED_DEVICES = [
+    'Devices (3 total):',
+    '  #1     Gradient                ',
+    '  #2     Gradient                ',
+    '  #3     Combiner                ',
+  ];
+  const combiner = (input1: string) => [
+    "Connections for '#3':",
+    '  Inputs:',
+    `    [1] Primary Input <- ${input1}`,
+    '    [2] Primary Input <- (none)',
+    '  Outputs:',
+    '    [1] Primary Output -> (none)',
+  ];
+
+  it('refuses, sending nothing, when the source name is shared and the input is already wired from that name', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: SHARED_DEVICES }],
+      // Assumed: constructed from raw/p2b-graph-edits.txt l.26-31 for #3.
+      'wire list #3': [{ output: combiner("'Gradient' [1]") }],
+    });
+    await expect(editor(s).connect({ device: '#1' }, { device: '#3' })).rejects.toMatchObject({
+      code: 'REFUSED',
+      message:
+        "Several devices are named 'Gradient', and wire list names devices, so it cannot tell whether this input is already wired from #1; rename one of them first",
+    });
+    expect(s.batches).toEqual([['device list'], ['wire list #3']]);
+    expect(s.dirtyMarks()).toBe(0);
+  });
+
+  it("reports World Machine's refusal when the source name is shared and the input is wired from another device", async () => {
+    const s = scriptedSession({
+      'device list': [{ output: SHARED_DEVICES }],
+      // Assumed: constructed from raw/p2b-graph-edits.txt l.26-31 for #3, with the input wired from 'Other'.
+      'wire list #3': [{ output: combiner("'Other' [1]") }, { output: combiner("'Other' [1]") }],
+      // raw/v4-quoting.txt l.127-128 (spec fact 34), with the ids of this scenario.
+      'wire connect #1 #3': [
+        { errors: ["Error: Error: Input '#3' is already connected. Disconnect first."] },
+      ],
+    });
+    await expect(editor(s).connect({ device: '#1' }, { device: '#3' })).rejects.toMatchObject({
+      code: 'WM_COMMAND_FAILED',
+      worldMachineMessage: "Error: Error: Input '#3' is already connected. Disconnect first.",
+    });
+    expect(s.batches).toEqual([['device list'], ['wire list #3'], ['wire connect #1 #3', 'wire list #3']]);
+    expect(s.dirtyMarks()).toBe(0);
+  });
+
+  it('connects when the source name is shared but the input is free of that name', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: SHARED_DEVICES }],
+      // Assumed: constructed from raw/p2b-graph-edits.txt l.121-126 and l.26-31 for #3.
+      'wire list #3': [{ output: combiner('(none)') }, { output: combiner("'Gradient' [1]") }],
+      // raw/p2b-graph-edits.txt l.22-23, with the ids of this scenario.
+      'wire connect #1 #3': [{ output: ["Connected '#1' [1] -> '#3' [1]"] }],
+    });
+    expect((await editor(s).connect({ device: '#1' }, { device: '#3' })).created).toBe(true);
+    expect(s.batches).toEqual([['device list'], ['wire list #3'], ['wire connect #1 #3', 'wire list #3']]);
+    expect(s.dirtyMarks()).toBe(1);
+  });
+
   it("reports World Machine's refusal for an input that is already connected", async () => {
     const s = scriptedSession({
       // raw/v4-quoting.txt l.97-103.

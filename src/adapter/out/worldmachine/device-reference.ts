@@ -59,6 +59,16 @@ const ID_LIKE = /^#\d+$/;
 export const LISTED_NAME_LIMIT = 23;
 
 /**
+ * Whether a name World Machine printed is the device `device list` lists as `listed`. `device list` shows the first
+ * 23 characters of a name (spec fact 33) and the parser trims trailing whitespace from them, so a name whose 23rd
+ * character is a space lists shorter than 23. Truncating and trimming `printed` the same way gives the listed text at
+ * any length, whether or not the command that printed it truncates too (ruling K4').
+ */
+export function matchesListedName(printed: string, listed: string): boolean {
+  return printed.slice(0, LISTED_NAME_LIMIT).trimEnd() === listed;
+}
+
+/**
  * Refuses a new device name that `device list` could not show so that it reads back as the same name
  * (backlog, Plan 2c gate; Plan 2c decision D5).
  */

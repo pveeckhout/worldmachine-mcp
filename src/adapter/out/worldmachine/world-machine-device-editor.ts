@@ -4,7 +4,7 @@ import { WorldMachineError } from '../../../domain/errors.js';
 import type { DeviceEnabledState, RenamedDevice } from '../../../domain/graph-edit.js';
 import { buildCommand } from './command-builder.js';
 import { listAllDevices, lookUpDevice } from './device-lookup.js';
-import { assertReadableDeviceName, LISTED_NAME_LIMIT } from './device-reference.js';
+import { assertReadableDeviceName, matchesListedName } from './device-reference.js';
 import { readBack, requireLine, requireMatch } from './edit-checks.js';
 import { parseDeviceInfo } from './parsers/device-info.js';
 import { parseDeviceList } from './parsers/device-list.js';
@@ -14,6 +14,9 @@ import type { WorldMachineSession } from './world-machine-session.js';
 
 /** raw/p2b-graph-edits.txt l.5-6, raw/v6b-param-set.txt l.13-14: World Machine echoes the new device's name. */
 const ADDED = /^Added '(.*)'$/;
+
+/** raw/p2b-graph-edits.txt l.37-38: `device select` prints `Selected: <name>`. */
+const SELECTED = /^Selected:\s+(.*?)\s*$/;
 
 /** Checks a new device name before anything is sent: readable in `device list`, and a safe final argument. */
 function checkNewName(name: string): void {
@@ -58,8 +61,7 @@ export class WorldMachineDeviceEditor implements DeviceEditPort {
     }
     if (fresh.length > 1) throw unexpectedOutput('device list', list.output);
     // `device list` cuts names at 23 characters (spec fact 33), so the echo is compared by the same rule.
-    if (echoed.slice(0, LISTED_NAME_LIMIT).trimEnd() !== device.name)
-      throw unexpectedOutput('device add', added.output);
+    if (!matchesListedName(echoed, device.name)) throw unexpectedOutput('device add', added.output);
     if (name === undefined) return device;
     try {
       return await this.#rename(device.id, name);
@@ -97,7 +99,24 @@ export class WorldMachineDeviceEditor implements DeviceEditPort {
     const after = readBack(this.#session, () => {
       throwIfFailed(select);
       throwIfFailed(info);
-      return parseDeviceInfo(info.output);
+      // raw/p2b-graph-edits.txt l.37-38: `device select` echoes the name, not the reference. Both it and `device info`
+      // must name the target, or the state read back is another device's. Names are compared by their listed form
+      // (spec fact 33, ruling K4').
+      const selected = requireMatch(select, SELECTED, 'device select')[1] ?? '';
+      const state = parseDeviceInfo(info.output);
+      for (const [verbed, reported] of [
+        ['selected', selected],
+        ['reported', state.name],
+      ] as const) {
+        if (!matchesListedName(reported, target.name)) {
+          throw new WorldMachineError(
+            'UNEXPECTED_OUTPUT',
+            `Expected ${ref} ('${target.name}'), but World Machine ${verbed} '${reported}'`,
+            [...select.output, ...info.output].slice(0, 20).join('\n'),
+          );
+        }
+      }
+      return state;
     });
     // `device list` shows `[disabled]` reliably (spec facts 24 and 29), so it is the state before.
     const changed = after.enabled !== target.enabled;

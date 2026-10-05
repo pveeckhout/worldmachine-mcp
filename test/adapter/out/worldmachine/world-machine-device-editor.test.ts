@@ -322,6 +322,78 @@ describe('WorldMachineDeviceEditor.setDeviceEnabled', () => {
     });
     expect(s.dirtyMarks()).toBe(1);
   });
+
+  /** A scripted enable of #1 (listed as `listedName`), with the given select and info replies. */
+  function enableScript(listedName: string, select: string[], infoName: string) {
+    return scriptedSession({
+      'device list': [{ output: ['Devices (1 total):', `  #1     ${listedName.padEnd(23)} [disabled]`] }],
+      'device enable #1': [{ output: ['Enabled: #1'] }],
+      'device select #1': [{ output: select }],
+      'device info': [
+        {
+          output: [
+            'Selected device:',
+            `  Name:    ${infoName}`,
+            '  Type:    Gradient',
+            '  Enabled: yes',
+            '  Bypass:  no',
+          ],
+        },
+      ],
+    });
+  }
+
+  it('requires a Selected line in the select output', async () => {
+    // Assumed: a select that prints nothing; no capture shows it.
+    const s = enableScript('Gradient', [], 'Gradient');
+    await expect(new WorldMachineDeviceEditor(s.session).setDeviceEnabled('#1', true)).rejects.toMatchObject({
+      code: 'UNEXPECTED_OUTPUT',
+    });
+    expect(s.dirtyMarks()).toBe(1);
+  });
+
+  it('refuses a select that picked another device', async () => {
+    // Assumed: a select that silently picked another device; no capture shows it.
+    const s = enableScript('Gradient', ['Selected: Combiner'], 'Gradient');
+    await expect(new WorldMachineDeviceEditor(s.session).setDeviceEnabled('#1', true)).rejects.toMatchObject({
+      code: 'UNEXPECTED_OUTPUT',
+      message: expect.stringContaining("Expected #1 ('Gradient'), but World Machine selected 'Combiner'"),
+    });
+    expect(s.dirtyMarks()).toBe(1);
+  });
+
+  it('refuses a device info for another device', async () => {
+    // Assumed: `device info` describing a device other than the selected one; no capture shows it.
+    const s = enableScript('Gradient', ['Selected: Gradient'], 'Combiner');
+    await expect(new WorldMachineDeviceEditor(s.session).setDeviceEnabled('#1', true)).rejects.toMatchObject({
+      code: 'UNEXPECTED_OUTPUT',
+      message: expect.stringContaining("Expected #1 ('Gradient'), but World Machine reported 'Combiner'"),
+    });
+    expect(s.dirtyMarks()).toBe(1);
+  });
+
+  it('ignores extra spaces around the selected name, as the list and info parsers do', async () => {
+    // Assumed: extra spacing after `Selected:`; the row and `Name:` parsers already drop it.
+    const s = enableScript('X', ['Selected:  X'], 'X');
+    expect((await new WorldMachineDeviceEditor(s.session).setDeviceEnabled('#1', true)).device).toEqual({
+      id: 1,
+      name: 'X',
+    });
+  });
+
+  it('accepts a longer real name whose first 23 characters are the listed name (spec fact 33)', async () => {
+    // Assumed: select and info print the full name while `device list` cuts it at 23 characters.
+    const listed = 'A very long device name';
+    const full = `${listed} that goes on`;
+    expect(listed).toHaveLength(23);
+    const s = enableScript(listed, [`Selected: ${full}`], full);
+    expect(await new WorldMachineDeviceEditor(s.session).setDeviceEnabled('#1', true)).toEqual({
+      device: { id: 1, name: full },
+      enabled: true,
+      changed: true,
+    });
+    expect(s.dirtyMarks()).toBe(1);
+  });
 });
 
 describe('WorldMachineDeviceEditor.deleteDevice', () => {

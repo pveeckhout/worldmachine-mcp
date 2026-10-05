@@ -3,6 +3,7 @@ import {
   assertReadableDeviceName,
   findListedDevice,
   idOfReference,
+  matchesListedName,
   resolveDeviceReference,
 } from '../../../../src/adapter/out/worldmachine/device-reference.js';
 import { parseDeviceList } from '../../../../src/adapter/out/worldmachine/parsers/device-list.js';
@@ -129,5 +130,27 @@ describe('assertReadableDeviceName', () => {
       code: 'REFUSED',
       message: `Device name '${name}' must not ${rule}: device list could not show it unambiguously`,
     });
+  });
+});
+
+describe('matchesListedName', () => {
+  it('matches equal names', () => {
+    expect(matchesListedName('Gradient', 'Gradient')).toBe(true);
+  });
+
+  it('matches a longer name by its first 23 characters (spec fact 33)', () => {
+    expect(matchesListedName('A very long device name that goes on', 'A very long device name')).toBe(true);
+  });
+
+  it('trims trailing whitespace left by the cut', () => {
+    expect(matchesListedName('Twenty-one characters  and more', 'Twenty-one characters')).toBe(true);
+  });
+
+  it('rejects a different name', () => {
+    expect(matchesListedName('Combiner', 'Gradient')).toBe(false);
+  });
+
+  it('rejects a name that differs within the first 23 characters', () => {
+    expect(matchesListedName('A very long device nane that goes on', 'A very long device name')).toBe(false);
   });
 });

@@ -4,7 +4,7 @@ import { WorldMachineError } from '../../../domain/errors.js';
 import type { WireConnection, WireDisconnection, WireEnd, WireEndpoint } from '../../../domain/graph-edit.js';
 import { buildCommand } from './command-builder.js';
 import { listAllDevices } from './device-lookup.js';
-import { findListedDevice, LISTED_NAME_LIMIT } from './device-reference.js';
+import { findListedDevice, matchesListedName } from './device-reference.js';
 import { readBack, requireLine } from './edit-checks.js';
 import { parseWireList } from './parsers/wire-list.js';
 import { requireFrame, throwIfFailed } from './raw-response.js';
@@ -33,22 +33,12 @@ const argument = (id: number, port: number | undefined): string =>
   port === undefined ? `#${id}` : `#${id}.${port}`;
 
 /**
- * Whether a name `wire list` prints is the device `device list` lists as `listed`. `device list` shows the first 23
- * characters of a name (spec fact 33) and the parser trims trailing whitespace from them, so a name whose 23rd
- * character is a space lists shorter than 23. Truncating and trimming `printed` the same way gives the listed text at
- * any length, whether or not `wire list` truncates too (ruling K4').
- */
-function sameDeviceName(printed: string, listed: string): boolean {
-  return printed.slice(0, LISTED_NAME_LIMIT).trimEnd() === listed;
-}
-
-/**
  * Whether `input` shows a wire from `end`. `wire list` names the source device and its output port
  * (raw/p2b-graph-edits.txt l.28); a renamed device by its current name (raw/p2c-edits.txt l.92, spec fact 34).
  */
 function linkedFrom(input: InputPort | undefined, end: WireEnd): boolean {
   const source = input?.source;
-  return source !== undefined && sameDeviceName(source.device, end.name) && source.port === end.port;
+  return source !== undefined && matchesListedName(source.device, end.name) && source.port === end.port;
 }
 
 function inputOf(output: readonly string[], port: number): InputPort | undefined {
@@ -71,8 +61,18 @@ export class WorldMachineWireEditor implements WireEditPort {
   async connect(source: WireEndpoint, destination: WireEndpoint): Promise<WireConnection> {
     const plan = await this.#plan(source, destination);
     const ends = { source: plan.source, destination: plan.destination };
-    // An existing wire changes nothing (idempotent, spec section 7). With a shared source name, World Machine decides.
-    if (plan.present && !plan.sourceNameShared) return { ...ends, created: false };
+    // An existing wire changes nothing (idempotent, spec section 7). When several devices share the source name,
+    // wire list cannot say which one feeds the input, so an occupied input of that name is refused with nothing
+    // sent. An input free of that name is unambiguous: World Machine itself refuses one held by another source.
+    if (plan.present) {
+      if (plan.sourceNameShared) {
+        throw new WorldMachineError(
+          'REFUSED',
+          `Several devices are named '${plan.source.name}', and wire list names devices, so it cannot tell whether this input is already wired from #${plan.source.id}; rename one of them first`,
+        );
+      }
+      return { ...ends, created: false };
+    }
     const responses = await this.#session.execute([
       buildCommand(['wire', 'connect', plan.sourceArgument, plan.destinationArgument]),
       plan.listDestination,
