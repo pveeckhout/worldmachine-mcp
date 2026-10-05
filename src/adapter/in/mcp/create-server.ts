@@ -23,6 +23,7 @@ import type { ListDevicesQueryPort } from '../../../application/port/in/query/li
 import { WorldMachineError } from '../../../domain/errors.js';
 import type { WireEndpoint } from '../../../domain/graph-edit.js';
 import type { SessionSummary } from '../../../domain/session.js';
+import type { Logger } from '../../../logger.js';
 import {
   addDeviceInputSchema,
   addDeviceViewSchema,
@@ -75,6 +76,7 @@ export type McpDependencies = {
   readonly disconnectDevices: DisconnectDevicesCommandPort;
   readonly configureScene: ConfigureSceneCommandPort;
   readonly currentSession: () => SessionSummary;
+  readonly logger: Logger;
 };
 
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, openWorldHint: false } as const;
@@ -108,7 +110,7 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       outputSchema: statusViewSchema,
       annotations: READ_ONLY,
     },
-    () => respond(deps, () => deps.getStatus.getStatus({})),
+    () => respond(deps, 'get_world_machine_status', () => deps.getStatus.getStatus({})),
   );
 
   server.registerTool(
@@ -121,7 +123,10 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       outputSchema: deviceListViewSchema,
       annotations: READ_ONLY,
     },
-    ({ filter }) => respond(deps, () => deps.listDevices.listDevices(filter === undefined ? {} : { filter })),
+    ({ filter }) =>
+      respond(deps, 'list_devices', () =>
+        deps.listDevices.listDevices(filter === undefined ? {} : { filter }),
+      ),
   );
 
   server.registerTool(
@@ -134,7 +139,7 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       outputSchema: deviceViewSchema,
       annotations: READ_ONLY,
     },
-    ({ device }) => respond(deps, () => deps.getDevice.getDevice({ device })),
+    ({ device }) => respond(deps, 'get_device', () => deps.getDevice.getDevice({ device })),
   );
 
   server.registerTool(
@@ -146,7 +151,7 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       outputSchema: sceneViewSchema,
       annotations: READ_ONLY,
     },
-    () => respond(deps, () => deps.getScene.getScene({})),
+    () => respond(deps, 'get_scene', () => deps.getScene.getScene({})),
   );
 
   server.registerTool(
@@ -158,7 +163,7 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       outputSchema: projectViewSchema,
       annotations: READ_ONLY,
     },
-    () => respond(deps, () => deps.inspectProject.inspectProject({})),
+    () => respond(deps, 'inspect_project', () => deps.inspectProject.inspectProject({})),
   );
 
   server.registerTool(
@@ -172,7 +177,9 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       annotations: COMMAND,
     },
     ({ path, discard_unsaved }) =>
-      respond(deps, () => deps.openProject.openProject({ path, discardUnsaved: discard_unsaved })),
+      respond(deps, 'open_project', () =>
+        deps.openProject.openProject({ path, discardUnsaved: discard_unsaved }),
+      ),
   );
 
   server.registerTool(
@@ -186,7 +193,9 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       annotations: COMMAND,
     },
     ({ discard_unsaved }) =>
-      respond(deps, () => deps.createProject.createProject({ discardUnsaved: discard_unsaved })),
+      respond(deps, 'create_project', () =>
+        deps.createProject.createProject({ discardUnsaved: discard_unsaved }),
+      ),
   );
 
   server.registerTool(
@@ -200,7 +209,7 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       annotations: DESTRUCTIVE,
     },
     ({ path, overwrite }) =>
-      respond(deps, () =>
+      respond(deps, 'save_project', () =>
         deps.saveProject.saveProject(path === undefined ? { overwrite } : { path, overwrite }),
       ),
   );
@@ -215,7 +224,7 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       outputSchema: projectCommandViewSchema,
       annotations: COMMAND,
     },
-    () => respond(deps, () => deps.undo.undo({})),
+    () => respond(deps, 'undo', () => deps.undo.undo({})),
   );
 
   server.registerTool(
@@ -228,7 +237,7 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       outputSchema: projectCommandViewSchema,
       annotations: COMMAND,
     },
-    () => respond(deps, () => deps.redo.redo({})),
+    () => respond(deps, 'redo', () => deps.redo.redo({})),
   );
 
   server.registerTool(
@@ -242,7 +251,9 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       annotations: COMMAND,
     },
     ({ type, name }) =>
-      respond(deps, () => deps.addDevice.addDevice(name === undefined ? { type } : { type, name })),
+      respond(deps, 'add_device', () =>
+        deps.addDevice.addDevice(name === undefined ? { type } : { type, name }),
+      ),
   );
 
   server.registerTool(
@@ -255,7 +266,8 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       outputSchema: renameDeviceViewSchema,
       annotations: IDEMPOTENT_COMMAND,
     },
-    ({ device, name }) => respond(deps, () => deps.renameDevice.renameDevice({ device, name })),
+    ({ device, name }) =>
+      respond(deps, 'rename_device', () => deps.renameDevice.renameDevice({ device, name })),
   );
 
   server.registerTool(
@@ -268,7 +280,8 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       outputSchema: setDeviceEnabledViewSchema,
       annotations: IDEMPOTENT_COMMAND,
     },
-    ({ device, enabled }) => respond(deps, () => deps.setDeviceEnabled.setDeviceEnabled({ device, enabled })),
+    ({ device, enabled }) =>
+      respond(deps, 'set_device_enabled', () => deps.setDeviceEnabled.setDeviceEnabled({ device, enabled })),
   );
 
   server.registerTool(
@@ -282,7 +295,9 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       annotations: IDEMPOTENT_COMMAND,
     },
     ({ device, parameters }) =>
-      respond(deps, () => deps.updateDeviceParameters.updateDeviceParameters({ device, parameters })),
+      respond(deps, 'update_device_parameters', () =>
+        deps.updateDeviceParameters.updateDeviceParameters({ device, parameters }),
+      ),
   );
 
   server.registerTool(
@@ -296,7 +311,7 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       annotations: IDEMPOTENT_COMMAND,
     },
     ({ source, source_port, destination, destination_port }) =>
-      respond(deps, () =>
+      respond(deps, 'connect_devices', () =>
         deps.connectDevices.connectDevices({
           source: endpoint(source, source_port),
           destination: endpoint(destination, destination_port),
@@ -315,7 +330,7 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       annotations: IDEMPOTENT_COMMAND,
     },
     ({ source, source_port, destination, destination_port }) =>
-      respond(deps, () =>
+      respond(deps, 'disconnect_devices', () =>
         deps.disconnectDevices.disconnectDevices({
           source: endpoint(source, source_port),
           destination: endpoint(destination, destination_port),
@@ -333,7 +348,8 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       outputSchema: configureSceneViewSchema,
       annotations: IDEMPOTENT_COMMAND,
     },
-    (input) => respond(deps, () => deps.configureScene.configureScene(sceneChanges(input))),
+    (input) =>
+      respond(deps, 'configure_scene', () => deps.configureScene.configureScene(sceneChanges(input))),
   );
 
   server.registerTool(
@@ -346,7 +362,7 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       outputSchema: deleteDeviceViewSchema,
       annotations: DESTRUCTIVE,
     },
-    ({ device }) => respond(deps, () => deps.deleteDevice.deleteDevice({ device })),
+    ({ device }) => respond(deps, 'delete_device', () => deps.deleteDevice.deleteDevice({ device })),
   );
 
   return server;
@@ -370,11 +386,17 @@ function sceneChanges(input: {
   };
 }
 
-async function respond(deps: McpDependencies, action: () => Promise<object>) {
+async function respond(deps: McpDependencies, tool: string, action: () => Promise<object>) {
   try {
     return success(await action());
   } catch (error) {
     if (error instanceof WorldMachineError) return failure(error, deps.currentSession());
-    throw error;
+    // The SDK turns a thrown handler error into an isError result carrying its raw message, so the
+    // original text must not travel with it. It goes to the server log (stderr) instead.
+    // TODO: logger output is not licence-filtered yet (separate backlog item).
+    deps.logger.error(
+      `Unexpected error in ${tool}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
+    );
+    throw new Error(`Internal error in ${tool}; see the server log`);
   }
 }

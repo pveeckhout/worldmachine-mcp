@@ -12,6 +12,8 @@ import type { DeviceDetail } from '../../../../src/domain/device.js';
 import { WorldMachineError } from '../../../../src/domain/errors.js';
 import type { ProjectOverview } from '../../../../src/domain/project.js';
 import type { Scene } from '../../../../src/domain/scene.js';
+import type { SessionSummary } from '../../../../src/domain/session.js';
+import type { Logger } from '../../../../src/logger.js';
 import { fixtureLines } from '../../out/worldmachine/parsers/fixture.js';
 
 const READY = { state: 'ready', binding: { kind: 'fresh' }, dirty: false } as const;
@@ -31,6 +33,16 @@ const SCENE: Scene = {
   resolution: 1024,
   locked: false,
 };
+
+function silentLogger(errors: string[] = []): Logger {
+  return {
+    error: (message) => errors.push(message),
+    warn: () => undefined,
+    info: () => undefined,
+    debug: () => undefined,
+    worldMachine: () => undefined,
+  };
+}
 
 function deps(overrides: Partial<McpDependencies> = {}): McpDependencies {
   return {
@@ -116,6 +128,7 @@ function deps(overrides: Partial<McpDependencies> = {}): McpDependencies {
     disconnectDevices: { disconnectDevices: async () => ({ ...WIRE, removed: false, session: READY }) },
     configureScene: { configureScene: async () => ({ scene: SCENE, session: READY_DIRTY }) },
     currentSession: () => READY,
+    logger: silentLogger(),
     ...overrides,
   };
 }
@@ -331,6 +344,27 @@ describe('createMcpServer', () => {
     });
   });
 
+  it('hides the text of an unexpected error and logs the original', async () => {
+    const logged: string[] = [];
+    const failing = deps({
+      listDevices: {
+        listDevices: async () => {
+          throw new Error('boom License Manager.Checkout secret');
+        },
+      },
+      logger: silentLogger(logged),
+    });
+    const result = await (await connect(failing)).callTool({ name: 'list_devices', arguments: {} });
+    expect(result.isError).toBe(true);
+    const serialised = JSON.stringify(result);
+    expect(serialised).toContain('Internal error in list_devices; see the server log');
+    expect(serialised).not.toContain('boom');
+    expect(serialised).not.toContain('License');
+    expect(logged).toHaveLength(1);
+    expect(logged[0]).toContain('list_devices');
+    expect(logged[0]).toContain('boom License Manager.Checkout secret');
+  });
+
   it('removes licence lines from the World Machine text in error results', async () => {
     const failing = deps({
       listDevices: {
@@ -346,6 +380,24 @@ describe('createMcpServer', () => {
     const result = await (await connect(failing)).callTool({ name: 'list_devices', arguments: {} });
     const content = result.content as { type: string; text: string }[];
     expect(JSON.parse(content[0]?.text ?? '').worldMachineMessage).toBe('fatal: no seat');
+  });
+
+  it.each([
+    ['licence lines', 'License Manager.Checkout: denied\nlicence seat lost'],
+    ['log lines', '[Info       ] starting up\n[Warning    ] QIODevice::read (QSslSocket): device not open'],
+  ])('omits worldMachineMessage when only %s remain to be removed', async (_name, message) => {
+    const failing = deps({
+      listDevices: {
+        listDevices: async () => {
+          throw new WorldMachineError('START_FAILED', 'exited', message);
+        },
+      },
+    });
+    const result = await (await connect(failing)).callTool({ name: 'list_devices', arguments: {} });
+    const content = result.content as { type: string; text: string }[];
+    const text = content[0]?.text ?? '';
+    expect(JSON.parse(text)).not.toHaveProperty('worldMachineMessage');
+    expect(text).not.toMatch(/licen[cs]e/i);
   });
 });
 
@@ -397,6 +449,129 @@ describe('createMcpServer with parser output from the wm-4067 fixtures', () => {
     const result = await client.callTool({ name: 'inspect_project', arguments: {} });
     expect(result.isError).toBeFalsy();
     expect(result.structuredContent).toEqual({ project, session: READY });
+  });
+
+  it('returns list_devices built by parseDeviceList, including a kind row and a [disabled] row', async () => {
+    const listed = parseDeviceList([
+      'Devices (3 total):',
+      '  #1   Gradient',
+      '  #2   Easy Distortion          (Macro)',
+      '  #3   Erosion [disabled]',
+    ]);
+    expect(listed).toEqual([
+      { id: 1, name: 'Gradient', enabled: true, bypassed: false },
+      { id: 2, name: 'Easy Distortion', kind: 'Macro', enabled: true, bypassed: false },
+      { id: 3, name: 'Erosion', enabled: false },
+    ]);
+    const client = await connect(
+      deps({ listDevices: { listDevices: async () => ({ devices: listed, session: READY }) } }),
+    );
+    const result = await client.callTool({ name: 'list_devices', arguments: {} });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toEqual({ devices: listed, session: READY });
+  });
+
+  it('returns list_devices for the full fixture listing', async () => {
+    const client = await connect(
+      deps({ listDevices: { listDevices: async () => ({ devices, session: READY }) } }),
+    );
+    const result = await client.callTool({ name: 'list_devices', arguments: {} });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toEqual({ devices, session: READY });
+  });
+
+  it('has nested objects to corrupt in the fixture views', () => {
+    expect(erosion.inputs.some((input) => input.source !== undefined)).toBe(true);
+    expect(erosion.outputs.some((output) => output.targets.length > 0)).toBe(true);
+    expect(erosion.parameters.length).toBeGreaterThan(0);
+    expect(project.groups.length).toBeGreaterThan(0);
+    expect(project.scenes.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    [
+      'session.binding',
+      'get_scene',
+      {},
+      () => ({ scene, session: { ...READY, binding: { kind: 'fresh', extra: 1 } } }),
+    ],
+    [
+      'session.binding (opened)',
+      'get_scene',
+      {},
+      () => ({
+        scene,
+        session: { state: 'ready', dirty: false, binding: { kind: 'opened', path: '/a.tmd', extra: 1 } },
+      }),
+    ],
+    [
+      'scene.originKm',
+      'get_scene',
+      {},
+      () => ({ scene: { ...scene, originKm: { ...scene.originKm, extra: 1 } }, session: READY }),
+    ],
+    [
+      'scene.sizeKm',
+      'get_scene',
+      {},
+      () => ({ scene: { ...scene, sizeKm: { ...scene.sizeKm, extra: 1 } }, session: READY }),
+    ],
+    [
+      'project.groups[0]',
+      'inspect_project',
+      {},
+      () => ({ project: { ...project, groups: [{ ...project.groups[0], extra: 1 }] }, session: READY }),
+    ],
+    [
+      'project.scenes[0]',
+      'inspect_project',
+      {},
+      () => ({ project: { ...project, scenes: [{ ...project.scenes[0], extra: 1 }] }, session: READY }),
+    ],
+    [
+      'project.devices[0]',
+      'inspect_project',
+      {},
+      () => ({ project: { ...project, devices: [{ ...project.devices[0], extra: 1 }] }, session: READY }),
+    ],
+    [
+      'device.parameters[0]',
+      'get_device',
+      { device: 'Erosion' },
+      () => ({
+        device: { ...erosion, parameters: [{ ...erosion.parameters[0], extra: 1 }] },
+        session: READY,
+      }),
+    ],
+    [
+      'device.inputs[0].source',
+      'get_device',
+      { device: 'Erosion' },
+      () => ({
+        device: {
+          ...erosion,
+          inputs: [{ port: 1, name: 'In', source: { device: 'A', port: 1, extra: 1 } }],
+        },
+        session: READY,
+      }),
+    ],
+    [
+      'device.outputs[0].targets[0]',
+      'get_device',
+      { device: 'Erosion' },
+      () => ({
+        device: {
+          ...erosion,
+          outputs: [{ port: 1, name: 'Out', targets: [{ device: 'A', port: 1, extra: 1 }] }],
+        },
+        session: READY,
+      }),
+    ],
+  ] as const)('rejects an undeclared key on nested %s', async (_where, name, args, bad) => {
+    const tool = { get_scene: 'getScene', inspect_project: 'inspectProject', get_device: 'getDevice' }[name];
+    const client = await connect(deps({ [tool]: { [tool]: async () => bad() } } as Partial<McpDependencies>));
+    const result = await client.callTool({ name, arguments: args });
+    expect(result.isError).toBe(true);
   });
 
   it('rejects structured content that does not match the output schema', async () => {
@@ -535,4 +710,122 @@ describe('createMcpServer edit tools', () => {
     const result = await (await connect(deps())).callTool({ name, arguments: args });
     expect(result.isError).toBe(true);
   });
+});
+
+type Loose = Record<string, unknown>;
+
+const SESSION_SHAPES: readonly [string, SessionSummary][] = [
+  ['ready, fresh, clean', { state: 'ready', binding: { kind: 'fresh' }, dirty: false }],
+  ['ready, fresh, dirty', { state: 'ready', binding: { kind: 'fresh' }, dirty: true }],
+  ['ready, opened, clean', { state: 'ready', binding: { kind: 'opened', path: '/r/a.tmd' }, dirty: false }],
+  ['ready, opened, dirty', { state: 'ready', binding: { kind: 'opened', path: '/r/a.tmd' }, dirty: true }],
+  ['notRunning', { state: 'notRunning' }],
+  ['starting', { state: 'starting' }],
+  ['unhealthy with a reason', { state: 'unhealthy', reason: 'World Machine exited unexpectedly' }],
+  ['stopping', { state: 'stopping' }],
+];
+
+describe('createMcpServer session summary shapes', () => {
+  it.each(SESSION_SHAPES)(
+    'returns undo and get_world_machine_status views with session %s',
+    async (_label, session) => {
+      const client = await connect(
+        deps({
+          undo: { undo: async () => ({ session }) },
+          getStatus: {
+            getStatus: async () => ({ configured: false, executable: null, session }),
+          },
+        }),
+      );
+      const undone = await client.callTool({ name: 'undo', arguments: {} });
+      expect(undone.isError).toBeFalsy();
+      expect(undone.structuredContent).toEqual({ session });
+      const status = await client.callTool({ name: 'get_world_machine_status', arguments: {} });
+      expect(status.isError).toBeFalsy();
+      expect(status.structuredContent).toEqual({ configured: false, executable: null, session });
+    },
+  );
+
+  it('returns open_project with an opened-binding session and its path', async () => {
+    const session: SessionSummary = {
+      state: 'ready',
+      binding: { kind: 'opened', path: '/r/a.tmd' },
+      dirty: false,
+    };
+    const client = await connect(
+      deps({ openProject: { openProject: async (c) => ({ session, path: c.path }) } }),
+    );
+    const result = await client.callTool({ name: 'open_project', arguments: { path: '/r/a.tmd' } });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toEqual({ session, path: '/r/a.tmd' });
+  });
+
+  it.each([
+    ['get_world_machine_status', {}, 'getStatus', 'getStatus'],
+    ['list_devices', {}, 'listDevices', 'listDevices'],
+    ['get_device', { device: '#1' }, 'getDevice', 'getDevice'],
+    ['get_scene', {}, 'getScene', 'getScene'],
+    ['inspect_project', {}, 'inspectProject', 'inspectProject'],
+    ['undo', {}, 'undo', 'undo'],
+    ['redo', {}, 'redo', 'redo'],
+    ['create_project', {}, 'createProject', 'createProject'],
+    ['save_project', {}, 'saveProject', 'saveProject'],
+    ['open_project', { path: '/r/a.tmd' }, 'openProject', 'openProject'],
+  ] as const)(
+    'rejects %s output with an undeclared key at the top and inside the session',
+    async (name, args, dep, method) => {
+      const base = deps();
+      const port = base[dep] as unknown as Record<
+        string,
+        (query: object) => Promise<Record<string, unknown>>
+      >;
+      const view = await port[method]?.({});
+      const top = { ...view, extra: 1 };
+      const nested = { ...view, session: { ...(view?.session as object), extra: 1 } };
+      for (const bad of [top, nested]) {
+        const client = await connect(
+          deps({ [dep]: { [method]: async () => bad } } as Partial<McpDependencies>),
+        );
+        const result = await client.callTool({ name, arguments: args });
+        expect(result.isError).toBe(true);
+      }
+    },
+  );
+
+  it.each([
+    [
+      'get_device',
+      { device: '#1' },
+      (view: Loose) => ({ device: { ...(view.device as object), extra: 1 }, session: view.session }),
+      'getDevice',
+    ],
+    [
+      'get_scene',
+      {},
+      (view: Loose) => ({ scene: { ...(view.scene as object), extra: 1 }, session: view.session }),
+      'getScene',
+    ],
+    [
+      'inspect_project',
+      {},
+      (view: Loose) => ({ project: { ...(view.project as object), extra: 1 }, session: view.session }),
+      'inspectProject',
+    ],
+    [
+      'list_devices',
+      {},
+      (view: Loose) => ({ devices: [{ ...(view.devices as object[])[0], extra: 1 }], session: view.session }),
+      'listDevices',
+    ],
+  ] as const)(
+    'rejects %s output with an undeclared key inside the payload',
+    async (name, args, corrupt, dep) => {
+      const base = deps();
+      const port = base[dep] as unknown as Record<string, (query: object) => Promise<Loose>>;
+      const bad = corrupt((await port[dep]?.({})) ?? {});
+      const client = await connect(deps({ [dep]: { [dep]: async () => bad } } as Partial<McpDependencies>));
+      const result = await client.callTool({ name, arguments: args });
+      expect(result.isError).toBe(true);
+    },
+  );
 });

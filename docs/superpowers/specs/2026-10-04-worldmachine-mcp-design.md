@@ -250,7 +250,7 @@ Rules:
 
 - The server does not launch World Machine at startup. The first tool call that needs it calls `ensureRunning()`. `get_world_machine_status` never launches it.
 - If `WORLD_MACHINE_DEFAULT_PROJECT` is set, it is authorised by the path policy *before* World Machine is launched. If the policy refuses it, the start fails with that error (`REFUSED`, or `NOT_CONFIGURED` when there are no allowed roots) and World Machine is not launched. There is no fallback to a fresh project.
-- On launch, the server runs `project open <path>` for an authorised default project, otherwise `project new default force` (subject to V3). The sample project is never left active.
+- On launch, the server runs `project open <path>` for an authorised default project, otherwise `project new default force` (verified by V3: no prompt). The sample project is never left active.
 - Every successful command service call sets `dirty = true`, except `save_project`, which clears it, and `open_project` and `create_project`, which reset it. Edits that change nothing leave it alone: `set_device_enabled` when the read-back state equals the state before, `disconnect_devices` when no wire was removed, `connect_devices` for a wire that already existed, and `update_device_parameters` and `configure_scene` when World Machine rejected every item. A rejected or ineffective `add_device` (World Machine's `Error:` line, or a confirmed add with no new device in `device list`) fails with `WM_COMMAND_FAILED` and leaves it alone too. After World Machine accepted an edit command, a failed read-back sets it.
 - After a lifecycle command that World Machine accepted without its confirmation line (`UNEXPECTED_OUTPUT`), undo and redo set `dirty`, and open and create set binding `fresh` and `dirty`, because World Machine may have acted. A command World Machine rejects with `Error:` changes neither. For graph edits, a missing confirmation line is `UNEXPECTED_OUTPUT`; once World Machine accepted the command, `dirty` is set even if the read-back then fails, except that `add_device` sets it only when a new device appears or its read-back fails.
 - `open_project` and `create_project` return `REFUSED` when `dirty` unless `discard_unsaved: true`.
@@ -264,7 +264,7 @@ Rules:
 
 ## 7. MCP tools (v1)
 
-All tools declare `inputSchema` and `outputSchema`; a tool without arguments declares an empty object schema. Annotations follow the table. Every tool also sets `openWorldHint: false` (it acts only on the local World Machine), and read-only tools set `destructiveHint: false` explicitly because the SDK defaults it to `true`.
+All tools declare `inputSchema` and `outputSchema`; a tool without arguments declares an empty object schema. Output schemas are strict (no additional properties), so clients that validate structured content reject undeclared keys. Annotations follow the table. Every tool also sets `openWorldHint: false` (it acts only on the local World Machine), and read-only tools set `destructiveHint: false` explicitly because the SDK defaults it to `true`.
 
 | Tool | Port kind | Annotations | Notes |
 |---|---|---|---|

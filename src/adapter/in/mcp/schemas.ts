@@ -4,42 +4,60 @@ import type { ConfigureSceneView } from '../../../application/port/in/command/co
 import type { ConnectDevicesView } from '../../../application/port/in/command/connect-devices-command.js';
 import type { DeleteDeviceView } from '../../../application/port/in/command/delete-device-command.js';
 import type { DisconnectDevicesView } from '../../../application/port/in/command/disconnect-devices-command.js';
+import type { ProjectCommandView } from '../../../application/port/in/command/project-command-view.js';
 import type { RenameDeviceView } from '../../../application/port/in/command/rename-device-command.js';
 import type { SetDeviceEnabledView } from '../../../application/port/in/command/set-device-enabled-command.js';
 import type { UpdateDeviceParametersView } from '../../../application/port/in/command/update-device-parameters-command.js';
+import type { DeviceView } from '../../../application/port/in/query/get-device-query.js';
+import type { SceneView } from '../../../application/port/in/query/get-scene-query.js';
+import type { StatusView } from '../../../application/port/in/query/get-status-query.js';
+import type { ProjectView } from '../../../application/port/in/query/inspect-project-query.js';
+import type { DeviceListView } from '../../../application/port/in/query/list-devices-query.js';
+import type {
+  DeviceDetail,
+  DeviceSummary,
+  InputPort,
+  OutputPort,
+  Parameter,
+  PortLink,
+} from '../../../domain/device.js';
+import type { Group } from '../../../domain/group.js';
+import type { ProjectOverview } from '../../../domain/project.js';
+import type { Scene, SceneSummary } from '../../../domain/scene.js';
+import type { ProjectBinding, SessionSummary } from '../../../domain/session.js';
 
 const projectBindingSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('fresh') }),
-  z.object({ kind: z.literal('opened'), path: z.string() }),
-]);
+  z.strictObject({ kind: z.literal('fresh') }),
+  z.strictObject({ kind: z.literal('opened'), path: z.string() }),
+]) satisfies z.ZodType<ProjectBinding>;
 
-export const sessionSummarySchema = z.object({
+export const sessionSummarySchema = z.strictObject({
   state: z.enum(['notRunning', 'starting', 'ready', 'unhealthy', 'stopping']),
   binding: projectBindingSchema.optional(),
   dirty: z.boolean().optional(),
   reason: z.string().optional(),
-});
+}) satisfies z.ZodType<SessionSummary>;
 
-export const statusViewSchema = z.object({
+export const statusViewSchema = z.strictObject({
   configured: z.boolean(),
   executable: z.string().nullable(),
   build: z.number().int().optional(),
   buildName: z.string().optional(),
   session: sessionSummarySchema,
-});
+}) satisfies z.ZodType<StatusView>;
 
-const deviceSummarySchema = z.object({
+const deviceSummarySchema = z.strictObject({
   id: z.number().int(),
   name: z.string(),
   kind: z.string().optional(),
   enabled: z.boolean(),
   bypassed: z.boolean().optional(),
-});
+}) satisfies z.ZodType<DeviceSummary>;
 
-export const deviceListViewSchema = z.object({
+export const deviceListViewSchema = z.strictObject({
   devices: z.array(deviceSummarySchema),
   session: sessionSummarySchema,
-});
+}) satisfies z.ZodType<DeviceListView>;
 
 export const listDevicesInputSchema = z.object({
   filter: z.string().min(1).optional().describe("Filter text passed to World Machine's device list command"),
@@ -47,57 +65,88 @@ export const listDevicesInputSchema = z.object({
 
 export const noInputSchema = z.object({});
 
-const portLinkSchema = z.object({ device: z.string(), port: z.number().int() });
+const portLinkSchema = z.strictObject({
+  device: z.string(),
+  port: z.number().int(),
+}) satisfies z.ZodType<PortLink>;
 
-const deviceDetailSchema = z.object({
+const deviceDetailSchema = z.strictObject({
   id: z.number().int(),
   name: z.string(),
   type: z.string(),
   enabled: z.boolean(),
   bypassed: z.boolean(),
-  parameters: z.array(z.object({ name: z.string(), type: z.string(), value: z.string() })),
-  inputs: z.array(z.object({ port: z.number().int(), name: z.string(), source: portLinkSchema.optional() })),
-  outputs: z.array(z.object({ port: z.number().int(), name: z.string(), targets: z.array(portLinkSchema) })),
-});
+  parameters: z.array(
+    z.strictObject({ name: z.string(), type: z.string(), value: z.string() }) satisfies z.ZodType<Parameter>,
+  ),
+  inputs: z.array(
+    z.strictObject({
+      port: z.number().int(),
+      name: z.string(),
+      source: portLinkSchema.optional(),
+    }) satisfies z.ZodType<InputPort>,
+  ),
+  outputs: z.array(
+    z.strictObject({
+      port: z.number().int(),
+      name: z.string(),
+      targets: z.array(portLinkSchema),
+    }) satisfies z.ZodType<OutputPort>,
+  ),
+}) satisfies z.ZodType<DeviceDetail>;
 
-const sceneSchema = z.object({
+const sceneSchema = z.strictObject({
   name: z.string(),
   index: z.number().int(),
   count: z.number().int(),
-  originKm: z.object({ x: z.number(), y: z.number() }),
-  sizeKm: z.object({ width: z.number(), height: z.number() }),
+  originKm: z.strictObject({ x: z.number(), y: z.number() }),
+  sizeKm: z.strictObject({ width: z.number(), height: z.number() }),
   resolution: z.number().int(),
   locked: z.boolean(),
-});
+}) satisfies z.ZodType<Scene>;
 
-export const deviceViewSchema = z.object({ device: deviceDetailSchema, session: sessionSummarySchema });
+const sceneSummarySchema = z.strictObject({
+  index: z.number().int(),
+  name: z.string(),
+  widthKm: z.number(),
+  heightKm: z.number(),
+  resolution: z.number().int(),
+  current: z.boolean(),
+}) satisfies z.ZodType<SceneSummary>;
 
-export const sceneViewSchema = z.object({ scene: sceneSchema, session: sessionSummarySchema });
+const groupSchema = z.strictObject({
+  index: z.number().int(),
+  name: z.string(),
+  deviceCount: z.number().int(),
+}) satisfies z.ZodType<Group>;
 
-export const projectViewSchema = z.object({
-  project: z.object({
-    scene: sceneSchema,
-    scenes: z.array(
-      z.object({
-        index: z.number().int(),
-        name: z.string(),
-        widthKm: z.number(),
-        heightKm: z.number(),
-        resolution: z.number().int(),
-        current: z.boolean(),
-      }),
-    ),
-    deviceCount: z.number().int(),
-    devices: z.array(deviceSummarySchema),
-    groups: z.array(z.object({ index: z.number().int(), name: z.string(), deviceCount: z.number().int() })),
-  }),
+const projectOverviewSchema = z.strictObject({
+  scene: sceneSchema,
+  scenes: z.array(sceneSummarySchema),
+  deviceCount: z.number().int(),
+  devices: z.array(deviceSummarySchema),
+  groups: z.array(groupSchema),
+}) satisfies z.ZodType<ProjectOverview>;
+
+export const deviceViewSchema = z.strictObject({
+  device: deviceDetailSchema,
   session: sessionSummarySchema,
-});
+}) satisfies z.ZodType<DeviceView>;
 
-export const projectCommandViewSchema = z.object({
+export const sceneViewSchema = z.strictObject({
+  scene: sceneSchema,
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<SceneView>;
+
+export const projectViewSchema = z.strictObject({
+  project: projectOverviewSchema,
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<ProjectView>;
+
+export const projectCommandViewSchema = z.strictObject({
   session: sessionSummarySchema,
   path: z.string().optional(),
-});
+}) satisfies z.ZodType<ProjectCommandView>;
 
 export const getDeviceInputSchema = z.object({
   device: z.string().min(1).describe('Device name, or its stable id as #<n> (see list_devices)'),

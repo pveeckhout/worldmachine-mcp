@@ -37,5 +37,6 @@ describe('worldMachineText (spec section 8)', () => {
   it('returns undefined when nothing remains', () => {
     expect(worldMachineText(['Error: License expired'])).toBeUndefined();
     expect(worldMachineText([])).toBeUndefined();
+    expect(worldMachineText(['[Info       ] starting', '[Warning    ] device not open'])).toBeUndefined();
   });
 });

@@ -70,6 +70,7 @@ const scene = new WorldMachineSceneEditor(session);
 const handle = serveStdio(() =>
   createMcpServer({
     version,
+    logger,
     getStatus: new GetStatusService(session),
     listDevices: new ListDevicesService(session, reader),
     getDevice: new GetDeviceService(session, reader),
