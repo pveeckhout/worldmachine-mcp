@@ -531,6 +531,42 @@ const scenarios = [
         'project close force',
       ]),
   ],
+  [
+    // Backlog follow-ups after Plan 2c: undo steps for add-then-rename, and default names of longer device types.
+    // Candidate type names are guesses; an unknown one prints `Device type not found` (fact 32). Ends closed (fact 19).
+    'p2c-undo-names',
+    () =>
+      run([
+        'project new blank force',
+        'device add Gradient',
+        'device rename #1 Grad A',
+        'device list',
+        'project undo',
+        'device list',
+        'project undo',
+        'device list',
+        'project redo',
+        'device list',
+        'project redo',
+        'device list',
+        'device add Thermal Weathering',
+        'device add Coastal Erosion',
+        'device add Snowfall Simulation',
+        'device add Advanced Perlin',
+        'device add Curvature Selector',
+        'device add Convexity Selector',
+        'device add Distance Function',
+        'device add Layout Generator',
+        'device add Terrain Library',
+        'device add Splat Converter',
+        'device add Hydrology Simulation',
+        'device add Advanced Thermal Weathering',
+        'device add Erosion (Legacy)',
+        'device add Height Selector',
+        'device list',
+        'project close force',
+      ]),
+  ],
 ];
 
 // `npm run capture-fixtures -- <name> ...` captures only the named scenarios (system info always runs first).

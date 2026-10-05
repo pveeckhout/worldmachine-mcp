@@ -1,0 +1,99 @@
+>>> project new blank force
+Created new blank project.
+[Info       ] Closing current project
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device rename #1 Grad A
+Renamed '#1' to 'Grad A'
+<<<
+>>> device list
+Devices (1 total):
+  #1     Grad A                   (Gradient)
+
+<<<
+>>> project undo
+Undo performed.
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> project undo
+Undo performed.
+<<<
+>>> device list
+No devices in the current project.
+<<<
+>>> project redo
+Redo performed.
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> project redo
+Redo performed.
+<<<
+>>> device list
+Devices (1 total):
+  #1     Grad A                   (Gradient)
+
+<<<
+>>> device add Thermal Weathering
+Added 'Thermal Weathering'
+<<<
+>>> device add Coastal Erosion
+Error: Error: Device type not found: 'Coastal Erosion'
+<<<
+>>> device add Snowfall Simulation
+Error: Error: Device type not found: 'Snowfall Simulation'
+<<<
+>>> device add Advanced Perlin
+Added 'Advanced Perlin'
+<<<
+>>> device add Curvature Selector
+Error: Error: Device type not found: 'Curvature Selector'
+<<<
+>>> device add Convexity Selector
+Error: Error: Device type not found: 'Convexity Selector'
+<<<
+>>> device add Distance Function
+Error: Error: Device type not found: 'Distance Function'
+<<<
+>>> device add Layout Generator
+Added 'Shapes'
+<<<
+>>> device add Terrain Library
+Error: Error: Device type not found: 'Terrain Library'
+<<<
+>>> device add Splat Converter
+Error: Error: Device type not found: 'Splat Converter'
+<<<
+>>> device add Hydrology Simulation
+Error: Error: Device type not found: 'Hydrology Simulation'
+<<<
+>>> device add Advanced Thermal Weathering
+Error: Error: Device type not found: 'Advanced Thermal Weathering'
+<<<
+>>> device add Erosion (Legacy)
+Error: Error: Device type not found: 'Erosion (Legacy)'
+<<<
+>>> device add Height Selector
+Error: Error: Device type not found: 'Height Selector'
+<<<
+>>> device list
+Devices (4 total):
+  #1     Grad A                   (Gradient)
+  #2     Thermal Weathering      
+  #3     Advanced Perlin         
+  #4     Shapes                  
+
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<

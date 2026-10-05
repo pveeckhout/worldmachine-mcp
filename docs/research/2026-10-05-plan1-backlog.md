@@ -80,4 +80,4 @@ Done in Plan 2c, except the fake's `param set` value rejection: it stays deferre
 - Plan 2c final review, `connect_devices`: "an existing wire is left alone (`created: false`)" does not hold when the source name is shared by several devices; add a caveat to the tool text or a source-side wire check.
 - Plan 2c final review: the "at least one" rules for `configure_scene` and `update_device_parameters` are enforced by the editors but absent from the input schemas.
 - Plan 2c final review, test gaps: missing `Enabled:`, `Disabled:`, and `Deleted:` confirmations; a command-level `Error:` for enable and delete; read-back error batches for disconnect.
-- Next live capture: the undo step count for add-then-rename, and `device add` of a type whose default name is longer than 23 characters (the add echo comparison is Assumed).
+- Captured in `p2c-undo-names` (spec facts 39-40): add-then-rename is two undo steps. Still open: no device type with a default name longer than 23 characters was found among the candidates tried, so the add echo comparison for such names stays Assumed; a full list of World Machine's device types would settle it.

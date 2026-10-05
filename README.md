@@ -112,7 +112,7 @@ Editing notes:
 - `update_device_parameters` takes World Machine's internal values, not the displayed units: a width of `0.5` can read back as `4 km`. It takes plain decimal numbers, enum options as their 0-based index, and booleans as `true` or `false` (or `1`, `0`, `yes`, `off`); World Machine itself would also take exponent forms, enum labels, and other boolean words, which the tool refuses so each value is checked before it is sent. Parameter names are case-sensitive. `action`, `other`, and `filename` parameters cannot be set; `filename` because World Machine would write build output outside the allowed roots. Each item reports the value World Machine reads back.
 - `set_device_enabled` and `disconnect_devices` read the result back, because World Machine prints the same confirmation whether or not anything changed.
 - Bypass is reported but cannot be set.
-- No edit is rolled back automatically; use `undo`. It reverts one step per call: one parameter, one scene setting, or one device edit. `add_device` with a name is two steps (add, then rename), so undo likely reverts the rename first (not yet captured). Undoing a delete restores the device with its wires.
+- No edit is rolled back automatically; use `undo`. It reverts one step per call: one parameter, one scene setting, or one device edit. `add_device` with a name is two steps (add, then rename), so the first undo reverts the rename and the second removes the device. Undoing a delete restores the device with its wires.
 
 Builds and exports are planned for v2, and declarative graph specifications for v3.
 
