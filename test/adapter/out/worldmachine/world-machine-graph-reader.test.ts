@@ -120,6 +120,88 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
     expect(device).toMatchObject({ id: 1, name: 'Gradient', enabled: false });
   });
 
+  it('reads a device by name in one batch of five commands', async () => {
+    const { reader: r, record } = reader();
+    expect((await r.getDevice('Erosion')).id).toBe(35);
+    const sent = record.lines().filter((line) => !line.startsWith('__end_'));
+    expect(sent.slice(sent.indexOf('project new default force') + 1)).toEqual([
+      'device select Erosion',
+      'device info',
+      'param list Erosion',
+      'wire list Erosion',
+      'device list',
+    ]);
+  });
+
+  describe('with a stubbed session', () => {
+    const frame = (command: string, output: string[]) => ({ command, output, errors: [] });
+    const gradientInfo = [
+      'Selected device:',
+      '  Name:    Gradient',
+      '  Type:    Gradient',
+      '  Enabled: yes',
+      '  Bypass:  no',
+    ];
+    /** A session whose only batch answers with `listRows` as the `device list` frame; records every batch. */
+    function stub(device: string, info: string[], listRows: string[]) {
+      const batches: (readonly string[])[] = [];
+      const session = {
+        assertAcceptingCalls: () => undefined,
+        execute: async (commands: readonly string[]) => {
+          batches.push(commands);
+          return [
+            frame(`device select ${device}`, ['Selected: Gradient']),
+            frame('device info', info),
+            frame(`param list ${device}`, lines('param-list-erosion.txt')),
+            frame(`wire list ${device}`, lines('wire-list-erosion.txt')),
+            frame('device list', listRows),
+          ];
+        },
+      } as unknown as WorldMachineSession;
+      return { reader: new WorldMachineGraphReader(session), batches };
+    }
+
+    it('reads a device by name in another case, in one batch (spec fact 31)', async () => {
+      const { reader: r, batches } = stub('gradient', gradientInfo, [
+        'Devices (2 total):',
+        '  #1     Gradient                ',
+        '  #2     Combiner                ',
+      ]);
+      expect((await r.getDevice('gradient')).id).toBe(1);
+      expect(batches).toEqual([
+        ['device select gradient', 'device info', 'param list gradient', 'wire list gradient', 'device list'],
+      ]);
+    });
+
+    it('reads a #id device without parsing the device list, in one batch', async () => {
+      const { reader: r, batches } = stub('#35', gradientInfo, ['Devices (1 total):', 'not a device row']);
+      expect((await r.getDevice('#35')).id).toBe(35);
+      expect(batches).toHaveLength(1);
+    });
+
+    it('refuses a name shared by two devices after the batch', async () => {
+      // Rows as captured in raw/p2b-kind-markers.txt (spec fact 30), under an unfiltered header.
+      const { reader: r, batches } = stub('Gradient', gradientInfo, [
+        'Devices (2 total):',
+        '  #536   Gradient                ',
+        '  #537   Gradient                ',
+      ]);
+      await expect(r.getDevice('Gradient')).rejects.toMatchObject({
+        code: 'REFUSED',
+        message: "Device name 'Gradient' is ambiguous; use #<id>",
+      });
+      expect(batches).toHaveLength(1);
+    });
+
+    it('reports UNEXPECTED_OUTPUT when World Machine selects a device that device list does not show', async () => {
+      const { reader: r } = stub('Gradient', gradientInfo, [
+        'Devices (1 total):',
+        '  #2     Combiner                ',
+      ]);
+      await expect(r.getDevice('Gradient')).rejects.toMatchObject({ code: 'UNEXPECTED_OUTPUT' });
+    });
+  });
+
   it('reports a missing device', async () => {
     await expect(reader().reader.getDevice('Nope')).rejects.toMatchObject({
       code: 'WM_COMMAND_FAILED',

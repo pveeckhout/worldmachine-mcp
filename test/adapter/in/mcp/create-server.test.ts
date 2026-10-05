@@ -2,8 +2,17 @@ import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/cli
 import { createMcpHandler } from '@modelcontextprotocol/server';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createMcpServer, type McpDependencies } from '../../../../src/adapter/in/mcp/create-server.js';
+import { parseDeviceInfo } from '../../../../src/adapter/out/worldmachine/parsers/device-info.js';
+import { parseDeviceList } from '../../../../src/adapter/out/worldmachine/parsers/device-list.js';
+import { parseGroupList } from '../../../../src/adapter/out/worldmachine/parsers/group-list.js';
+import { parseParamList } from '../../../../src/adapter/out/worldmachine/parsers/param-list.js';
+import { parseSceneList, parseSceneShow } from '../../../../src/adapter/out/worldmachine/parsers/scene.js';
+import { parseWireList } from '../../../../src/adapter/out/worldmachine/parsers/wire-list.js';
+import type { DeviceDetail } from '../../../../src/domain/device.js';
 import { WorldMachineError } from '../../../../src/domain/errors.js';
+import type { ProjectOverview } from '../../../../src/domain/project.js';
 import type { Scene } from '../../../../src/domain/scene.js';
+import { fixtureLines } from '../../out/worldmachine/parsers/fixture.js';
 
 const READY = { state: 'ready', binding: { kind: 'fresh' }, dirty: false } as const;
 
@@ -231,5 +240,66 @@ describe('createMcpServer', () => {
     const result = await (await connect(failing)).callTool({ name: 'list_devices', arguments: {} });
     const content = result.content as { type: string; text: string }[];
     expect(JSON.parse(content[0]?.text ?? '').worldMachineMessage).toBe('fatal: no seat');
+  });
+});
+
+describe('createMcpServer with parser output from the wm-4067 fixtures', () => {
+  const erosion: DeviceDetail = {
+    id: 35,
+    ...parseDeviceInfo(fixtureLines('device-info-erosion.txt')),
+    parameters: parseParamList(fixtureLines('param-list-erosion.txt')),
+    ...parseWireList(fixtureLines('wire-list-erosion.txt')),
+  };
+  const scene = parseSceneShow(fixtureLines('scene-show.txt'));
+  const devices = parseDeviceList(fixtureLines('device-list.txt'));
+  const project: ProjectOverview = {
+    scene,
+    scenes: parseSceneList(fixtureLines('scene-list.txt')),
+    deviceCount: devices.length,
+    devices,
+    groups: parseGroupList(fixtureLines('group-list.txt')),
+  };
+
+  it('builds the views from complete parser output', () => {
+    expect(erosion.parameters).toHaveLength(20);
+    expect(erosion.outputs).toHaveLength(5);
+    expect(project.devices).toHaveLength(17);
+    expect(project.devices.some((device) => device.kind !== undefined)).toBe(true);
+    expect(project.groups).toHaveLength(5);
+  });
+
+  it('returns get_device with the parsed device as structured content', async () => {
+    const client = await connect(
+      deps({ getDevice: { getDevice: async () => ({ device: erosion, session: READY }) } }),
+    );
+    const result = await client.callTool({ name: 'get_device', arguments: { device: 'Erosion' } });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toEqual({ device: erosion, session: READY });
+  });
+
+  it('returns get_scene with the parsed scene as structured content', async () => {
+    const client = await connect(deps({ getScene: { getScene: async () => ({ scene, session: READY }) } }));
+    const result = await client.callTool({ name: 'get_scene', arguments: {} });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toEqual({ scene, session: READY });
+  });
+
+  it('returns inspect_project with the parsed overview as structured content', async () => {
+    const client = await connect(
+      deps({ inspectProject: { inspectProject: async () => ({ project, session: READY }) } }),
+    );
+    const result = await client.callTool({ name: 'inspect_project', arguments: {} });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toEqual({ project, session: READY });
+  });
+
+  it('rejects structured content that does not match the output schema', async () => {
+    const client = await connect(
+      deps({
+        getScene: { getScene: async () => ({ scene: { ...scene, resolution: 1.5 }, session: READY }) },
+      }),
+    );
+    const result = await client.callTool({ name: 'get_scene', arguments: {} });
+    expect(result.isError).toBe(true);
   });
 });

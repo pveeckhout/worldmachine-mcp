@@ -3,6 +3,7 @@ import type { DeviceDetail, DeviceSummary } from '../../../domain/device.js';
 import type { ProjectOverview } from '../../../domain/project.js';
 import type { Scene } from '../../../domain/scene.js';
 import { buildCommand } from './command-builder.js';
+import { idOfReference, resolveDeviceReference } from './device-reference.js';
 import { parseDeviceInfo } from './parsers/device-info.js';
 import { parseDeviceList } from './parsers/device-list.js';
 import { parseGroupList } from './parsers/group-list.js';
@@ -47,8 +48,12 @@ export class WorldMachineGraphReader implements ProjectGraphReadPort {
     const list = requireFrame(responses[4]);
     for (const response of [select, info, params, wires, list]) throwIfFailed(response);
     const detail = parseDeviceInfo(info.output);
-    const byId = /^#(\d+)$/.exec(device);
-    const id = byId ? Number(byId[1]) : parseDeviceList(list.output).find((d) => d.name === detail.name)?.id;
+    // Spec section 5: one batch, so the name is resolved after it. For an ambiguous name World Machine has already
+    // selected one of the devices; selection is not project state, so the refusal leaves nothing to undo.
+    // A `#<id>` reference carries its id, so a list row the parser rejects cannot fail the read.
+    const id =
+      idOfReference(device) ?? idOfReference(resolveDeviceReference(parseDeviceList(list.output), device));
+    // World Machine selected a device, but no listed name matches: nothing tells which id it has.
     if (id === undefined) throw unexpectedOutput('device list', list.output);
     return {
       id,

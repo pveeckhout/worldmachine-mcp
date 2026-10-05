@@ -6,7 +6,10 @@ import { FsPathPolicy } from '../../../../src/adapter/out/fs/path-policy.js';
 import { WorldMachineGraphReader } from '../../../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
 import { WorldMachineProcess } from '../../../../src/adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineProjectWriter } from '../../../../src/adapter/out/worldmachine/world-machine-project-writer.js';
-import { WorldMachineSession } from '../../../../src/adapter/out/worldmachine/world-machine-session.js';
+import {
+  type SessionOptions,
+  WorldMachineSession,
+} from '../../../../src/adapter/out/worldmachine/world-machine-session.js';
 import { captureLogger, FAKE_WM, fakeEnv, recorder } from '../../../support/fake-wm.js';
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'writer-')));
@@ -15,7 +18,7 @@ afterEach(async () => {
   await Promise.all(sessions.splice(0).map((s) => s.shutdown()));
 });
 
-function writer(extra: Record<string, string> = {}) {
+function writer(extra: Record<string, string> = {}, overrides: Partial<SessionOptions> = {}) {
   const record = recorder();
   const logger = captureLogger();
   const env = fakeEnv({ FAKE_WM_RECORD: record.path, ...extra });
@@ -28,6 +31,7 @@ function writer(extra: Record<string, string> = {}) {
     logger,
     startProcess: (bin, signal, onSpawn) =>
       WorldMachineProcess.start({ bin, readyTimeoutMs: 5_000, logger, env, signal, onSpawn }),
+    ...overrides,
   });
   sessions.push(session);
   return {
@@ -140,5 +144,69 @@ describe('WorldMachineProjectWriter', () => {
     await w.redo();
     expect(session.status().session.dirty).toBe(true);
     expect(record.lines()).toEqual(expect.arrayContaining(['project undo', 'project redo']));
+  });
+});
+
+describe('WorldMachineProjectWriter without a confirmation line (ruling G1)', () => {
+  it('binds fresh and marks dirty after an unconfirmed open', async () => {
+    const path = join(root, 'silent open.tmd');
+    writeFileSync(path, 'x');
+    const { session, writer: w } = writer({ FAKE_WM_SILENT_ON: `project open ${path} force` });
+    await session.ensureRunning();
+    session.bind({ kind: 'opened', path: join(root, 'previous.tmd') });
+    await expect(w.openProject(path)).rejects.toMatchObject({ code: 'UNEXPECTED_OUTPUT' });
+    expect(session.status().session).toEqual({ state: 'ready', binding: { kind: 'fresh' }, dirty: true });
+  });
+
+  it('binds fresh and marks dirty after an unconfirmed create', async () => {
+    // Started on a default project, because the fresh start itself runs `project new default force`.
+    const start = join(root, 'start.tmd');
+    writeFileSync(start, 'x');
+    const { session, writer: w } = writer(
+      { FAKE_WM_SILENT_ON: 'project new default force' },
+      { defaultProject: start },
+    );
+    await session.ensureRunning();
+    expect(session.status().session.binding).toEqual({ kind: 'opened', path: start });
+    await expect(w.createProject()).rejects.toMatchObject({ code: 'UNEXPECTED_OUTPUT' });
+    expect(session.status().session).toEqual({ state: 'ready', binding: { kind: 'fresh' }, dirty: true });
+  });
+
+  it.each([
+    ['undo', 'project undo'],
+    ['redo', 'project redo'],
+  ] as const)('marks dirty before checking the %s confirmation', async (action, command) => {
+    const { session, writer: w } = writer({ FAKE_WM_SILENT_ON: command });
+    await session.ensureRunning();
+    await expect(w[action]()).rejects.toMatchObject({ code: 'UNEXPECTED_OUTPUT' });
+    expect(session.status().session).toEqual({ state: 'ready', binding: { kind: 'fresh' }, dirty: true });
+  });
+
+  it.each([
+    ['undo', 'project undo'],
+    ['redo', 'project redo'],
+  ] as const)('does not mark dirty when World Machine rejects %s', async (action, command) => {
+    // A stub session: no capture shows `project undo` or `project redo` failing, so the fake has no way to produce
+    // an `Error:` line for them without invented output. The error text below is the stub's, not World Machine's.
+    let marked = false;
+    const session = {
+      executeOne: async () => ({ command, output: [], errors: ['Error: Error: stub failure'] }),
+      markDirty: () => {
+        marked = true;
+      },
+      bind: () => undefined,
+    } as unknown as WorldMachineSession;
+    await expect(new WorldMachineProjectWriter(session)[action]()).rejects.toMatchObject({
+      code: 'WM_COMMAND_FAILED',
+    });
+    expect(marked).toBe(false);
+  });
+
+  it('keeps a failed open bound fresh and clean', async () => {
+    const { session, writer: w } = writer({ FAKE_WM_OPEN_ERROR: '1' });
+    await session.ensureRunning();
+    session.bind({ kind: 'opened', path: join(root, 'previous.tmd') });
+    await expect(w.openProject(join(root, 'x.tmd'))).rejects.toMatchObject({ code: 'WM_COMMAND_FAILED' });
+    expect(session.status().session).toEqual({ state: 'ready', binding: { kind: 'fresh' }, dirty: false });
   });
 });

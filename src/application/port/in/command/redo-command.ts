@@ -1,4 +1,4 @@
-import type { ProjectCommandView } from './open-project-command.js';
+import type { ProjectCommandView } from './project-command-view.js';
 
 export type RedoCommand = Readonly<Record<string, never>>;
 export interface RedoCommandPort {

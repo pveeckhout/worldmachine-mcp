@@ -15,6 +15,7 @@ function fakes(session: SessionSummary, target: SaveTarget = { path: '/r/x.tmd',
     ensureRunning: async () => {},
     status: () => ({ executable: '/wm', session }),
     shutdown: async () => {},
+    forgetReopen: () => void calls.push('forget'),
     exclusive: (action) => {
       calls.push('exclusive');
       return action();
@@ -54,7 +55,7 @@ describe('OpenProjectService', () => {
       path: '/r/b.tmd',
       discardUnsaved: false,
     });
-    expect(f.calls).toEqual(['exclusive', 'authorize:/r/b.tmd', 'open:/canon/r/b.tmd']);
+    expect(f.calls).toEqual(['exclusive', 'authorize:/r/b.tmd', 'forget', 'open:/canon/r/b.tmd']);
     expect(view).toEqual({ session: READY_CLEAN, path: '/canon/r/b.tmd' });
   });
 
@@ -90,7 +91,7 @@ describe('CreateProjectService', () => {
     expect(dirty.calls).toEqual(['exclusive']);
     const clean = fakes({ state: 'notRunning' });
     await new CreateProjectService(clean.sessionPort, clean.writer).createProject({ discardUnsaved: false });
-    expect(clean.calls).toEqual(['exclusive', 'create']);
+    expect(clean.calls).toEqual(['exclusive', 'forget', 'create']);
   });
 });
 

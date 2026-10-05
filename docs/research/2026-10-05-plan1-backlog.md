@@ -18,12 +18,16 @@ Open items left after Plan 1 (foundation) merged on 2026-10-05, taken from the i
 
 ## Must land before Plan 2's write tools
 
+Done in Plan 2b (all four items below).
+
 - `command-builder.ts`: the control-character class lets C1 controls (U+0080-U+009F) and U+2028/U+2029 through in the tail. Widen it.
 - `command-builder.ts`: a free-text tail ending in ` force` could be read as a trailing flag on commands that accept one.
 - `command-builder.ts`: the REFUSED message and doc comment still say quoting is "unverified".
 - `test/fake-wm/fake-wm.mjs` (Plan 2a): `param set` splits the device reference at the first space, so `param set "Height Output".exportAlways true` echoes the wrong reference. Real output is `Set Height Output.exportAlways = true` (`raw/v6b-param-set.txt` l.55). No Plan 2a test uses it; fix it before Plan 2b tests rely on it.
 
 ## Plan 2b gate (from the Plan 2a final review)
+
+Done in Plan 2b (all items below; the fake's `device add` follows ruling P9).
 
 - **Bug in merged code:** `parsers/device-list.ts` keeps World Machine's state marker in the name (`Gradient                 [disabled]`, spec fact 24). `list_devices` and `inspect_project` report a wrong name, and `get_device` by name fails with `UNEXPECTED_OUTPUT` for any disabled or bypassed device. Parse the marker into a state field.
 - Reopen the last clean opened project after an idle quit or crash (spec section 6). Without it, edits after a restart land in the default project.
@@ -35,8 +39,12 @@ Open items left after Plan 1 (foundation) merged on 2026-10-05, taken from the i
 
 ## Plan 2c gate
 
+- `src/application/port/out/world-machine-session-port.ts:14-16`: the `forgetReopen` doc comment was inserted between `exclusive`'s doc comment and `exclusive`, so that comment now sits above the wrong member. Move it back.
 - `test/fake-wm/fake-wm.mjs`: `param set` accepts values the real World Machine rejects: `1.5 km` and `1,5` for a float, `3.0` for an int, an unknown enum value (`raw/v6b-param-set.txt` l.96-97, 102-103, 117-118, 177-178). `update_device_parameters` must refuse these before sending (spec section 7); if a 2c test sends one through, the fake needs per-parameter type data first.
 - Edit tools resolve names with `resolveDeviceReference` after their own `device list`, inside `exclusive()` (Plan 2b ruling C1).
+- `test/fake-wm/fake-wm.mjs`: `device select` matches exact case and only Erosion/#35, so added devices cannot be selected (fact 31, ruling P9). Fix it before a 2c test selects an added device.
+- `add_device` and `rename_device` must refuse names that `device list` cannot read back unambiguously: a trailing ` [disabled]` or ` [bypassed]`, a `  (x)` suffix after two or more spaces, and leading or trailing whitespace.
+- Output schemas allow unknown keys, so a new view field missing from a schema passes the Plan 2b schema tests. 2c's new view fields need `z.strictObject` or a type tie (`satisfies`) to the domain types.
 
 ## Test coverage gaps
 

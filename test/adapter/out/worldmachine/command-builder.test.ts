@@ -53,6 +53,53 @@ describe('buildCommand', () => {
   it('refuses unsafe suffix words', () => {
     refused(() => buildCommand(['project', 'open'], '/p/a.tmd', ['for ce']));
   });
+
+  it.each([
+    ['C1 control U+0080', 'x\u0080'],
+    ['C1 control U+0085 (next line)', 'x\u0085y'],
+    ['C1 control U+009B (CSI)', 'x\u009b'],
+    ['C1 control U+009F', 'x\u009f'],
+    ['line separator U+2028', 'x\u2028project close force'],
+    ['paragraph separator U+2029', 'x\u2029y'],
+  ])('refuses a %s in the tail', (_label, tail) => {
+    expect(refused(() => buildCommand(['device', 'list'], tail)).message).toBe(
+      'Arguments must not contain control characters such as newlines',
+    );
+  });
+
+  it('refuses a C1 control in a word', () => {
+    refused(() => buildCommand(['device\u0085', 'list']));
+  });
+
+  it('accepts U+00A0, the first character after the C1 range', () => {
+    expect(buildCommand(['device', 'list'], 'a\u00a0b')).toBe('device list a\u00a0b');
+  });
+
+  it.each([
+    ['a path ending in force', '/r/x force'],
+    ['upper-case FORCE', '/r/x FORCE'],
+    ['the bare word force', 'force'],
+  ])('refuses %s as the tail of project open', (_label, tail) => {
+    expect(refused(() => buildCommand(['project', 'open'], tail, ['force'])).message).toBe(
+      'The final argument must not end with the word force, which World Machine reads as a flag',
+    );
+  });
+
+  it('accepts force inside a tail, and at the end of a tail on other commands', () => {
+    expect(buildCommand(['project', 'open'], '/r/forced.tmd', ['force'])).toBe(
+      'project open /r/forced.tmd force',
+    );
+    expect(buildCommand(['project', 'open'], '/r/x force.tmd', ['force'])).toBe(
+      'project open /r/x force.tmd force',
+    );
+    expect(buildCommand(['device', 'list'], 'Grad force')).toBe('device list Grad force');
+  });
+
+  it('points to #<id> when a tail contains a quote', () => {
+    expect(refused(() => buildCommand(['device', 'select'], 'Grad "A"')).message).toBe(
+      'Quotes and backslashes are not supported in arguments; refer to devices by #<id>',
+    );
+  });
 });
 
 describe('sentinels', () => {

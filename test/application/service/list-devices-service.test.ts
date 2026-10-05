@@ -16,6 +16,7 @@ describe('ListDevicesService', () => {
         session: { state: 'ready', binding: { kind: 'fresh' }, dirty: false },
       }),
       async shutdown() {},
+      forgetReopen: () => {},
       exclusive: (action) => action(),
     };
     const graph: ProjectGraphReadPort = {
@@ -45,6 +46,7 @@ describe('ListDevicesService', () => {
       ensureRunning: async () => {},
       status: () => ({ executable: null, session: { state: 'notRunning' } }),
       async shutdown() {},
+      forgetReopen: () => {},
       exclusive: (action) => action(),
     };
     const graph: ProjectGraphReadPort = {

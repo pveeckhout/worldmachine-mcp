@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -384,7 +384,7 @@ describe('WorldMachineSession', () => {
   });
 
   it('rejects an unconfirmed default project with UNEXPECTED_OUTPUT', async () => {
-    const { session: s } = session({ FAKE_WM_NEW_SILENT: '1' });
+    const { session: s } = session({ FAKE_WM_SILENT_ON: 'project new default force' });
     const starting = failure(s.ensureRunning());
     const error = await starting;
     expect(error.code).toBe('UNEXPECTED_OUTPUT');
@@ -455,5 +455,136 @@ describe('WorldMachineSession', () => {
       state: 'unhealthy',
       reason: 'World Machine exited unexpectedly; unsaved changes were lost',
     });
+  });
+});
+
+const sinceLastStart = (lines: string[]): string[] => lines.slice(lines.lastIndexOf('START'));
+
+describe('WorldMachineSession restart (spec section 6)', () => {
+  it('reopens the opened project after an idle quit', async () => {
+    const { session: s, record } = session({}, { idleTimeoutMs: 200 });
+    await s.ensureRunning();
+    s.bind({ kind: 'opened', path: project });
+    await waitUntil(() => record.lines().includes('EXIT'));
+    await s.ensureRunning();
+    const restart = sinceLastStart(record.lines());
+    expect(restart).toContain(`project open ${project}`);
+    expect(restart).not.toContain('project new default force');
+    expect(s.status().session).toEqual({
+      state: 'ready',
+      binding: { kind: 'opened', path: project },
+      dirty: false,
+    });
+  });
+
+  it('does not reopen a deleted project after forgetReopen, so an open or create start succeeds', async () => {
+    const gone = join(root, 'gone-forget.tmd');
+    writeFileSync(gone, '');
+    const { session: s, record } = session({}, { idleTimeoutMs: 200 });
+    await s.ensureRunning();
+    s.bind({ kind: 'opened', path: gone });
+    await waitUntil(() => record.lines().includes('EXIT'));
+    unlinkSync(gone);
+    s.forgetReopen();
+    await s.ensureRunning();
+    const restart = sinceLastStart(record.lines());
+    expect(restart).toContain('project new default force');
+    expect(restart).not.toContain(`project open ${gone}`);
+    expect(s.status().session.binding).toEqual({ kind: 'fresh' });
+  });
+
+  it('reopens the opened project after a clean unexpected exit', async () => {
+    const { session: s, record } = session({ FAKE_WM_CRASH_ON: 'device list' });
+    await s.ensureRunning();
+    s.bind({ kind: 'opened', path: project });
+    expect((await failure(s.executeOne('device list'))).code).toBe('CRASHED');
+    await s.ensureRunning();
+    const restart = sinceLastStart(record.lines());
+    expect(restart).toContain(`project open ${project}`);
+    expect(restart).not.toContain('project new default force');
+    expect(s.status().session.binding).toEqual({ kind: 'opened', path: project });
+  });
+
+  it('opens the default project after an unexpected exit with unsaved changes', async () => {
+    const { session: s, record } = session({ FAKE_WM_CRASH_ON: 'device list' });
+    await s.ensureRunning();
+    s.bind({ kind: 'opened', path: project });
+    s.markDirty();
+    expect((await failure(s.executeOne('device list'))).code).toBe('CRASHED');
+    await s.ensureRunning();
+    const restart = sinceLastStart(record.lines());
+    expect(restart).toContain('project new default force');
+    expect(restart).not.toContain(`project open ${project}`);
+    expect(s.status().session.binding).toEqual({ kind: 'fresh' });
+  });
+
+  it('opens the default project after a timeout restart', async () => {
+    const { session: s, record } = session({ FAKE_WM_HANG_ON: 'device list' }, { commandTimeoutMs: 300 });
+    await s.ensureRunning();
+    s.bind({ kind: 'opened', path: project });
+    expect((await failure(s.executeOne('device list'))).code).toBe('TIMEOUT');
+    await s.ensureRunning();
+    const restart = sinceLastStart(record.lines());
+    expect(restart).toContain('project new default force');
+    expect(restart).not.toContain(`project open ${project}`);
+    expect(s.status().session.binding).toEqual({ kind: 'fresh' });
+  });
+
+  it('refuses to reopen a removed project without launching, then starts with the default project', async () => {
+    const gone = join(root, 'gone.tmd');
+    writeFileSync(gone, '');
+    const { session: s, record } = session({ FAKE_WM_CRASH_ON: 'device list' });
+    await s.ensureRunning();
+    s.bind({ kind: 'opened', path: gone });
+    expect((await failure(s.executeOne('device list'))).code).toBe('CRASHED');
+    unlinkSync(gone);
+    const error = await failure(s.ensureRunning());
+    expect(error.code).toBe('REFUSED');
+    expect(error.message).toBe(
+      `The last open project cannot be reopened: Not an existing .tmd project file inside the allowed roots: ${gone}`,
+    );
+    expect(record.lines().filter((line) => line === 'START')).toHaveLength(1);
+    await s.ensureRunning();
+    expect(sinceLastStart(record.lines())).toContain('project new default force');
+    expect(s.status().session.binding).toEqual({ kind: 'fresh' });
+  });
+
+  it('fails the restart when the reopened project cannot be opened, then starts with the default project', async () => {
+    const record = recorder();
+    const logger = captureLogger();
+    let attempt = 0;
+    const { session: s } = session(
+      {},
+      {
+        startProcess: (bin, signal, onSpawn) =>
+          WorldMachineProcess.start({
+            bin,
+            readyTimeoutMs: 5_000,
+            logger,
+            signal,
+            onSpawn,
+            env: fakeEnv({
+              FAKE_WM_RECORD: record.path,
+              FAKE_WM_CRASH_ON: 'device list',
+              ...(attempt++ === 0 ? {} : { FAKE_WM_OPEN_ERROR: '1' }),
+            }),
+          }),
+      },
+    );
+    await s.ensureRunning();
+    s.bind({ kind: 'opened', path: project });
+    expect((await failure(s.executeOne('device list'))).code).toBe('CRASHED');
+    const error = await failure(s.ensureRunning());
+    expect(error.code).toBe('WM_COMMAND_FAILED');
+    expect(error.worldMachineMessage).toBe('Failed to open project.');
+    expect(sinceLastStart(record.lines())).toContain(`project open ${project}`);
+    expect(s.status().session).toEqual({ state: 'notRunning' });
+    expect(record.lines().at(-1)).toBe('EXIT');
+    // Spec section 6: the failed reopen forgot the path, so the next start opens the default project.
+    await s.ensureRunning();
+    const third = sinceLastStart(record.lines());
+    expect(third).toContain('project new default force');
+    expect(third).not.toContain(`project open ${project}`);
+    expect(s.status().session.binding).toEqual({ kind: 'fresh' });
   });
 });

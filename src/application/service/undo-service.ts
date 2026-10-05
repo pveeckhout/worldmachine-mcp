@@ -1,4 +1,4 @@
-import type { ProjectCommandView } from '../port/in/command/open-project-command.js';
+import type { ProjectCommandView } from '../port/in/command/project-command-view.js';
 import type { UndoCommand, UndoCommandPort } from '../port/in/command/undo-command.js';
 import type { ProjectGraphWritePort } from '../port/out/project-graph-write-port.js';
 import type { WorldMachineSessionPort } from '../port/out/world-machine-session-port.js';

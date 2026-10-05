@@ -25,7 +25,7 @@ const deviceSummarySchema = z.object({
   name: z.string(),
   kind: z.string().optional(),
   enabled: z.boolean(),
-  bypassed: z.boolean(),
+  bypassed: z.boolean().optional(),
 });
 
 export const deviceListViewSchema = z.object({

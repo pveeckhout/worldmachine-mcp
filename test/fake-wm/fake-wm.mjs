@@ -37,11 +37,35 @@ let dirty = env.FAKE_WM_DIRTY_AT_START === '1';
 let selected = false;
 // 'sample' is the 17-device startup project; 'empty' follows a blank project, a close, or a failed open.
 let project = 'sample';
+// Devices added with `device add`, listed after the project's own devices.
+let added = [];
+// First new id: #1 in a blank project (raw/p2b-graph-edits.txt); #536 in the sample project, whose highest id is
+// #373 (spec fact 30: three adds gave #536, #537, #538).
+// Assumed: ids after those continue by one; `project open` of any file (which the fake answers with the sample
+// project) also starts again at #536. Neither is captured.
+const firstFreeId = (next) => (next === 'sample' ? 536 : 1);
+let nextId = firstFreeId(project);
 const switchTo = (next) => {
   project = next;
   selected = false;
   dirty = false;
+  added = [];
+  nextId = firstFreeId(next);
 };
+// Spec fact 30: the name is the type, without de-duplication (two `device add Gradient` give two devices named
+// 'Gradient'; `device add Erosion` gives 'Erosion', raw/p2b-kind-markers.txt). Captured exception,
+// raw/v6b-param-set.txt l.13-14: `device add File Output` names the device 'Height Output'.
+const DEFAULT_NAMES = { 'File Output': 'Height Output' };
+// raw/device-list-sample.txt: two spaces, "#<id>" padded to 7, the name padded to 24.
+const deviceRow = ({ id, name }) => `  ${`#${id}`.padEnd(7)}${name.padEnd(24)}`;
+// The name of a row in that format (every captured name fits in 24 characters).
+const nameOfRow = (row) => row.slice(9, 33).trimEnd();
+const splitOnce = (text) => {
+  const space = text.indexOf(' ');
+  return space === -1 ? [text, ''] : [text.slice(0, space), text.slice(space + 1)];
+};
+const NO_DEVICE_SELECTED =
+  "Error: Error: No device selected. Use 'param set <device>.<param> <value>' or select a device first.\n";
 const ERODE = new Set(['Erosion', '#35']);
 const isErosion = (ref) => project === 'sample' && ERODE.has(ref);
 const notFound = (ref) => process.stderr.write(`Error: Error: Device not found: '${ref}'\n`);
@@ -80,6 +104,8 @@ async function handle(line) {
     return;
   }
   if (command === env.FAKE_WM_CRASH_ON) exit(139);
+  // Prints nothing for this exact command, so a confirmation line is missing.
+  if (command === env.FAKE_WM_SILENT_ON) return;
   if (command === env.FAKE_WM_DELAY_ON) await sleep(Number(env.FAKE_WM_DELAY_MS ?? '0'));
   if (command === 'system quit force') {
     if (dirty) {
@@ -99,11 +125,26 @@ async function handle(line) {
     return;
   }
   if (command === 'device list' || command.startsWith('device list ')) {
-    if (project === 'empty') return void out('No devices in the current project.\n');
-    const lines = fixture('device-list.txt').split('\n');
+    if (project === 'empty' && added.length === 0) return void out('No devices in the current project.\n');
+    const lines =
+      project === 'empty' ? ['Devices (0 total):', '', ''] : fixture('device-list.txt').split('\n');
+    if (added.length > 0) {
+      const total = Number(/\((\d+) total\)/.exec(lines[0])[1]) + added.length;
+      lines[0] = `Devices (${total} total):`;
+      const end = lines.findLastIndex((line) => line.startsWith('  #')) + 1;
+      lines.splice(end === 0 ? 1 : end, 0, ...added.map(deviceRow));
+    }
+    // Spec fact 16: a filter keeps the unfiltered total in the header. Captured filters (raw/device-list-sample.txt
+    // l.22-25, raw/p2b-kind-markers.txt l.110-119) keep the rows whose name contains them.
+    // Assumed: the match is case-sensitive and may start anywhere in the name; no capture shows either.
+    const filter = command.slice('device list'.length).trim();
+    const shown =
+      filter === ''
+        ? lines
+        : lines.filter((line) => !line.startsWith('  #') || nameOfRow(line).includes(filter));
     if (env.FAKE_WM_INTERLEAVE === '1')
-      lines.splice(3, 0, '[Info       ] QIODevice::read (QSslSocket): device not open');
-    out(lines.join('\n'));
+      shown.splice(3, 0, '[Info       ] QIODevice::read (QSslSocket): device not open');
+    out(shown.join('\n'));
     return;
   }
   // Outputs as captured in test/fixtures/wm-4067/raw (V3, V7).
@@ -119,7 +160,6 @@ async function handle(line) {
     return;
   }
   if (command.startsWith('project new default') || command.startsWith('project new blank')) {
-    if (env.FAKE_WM_NEW_SILENT === '1' && command.startsWith('project new default')) return;
     const blank = command.includes('blank');
     switchTo(blank ? 'empty' : 'sample');
     out(`Created new ${blank ? 'blank' : 'default'} project.\n`);
@@ -149,14 +189,37 @@ async function handle(line) {
     return;
   }
   if (command.startsWith('param set ')) {
+    // raw/v6b-param-set.txt l.54-61 and l.195-196: World Machine drops the quotes around a reference or a value.
+    // Assumed: any `<device>.<param>` reference is echoed as a success, an unknown device or parameter included;
+    // no capture shows World Machine's answer for those.
+    const args = command.slice('param set '.length);
+    let target;
+    let value;
+    if (args.startsWith('"')) {
+      const close = args.indexOf('"', 1);
+      const [rest, after] = splitOnce(args.slice(close + 1));
+      target = args.slice(1, close) + rest;
+      value = after;
+    } else {
+      [target, value] = splitOnce(args);
+    }
+    if (!target.includes('.')) {
+      // raw/v6-param-values.txt l.56-57: the first word of an unquoted name with a space has no dot, and World
+      // Machine reads it as a parameter of the selected device (raw/v6b-param-set.txt l.75-76).
+      if (!selected) return void process.stderr.write(NO_DEVICE_SELECTED);
+      target = `Erosion.${target}`;
+    }
     dirty = true;
-    const [ref, ...value] = command.slice('param set '.length).split(' ');
-    out(`Set ${ref} = ${value.join(' ')}\n`);
+    out(`Set ${target} = ${value.replace(/^"(.*)"$/, '$1')}\n`);
     return;
   }
   if (command.startsWith('device add ')) {
+    // Assumed: every type is accepted; no capture adds an unknown type.
+    const type = command.slice('device add '.length);
+    const device = { id: nextId++, name: DEFAULT_NAMES[type] ?? type };
+    added.push(device);
     dirty = true;
-    out(`Added '${command.slice('device add '.length)}'\n`);
+    out(`Added '${device.name}'\n`);
     return;
   }
   if (command.startsWith('device select ')) {

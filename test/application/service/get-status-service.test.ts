@@ -13,6 +13,7 @@ function sessionWith(status: SessionStatus): WorldMachineSessionPort & { started
     },
     status: () => status,
     async shutdown() {},
+    forgetReopen: () => {},
     exclusive: (action) => action(),
   };
 }

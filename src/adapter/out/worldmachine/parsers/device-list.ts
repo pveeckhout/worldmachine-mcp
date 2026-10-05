@@ -9,10 +9,12 @@ const ROW = /^\s*#(\d+)\s+(.*?)(?:\s{2,}\(([^()]+)\))?\s*$/;
 const MARKER = /\s+\[(disabled|bypassed)\]$/;
 
 /** Peels trailing `[disabled]` / `[bypassed]` tokens off a row; other bracketed text stays in the name, a repeated marker fails the parse. */
-function splitMarkers(row: string): { text: string; enabled: boolean; bypassed: boolean } | undefined {
+function splitMarkers(
+  row: string,
+): { text: string; enabled: boolean; bypassed: boolean | undefined } | undefined {
   let text = row.trimEnd();
   let enabled = true;
-  let bypassed = false;
+  let bypassed: boolean | undefined;
   let seenDisabled = false;
   let seenBypassed = false;
   for (let match = MARKER.exec(text); match; match = MARKER.exec(text)) {
@@ -25,7 +27,8 @@ function splitMarkers(row: string): { text: string; enabled: boolean; bypassed: 
     } else return undefined;
     text = text.slice(0, match.index);
   }
-  return { text, enabled, bypassed };
+  // A `[disabled]` row hides bypass (spec fact 29), so it stays unknown unless the row says `[bypassed]`.
+  return { text, enabled, bypassed: bypassed ?? (enabled ? false : undefined) };
 }
 
 /** `filtered`: the header keeps the unfiltered total when `device list` gets a filter (spec fact 16). */
@@ -44,9 +47,13 @@ export function parseDeviceList(output: readonly string[], filtered = false): De
       const name = match?.[2];
       if (!match || !name) throw unexpectedOutput('device list', output);
       const id = Number(match[1]);
-      return match[3] === undefined
-        ? { id, name, enabled, bypassed }
-        : { id, name, kind: match[3], enabled, bypassed };
+      return {
+        id,
+        name,
+        ...(match[3] === undefined ? {} : { kind: match[3] }),
+        enabled,
+        ...(bypassed === undefined ? {} : { bypassed }),
+      };
     });
   const total = Number(count[1]);
   if (filtered ? devices.length > total : devices.length !== total)

@@ -1,5 +1,5 @@
 import { WorldMachineError } from '../../domain/errors.js';
-import type { ProjectCommandView } from '../port/in/command/open-project-command.js';
+import type { ProjectCommandView } from '../port/in/command/project-command-view.js';
 import type { SaveProjectCommand, SaveProjectCommandPort } from '../port/in/command/save-project-command.js';
 import type { PathPolicyPort } from '../port/out/path-policy-port.js';
 import type { ProjectGraphWritePort } from '../port/out/project-graph-write-port.js';

@@ -39,15 +39,29 @@ export class WorldMachineProjectWriter implements ProjectGraphWritePort {
         OPEN_FAILED,
       );
     }
-    requireOpenedLine(response, path);
+    this.#requireConfirmation(() => requireOpenedLine(response, path));
     this.#session.bind({ kind: 'opened', path });
   }
 
   async createProject(): Promise<void> {
     const response = await this.#session.executeOne(buildCommand(['project', 'new', 'default', 'force']));
     throwIfFailed(response);
-    requireCreatedLine(response);
+    this.#requireConfirmation(() => requireCreatedLine(response));
     this.#session.bind({ kind: 'fresh' });
+  }
+
+  /**
+   * Without its confirmation line, an open or create may still have replaced the project. The binding becomes
+   * `fresh` and the project counts as modified before the UNEXPECTED_OUTPUT propagates (ruling G1).
+   */
+  #requireConfirmation(check: () => void): void {
+    try {
+      check();
+    } catch (error) {
+      this.#session.bind({ kind: 'fresh' });
+      this.#session.markDirty();
+      throw error;
+    }
   }
 
   async saveProject(path: string, allowReplace: boolean): Promise<void> {
@@ -85,19 +99,23 @@ export class WorldMachineProjectWriter implements ProjectGraphWritePort {
     }
   }
 
-  async undo(): Promise<void> {
-    await this.#confirmed('project undo', 'Undo performed.');
-    this.#session.markDirty();
+  undo(): Promise<void> {
+    return this.#changeThenConfirm('project undo', 'Undo performed.');
   }
 
-  async redo(): Promise<void> {
-    await this.#confirmed('project redo', 'Redo performed.');
-    this.#session.markDirty();
+  redo(): Promise<void> {
+    return this.#changeThenConfirm('project redo', 'Redo performed.');
   }
 
-  async #confirmed(command: string, confirmation: string): Promise<void> {
+  /**
+   * A rejected undo or redo leaves dirty alone (spec section 6: a command World Machine rejects with `Error:` changes nothing). Once World Machine
+   * accepted the command it may have changed the project whatever it printed, so dirty is set before the
+   * confirmation check (ruling C2).
+   */
+  async #changeThenConfirm(command: string, confirmation: string): Promise<void> {
     const response = await this.#session.executeOne(command);
     throwIfFailed(response);
+    this.#session.markDirty();
     if (!response.output.includes(confirmation)) throw unexpectedOutput(command, response.output);
   }
 }

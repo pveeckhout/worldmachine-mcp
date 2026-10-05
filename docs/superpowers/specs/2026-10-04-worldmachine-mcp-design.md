@@ -239,11 +239,12 @@ Rules:
 - If `WORLD_MACHINE_DEFAULT_PROJECT` is set, it is authorised by the path policy *before* World Machine is launched. If the policy refuses it, the start fails with that error (`REFUSED`, or `NOT_CONFIGURED` when there are no allowed roots) and World Machine is not launched. There is no fallback to a fresh project.
 - On launch, the server runs `project open <path>` for an authorised default project, otherwise `project new default force` (subject to V3). The sample project is never left active.
 - Every successful command service call sets `dirty = true`, except `save_project`, which clears it, and `open_project` and `create_project`, which reset it.
+- After a lifecycle command that World Machine accepted without its confirmation line (`UNEXPECTED_OUTPUT`), undo and redo set `dirty`, and open and create set binding `fresh` and `dirty`, because World Machine may have acted. A command World Machine rejects with `Error:` changes neither.
 - `open_project` and `create_project` return `REFUSED` when `dirty` unless `discard_unsaved: true`.
 - Command use cases (open, create, save, undo, redo, and Plan 2c's graph edits) run one at a time: a use case's precondition checks and its World Machine commands are never interleaved with another command use case.
 - Project lifecycle commands require World Machine's exact confirmation line (`Opened: <path>`, `Created new default project.`, `Project saved to: <path>`, `Undo performed.`, `Redo performed.`); any other output is `UNEXPECTED_OUTPUT`.
 - `unhealthy` sessions are restarted by the next `ensureRunning()`.
-- When World Machine stopped by idle quit, or exited unexpectedly while `dirty` was false, and the binding was `opened { path }`, the next start re-authorises `path` through the path policy and opens it instead of the default project. A refusal or a failed open fails that start with its reason, and the path is forgotten, so the next start opens the default project. (Planned for Plan 2b; until it lands, a restart opens the default project and reports binding `fresh`.)
+- When World Machine stopped by idle quit, or exited unexpectedly while `dirty` was false, and the binding was `opened { path }`, the next start re-authorises `path` through the path policy and opens it instead of the default project. A refusal or a failed open fails that start with its reason, and the path is forgotten, so the next start opens the default project. `open_project` and `create_project` replace the project anyway: once their preconditions pass they forget the remembered path, so a start they cause does not reopen it.
 - Once shutdown has begun, every tool except `get_world_machine_status` returns `SHUTTING_DOWN` before any precondition check; `get_world_machine_status` keeps answering and reports `stopping`.
 - At most one World Machine process exists per server. A new process is started only after the previous one has exited.
 - The idle timer never fires while a command is in flight. Idle quit lets running command batches finish before sending `system quit force`. Process shutdown (section 9) waits for running batches only within its time budget.
@@ -275,7 +276,7 @@ All tools declare `inputSchema` and `outputSchema`; a tool without arguments dec
 
 Devices are referenced by name or by `#<id>`. There is no raw console tool.
 
-Bypass is reported (`get_device`, `list_devices`) but not settable: `device bypass` toggles (fact 25), and v1 has no bypass tool.
+Bypass is reported (`get_device`, `list_devices`) but not settable: `device bypass` toggles (fact 25), and v1 has no bypass tool. `list_devices` omits it for a disabled device (fact 29), so `get_device` is the authority.
 
 `update_device_parameters` reads `param list` first, validates every name and value against the reported type, and refuses the whole call if any item is invalid. It then applies all items in one batch, each `param set` followed by a `param get` of the same parameter, and reports per item the outcome and the value World Machine read back. Commands reference the device as `#<id>` (fact 18). Its description tells the model that numeric values are World Machine's internal values and that the read-back value shows the effect in display units. There is no automatic rollback; failure results point to `undo`.
 
@@ -291,7 +292,7 @@ Tool failures are returned as `isError: true` results. Protocol errors are left 
 |---|---|---|
 | `NOT_CONFIGURED` | executable missing or not executable; no usable allowed root | none |
 | `START_FAILED` | spawn error, no readiness line within 60 s, licence checkout failure (V8) | state returns to `notRunning`; when the startup detail contains a Qt display error (`could not connect to display`), the message adds a hint to pass `DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY`, and `XDG_RUNTIME_DIR` (see README) |
-| `REFUSED` | dirty without `discard_unsaved`, existing target without `overwrite`, path not authorised, unsafe or ambiguous token | no command sent |
+| `REFUSED` | dirty without `discard_unsaved`, existing target without `overwrite`, path not authorised, unsafe or ambiguous token | no command sent, except for an ambiguous device name in `get_device`: it is refused after the read batch, which changes only World Machine's device selection |
 | `WM_COMMAND_FAILED` | an `Error: ` line for a command, or a known unprefixed failure line (`Failed to open project.`, fact 17) | exact text in `worldMachineMessage` |
 | `TIMEOUT` | no sentinel within the batch timeout | state becomes `unhealthy` |
 | `CRASHED` | unexpected process exit | state becomes `unhealthy`; message states that unsaved changes were lost when `dirty` was set |
@@ -300,7 +301,7 @@ Tool failures are returned as `isError: true` results. Protocol errors are left 
 
 ## 9. Safety
 
-- **Command injection.** `CommandBuilder` rejects any token containing a character in `\x00`-`\x1f` or `\x7f`, and any token starting with `__end_`. Tokens whose quoting would be ambiguous under V4 are refused with `REFUSED`.
+- **Command injection.** `CommandBuilder` rejects any token containing a character in `\x00`-`\x1f`, `\x7f`-`\x9f` (DEL and the C1 controls), U+2028, or U+2029, and any token starting with `__end_`. On `project open`, a free-text final argument ending in the word `force` is refused, because World Machine would read it as the force flag. Tokens whose quoting would be ambiguous under V4 are refused with `REFUSED`.
 - **No shell exposure.** Model-supplied text is only ever written to World Machine's stdin as validated tokens.
 - **Allowed roots.** `WORLD_MACHINE_ALLOWED_ROOTS`, separated by the platform path delimiter. When unset, the server's working directory is the only root, unless it is `/` or `$HOME`, in which case path tools return `NOT_CONFIGURED`.
 - **Relative paths.** Project paths must be absolute; a relative path is refused with `REFUSED`, because the server's working directory is chosen by the MCP client and is not visible to the model.

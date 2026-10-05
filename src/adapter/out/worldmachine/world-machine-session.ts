@@ -57,6 +57,8 @@ export class WorldMachineSession implements WorldMachineSessionPort {
   #inFlight = 0;
   #shutDown = false;
   #exclusiveTail: Promise<unknown> = Promise.resolve();
+  /** The project the next start opens instead of the default project (spec section 6); that start forgets it. */
+  #reopen: string | undefined;
 
   constructor(options: SessionOptions) {
     this.#options = options;
@@ -73,6 +75,10 @@ export class WorldMachineSession implements WorldMachineSessionPort {
   /** Throws SHUTTING_DOWN once shutdown began; callers check it before any precondition (spec section 6). */
   assertAcceptingCalls(): void {
     if (this.#shutDown) throw new WorldMachineError('SHUTTING_DOWN', SHUTTING_DOWN_MESSAGE);
+  }
+
+  forgetReopen(): void {
+    this.#reopen = undefined;
   }
 
   exclusive<T>(action: () => Promise<T>): Promise<T> {
@@ -177,7 +183,12 @@ export class WorldMachineSession implements WorldMachineSessionPort {
       );
     }
     if (this.#shutDown) throw new WorldMachineError('SHUTTING_DOWN', SHUTTING_DOWN_MESSAGE);
-    const defaultProject = await this.#authorizeDefaultProject();
+    // Spec section 6: a refused or failed reopen fails this start with its reason and the path is forgotten, so the
+    // next start opens the default project. Clearing it before the attempt forgets it on every outcome.
+    const reopen = this.#reopen;
+    this.#reopen = undefined;
+    const project =
+      reopen === undefined ? await this.#authorizeDefaultProject() : await this.#authorizeReopen(reopen);
     await this.#stopping;
     await this.#process?.terminate();
     if (this.#shutDown) throw new WorldMachineError('SHUTTING_DOWN', SHUTTING_DOWN_MESSAGE);
@@ -199,7 +210,7 @@ export class WorldMachineSession implements WorldMachineSessionPort {
       const info = requireFrame((await queue.execute(['system info']))[0]);
       throwIfFailed(info);
       this.#systemInfo = parseSystemInfo(info.output);
-      const binding = await this.#bindProject(queue, defaultProject);
+      const binding = await this.#bindProject(queue, project);
       this.#state = { kind: 'ready', binding, dirty: false };
       this.#armIdleTimer();
     } catch (error) {
@@ -239,22 +250,29 @@ export class WorldMachineSession implements WorldMachineSessionPort {
     }
   }
 
-  async #bindProject(queue: CommandQueue, defaultProject: string | undefined): Promise<ProjectBinding> {
-    if (defaultProject !== undefined) {
-      const opened = requireFrame(
-        (await queue.execute([buildCommand(['project', 'open'], defaultProject)]))[0],
-      );
+  async #authorizeReopen(path: string): Promise<string> {
+    try {
+      return await this.#options.pathPolicy.authorizeExistingProject(path);
+    } catch (error) {
+      if (!(error instanceof WorldMachineError)) throw error;
+      throw new WorldMachineError(error.code, `The last open project cannot be reopened: ${error.message}`);
+    }
+  }
+
+  async #bindProject(queue: CommandQueue, project: string | undefined): Promise<ProjectBinding> {
+    if (project !== undefined) {
+      const opened = requireFrame((await queue.execute([buildCommand(['project', 'open'], project)]))[0]);
       throwIfFailed(opened);
       // A failed open is a plain line, not an `Error:` line (spec fact 17).
       if (opened.output.includes(OPEN_FAILED)) {
         throw new WorldMachineError(
           'WM_COMMAND_FAILED',
-          `World Machine could not open ${defaultProject}`,
+          `World Machine could not open ${project}`,
           OPEN_FAILED,
         );
       }
-      requireOpenedLine(opened, defaultProject);
-      return { kind: 'opened', path: defaultProject };
+      requireOpenedLine(opened, project);
+      return { kind: 'opened', path: project };
     }
     const created = requireFrame(
       (await queue.execute([buildCommand(['project', 'new', 'default', 'force'])]))[0],
@@ -295,6 +313,8 @@ export class WorldMachineSession implements WorldMachineSessionPort {
     this.#clearIdleTimer();
     if (this.#state.kind !== 'unhealthy') {
       const lost = this.#state.kind === 'ready' && this.#state.dirty;
+      // Spec section 6: after a clean unexpected exit, the next start reopens an opened project.
+      this.#reopen = this.#state.kind === 'ready' && !lost ? openedPath(this.#state.binding) : undefined;
       this.#state = { kind: 'unhealthy', reason: lost ? LOST_CHANGES : 'World Machine exited unexpectedly' };
     }
   }
@@ -319,12 +339,15 @@ export class WorldMachineSession implements WorldMachineSessionPort {
   }
 
   async #onIdle(): Promise<void> {
-    if (this.#state.kind !== 'ready' || this.#inFlight > 0) return;
-    if (this.#state.dirty) {
+    const state = this.#state;
+    if (state.kind !== 'ready' || this.#inFlight > 0) return;
+    if (state.dirty) {
       this.#options.logger.warn('Idle timeout reached with unsaved changes; World Machine stays open');
       return;
     }
     this.#options.logger.info('Idle timeout reached; closing World Machine to release the licence seat');
+    // Spec section 6: the next start reopens an opened project.
+    this.#reopen = openedPath(state.binding);
     await this.#stop();
   }
 
@@ -335,6 +358,11 @@ export class WorldMachineSession implements WorldMachineSessionPort {
     this.#systemInfo = undefined;
     this.#state = { kind: 'notRunning' };
   }
+}
+
+/** The path of an opened project, or undefined for a fresh one. */
+function openedPath(binding: ProjectBinding): string | undefined {
+  return binding.kind === 'opened' ? binding.path : undefined;
 }
 
 /** Resolves when the promise settles or after `ms`, whichever comes first. */

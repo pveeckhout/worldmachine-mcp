@@ -1,4 +1,4 @@
-import type { ProjectCommandView } from './open-project-command.js';
+import type { ProjectCommandView } from './project-command-view.js';
 
 export type CreateProjectCommand = { readonly discardUnsaved: boolean };
 export interface CreateProjectCommandPort {

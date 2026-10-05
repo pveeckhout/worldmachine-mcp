@@ -87,10 +87,10 @@ Any other MCP client that accepts a JSON configuration:
 |---|---|---|
 | `WORLD_MACHINE_BIN` | required | path to the World Machine executable |
 | `WORLD_MACHINE_ALLOWED_ROOTS` | working directory | directories the server may open and save projects in, separated by `:` |
-| `WORLD_MACHINE_DEFAULT_PROJECT` | none | project to open when World Machine starts; otherwise a new project is created |
+| `WORLD_MACHINE_DEFAULT_PROJECT` | none | project to open when World Machine starts; otherwise a new project is created. After an idle quit (or a crash with no unsaved changes) the next start reopens the last opened project instead, unless the call is open_project or create_project |
 | `WORLD_MACHINE_LOG_LEVEL` | `info` | verbosity of World Machine log output on the server's stderr |
 | `WORLD_MACHINE_COMMAND_TIMEOUT_MS` | `15000` | time limit per command batch |
-| `WORLD_MACHINE_IDLE_TIMEOUT_MS` | `900000` | idle time before World Machine is closed, `0` disables |
+| `WORLD_MACHINE_IDLE_TIMEOUT_MS` | `900000` | idle time before World Machine is closed, `0` disables. The next start after an idle quit reopens the last opened project, unless the call is open_project or create_project |
 | `DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY`, `XDG_RUNTIME_DIR` | none | passed through to World Machine; required on Linux desktops when the client does not forward them |
 
 If the working directory is `/` or your home directory and `WORLD_MACHINE_ALLOWED_ROOTS` is not set, tools that take a path refuse to run.
@@ -105,7 +105,7 @@ If the working directory is `/` or your home directory and `WORLD_MACHINE_ALLOWE
 | `get_scene` | `connect_devices`, `disconnect_devices` |
 | `inspect_project` | `configure_scene`, `undo`, `redo` |
 
-Available now: every read tool, open_project, create_project, save_project, undo, and redo. Device and wiring edits arrive with Plan 2b.
+Available now: every read tool, open_project, create_project, save_project, undo, and redo. Device and wiring edits arrive with Plan 2c.
 
 Builds and exports are planned for v2, and declarative graph specifications for v3.
 

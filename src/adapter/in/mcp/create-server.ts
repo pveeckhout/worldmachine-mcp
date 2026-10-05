@@ -80,7 +80,7 @@ export function createMcpServer(deps: McpDependencies): McpServer {
     {
       title: 'List devices',
       description:
-        'List the devices in the active World Machine project with their stable ids (#n), names, and kinds. Starts World Machine if it is not running.',
+        'List the devices in the active World Machine project with their stable ids (#n), names, and kinds. Bypass is omitted for disabled devices (World Machine hides it there); get_device reports it. Starts World Machine if it is not running.',
       inputSchema: listDevicesInputSchema,
       outputSchema: deviceListViewSchema,
       annotations: READ_ONLY,

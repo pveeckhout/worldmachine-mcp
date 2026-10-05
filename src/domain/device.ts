@@ -3,7 +3,8 @@ export type DeviceSummary = {
   readonly name: string;
   readonly kind?: string;
   readonly enabled: boolean;
-  readonly bypassed: boolean;
+  /** Omitted when unknown: `device list` hides bypass on a disabled device (spec fact 29). */
+  readonly bypassed?: boolean;
 };
 
 export type Parameter = { readonly name: string; readonly type: string; readonly value: string };
