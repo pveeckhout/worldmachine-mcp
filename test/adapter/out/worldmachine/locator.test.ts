@@ -1,7 +1,7 @@
-import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { resolveExecutable } from '../../../../src/adapter/out/worldmachine/locator.js';
 
 const dir = mkdtempSync(join(tmpdir(), 'locator-'));
@@ -11,6 +11,7 @@ chmodSync(executable, 0o755);
 const plain = join(dir, 'plain');
 writeFileSync(plain, '');
 chmodSync(plain, 0o644);
+afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
 describe('resolveExecutable', () => {
   it('returns the absolute path of an executable file', () => {

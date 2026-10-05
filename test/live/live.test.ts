@@ -1,4 +1,4 @@
-import { mkdtempSync, statSync } from 'node:fs';
+import { mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -16,7 +16,8 @@ const LIVE = process.env.WM_LIVE === '1' && executable !== null;
 
 describe.skipIf(!LIVE)('live World Machine', () => {
   const logger = captureLogger();
-  const liveRoot = mkdtempSync(join(tmpdir(), 'wm-live-'));
+  // describe.skipIf still runs this body at collection, so only create the directory when the run is live.
+  const liveRoot = LIVE ? mkdtempSync(join(tmpdir(), 'wm-live-')) : '';
   const session = new WorldMachineSession({
     executable,
     defaultProject: undefined,
@@ -29,7 +30,13 @@ describe.skipIf(!LIVE)('live World Machine', () => {
   });
   const reader = new WorldMachineGraphReader(session);
   const writer = new WorldMachineProjectWriter(session);
-  afterAll(() => session.shutdown(), 30_000);
+  afterAll(async () => {
+    try {
+      await session.shutdown();
+    } finally {
+      rmSync(liveRoot, { recursive: true, force: true });
+    }
+  }, 30_000);
 
   it('starts, reports the build, and binds a fresh project', async () => {
     await session.ensureRunning();

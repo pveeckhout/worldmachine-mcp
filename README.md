@@ -42,6 +42,8 @@ claude mcp add worldmachine \
   -- npx -y @hoakt/worldmachine-mcp
 ```
 
+Run `printenv DISPLAY WAYLAND_DISPLAY XAUTHORITY XDG_RUNTIME_DIR` first and drop the `--env` line for any variable your session does not set (an X11 session usually has no `WAYLAND_DISPLAY`; a Wayland session without Xwayland may have no `XAUTHORITY`). An unset variable expands to an empty value, which is passed to World Machine as an empty string.
+
 Codex (`~/.codex/config.toml`):
 
 ```toml

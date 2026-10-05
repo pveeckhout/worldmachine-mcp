@@ -205,7 +205,10 @@ export class WorldMachineSession implements WorldMachineSessionPort {
       const current = proc;
       this.#process = proc;
       proc.onExit(() => this.#onExit(current));
-      const queue = new CommandQueue(proc, { timeoutMs: this.#options.commandTimeoutMs });
+      const queue = new CommandQueue(proc, {
+        timeoutMs: this.#options.commandTimeoutMs,
+        logger: this.#options.logger,
+      });
       this.#queue = queue;
       const info = requireFrame((await queue.execute(['system info']))[0]);
       throwIfFailed(info);

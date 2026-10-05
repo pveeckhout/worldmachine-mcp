@@ -3,7 +3,16 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-const FORBIDDEN = [/\/home\//, /\/Users\//, /C:\\Users\\/i, /licen[cs]e/i];
+const FORBIDDEN = [
+  /\/home\//,
+  /\/Users\//,
+  /\/root\//,
+  /C:\\Users\\/i,
+  /licen[cs]e/i,
+  /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/,
+  /\/tmp\//,
+  /\/var\/folders\//,
+];
 const root = process.argv[2] ?? 'test/fixtures';
 
 function* files(dir) {

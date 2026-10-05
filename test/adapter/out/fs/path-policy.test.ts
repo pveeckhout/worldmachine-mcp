@@ -119,29 +119,26 @@ describe('FsPathPolicy.authorizeExistingProject', () => {
     expect(await policy.authorizeExistingProject(join(root, 'World.TMD'))).toBe(join(root, 'World.TMD'));
   });
 
-  it('produces identical refusal messages for all outside-root cases', async () => {
-    const missingOutside = join(outside, 'missing.tmd');
-    const nonTmdOutside = join(outside, 'notes.txt');
-    const tmdOutside = join(outside, 'secret.tmd');
+  it('produces identical refusal messages for outside-root and inside-root refusals', async () => {
+    const inputs = [
+      join(outside, 'missing.tmd'),
+      join(outside, 'notes.txt'),
+      join(outside, 'secret.tmd'),
+      join(root, 'notes.txt'),
+      join(root, 'folder.tmd'),
+    ];
 
-    const missingMsg = await messageOf(policy.authorizeExistingProject(missingOutside));
-    const nonTmdMsg = await messageOf(policy.authorizeExistingProject(nonTmdOutside));
-    const tmdMsg = await messageOf(policy.authorizeExistingProject(tmdOutside));
+    const messages = await Promise.all(
+      inputs.map(async (input) =>
+        (await messageOf(policy.authorizeExistingProject(input))).replace(input, '<p>'),
+      ),
+    );
 
-    // Normalize messages by replacing paths with placeholders
-    const normalize = (msg: string, path: string) => msg.replace(path, '<p>');
-    const normalizedMissing = normalize(missingMsg, missingOutside);
-    const normalizedNonTmd = normalize(nonTmdMsg, nonTmdOutside);
-    const normalizedTmd = normalize(tmdMsg, tmdOutside);
-
-    // All three must produce identical messages after normalization
-    expect(normalizedMissing).toBe(normalizedNonTmd);
-    expect(normalizedNonTmd).toBe(normalizedTmd);
-
-    // All must have REFUSED code
-    expect(await codeOf(policy.authorizeExistingProject(missingOutside))).toBe('REFUSED');
-    expect(await codeOf(policy.authorizeExistingProject(nonTmdOutside))).toBe('REFUSED');
-    expect(await codeOf(policy.authorizeExistingProject(tmdOutside))).toBe('REFUSED');
+    expect(new Set(messages).size).toBe(1);
+    expect(messages[0]).not.toBe('resolved');
+    for (const input of inputs) {
+      expect(await codeOf(policy.authorizeExistingProject(input))).toBe('REFUSED');
+    }
   });
 });
 

@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -19,7 +19,8 @@ const LIVE = process.env.WM_LIVE === '1' && executable !== null;
 
 describe.skipIf(!LIVE)('live World Machine graph edits', () => {
   const logger = captureLogger();
-  const liveRoot = mkdtempSync(join(tmpdir(), 'wm-live-edits-'));
+  // describe.skipIf still runs this body at collection, so only create the directory when the run is live.
+  const liveRoot = LIVE ? mkdtempSync(join(tmpdir(), 'wm-live-edits-')) : '';
   const session = new WorldMachineSession({
     executable,
     defaultProject: undefined,
@@ -37,7 +38,13 @@ describe.skipIf(!LIVE)('live World Machine graph edits', () => {
   const wires = new WorldMachineWireEditor(session);
   const scene = new WorldMachineSceneEditor(session);
   // Close-then-quit always runs, so the licence seat returns (spec fact 20). Nothing here quits inside a test.
-  afterAll(() => session.shutdown(), 30_000);
+  afterAll(async () => {
+    try {
+      await session.shutdown();
+    } finally {
+      rmSync(liveRoot, { recursive: true, force: true });
+    }
+  }, 30_000);
 
   // Devices are addressed as `#<id>` throughout: the default project's own names may repeat the ones added here.
   let grad = 0;

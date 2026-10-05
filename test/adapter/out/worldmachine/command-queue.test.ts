@@ -154,6 +154,19 @@ describe('CommandQueue channel failures', () => {
     expect(second).toBe(first);
   });
 
+  it('logs the original write failure at debug level and leaves the rejection unchanged', async () => {
+    const channel = new FakeChannel();
+    channel.write = () => {
+      throw new Error('EPIPE: write failed');
+    };
+    const logger = captureLogger();
+    const queue = new CommandQueue(channel, { timeoutMs: 1_000, nudgeMs: 0, logger });
+    const error = await rejection(queue.execute(['one']));
+    expect(error.code).toBe('CRASHED');
+    expect(error.message).toBe('World Machine stopped accepting commands');
+    expect(logger.lines).toEqual(['debug: Command write failed: EPIPE: write failed']);
+  });
+
   it('keeps a WorldMachineError thrown by write as it is', async () => {
     const channel = new FakeChannel();
     const failure = new WorldMachineError('CRASHED', 'World Machine is not running');

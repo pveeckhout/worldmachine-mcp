@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { WorldMachineError } from '../../../domain/errors.js';
+import type { Logger } from '../../../logger.js';
 import type { CommandChannel } from './channel.js';
 import { sentinel } from './command-builder.js';
 import { FrameAssembler } from './frame-assembler.js';
@@ -9,6 +10,8 @@ export type QueueOptions = {
   readonly timeoutMs: number;
   readonly nudgeMs?: number;
   readonly newBatchId?: () => string;
+  /** Receives the original cause of a wrapped write failure; never sent to clients. */
+  readonly logger?: Logger;
 };
 
 const DEFAULT_NUDGE_MS = 100;
@@ -27,6 +30,7 @@ export class CommandQueue {
   readonly #timeoutMs: number;
   readonly #nudgeMs: number;
   readonly #newBatchId: () => string;
+  readonly #logger: Logger | undefined;
   #tail: Promise<unknown> = Promise.resolve();
   #active: ActiveBatch | undefined;
   #closed: WorldMachineError | undefined;
@@ -37,6 +41,7 @@ export class CommandQueue {
     this.#timeoutMs = options.timeoutMs;
     this.#nudgeMs = options.nudgeMs ?? DEFAULT_NUDGE_MS;
     this.#newBatchId = options.newBatchId ?? (() => randomBytes(4).toString('hex'));
+    this.#logger = options.logger;
     channel.onLine((line) => this.#onLine(line));
     channel.onExit(() => this.#close(new WorldMachineError('CRASHED', 'World Machine exited unexpectedly')));
   }
@@ -77,6 +82,11 @@ export class CommandQueue {
       try {
         this.#channel.write(commands.flatMap((command, index) => [command, sentinel(batchId, index)]));
       } catch (error) {
+        if (!(error instanceof WorldMachineError)) {
+          this.#logger?.debug(
+            `Command write failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
         // Closing also rejects this batch (it is active) and makes later batches fail with the same error.
         this.#close(
           error instanceof WorldMachineError
