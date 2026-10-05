@@ -2,7 +2,7 @@
 // Records raw World Machine CLI transcripts for parser fixtures and for spec items V1-V8.
 // Needs a licensed local World Machine. Usage: WORLD_MACHINE_BIN=/path/to/wm npm run capture-fixtures
 import { spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -69,11 +69,12 @@ function waitFor(match, ms, what) {
 function scrub(line) {
   return line
     .replaceAll(work, '<WORK>')
+    .replaceAll(process.cwd(), '<REPO>')
     .replaceAll(homedir(), '<HOME>')
     .replace(/\/tmp\/\.mount_[^/\s]+/g, '<APPDIR>');
 }
 
-async function run(commands) {
+async function run(commands, ms = 60_000) {
   const start = received.length;
   const id = Math.random().toString(16).slice(2, 10);
   const echo = (i) => `Error: Unknown command: '__end_${id}_${i}'`;
@@ -81,7 +82,7 @@ async function run(commands) {
   // World Machine reads only the first new line per stdin read; empty lines flush the rest (spec facts 14-15).
   const nudge = setInterval(() => child.stdin.write('\n'), 100);
   try {
-    await waitFor((line) => line.startsWith(echo(commands.length - 1)), 60_000, `batch ${id}`);
+    await waitFor((line) => line.startsWith(echo(commands.length - 1)), ms, `batch ${id}`);
   } finally {
     clearInterval(nudge);
   }
@@ -95,6 +96,57 @@ async function run(commands) {
     if (index < sections.length && !LICENCE.test(line)) sections[index].lines.push(scrub(line));
   }
   return sections;
+}
+
+// Records what World Machine prints on its own while no command is pending (build progress), which run() would drop.
+async function wait(ms) {
+  const start = received.length;
+  await new Promise((resolve) => setTimeout(resolve, ms));
+  const lines = received.slice(start).filter((line) => !LICENCE.test(line));
+  return { command: `(waited ${ms} ms)`, lines: lines.map(scrub) };
+}
+
+const BUILD_SETTLED = /idle|complete|finished|done|cancel|stopped|not (running|building)|no build/i;
+
+// Polls `build status` once a second until it reads as settled, or is unchanged five times running, or 120 s pass.
+async function pollBuild(sections) {
+  let previous;
+  let unchanged = 0;
+  for (let i = 0; i < 120; i++) {
+    sections.push(await wait(1000));
+    const [status] = await run(['build status']);
+    sections.push(status);
+    const text = status.lines.join('\n');
+    unchanged = text === previous ? unchanged + 1 : 0;
+    previous = text;
+    if (BUILD_SETTLED.test(text) || unchanged >= 5) return;
+  }
+  sections.push({ command: '(poll limit reached)', lines: [] });
+}
+
+const OUTPUT_FILE = /\.(png|tif|tiff|exr|r16|r32|raw|bmp|tga|jpe?g|hf2|ter|asc|obj|fbx)$/i;
+
+// Output files modified since `since`, up to `depth` levels below `root`; skips caches, git, and node_modules.
+function newFiles(root, depth, since) {
+  let entries;
+  try {
+    entries = readdirSync(root, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  return entries.flatMap((entry) => {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) {
+      if (depth === 0 || ['.cache', '.git', 'node_modules'].includes(entry.name)) return [];
+      return newFiles(path, depth - 1, since);
+    }
+    if (!entry.isFile() || !OUTPUT_FILE.test(entry.name)) return [];
+    try {
+      return statSync(path).mtimeMs >= since ? [path] : [];
+    } catch {
+      return [];
+    }
+  });
 }
 
 function render(sections) {
@@ -572,7 +624,236 @@ const scenarios = [
     'help-more',
     () => run(['help build', 'help export', 'help debug', 'help snapshot', 'help system', 'help group']),
   ],
+  [
+    // v2: preview, full, cancelled, and tiled builds; whether the console answers during a build; where `export all`
+    // writes with the default filename template. Low resolution keeps the builds short. Ends closed (fact 19).
+    'v2-build-export',
+    async () => {
+      const since = Date.now();
+      const sections = [];
+      // A batch that times out (the console busy during a build) keeps what was captured up to that point.
+      try {
+        await buildAndExport(sections, since);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
+    // v2 follow-up: whether a long build holds the console, whether `build stop` reaches a running build, what a tiled
+    // build and an export after an edit write, and where `export all` writes for an unsaved project. Ends closed.
+    'v2-build-long',
+    async () => {
+      const sections = [];
+      try {
+        await longBuilds(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
+    // v2 follow-up after the SIGSEGV in v2-build-long: one command per batch so a crash names its command; which
+    // outputs a plain and a tiled build write; where `export all` writes for an unsaved project. Ends closed.
+    'v2-build-isolate',
+    async () => {
+      const sections = [];
+      try {
+        await isolatedBuilds(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
+    // v2 design checks: Build Event lines inside another command's batch during a long build, a second `build start`
+    // while one runs, and a 1025 tiled build stopped and run to its end. Ends closed (fact 19).
+    'v2-build-concurrency',
+    async () => {
+      const sections = [];
+      try {
+        await concurrentBuilds(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
 ];
+
+async function buildAndExport(sections, since) {
+  sections.push(
+    ...(await run([
+      'project new default force',
+      'scene resolution 257',
+      `project save ${join(work, 'build-test.tmd')}`,
+      'build status',
+      'export list',
+      'build preview',
+    ])),
+  );
+  await pollBuild(sections);
+  sections.push(...(await run(['build start', 'device list', 'build status'])));
+  await pollBuild(sections);
+  sections.push(...(await run(['build start', 'build stop', 'build status'])));
+  await pollBuild(sections);
+  sections.push(...(await run(['export all'])));
+  await pollBuild(sections);
+  sections.push(await wait(2000));
+  const found = [
+    ...newFiles(work, 3, since),
+    ...newFiles(process.cwd(), 2, since),
+    ...newFiles(homedir(), 4, since),
+  ];
+  sections.push({
+    command: '(output files written since the scenario started)',
+    lines: [...new Set(found)].map(scrub),
+  });
+  sections.push(...(await run(['build start tiled'])));
+  sections.push(await wait(3000));
+  sections.push(...(await run(['build status', 'build stop', 'build status'])));
+  await pollBuild(sections);
+  sections.push(...(await run(['project close force'])));
+}
+
+// Runs a batch and appends how long it took, in whole seconds, so a batch held up by a build shows.
+async function timed(sections, commands) {
+  const start = Date.now();
+  sections.push(...(await run(commands, 600_000)));
+  sections.push({ command: `(batch took ${Math.round((Date.now() - start) / 1000)} s)`, lines: [] });
+}
+
+function filesSince(sections, since, label) {
+  const found = [
+    ...newFiles(work, 3, since),
+    ...newFiles(process.cwd(), 2, since),
+    ...newFiles(homedir(), 4, since),
+  ];
+  sections.push({ command: `(output files written ${label})`, lines: [...new Set(found)].map(scrub) });
+}
+
+async function longBuilds(sections) {
+  sections.push(
+    ...(await run([
+      'project new default force',
+      'scene list',
+      `project save ${join(work, 'long-test.tmd')}`,
+      'build status',
+    ])),
+  );
+  await pollBuild(sections);
+  await timed(sections, ['build start']);
+  sections.push(await wait(2000));
+  await timed(sections, ['build start', 'build stop', 'build status']);
+  await pollBuild(sections);
+  await timed(sections, ['build preview']);
+  sections.push(await wait(1000));
+  await timed(sections, ['build status', 'build stop', 'build status']);
+  await pollBuild(sections);
+
+  let since = Date.now();
+  await timed(sections, ['device disable Thermal Weathering', 'export all']);
+  await pollBuild(sections);
+  filesSince(sections, since, 'by the export after an edit');
+
+  await timed(sections, ['scene resolution 257', 'param get Height Output.tiled']);
+  since = Date.now();
+  await timed(sections, ['build start tiled']);
+  sections.push(await wait(5000));
+  await pollBuild(sections);
+  filesSince(sections, since, 'by the tiled build');
+
+  since = Date.now();
+  await timed(sections, ['project new default force', 'export list', 'export all']);
+  await pollBuild(sections);
+  filesSince(sections, since, 'by the export of an unsaved project');
+  sections.push(...(await run(['project close force'])));
+}
+
+// The default project's outputs: #1 Height Output, #308 Material Output, #309 Colormap only, #318 Splatmap.
+const OUTPUT_IDS = ['#1', '#308', '#309', '#318'];
+
+async function isolatedBuilds(sections) {
+  for (const command of ['project new default force', 'scene resolution 257'])
+    await timed(sections, [command]);
+  await timed(sections, [`project save ${join(work, 'iso.tmd')}`]);
+  for (const id of OUTPUT_IDS)
+    await timed(sections, [`param get ${id}.exportAlways`, `param get ${id}.tiled`]);
+  await pollBuild(sections);
+
+  let since = Date.now();
+  await timed(sections, ['build start']);
+  await pollBuild(sections);
+  sections.push(await wait(2000));
+  filesSince(sections, since, 'by a plain build');
+
+  since = Date.now();
+  await timed(sections, ['build start tiled']);
+  await pollBuild(sections);
+  sections.push(await wait(3000));
+  filesSince(sections, since, 'by a tiled build');
+
+  await timed(sections, ['project new default force']);
+  await pollBuild(sections);
+  await timed(sections, ['scene resolution 257']);
+  await timed(sections, ['build start']);
+  await pollBuild(sections);
+  await timed(sections, ['export list']);
+  since = Date.now();
+  await timed(sections, ['export all']);
+  sections.push(await wait(2000));
+  filesSince(sections, since, 'by the export of an unsaved project');
+  await timed(sections, ['project close force']);
+}
+
+// Records lines until one matches `pattern` or `ms` pass; the header says which and how long it took.
+async function waitForLine(pattern, ms) {
+  const start = received.length;
+  const began = Date.now();
+  const seen = () => received.slice(start).some((line) => pattern.test(line));
+  while (Date.now() - began < ms && !seen()) await new Promise((resolve) => setTimeout(resolve, 250));
+  const outcome = seen() ? 'seen' : 'not seen';
+  const lines = received.slice(start).filter((line) => !LICENCE.test(line));
+  return {
+    command: `(waited for /${pattern.source}/: ${outcome} after ${Math.round((Date.now() - began) / 1000)} s)`,
+    lines: lines.map(scrub),
+  };
+}
+
+async function concurrentBuilds(sections) {
+  await timed(sections, ['project new default force']);
+  await timed(sections, ['scene resolution 4097']);
+  await timed(sections, [`project save ${join(work, 'conc.tmd')}`]);
+  await pollBuild(sections);
+
+  await timed(sections, ['build start']);
+  await timed(sections, ['device list']);
+  await timed(sections, ['build start']);
+  await timed(sections, ['build status']);
+  await timed(sections, ['device list']);
+  sections.push(await waitForLine(/Build Ended/, 300_000));
+  await pollBuild(sections);
+
+  await timed(sections, ['scene resolution 1025']);
+  await pollBuild(sections);
+  let since = Date.now();
+  await timed(sections, ['build start tiled']);
+  sections.push(await wait(1000));
+  await timed(sections, ['build status']);
+  await timed(sections, ['build stop']);
+  sections.push(await waitForLine(/Tiled build started/, 60_000));
+  filesSince(sections, since, 'by the stopped tiled build');
+
+  since = Date.now();
+  await timed(sections, ['build start tiled']);
+  sections.push(await waitForLine(/Tiled build started/, 300_000));
+  sections.push(await wait(2000));
+  filesSince(sections, since, 'by the tiled build run to its end');
+  await timed(sections, ['project close force']);
+}
 
 // `npm run capture-fixtures -- <name> ...` captures only the named scenarios (system info always runs first).
 const only = process.argv.slice(2);

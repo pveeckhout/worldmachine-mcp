@@ -1,0 +1,249 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> (batch took 0 s)
+<<<
+>>> scene resolution 4097
+Set scene resolution to 4097
+<<<
+>>> (batch took 0 s)
+<<<
+>>> project save <WORK>/conc.tmd
+Project saved to: <WORK>/conc.tmd
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (batch took 0 s)
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> (batch took 0 s)
+<<<
+>>> build start
+[Build Event] *** Build Ended ***
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> build status
+No build running.
+<<<
+>>> (batch took 0 s)
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /Build Ended/: seen after 44 s)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> scene resolution 1025
+Set scene resolution to 1025
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> build start tiled
+[Build Event] Prohibiting system sleep
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> (batch took 0 s)
+<<<
+>>> build stop
+Stop requested.
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /Tiled build started/: not seen after 60 s)
+<<<
+>>> (output files written by the stopped tiled build)
+<WORK>/conc Colormap only 256_x0_y0.png
+<WORK>/conc Colormap only 256_x0_y1.png
+<WORK>/conc Colormap only 256_x1_y0.png
+<WORK>/conc Colormap only 256_x1_y1.png
+<WORK>/conc Height Output-256_x0_y0.png
+<WORK>/conc Height Output-256_x0_y1.png
+<WORK>/conc Height Output-256_x1_y0.png
+<WORK>/conc Height Output-256_x1_y1.png
+<WORK>/conc Material Output 256_x0_y0_diffuse.png
+<WORK>/conc Material Output 256_x0_y0_disp.png
+<WORK>/conc Material Output 256_x0_y0_mask.png
+<WORK>/conc Material Output 256_x0_y0_roughness.png
+<WORK>/conc Material Output 256_x0_y1_diffuse.png
+<WORK>/conc Material Output 256_x0_y1_disp.png
+<WORK>/conc Material Output 256_x0_y1_mask.png
+<WORK>/conc Material Output 256_x0_y1_roughness.png
+<WORK>/conc Material Output 256_x1_y0_diffuse.png
+<WORK>/conc Material Output 256_x1_y0_disp.png
+<WORK>/conc Material Output 256_x1_y0_mask.png
+<WORK>/conc Material Output 256_x1_y0_roughness.png
+<WORK>/conc Material Output 256_x1_y1_diffuse.png
+<WORK>/conc Material Output 256_x1_y1_disp.png
+<WORK>/conc Material Output 256_x1_y1_mask.png
+<WORK>/conc Material Output 256_x1_y1_roughness.png
+<WORK>/conc Splatmap 256_x0_y0.png
+<WORK>/conc Splatmap 256_x0_y1.png
+<WORK>/conc Splatmap 256_x1_y0.png
+<WORK>/conc Splatmap 256_x1_y1.png
+<<<
+>>> build start tiled
+[Build Event] Prohibiting system sleep
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /Tiled build started/: seen after 1 s)
+[Build Event] System allowed to sleep again
+Tiled build started.
+Tiled build started.
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> (output files written by the tiled build run to its end)
+<WORK>/conc Colormap only 256_x0_y0.png
+<WORK>/conc Colormap only 256_x0_y1.png
+<WORK>/conc Colormap only 256_x1_y0.png
+<WORK>/conc Colormap only 256_x1_y1.png
+<WORK>/conc Height Output-256_x0_y0.png
+<WORK>/conc Height Output-256_x0_y1.png
+<WORK>/conc Height Output-256_x1_y0.png
+<WORK>/conc Height Output-256_x1_y1.png
+<WORK>/conc Material Output 256_x0_y0_diffuse.png
+<WORK>/conc Material Output 256_x0_y0_disp.png
+<WORK>/conc Material Output 256_x0_y0_mask.png
+<WORK>/conc Material Output 256_x0_y0_roughness.png
+<WORK>/conc Material Output 256_x0_y1_diffuse.png
+<WORK>/conc Material Output 256_x0_y1_disp.png
+<WORK>/conc Material Output 256_x0_y1_mask.png
+<WORK>/conc Material Output 256_x0_y1_roughness.png
+<WORK>/conc Material Output 256_x1_y0_diffuse.png
+<WORK>/conc Material Output 256_x1_y0_disp.png
+<WORK>/conc Material Output 256_x1_y0_mask.png
+<WORK>/conc Material Output 256_x1_y0_roughness.png
+<WORK>/conc Material Output 256_x1_y1_diffuse.png
+<WORK>/conc Material Output 256_x1_y1_disp.png
+<WORK>/conc Material Output 256_x1_y1_mask.png
+<WORK>/conc Material Output 256_x1_y1_roughness.png
+<WORK>/conc Splatmap 256_x0_y0.png
+<WORK>/conc Splatmap 256_x0_y1.png
+<WORK>/conc Splatmap 256_x1_y0.png
+<WORK>/conc Splatmap 256_x1_y1.png
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<
+>>> (batch took 0 s)
+<<<

@@ -1,0 +1,183 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> (batch took 0 s)
+<<<
+>>> scene resolution 257
+Set scene resolution to 257
+<<<
+>>> (batch took 0 s)
+<<<
+>>> project save <WORK>/iso.tmd
+Project saved to: <WORK>/iso.tmd
+<<<
+>>> (batch took 0 s)
+<<<
+>>> param get #1.exportAlways
+#1.exportAlways = false
+<<<
+>>> param get #1.tiled
+#1.tiled = true
+<<<
+>>> (batch took 0 s)
+<<<
+>>> param get #308.exportAlways
+Error: Error: Parameter 'exportAlways' not found on device '#308'.
+<<<
+>>> param get #308.tiled
+Error: Error: Parameter 'tiled' not found on device '#308'.
+<<<
+>>> (batch took 0 s)
+<<<
+>>> param get #309.exportAlways
+Error: Error: Parameter 'exportAlways' not found on device '#309'.
+<<<
+>>> param get #309.tiled
+Error: Error: Parameter 'tiled' not found on device '#309'.
+<<<
+>>> (batch took 0 s)
+<<<
+>>> param get #318.exportAlways
+Error: Error: Parameter 'exportAlways' not found on device '#318'.
+<<<
+>>> param get #318.tiled
+Error: Error: Parameter 'tiled' not found on device '#318'.
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> (waited 2000 ms)
+Build started.
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> (output files written by a plain build)
+<<<
+>>> build start tiled
+[Build Event] Prohibiting system sleep
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> (waited 3000 ms)
+[Build Event] System allowed to sleep again
+Tiled build started.
+<<<
+>>> (output files written by a tiled build)
+<WORK>/iso Colormap only 256_x0_y0.png
+<WORK>/iso Colormap only 256_x0_y1.png
+<WORK>/iso Colormap only 256_x1_y0.png
+<WORK>/iso Colormap only 256_x1_y1.png
+<WORK>/iso Height Output-256_x0_y0.png
+<WORK>/iso Height Output-256_x0_y1.png
+<WORK>/iso Height Output-256_x1_y0.png
+<WORK>/iso Height Output-256_x1_y1.png
+<WORK>/iso Material Output 256_x0_y0_diffuse.png
+<WORK>/iso Material Output 256_x0_y0_disp.png
+<WORK>/iso Material Output 256_x0_y0_mask.png
+<WORK>/iso Material Output 256_x0_y0_roughness.png
+<WORK>/iso Material Output 256_x0_y1_diffuse.png
+<WORK>/iso Material Output 256_x0_y1_disp.png
+<WORK>/iso Material Output 256_x0_y1_mask.png
+<WORK>/iso Material Output 256_x0_y1_roughness.png
+<WORK>/iso Material Output 256_x1_y0_diffuse.png
+<WORK>/iso Material Output 256_x1_y0_disp.png
+<WORK>/iso Material Output 256_x1_y0_mask.png
+<WORK>/iso Material Output 256_x1_y0_roughness.png
+<WORK>/iso Material Output 256_x1_y1_diffuse.png
+<WORK>/iso Material Output 256_x1_y1_disp.png
+<WORK>/iso Material Output 256_x1_y1_mask.png
+<WORK>/iso Material Output 256_x1_y1_roughness.png
+<WORK>/iso Splatmap 256_x0_y0.png
+<WORK>/iso Splatmap 256_x0_y1.png
+<WORK>/iso Splatmap 256_x1_y0.png
+<WORK>/iso Splatmap 256_x1_y1.png
+<<<
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> scene resolution 257
+Set scene resolution to 257
+<<<
+>>> (batch took 0 s)
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export list
+Configured exports:
+  'Height Output       ' -> <project> <name>-<res>.png
+  'Material Output     ' -> <project> <name> <res>.png
+  'Colormap only       ' -> <project> <name> <res>.png
+  'Splatmap            ' -> <project> <name> <res>.png
+
+Build started.
+<<<
+>>> (batch took 0 s)
+<<<
+>>> export all
+Successfully exported 4 file(s):
+  <HOME>/Documents/WorldMachine/New Project Height Output-257.png
+  <HOME>/Documents/WorldMachine/New Project Material Output 257.png
+  <HOME>/Documents/WorldMachine/New Project Colormap only 257.png
+  <HOME>/Documents/WorldMachine/New Project Splatmap 257.png
+
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> (output files written by the export of an unsaved project)
+<HOME>/Documents/WorldMachine/New Project Colormap only 257.png
+<HOME>/Documents/WorldMachine/New Project Height Output-257.png
+<HOME>/Documents/WorldMachine/New Project Material Output 257_diffuse.png
+<HOME>/Documents/WorldMachine/New Project Material Output 257_disp.png
+<HOME>/Documents/WorldMachine/New Project Material Output 257_mask.png
+<HOME>/Documents/WorldMachine/New Project Material Output 257_roughness.png
+<HOME>/Documents/WorldMachine/New Project Splatmap 257.png
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<
+>>> (batch took 0 s)
+<<<

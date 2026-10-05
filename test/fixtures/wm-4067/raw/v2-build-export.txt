@@ -1,0 +1,133 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 257
+Set scene resolution to 257
+<<<
+>>> project save <WORK>/build-test.tmd
+Project saved to: <WORK>/build-test.tmd
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> export list
+Configured exports:
+  'Height Output       ' -> <project> <name>-<res>.png
+  'Material Output     ' -> <project> <name> <res>.png
+  'Colormap only       ' -> <project> <name> <res>.png
+  'Splatmap            ' -> <project> <name> <res>.png
+
+<<<
+>>> build preview
+Preview build started.
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> build status
+No build running.
+<<<
+>>> (waited 1000 ms)
+Build started.
+<<<
+>>> build status
+No build running.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build stop
+Stop requested.
+<<<
+>>> build status
+No build running.
+<<<
+>>> (waited 1000 ms)
+[Info       ] QIODevice::read (QSslSocket): device not open
+Build started.
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Successfully exported 4 file(s):
+  <WORK>/build-test Height Output-257.png
+  <WORK>/build-test Material Output 257.png
+  <WORK>/build-test Colormap only 257.png
+  <WORK>/build-test Splatmap 257.png
+
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> (output files written since the scenario started)
+<WORK>/build-test Colormap only 257.png
+<WORK>/build-test Height Output-257.png
+<WORK>/build-test Material Output 257_diffuse.png
+<WORK>/build-test Material Output 257_disp.png
+<WORK>/build-test Material Output 257_mask.png
+<WORK>/build-test Material Output 257_roughness.png
+<WORK>/build-test Splatmap 257.png
+<<<
+>>> build start tiled
+[Build Event] Prohibiting system sleep
+<<<
+>>> (waited 3000 ms)
+[Build Event] System allowed to sleep again
+Tiled build started.
+<<<
+>>> build status
+No build running.
+<<<
+>>> build stop
+Stop requested.
+<<<
+>>> build status
+No build running.
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<

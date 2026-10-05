@@ -1,0 +1,159 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene list
+Scenes (1 total):
+  [0] 'Main Extents' - 12.0x12.0 km, res 2049 *
+
+* = current scene
+<<<
+>>> project save <WORK>/long-test.tmd
+Project saved to: <WORK>/long-test.tmd
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> build start
+[Build Event] *** Build Ended ***
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build stop
+Stop requested.
+[Build Event] *** Build Ended ***
+<<<
+>>> build status
+[Build Event] System allowed to sleep again
+No build running.
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> build preview
+Preview build started.
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> build stop
+Stop requested.
+<<<
+>>> build status
+No build running.
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> device disable Thermal Weathering
+Disabled: Thermal Weathering
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> (output files written by the export after an edit)
+<<<
+>>> scene resolution 257
+Set scene resolution to 257
+<<<
+>>> param get Height Output.tiled
+Height Output.tiled = true
+<<<
+>>> (batch took 0 s)
+<<<
+>>> build start tiled
+[Build Event] Prohibiting system sleep
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 5000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> (output files written by the tiled build)
+<WORK>/long-test Splatmap 256_x0_y0.png
+<WORK>/long-test Splatmap 256_x0_y1.png
+<WORK>/long-test Splatmap 256_x1_y0.png
+<WORK>/long-test Splatmap 256_x1_y1.png
+<<<
+>>> (scenario stopped)
+World Machine exited (code null, signal SIGSEGV)
+<<<
