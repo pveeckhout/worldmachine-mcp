@@ -1,0 +1,200 @@
+>>> project new blank force
+Created new blank project.
+[Info       ] Closing current project
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (2 total):
+  #1     Gradient                
+  #2     Height Output           
+
+<<<
+>>> device add Combiner
+Added 'Combiner'
+<<<
+>>> device list
+Devices (3 total):
+  #1     Gradient                
+  #2     Height Output           
+  #3     Combiner                
+
+<<<
+>>> param list Gradient
+Parameters for 'Gradient' (Gradient):
+  Direction                 int       0
+  Width                     float     8 km
+  Tiling                    enum      Clamp
+
+<<<
+>>> param list Height Output
+Parameters for 'Height Output' (Height Output):
+  filename                  filename  <project>_<name>_<res>.png
+  format                    enum      PNG (16bit)
+  exportAlways              bool      false
+  tiled                     bool      true
+  writeButton               action    
+
+<<<
+>>> param list Combiner
+Parameters for 'Combiner' (Combiner):
+  Method                    enum      Average
+  Strength                  float     0.5
+
+<<<
+>>> param set "Height Output".exportAlways true
+Set Height Output.exportAlways = true
+<<<
+>>> param get Height Output.exportAlways
+Height Output.exportAlways = true
+<<<
+>>> param set "Height Output.exportAlways" false
+Set Height Output.exportAlways = false
+<<<
+>>> param get Height Output.exportAlways
+Height Output.exportAlways = false
+<<<
+>>> param set #2.exportAlways true
+Set #2.exportAlways = true
+<<<
+>>> param get Height Output.exportAlways
+Height Output.exportAlways = true
+<<<
+>>> device select Height Output
+Selected: Height Output
+<<<
+>>> param set exportAlways false
+Set Height Output.exportAlways = false
+<<<
+>>> param get Height Output.exportAlways
+Height Output.exportAlways = false
+<<<
+>>> param get #1.Width
+#1.Width = 8 km
+<<<
+>>> param set #1.Width 0.5
+Set #1.Width = 0.5
+<<<
+>>> param get #1.Width
+#1.Width = 4 km
+<<<
+>>> param set #1.Width 2
+Set #1.Width = 2
+<<<
+>>> param get #1.Width
+#1.Width = 16 km
+<<<
+>>> param set #1.Width 1.5 km
+Error: Error: Invalid float value: 1.5 km
+<<<
+>>> param get #1.Width
+#1.Width = 16 km
+<<<
+>>> param set #1.Width 1,5
+Error: Error: Invalid float value: 1,5
+<<<
+>>> param get #1.Width
+#1.Width = 16 km
+<<<
+>>> param get #1.Direction
+#1.Direction = 0
+<<<
+>>> param set #1.Direction 3
+Set #1.Direction = 3
+<<<
+>>> param get #1.Direction
+#1.Direction = 3
+<<<
+>>> param set #1.Direction 3.0
+Error: Error: Invalid integer value: 3.0
+<<<
+>>> param get #1.Direction
+#1.Direction = 3
+<<<
+>>> param get #2.exportAlways
+#2.exportAlways = false
+<<<
+>>> param set #2.exportAlways true
+Set #2.exportAlways = true
+<<<
+>>> param get #2.exportAlways
+#2.exportAlways = true
+<<<
+>>> param set #2.exportAlways false
+Set #2.exportAlways = false
+<<<
+>>> param get #2.exportAlways
+#2.exportAlways = false
+<<<
+>>> param set #2.exportAlways 1
+Set #2.exportAlways = 1
+<<<
+>>> param get #2.exportAlways
+#2.exportAlways = true
+<<<
+>>> param set #2.exportAlways 0
+Set #2.exportAlways = 0
+<<<
+>>> param get #2.exportAlways
+#2.exportAlways = false
+<<<
+>>> param set #2.exportAlways yes
+Set #2.exportAlways = yes
+<<<
+>>> param get #2.exportAlways
+#2.exportAlways = true
+<<<
+>>> param set #2.exportAlways off
+Set #2.exportAlways = off
+<<<
+>>> param get #2.exportAlways
+#2.exportAlways = false
+<<<
+>>> param get #1.Tiling
+#1.Tiling = Clamp
+<<<
+>>> param set #1.Tiling 0
+Set #1.Tiling = 0
+<<<
+>>> param get #1.Tiling
+#1.Tiling = Clamp
+<<<
+>>> param set #1.Tiling 1
+Set #1.Tiling = 1
+<<<
+>>> param get #1.Tiling
+#1.Tiling = Mirrored Repeat
+<<<
+>>> param set #1.Tiling invalid-enum-value
+Error: Error: Invalid enum value: invalid-enum-value
+<<<
+>>> param get #1.Tiling
+#1.Tiling = Mirrored Repeat
+<<<
+>>> param set #2.filename <WORK>/out.png
+Set #2.filename = <WORK>/out.png
+<<<
+>>> param get #2.filename
+#2.filename = <WORK>/out.png
+<<<
+>>> param set #2.filename <WORK>/dir with space/out file.png
+Set #2.filename = <WORK>/dir with space/out file.png
+<<<
+>>> param get #2.filename
+#2.filename = <WORK>/dir with space/out file.png
+<<<
+>>> param set #2.filename "<WORK>/dir with space/quoted file.png"
+Set #2.filename = <WORK>/dir with space/quoted file.png
+<<<
+>>> param get #2.filename
+#2.filename = <WORK>/dir with space/quoted file.png
+<<<

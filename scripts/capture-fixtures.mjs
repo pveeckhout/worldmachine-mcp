@@ -227,7 +227,114 @@ const scenarios = [
         'device list',
       ]),
   ],
+  ['help', () => run(['help', 'help param', 'help device', 'help wire', 'help scene', 'help project'])],
+  [
+    'p2a-edge-cases',
+    async () => {
+      const sections = await run([
+        'project new blank force',
+        'group list',
+        'scene show',
+        'scene list',
+        'device info',
+        'device select capture_missing_device',
+        'project undo',
+        'project redo',
+        'device add Gradient',
+        'wire list Gradient',
+        'device select Gradient',
+        'device info',
+        'device select #1',
+        'param list #1',
+        'wire list #1',
+        'project undo',
+        'device list',
+        'project redo',
+        'device list',
+        `project save ${join(work, 'no-such-dir', 'x.tmd')}`,
+        `project save ${join(work, 'edge.tmd')}`,
+        'project close force',
+        'device list',
+        'project close force',
+        'scene show',
+        'group list',
+        `project open ${join(work, 'edge.tmd')} force`,
+      ]);
+      return sections;
+    },
+  ],
+  [
+    'v6b-param-set',
+    async () => {
+      const sections = await run(['project new blank force']);
+      const gradient = await freshDevice(sections, 'Gradient');
+      const output = await freshDevice(sections, 'File Output');
+      const combiner = await freshDevice(sections, 'Combiner');
+      const listed = await run([
+        `param list ${gradient.name}`,
+        `param list ${output.name}`,
+        `param list ${combiner.name}`,
+      ]);
+      sections.push(...listed);
+      const all = [
+        ...params(listed[0].lines).map((p) => ({ ...p, device: gradient })),
+        ...params(listed[1].lines).map((p) => ({ ...p, device: output })),
+        ...params(listed[2].lines).map((p) => ({ ...p, device: combiner })),
+      ];
+      // References to a device whose name contains a space, against one bool parameter.
+      const ref = output.name;
+      sections.push(
+        ...(await run([
+          `param set "${ref}".exportAlways true`,
+          `param get ${ref}.exportAlways`,
+          `param set "${ref}.exportAlways" false`,
+          `param get ${ref}.exportAlways`,
+          `param set #${output.id}.exportAlways true`,
+          `param get ${ref}.exportAlways`,
+          `device select ${ref}`,
+          'param set exportAlways false',
+          `param get ${ref}.exportAlways`,
+        ])),
+      );
+      // Value syntax per type, on devices without spaces where possible, referenced by #id.
+      const commands = [];
+      for (const type of ['float', 'int', 'bool', 'enum']) {
+        const p =
+          all.find((candidate) => candidate.type === type && candidate.device.id !== output.id) ??
+          all.find((candidate) => candidate.type === type);
+        if (!p) continue;
+        const target = `#${p.device.id}.${p.name}`;
+        const values = {
+          float: ['0.5', '2', '1.5 km', '1,5'],
+          int: ['3', '3.0'],
+          bool: ['true', 'false', '1', '0', 'yes', 'off'],
+          enum: ['0', '1', 'invalid-enum-value'],
+        }[type];
+        commands.push(`param get ${target}`);
+        for (const value of values) commands.push(`param set ${target} ${value}`, `param get ${target}`);
+      }
+      const filename = all.find((candidate) => candidate.type === 'filename');
+      if (filename) {
+        const target = `#${filename.device.id}.${filename.name}`;
+        commands.push(
+          `param set ${target} ${join(work, 'out.png')}`,
+          `param get ${target}`,
+          `param set ${target} ${join(spaced, 'out file.png')}`,
+          `param get ${target}`,
+          `param set ${target} "${join(spaced, 'quoted file.png')}"`,
+          `param get ${target}`,
+        );
+      }
+      sections.push(...(await run(commands)));
+      return sections;
+    },
+  ],
 ];
+
+// `npm run capture-fixtures -- <name> ...` captures only the named scenarios (system info always runs first).
+const only = process.argv.slice(2);
+const selected =
+  only.length === 0 ? scenarios : scenarios.filter(([name]) => name === 'system-info' || only.includes(name));
 
 function check(name, sections) {
   if (name === 'v1-result-before-next-error') {
@@ -247,13 +354,15 @@ function check(name, sections) {
 try {
   await waitFor((line) => line.includes(READY), 120_000, 'startup');
   let outDir;
-  for (const [name, scenario] of scenarios) {
+  for (const [name, scenario] of selected) {
     const sections = await scenario();
     if (name === 'system-info') {
       const build = sections[0].lines.join('\n').match(/Build (\d+)/)?.[1];
       if (!build) throw new Error('could not read the build number from system info');
       outDir = join('test', 'fixtures', `wm-${build}`, 'raw');
       mkdirSync(outDir, { recursive: true });
+      // A filtered run leaves the committed system-info capture untouched.
+      if (only.length > 0) continue;
     }
     writeFileSync(join(outDir, `${name}.txt`), render(sections));
     console.log(`captured ${name}`);

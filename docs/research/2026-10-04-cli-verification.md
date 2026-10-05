@@ -86,6 +86,17 @@ Outcome, from `v6-param-values.txt`:
 - `float` was not exercised: the script picks the first numeric parameter, which was the `int` `Direction` (`Width` is `float`, listed as `8 km`).
 Plan 2 consequence: another capture is needed for `bool`, `enum`, `filename`, and `float` values, with `device select` first or a quoted reference.
 A V6 re-capture (with `device select`, quoted, or `#id` references, and an explicit `float` parameter) is planned as the first task of Plan 2.
+
+### V6b re-capture (2026-10-05, `v6b-param-set.txt`, `help.txt`)
+
+- Device references: `param set "Height Output".exportAlways true`, `param set "Height Output.exportAlways" false`, `param set #2.exportAlways true`, and `device select Height Output` followed by `param set exportAlways false` all succeeded; each `param get` read back the new value.
+- `float`: plain numbers are accepted; units and decimal commas are rejected (`Error: Error: Invalid float value: 1.5 km`, `... 1,5`). The value set is World Machine's internal value, not the displayed unit: `Gradient.Width` showed `8 km`, `param set #1.Width 0.5` then read back `4 km`, and `2` read back `16 km`.
+- `int`: `3` accepted, `3.0` rejected (`Invalid integer value: 3.0`).
+- `bool`: `true`, `false`, `1`, `0`, `yes`, `off` all accepted and read back as `true`/`false`.
+- `enum`: a 0-based index is accepted (`0` read back `Clamp`, `1` read back `Mirrored Repeat`); `invalid-enum-value` is rejected (`Invalid enum value`). Setting by option name was not tested.
+- `filename`: a path with spaces as the final argument is accepted, and surrounding double quotes are stripped.
+- `param set` confirms with `Set <ref> = <input as typed>`; only `param get` (`<ref> = <value>`) shows the resulting value.
+- `help` lists a top-level `echo <text>` command and short aliases (`set`, `get`, `select`, `connect`, ...). Per-group help texts are in `help.txt`.
 New devices are named by type, so `File Output` was added as `Height Output`.
 
 ## V7. Project operations

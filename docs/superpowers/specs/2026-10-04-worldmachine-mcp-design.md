@@ -44,6 +44,12 @@ Verified on 2026-10-04 against World Machine build 4067 (Dragontail Peak), Pro t
 15. An empty input line produces no output and causes pending lines to be processed (same probe).
 16. `device list` in an empty project prints `No devices in the current project.` instead of a header. With a filter argument, the header keeps the unfiltered total (`Devices (17 total):` above one matching row). (Verification note, V5.)
 17. A failed `project open` prints the plain line `Failed to open project.` with no `Error:` prefix, and leaves an empty project. (Verification note, V7.)
+18. Parameter references accept `#<id>.<param>`, `"<device name>".<param>`, and `"<device name>.<param>"`. `float` values are World Machine's internal values, not the displayed units (setting `0.5` on a parameter shown as `8 km` reads back `4 km`), and units are rejected. `int` is strict, `bool` accepts `true/false/1/0/yes/off`, `enum` accepts a 0-based index, and a `filename` value may contain spaces as the final argument. `param set` echoes the input; only `param get` shows the result. (Verification note, V6b.)
+19. `system quit force` on a project with unsaved changes opens a modal "discard changes?" dialog in the GUI and blocks the console; `force` does not suppress it. `project close force`, `project new blank force`, and `project open <path> force` discard unsaved changes without a dialog. After `project close force`, `system quit force` exits in about 0.1 s with a normal shutdown. (Probe, 2026-10-05.)
+20. World Machine returns its licence seat only during its own shutdown (`License Manager.Checkin: License returned to license server`). Termination by SIGTERM produced no shutdown log and no check-in, so a killed World Machine keeps the seat until the licence server releases it. (Probe, 2026-10-05.)
+21. Empty and missing cases print plain lines: `No groups in the current project.`, `No device selected.` (`device info` with no selection), and `Error: Error: Device not found: '<name>'` for `device select`. `#<id>` is accepted by `device select`, `param list`, and `wire list` (whose header then echoes `'#<id>'`). An unconnected output port prints `-> (none)`; a device without inputs prints an empty `Inputs:` section. (Capture `p2a-edge-cases`, 2026-10-05.)
+22. `project undo` and `project redo` always print `Undo performed.` / `Redo performed.`, including when there is nothing to undo or redo, so World Machine gives no signal whether anything changed. (Same capture.)
+23. `project save <path>` into a directory that does not exist printed `Project saved to: <path>` but wrote no file. World Machine's save confirmation is not evidence that the file exists. (Same capture.)
 
 ### Verification items (first tasks of the implementation plan)
 
@@ -215,6 +221,7 @@ sequenceDiagram
 - `starting`
 - `ready { binding: ProjectBinding, dirty: boolean }`
 - `unhealthy { reason }`
+- `stopping` (from the moment shutdown begins; final)
 
 `ProjectBinding` is `fresh` (created by the server) or `opened { path }`.
 
@@ -225,7 +232,10 @@ Rules:
 - On launch, the server runs `project open <path>` for an authorised default project, otherwise `project new default force` (subject to V3). The sample project is never left active.
 - Every successful command service call sets `dirty = true`, except `save_project`, which clears it, and `open_project` and `create_project`, which reset it.
 - `open_project` and `create_project` return `REFUSED` when `dirty` unless `discard_unsaved: true`.
+- Command use cases (open, create, save, undo, redo, and Plan 2b's graph edits) run one at a time: a use case's precondition checks and its World Machine commands are never interleaved with another command use case.
+- Project lifecycle commands require World Machine's exact confirmation line (`Opened: <path>`, `Created new default project.`, `Project saved to: <path>`, `Undo performed.`, `Redo performed.`); any other output is `UNEXPECTED_OUTPUT`.
 - `unhealthy` sessions are restarted by the next `ensureRunning()`.
+- Once shutdown has begun, every tool except `get_world_machine_status` returns `SHUTTING_DOWN` before any precondition check; `get_world_machine_status` keeps answering and reports `stopping`.
 - At most one World Machine process exists per server. A new process is started only after the previous one has exited.
 - The idle timer never fires while a command is in flight. Idle quit lets running command batches finish before sending `system quit force`. Process shutdown (section 9) waits for running batches only within its time budget.
 
@@ -239,7 +249,7 @@ All tools declare `inputSchema` and `outputSchema`; a tool without arguments dec
 | `list_devices` | query | readOnly | optional filter, non-empty when present (omit it to list everything) |
 | `get_device` | query | readOnly | id, name, type, state, parameters, wires |
 | `get_scene` | query | readOnly | name, origin, size, resolution, lock |
-| `inspect_project` | query | readOnly | binding, scene, device count and list, groups |
+| `inspect_project` | query | readOnly | binding (in `session`), current scene, all scenes, device count and list, groups |
 | `open_project` | command | not destructive | path, `discard_unsaved` |
 | `create_project` | command | not destructive | `discard_unsaved` |
 | `add_device` | command | not destructive | exact type, optional name |
@@ -250,13 +260,13 @@ All tools declare `inputSchema` and `outputSchema`; a tool without arguments dec
 | `disconnect_devices` | command | not destructive, idempotent | |
 | `configure_scene` | command | not destructive, idempotent | name, origin, size, resolution, each optional |
 | `delete_device` | command | destructive | |
-| `save_project` | command | destructive only with `overwrite: true` | path optional when binding is `opened`; existing target requires `overwrite: true` |
-| `undo` | command | not destructive | |
-| `redo` | command | not destructive | |
+| `save_project` | command | destructive (annotations cannot depend on arguments, and `overwrite: true` replaces a file) | path optional when binding is `opened`; existing target requires `overwrite: true`; success is verified on disk (fact 23): the target must exist as a regular file with a modification time not earlier than the start of the save, truncated to the second, otherwise `WM_COMMAND_FAILED`; without `overwrite`, the target is checked again for absence immediately before the save command |
+| `undo` | command | not destructive | the description states that World Machine does not report whether anything was undone (fact 22) |
+| `redo` | command | not destructive | the description states that World Machine does not report whether anything was redone (fact 22) |
 
 Devices are referenced by name or by `#<id>`. There is no raw console tool.
 
-`update_device_parameters` reads `param list` first, validates every name and value against the reported type, and refuses the whole call if any item is invalid. It then applies all items in one batch and reports a per-item outcome. There is no automatic rollback; failure results point to `undo`.
+`update_device_parameters` reads `param list` first, validates every name and value against the reported type, and refuses the whole call if any item is invalid. It then applies all items in one batch, each `param set` followed by a `param get` of the same parameter, and reports per item the outcome and the value World Machine read back. Commands reference the device as `#<id>` (fact 18). Its description tells the model that numeric values are World Machine's internal values and that the read-back value shows the effect in display units. There is no automatic rollback; failure results point to `undo`.
 
 ## 8. Errors
 
@@ -269,12 +279,13 @@ Tool failures are returned as `isError: true` results. Protocol errors are left 
 | `code` | Trigger | Effect |
 |---|---|---|
 | `NOT_CONFIGURED` | executable missing or not executable; no usable allowed root | none |
-| `START_FAILED` | spawn error, no readiness line within 60 s, licence checkout failure (V8) | state returns to `notRunning` |
+| `START_FAILED` | spawn error, no readiness line within 60 s, licence checkout failure (V8) | state returns to `notRunning`; when the startup detail contains a Qt display error (`could not connect to display`), the message adds a hint to pass `DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY`, and `XDG_RUNTIME_DIR` (see README) |
 | `REFUSED` | dirty without `discard_unsaved`, existing target without `overwrite`, path not authorised, unsafe or ambiguous token | no command sent |
 | `WM_COMMAND_FAILED` | an `Error: ` line for a command, or a known unprefixed failure line (`Failed to open project.`, fact 17) | exact text in `worldMachineMessage` |
 | `TIMEOUT` | no sentinel within the batch timeout | state becomes `unhealthy` |
 | `CRASHED` | unexpected process exit | state becomes `unhealthy`; message states that unsaved changes were lost when `dirty` was set |
 | `UNEXPECTED_OUTPUT` | a parser cannot match output | includes a log-free raw snippet |
+| `SHUTTING_DOWN` | a tool call other than `get_world_machine_status` arrives after shutdown began, a start is cancelled by the shutdown, or a batch is still queued when the shutdown drain ends | no command sent; `CRASHED` stays reserved for unexpected exits; other codes raised during startup keep their code |
 
 ## 9. Safety
 
@@ -283,13 +294,14 @@ Tool failures are returned as `isError: true` results. Protocol errors are left 
 - **Allowed roots.** `WORLD_MACHINE_ALLOWED_ROOTS`, separated by the platform path delimiter. When unset, the server's working directory is the only root, unless it is `/` or `$HOME`, in which case path tools return `NOT_CONFIGURED`.
 - **Relative paths.** Project paths must be absolute; a relative path is refused with `REFUSED`, because the server's working directory is chosen by the MCP client and is not visible to the model.
 - **Opening.** `realpath` the file, require it to be inside a root after resolution, require the `.tmd` extension, and require a regular file (a directory named `*.tmd` is refused). If none of the configured roots exists, path tools return `NOT_CONFIGURED`.
-- **Saving.** `realpath` the parent directory, require it to be inside a root, require the `.tmd` extension. An existing target requires `overwrite: true`.
+- **Saving.** `realpath` the parent directory, require it to be a root or inside one, require the `.tmd` extension. An existing target must be a regular file, not a symlink, and requires `overwrite: true`. A file or symlink created between that check and World Machine's write is an accepted residual risk on a single-user machine; the absence re-check before the save narrows it.
 - **Shutdown.** MCP clients built on the SDK end stdin, wait 2 s, send `SIGTERM`, wait 2 s, then `SIGKILL` the server, so process shutdown must finish World Machine inside that window or World Machine is orphaned with its licence seat.
-  - On stdin close: drain running batches for at most 500 ms, write `system quit force`, wait up to 1 s, `SIGTERM` World Machine, wait up to 300 ms, then `SIGKILL` it.
-  - On the first `SIGINT` or `SIGTERM` with no shutdown in progress: no drain, write `system quit force`, wait up to 500 ms, then `SIGKILL`.
+  - Every quit, in every path below, is two separate writes (fact 14): `project close force`, then `system quit force`. Closing first discards unsaved changes without the modal dialog (fact 19), which is the only way World Machine shuts down normally and returns its licence seat (fact 20). The signal fallbacks below exist only for a World Machine that does not respond, and they leave the seat checked out.
+  - On stdin close: drain running batches for at most 500 ms, quit, wait up to 1 s, `SIGTERM` World Machine, wait up to 300 ms, then `SIGKILL` it.
+  - On the first `SIGINT` or `SIGTERM` with no shutdown in progress: no drain, quit, wait up to 500 ms, then `SIGKILL`.
   - On any `SIGINT` or `SIGTERM` while a shutdown is already in progress: `SIGKILL` World Machine immediately.
   - The server process exits 0 after World Machine is gone, even if a shutdown step fails.
-  - Idle quit is not bound by a client deadline and keeps the longer sequence: drain, `system quit force`, wait 10 s, `SIGTERM`, wait 2 s, `SIGKILL`.
+  - Idle quit is not bound by a client deadline and keeps the longer sequence: drain, quit, wait 10 s, `SIGTERM`, wait 2 s, `SIGKILL`. Idle quit is still skipped while the session is dirty, so it never discards work.
   - A dirty session at shutdown is logged as a warning.
 - **Idle timeout.** `WORLD_MACHINE_IDLE_TIMEOUT_MS`, default 15 minutes, `0` disables. Quits World Machine to return the licence seat. Skipped and logged when `dirty`.
 - **Logs.** World Machine log lines go to the server's stderr, filtered by `WORLD_MACHINE_LOG_LEVEL`. Licence lines are dropped. Log content never appears in tool results.

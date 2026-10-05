@@ -1,0 +1,120 @@
+>>> project new blank force
+Created new blank project.
+[Info       ] Closing current project
+<<<
+>>> group list
+No groups in the current project.
+<<<
+>>> scene show
+Scene 'Main Extents' (index 0 of 1):
+  Origin (center): 4.00, 4.00 km
+  Size:            8.00 x 8.00 km
+  Lower-left:      0.00, 0.00 km
+  Upper-right:     8.00, 8.00 km
+  Resolution:      1024
+  Locked:          no
+<<<
+>>> scene list
+Scenes (1 total):
+  [0] 'Main Extents' - 8.0x8.0 km, res 1024 *
+
+* = current scene
+<<<
+>>> device info
+No device selected.
+<<<
+>>> device select capture_missing_device
+Error: Error: Device not found: 'capture_missing_device'
+<<<
+>>> project undo
+Undo performed.
+<<<
+>>> project redo
+Redo performed.
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> wire list Gradient
+Connections for 'Gradient':
+  Inputs:
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> device select Gradient
+Selected: Gradient
+<<<
+>>> device info
+Selected device:
+  Name:    Gradient
+  Type:    Gradient
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> device select #1
+Selected: Gradient
+<<<
+>>> param list #1
+Parameters for 'Gradient' (Gradient):
+  Direction                 int       0
+  Width                     float     8 km
+  Tiling                    enum      Clamp
+
+<<<
+>>> wire list #1
+Connections for '#1':
+  Inputs:
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> project undo
+Undo performed.
+<<<
+>>> device list
+No devices in the current project.
+<<<
+>>> project redo
+Redo performed.
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> project save <WORK>/no-such-dir/x.tmd
+Project saved to: <WORK>/no-such-dir/x.tmd
+<<<
+>>> project save <WORK>/edge.tmd
+Project saved to: <WORK>/edge.tmd
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<
+>>> device list
+No devices in the current project.
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<
+>>> scene show
+Scene 'Main Extents' (index 0 of 1):
+  Origin (center): 4.00, 4.00 km
+  Size:            8.00 x 8.00 km
+  Lower-left:      0.00, 0.00 km
+  Upper-right:     8.00, 8.00 km
+  Resolution:      1024
+  Locked:          no
+<<<
+>>> group list
+No groups in the current project.
+<<<
+>>> project open <WORK>/edge.tmd force
+Opened: <WORK>/edge.tmd
+[Info       ] Open Project from file
+[Info       ] Closing current project
+<<<

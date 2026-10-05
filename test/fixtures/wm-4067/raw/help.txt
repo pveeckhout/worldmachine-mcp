@@ -1,0 +1,98 @@
+>>> help
+Command groups:
+  analytics     Anonymous usage analytics inspection
+  build         Build and preview operations
+  debug         Debug variables and output packets
+  device        Device (node) operations
+  export        Export operations (Pro)
+  group         Device group operations
+  param         Parameter operations
+  project       Project file operations
+  scene         Scene/render extent operations
+  snapshot      Snapshot operations (Pro)
+  system        System operations
+  update        Auto-updater control and diagnostics
+  wire          Connection/wiring operations
+
+Top-level commands:
+  alias         Define or list user aliases (Pro)
+  clear         Clear console output
+  echo          Print text to the console
+  help          Show help for commands
+  run           Execute commands from a script file (Pro)
+  unalias       Remove a user alias (Pro)
+
+Shortcuts:
+  add           -> device add
+  connect       -> wire connect
+  delete        -> device delete
+  devices       -> device list
+  disconnect    -> wire disconnect
+  exit          -> system quit
+  get           -> param get
+  groups        -> group list
+  info          -> system info
+  open          -> project open
+  preview       -> build preview
+  purge         -> system purge
+  quit          -> system quit
+  redo          -> project redo
+  save          -> project save
+  select        -> device select
+  set           -> param set
+  snapshots     -> snapshot list
+  stop          -> build stop
+  undo          -> project undo
+
+Type 'help <group>' for commands within a group.
+<<<
+>>> help param
+param commands:
+  param get [device.]<param>      Get a parameter value
+  param list [device]             List parameters of a device
+  param set [device.]<param> <value>  Set a parameter value
+
+<<<
+>>> help device
+device commands:
+  device add <type>               Add a new device
+  device bypass <name>            Toggle bypass on a device
+  device delete <name>            Delete a device
+  device disable <name>           Disable a device
+  device enable <name>            Enable a device
+  device info                     Show info about selected device
+  device list [filter]            List all devices
+  device organize                 Organize devices by processing order
+  device rename <oldname> <newname>  Rename a device
+  device select <name>            Select a device by name
+
+<<<
+>>> help wire
+wire commands:
+  wire connect <source>[.port] <dest>[.port]  Connect an output to an input
+  wire disconnect <source>[.port] <dest>[.port]  Remove a connection
+  wire list <device>              List connections for a device
+
+<<<
+>>> help scene
+scene commands:
+  scene list                      List all scenes/render extents
+  scene lock [on|off]             Lock/unlock scene
+  scene name [name]               Get or set the current scene name
+  scene origin <x_km> <y_km>      Set scene center position
+  scene resolution [value|up|down] [count]  Get or set render resolution
+  scene select <index|name>       Select a scene by index or name
+  scene show                      Show current scene info
+  scene size [width_km height_km]  Show or set scene dimensions
+
+<<<
+>>> help project
+project commands:
+  project close [force]           Close the current project
+  project new [blank|default|force]  Create a new project
+  project open <path> [force]     Open a project file
+  project redo                    Redo the last undone action
+  project save [path]             Save the current project
+  project undo                    Undo the last action
+
+<<<
