@@ -23,7 +23,7 @@ World Machine --cli (your installation, your licence)
 ## Requirements
 
 - World Machine with command-line console support. Developed against build 4067 (Dragontail Peak).
-- A World Machine licence. Nothing from World Machine is bundled.
+- A World Machine licence. Nothing from World Machine is bundled. World Machine must be activated on the machine first (start it once normally); without a licence the tools fail with `START_FAILED` and the message "World Machine has no valid licence on this machine. Start World Machine once outside the MCP and activate it, then retry."
 - Node.js 22.12 or later.
 - Linux. Windows and macOS are planned but not yet supported.
 

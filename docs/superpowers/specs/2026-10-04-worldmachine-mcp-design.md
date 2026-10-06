@@ -69,6 +69,8 @@ Verified on 2026-10-04 against World Machine build 4067 (Dragontail Peak), Pro t
 40. `device add Layout Generator` printed `Added 'Shapes'`: a default name can differ from the type, and such a device is listed without a `(kind)` suffix (`#4     Shapes`). Of the candidate types tried, only `Thermal Weathering`, `Advanced Perlin`, and `Layout Generator` exist; none has a default name longer than 23 characters. (Same capture.)
 41. Build 4067's console has no command for world settings: `help` lists the groups analytics, build, debug, device, export, group, param, project, scene, snapshot, system, update, and wire, and none of them sets sea level, height scale or units, or the tiled-build layout. `build start [tiled]` runs a tiled build with the layout configured in the window. `scene` can select, lock, and change an existing scene but not create one; `group` can list, enable, disable, and build groups but not create them or assign devices. (Captures `help`, `help-more`, 2026-10-05.)
 
+53. (42-52: v2a spec.) Without a licence, World Machine build 4067 prints, about 1.2 s after spawn, among its startup log lines: `[Error      ] License Manager.Checkout: License checkout failed for product wmpro`, `[Error      ] License Manager.RLM Details: Wrong host for license (-4)`, the plain line `Wrong host (-193): _check_rehost(): No rehostable root dir`, `[Info       ] Startup: License manager checkout (LICENSE_RESULT 3)`, and `[Info       ] Startup: License Activation`. It then shows a modal activation dialog and waits indefinitely; the ready line never comes. Choosing Quit in the dialog logs `Startup: Cannot launch World Machine due to licensing failure.`, shuts down normally, and exits with code 1. (Live probe, 2026-10-06.)
+
 ### Verification items (first tasks of the implementation plan)
 
 These are unverified and must be resolved before the code that depends on them is written:
@@ -80,7 +82,7 @@ These are unverified and must be resolved before the code that depends on them i
 - V5. Output format of `device info`, `wire list`, `scene show`, `scene list`, `group list`, and `param get`.
 - V6. Value syntax accepted by `param set` for `bool`, `enum`, numeric, and `filename` parameters.
 - V7. Output and failure behaviour of `project open`, `project save`, `project undo`, and `project redo`.
-- V8. The log line or exit behaviour when licence checkout fails. It cannot be provoked by a script and may stay open; until it is observed, a licence failure surfaces as `START_FAILED` through the exit-before-ready or readiness-timeout paths.
+- V8. The log line or exit behaviour when licence checkout fails. Resolved: fact 53.
 
 ## 3. Technology
 
@@ -155,7 +157,7 @@ C4Component
 | Unit | Responsibility |
 |---|---|
 | `Locator` | Resolve the executable from `WORLD_MACHINE_BIN`. v1 Linux has no default discovery; an unset or non-executable value yields `NOT_CONFIGURED`. |
-| `ProcessSupervisor` | Lazy spawn, readiness detection (fact 6, 60 s limit), idle timeout, crash detection, shutdown sequence. |
+| `ProcessSupervisor` | Lazy spawn, readiness detection (fact 6, 45 s limit), idle timeout, crash detection, shutdown sequence. |
 | `CommandQueue` | Serialise all access. Accepts a batch of commands and runs it as one transaction so no other request interleaves. |
 | `ResponseFramer` | Append a sentinel to each batch and split the merged stream into one `RawResponse { output, errors }` per command. |
 | `LogSplitter` | Remove `[Level      ] ` lines from the stream and route them to the log channel. |
@@ -296,7 +298,7 @@ Bypass is reported (`get_device`, `list_devices`) but not settable: `device bypa
 
 ## 8. Errors
 
-Tool failures are returned as `isError: true` results. Protocol errors are left to the SDK (schema rejection). A `WorldMachineError` keeps its code wherever it arises, including during startup (a rejected `project open` at startup is `WM_COMMAND_FAILED`, an unparseable `system info` is `UNEXPECTED_OUTPUT`); only failures that are not `WorldMachineError`s are reported as `START_FAILED` during startup. In every startup failure, World Machine is quit before the error is returned. `worldMachineMessage` never contains log lines or lines matching `/licen[cs]e/i`. The error payload is:
+Tool failures are returned as `isError: true` results. Protocol errors are left to the SDK (schema rejection). A `WorldMachineError` keeps its code wherever it arises, including during startup (a rejected `project open` at startup is `WM_COMMAND_FAILED`, an unparseable `system info` is `UNEXPECTED_OUTPUT`); only failures that are not `WorldMachineError`s are reported as `START_FAILED` during startup. In every startup failure, World Machine is quit before the error is returned. `worldMachineMessage` never contains log lines or lines matching `/licen[cs]e/i`. The `START_FAILED` detail keeps only recent startup lines that match a known diagnostic (today the Qt display error); every other line stays in the debug log. The error payload is:
 
 ```ts
 { code: ErrorCode, message: string, worldMachineMessage?: string, session: SessionSummary }
@@ -305,7 +307,7 @@ Tool failures are returned as `isError: true` results. Protocol errors are left 
 | `code` | Trigger | Effect |
 |---|---|---|
 | `NOT_CONFIGURED` | executable missing or not executable; no usable allowed root | none |
-| `START_FAILED` | spawn error, no readiness line within 60 s, licence checkout failure (V8) | state returns to `notRunning`; when the startup detail contains a Qt display error (`could not connect to display`), the message adds a hint to pass `DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY`, and `XDG_RUNTIME_DIR` (see README) |
+| `START_FAILED` | spawn error, no readiness line within 45 s, licence checkout failure (fact 53: fails at once with the message `World Machine has no valid licence on this machine. Start World Machine once outside the MCP and activate it, then retry.` and no detail) | state returns to `notRunning`; when the startup detail contains a Qt display error (`could not connect to display`), the message adds a hint to pass `DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY`, and `XDG_RUNTIME_DIR` (see README) |
 | `REFUSED` | dirty without `discard_unsaved`, existing target without `overwrite`, path not authorised, unsafe or ambiguous token; for edit tools also a device that `device list` does not show, a new device name `device list` could not read back (fact 33), a parameter name or value outside the forms `update_device_parameters` sends or an `action` or `other` parameter (facts 35, 36), a `filename` parameter (section 9), an invalid scene value, an empty set of parameters or scene fields, a bad port number, a missing input port, or a disconnect, or a connect to an input already wired from the source's name, when several devices share that name | no command sent, except for an ambiguous device name in `get_device`: it is refused after the read batch, which changes only World Machine's device selection; edit tools refuse after their own reads (`device list`, `param list`, `wire list`), which change nothing |
 | `WM_COMMAND_FAILED` | an `Error: ` line for a command, a known unprefixed failure line (`Failed to open project.`, fact 17), or a read-back showing that a command World Machine accepted had no effect (fact 23; section 7) | exact text in `worldMachineMessage` |
 | `TIMEOUT` | no sentinel within the batch timeout | state becomes `unhealthy` |
