@@ -1,0 +1,70 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 257
+Set scene resolution to 257
+<<<
+>>> project save <WORK>/diag-export-twice.tmd
+Project saved to: <WORK>/diag-export-twice.tmd
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> param set #1.exportAlways true
+Set #1.exportAlways = true
+<<<
+>>> group build #1
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Building \d+ device\(s\) in group /: seen after 1 s)
+[Build Event] Automatic export of file <WORK>/diag-export-twice Height Output-257.png succeeded
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+Building 4 device(s) in group 'Export Basics'
+<<<
+>>> (waited 1500 ms)
+<<<
+>>> (output files written by the first group build #1)
+<WORK>/diag-export-twice Height Output-257.png
+<<<
+>>> group build #1
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Building \d+ device\(s\) in group /: seen after 1 s)
+Building 4 device(s) in group 'Export Basics'
+<<<
+>>> (waited 1500 ms)
+<<<
+>>> (output files written by the second group build #1)
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] Automatic export of file <WORK>/diag-export-twice Height Output-257.png succeeded
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Build started\.$/: seen after 1 s)
+Build started.
+<<<
+>>> (waited 1500 ms)
+<<<
+>>> (output files written by a full build after the group builds)
+<WORK>/diag-export-twice Height Output-257.png
+<<<
+>>> param set #1.exportAlways false
+Set #1.exportAlways = false
+<<<

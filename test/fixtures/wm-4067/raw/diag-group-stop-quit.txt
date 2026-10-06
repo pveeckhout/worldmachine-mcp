@@ -1,0 +1,55 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 4097
+Set scene resolution to 4097
+<<<
+>>> project save <WORK>/diag-group-stop.tmd
+Project saved to: <WORK>/diag-group-stop.tmd
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> group build #0
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (batch took 0 s)
+<<<
+>>> build stop
+Stop requested.
+[Build Event] *** Build Ended ***
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 3000 ms)
+[Build Event] System allowed to sleep again
+<<<

@@ -782,6 +782,13 @@ const scenarios = [
       return sections;
     },
   ],
+  // Diagnostics for the quit crash seen after stopped group builds (World Machine crash reports 2026-10-06 14:46 and
+  // 15:13) and for automatic exports. Each ends without closing, so the script's own close and quit end World Machine,
+  // as the server does. Run one per World Machine start.
+  ['diag-group-quit', () => diagnostic('group')],
+  ['diag-group-stop-quit', () => diagnostic('group-stop')],
+  ['diag-full-stop-quit', () => diagnostic('full-stop')],
+  ['diag-export-twice', () => diagnostic('export-twice')],
 ];
 
 async function buildAndExport(sections, since) {
@@ -1212,6 +1219,48 @@ async function v2bAssumptions(sections) {
   sections.push(await waitForLine(/^Building \d+ device\(s\) in group /, 60_000));
   sections.push(await wait(2000));
   sections.push(...(await run(['build status', 'project close force'])));
+}
+
+async function diagnostic(kind) {
+  const sections = [];
+  try {
+    const file = join(work, `diag-${kind}.tmd`);
+    const resolution = kind === 'group' || kind === 'export-twice' ? 257 : 4097;
+    sections.push(
+      ...(await run(['project new default force', `scene resolution ${resolution}`, `project save ${file}`])),
+    );
+    await pollBuild(sections);
+    if (kind === 'group') {
+      await timed(sections, ['group build #0']);
+      sections.push(await waitForLine(/^Building \d+ device\(s\) in group /, 30_000));
+    } else if (kind === 'group-stop') {
+      await timed(sections, ['group build #0']);
+      await timed(sections, ['build stop']);
+      sections.push(await wait(3000));
+    } else if (kind === 'full-stop') {
+      await timed(sections, ['build start']);
+      await timed(sections, ['build stop']);
+      sections.push(await waitForLine(/^Build started\.$/, 15_000));
+    } else {
+      sections.push(...(await run(['param set #1.exportAlways true'])));
+      for (const label of ['first', 'second']) {
+        const since = Date.now();
+        await timed(sections, ['group build #1']);
+        sections.push(await waitForLine(/^Building \d+ device\(s\) in group /, 30_000));
+        sections.push(await wait(1500));
+        filesSince(sections, since, `by the ${label} group build #1`);
+      }
+      const since = Date.now();
+      await timed(sections, ['build start']);
+      sections.push(await waitForLine(/^Build started\.$/, 30_000));
+      sections.push(await wait(1500));
+      filesSince(sections, since, 'by a full build after the group builds');
+      sections.push(...(await run(['param set #1.exportAlways false'])));
+    }
+  } catch (error) {
+    sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+  }
+  return sections;
 }
 
 // `npm run capture-fixtures -- <name> ...` captures only the named scenarios (system info always runs first).
