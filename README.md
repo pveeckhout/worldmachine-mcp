@@ -176,6 +176,10 @@ The console also offers scene selection and locking. The MCP does not expose the
 - There is no tool for running arbitrary World Machine console commands.
 - World Machine log output, including licence information, is never returned to the AI assistant.
 
+## Troubleshooting
+
+**"World Machine is showing its 'Recover crashed session' dialog."** World Machine found sessions that did not end cleanly and is asking which one to restore. Answer the dialog in the World Machine window (OK restores the chosen session, Cancel does not), then retry the tool call; the server keeps waiting for up to 10 minutes. After OK, the restored project stays open with unsaved changes, and `get_world_machine_status` reports `recovered: true`. Every crash or forced kill of World Machine queues one more crashed session. To clear the queue, start World Machine yourself (outside the MCP) and answer the dialog until it no longer appears, then quit World Machine normally.
+
 ## Documentation
 
 - [Design spec](docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md)
