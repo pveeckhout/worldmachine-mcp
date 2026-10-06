@@ -2,14 +2,15 @@
 export type BuildMode = 'preview' | 'full' | 'tiled';
 export type TrackedBuildMode = Exclude<BuildMode, 'preview'>;
 
-/** The six unsolicited build lines of facts 43 and 48. */
+/** The six unsolicited build lines of facts 43 and 48, and the late line of a group build (spec v2b fact 66). */
 export type BuildEvent =
   | 'sleep-prohibited'
   | 'starting'
   | 'ended'
   | 'sleep-allowed'
   | 'build-started'
-  | 'tiled-started';
+  | 'tiled-started'
+  | 'group-build-started';
 
 export type BuildStarter = 'server' | 'world-machine';
 
@@ -108,9 +109,11 @@ export function nextBuildState(state: BuildState, event: BuildEvent, now: number
       return run?.state === 'running' && run.mode !== 'full'
         ? { ...state, run: { ...run, state: 'ended' } }
         : state;
-    case 'build-started': {
-      // Fact 54: the late confirmation of a full run's end. After a restart (fact 45) the replaced run's line is owed
-      // too, so the running run ends only on the last owed line.
+    case 'build-started':
+    case 'group-build-started': {
+      // Fact 54: the late confirmation of a full run's end; a group build prints its own line instead (spec v2b fact
+      // 66). After a restart (fact 45) the replaced run's line is owed too, so the running run ends only on the last
+      // owed line, whichever of the two each run prints.
       if (state.lateStartsOwed === 0) return state;
       const lateStartsOwed = state.lateStartsOwed - 1;
       return lateStartsOwed === 0 && ending && run !== undefined

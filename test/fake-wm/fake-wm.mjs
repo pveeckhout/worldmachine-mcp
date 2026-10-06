@@ -68,6 +68,23 @@ let added = [];
 // project) also starts again at #536. Neither is captured.
 const firstFreeId = (next) => (next === 'sample' ? 536 : 1);
 let nextId = firstFreeId(project);
+// Spec v2b facts 63-64 (raw/v2b-groups.txt l.16-56): the sample project's groups. Members are captured only for
+// 'Create your Terrain' (l.34-56). Assumed: the other groups' members are not modelled, so enabling or disabling one
+// prints its captured count and changes no device.
+const SAMPLE_GROUPS = [
+  { name: 'Create your Terrain', count: 6, members: [2, 3, 35, 305, 314, 319] },
+  { name: 'Export Basics', count: 4, members: [] },
+  { name: 'Texture & View', count: 5, members: [] },
+  { name: 'Welcome to World Machine!', count: 0, members: [] },
+  { name: 'Material Maps', count: 2, members: [] },
+];
+// Ids of the sample project's own devices that a group disable turned off (fact 64); `device list` marks them.
+let sampleDisabled = new Set();
+// Spec v2b facts 57-61: the open project's snapshots, each with the fake's graph state at its creation, and the
+// snapshots each saved file holds. Snapshots live in the `.tmd` file (fact 59), so `project open` brings back only the
+// ones that existed at that file's last save.
+let snapshots = [];
+const savedSnapshots = new Map();
 // Builds and exports (spec v2a facts 42-50). Assumed: a full or tiled build takes FAKE_WM_BUILD_MS and a preview
 // FAKE_WM_PREVIEW_MS; real durations depend on the project and the resolution.
 const BUILD_MS = Number(env.FAKE_WM_BUILD_MS ?? '100');
@@ -123,12 +140,15 @@ const opening = (print) => {
   if (START_DELAY_MS > 0) setTimeout(print, START_DELAY_MS);
   else print();
 };
+// `group` is a group build of group #0 (spec v2b section 5: the window can start one; assumed to print the same
+// lines as `group build`).
 const startGuiBuild = (mode) => {
   guiBuildStarted = true;
   previewUntil = 0;
   event('Prohibiting system sleep');
-  if (mode === 'full') event('*** Build Starting ***');
-  build = { mode, timer: setTimeout(endBuild, BUILD_MS) };
+  if (mode !== 'tiled') event('*** Build Starting ***');
+  const group = mode === 'group' ? SAMPLE_GROUPS[0] : undefined;
+  build = { mode: mode === 'tiled' ? 'tiled' : 'full', group, timer: setTimeout(endBuild, BUILD_MS) };
 };
 const endBuild = () => {
   const ending = build;
@@ -136,12 +156,13 @@ const endBuild = () => {
   clearTimeout(ending.timer);
   build = undefined;
   if (ending.mode === 'full') {
-    // Fact 43, raw/v2-build-isolate.txt l.61-68.
+    // Fact 43, raw/v2-build-isolate.txt l.61-68; a group build, raw/v2b-groups.txt l.274-283.
     event('*** Build Ended ***');
     trailer();
     later(() => {
-      built = true;
-      out('Build started.\n');
+      // Spec v2b fact 67: a group build does not make the outputs exportable.
+      if (ending.group === undefined) built = true;
+      out(lateLine(ending));
     });
   } else {
     // Fact 48, raw/v2-build-isolate.txt l.84-85.
@@ -150,6 +171,38 @@ const endBuild = () => {
     tiledConfirmationsOwed = 0;
     later(() => out('Tiled build started.\n'.repeat(confirmations)));
   }
+};
+// The late line of a full run: `Build started.` (fact 54), or a group build's own (spec v2b fact 66).
+const lateLine = (run) =>
+  run.group === undefined
+    ? 'Build started.\n'
+    : `Building ${run.group.count} device(s) in group '${run.group.name}'\n`;
+// `build start`, or `group build` with its group: the same events (spec v2b fact 66).
+const startFull = (group) => {
+  // Spec v2a section 3: a full build replaces a preview; raw/v2-build-concurrency.txt l.85-86 reads
+  // `No build running.` during it.
+  previewUntil = 0;
+  if (build?.mode === 'full') {
+    // Fact 45, raw/v2-build-long.txt l.57-60: the running build ends and a new one starts in the same frame.
+    clearTimeout(build.timer);
+    opening(() => {
+      event('*** Build Ended ***');
+      event('Prohibiting system sleep');
+      event('*** Build Starting ***');
+      event('System allowed to sleep again');
+    });
+  } else {
+    // Assumed: no capture shows a start of one mode while a build of the other mode runs; the running build's own
+    // end timer is dropped so its late end cannot arrive after the new build's events.
+    if (build !== undefined) clearTimeout(build.timer);
+    // Fact 43, raw/v2-build-isolate.txt l.54-56.
+    opening(() => {
+      event('Prohibiting system sleep');
+      event('*** Build Starting ***');
+      releaseTrailer();
+    });
+  }
+  build = { mode: 'full', group, timer: setTimeout(endBuild, BUILD_MS) };
 };
 const switchTo = (next) => {
   project = next;
@@ -160,6 +213,8 @@ const switchTo = (next) => {
   nextId = firstFreeId(next);
   built = false;
   savedPath = undefined;
+  sampleDisabled = new Set();
+  snapshots = [];
 };
 // Spec fact 30: the name is the type, without de-duplication (two `device add Gradient` give two devices named
 // 'Gradient'; `device add Erosion` gives 'Erosion', raw/p2b-kind-markers.txt). Captured exception,
@@ -196,6 +251,54 @@ const findAdded = (ref) => {
     id ? device.id === Number(id[1]) : device.name.toLowerCase() === ref.toLowerCase(),
   );
 };
+// Spec v2b fact 57: the time a snapshot was made, as `snapshot list` prints it.
+const minuteStamp = () => {
+  const now = new Date();
+  const two = (value) => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())} ${two(now.getHours())}:${two(now.getMinutes())}`;
+};
+// What a snapshot holds of the fake's graph (fact 60). Assumed: a restore also clears the selection.
+const graphState = () => ({ added: added.map((device) => ({ ...device })), disabled: [...sampleDisabled] });
+const restoreGraphState = (state) => {
+  added = state.added.map((device) => ({ ...device }));
+  sampleDisabled = new Set(state.disabled);
+  selected = undefined;
+};
+// A reference to an item of `items` by `#<index>` or by name (spec v2b facts 58, 61, and 65), or undefined after
+// printing World Machine's error. `sameName` compares a listed name with the reference.
+const lookUpIndexed = (items, ref, what, sameName) => {
+  const byIndex = /^#(\d+)$/.exec(ref);
+  if (byIndex) {
+    const index = Number(byIndex[1]);
+    if (index < items.length) return index;
+    // Assumed: the range reads `#0 - #-1` for an empty list; no capture shows one.
+    process.stderr.write(
+      `Error: Error: Invalid ${what.toLowerCase()} index: #${index} (valid range: #0 - #${items.length - 1})\n`,
+    );
+    return undefined;
+  }
+  const matches = items.flatMap((item, index) => (sameName(item.name, ref) ? [index] : []));
+  if (matches.length === 1) return matches[0];
+  if (matches.length === 0) {
+    process.stderr.write(`Error: Error: ${what} not found: '${ref}'\n`);
+    return undefined;
+  }
+  // raw/v2b-snapshots.txt l.100-104. Groups never get here: the sample groups have distinct names (assumption B4).
+  const rows = matches.map((index) => `  [#${index}] '${ref}'\n`).join('');
+  process.stderr.write(
+    `Error: Error: Multiple snapshots match '${ref}':\n${rows}Use #index to specify which one.\n`,
+  );
+  return undefined;
+};
+// Snapshot names compare exactly (spec v2b section 4); group names regardless of case (fact 64, l.260-261).
+const snapshotIndex = (ref) => lookUpIndexed(snapshots, ref, 'Snapshot', (name, wanted) => name === wanted);
+const groupIndex = (ref) =>
+  lookUpIndexed(
+    project === 'empty' ? [] : SAMPLE_GROUPS,
+    ref,
+    'Group',
+    (name, wanted) => name.toLowerCase() === wanted.toLowerCase(),
+  );
 let quitting = false;
 let partial = '';
 let pending = [];
@@ -237,7 +340,7 @@ async function handle(line) {
   // Fact 47: a running build's end events can land inside another command's frame, before its answer.
   if (command === env.FAKE_WM_BUILD_END_ON) endBuild();
   if (command === env.FAKE_WM_GUI_BUILD_ON && !guiBuildStarted && build === undefined) {
-    startGuiBuild(env.FAKE_WM_GUI_BUILD === 'tiled' ? 'tiled' : 'full');
+    startGuiBuild(['tiled', 'group'].includes(env.FAKE_WM_GUI_BUILD) ? env.FAKE_WM_GUI_BUILD : 'full');
   }
   if (command === 'system quit force') {
     if (dirty) {
@@ -260,6 +363,13 @@ async function handle(line) {
     if (project === 'empty' && added.length === 0) return void out('No devices in the current project.\n');
     const lines =
       project === 'empty' ? ['Devices (0 total):', '', ''] : fixture('device-list.txt').split('\n');
+    // Spec v2b fact 64, raw/v2b-groups.txt l.38-55: a sample device a group disabled gets ` [disabled]`.
+    for (const [index, line] of lines.entries()) {
+      const id = /^ {2}#(\d+) /.exec(line)?.[1];
+      if (project === 'sample' && id !== undefined && sampleDisabled.has(Number(id))) {
+        lines[index] = `${line} [disabled]`;
+      }
+    }
     if (added.length > 0) {
       const total = Number(/\((\d+) total\)/.exec(lines[0])[1]) + added.length;
       lines[0] = `Devices (${total} total):`;
@@ -294,11 +404,21 @@ async function handle(line) {
     } else {
       switchTo('sample');
       savedPath = command.slice('project open '.length).replace(/ force$/, '');
+      // Spec v2b fact 59: the file holds the snapshots of its last save. Assumed: the fake's graph state is not saved,
+      // so the opened project is the sample project with those snapshots.
+      snapshots = [...(savedSnapshots.get(savedPath) ?? [])];
       out(`Opened: ${savedPath}\n`);
     }
     return;
   }
   if (command.startsWith('project new default') || command.startsWith('project new blank')) {
+    // raw/v2b-snapshots.txt l.285-286: without force, an unsaved project refuses a new one.
+    if (dirty && !command.endsWith(' force')) {
+      process.stderr.write(
+        "Error: Error: Project has unsaved changes. Use 'project save' first or 'project new force'.\n",
+      );
+      return;
+    }
     const blank = command.includes('blank');
     switchTo(blank ? 'empty' : 'sample');
     out(`Created new ${blank ? 'blank' : 'default'} project.\n`);
@@ -320,6 +440,7 @@ async function handle(line) {
     }
     dirty = false;
     savedPath = target;
+    savedSnapshots.set(target, [...snapshots]);
     out(`Project saved to: ${target}\n`);
     return;
   }
@@ -434,33 +555,7 @@ async function handle(line) {
     // Facts 42 and 44: only a preview is reported.
     return void out(Date.now() < previewUntil ? 'Build in progress...\n' : 'No build running.\n');
   }
-  if (command === 'build start') {
-    // Spec v2a section 3: a full build replaces a preview; raw/v2-build-concurrency.txt l.85-86 reads
-    // `No build running.` during it.
-    previewUntil = 0;
-    if (build?.mode === 'full') {
-      // Fact 45, raw/v2-build-long.txt l.57-60: the running build ends and a new one starts in the same frame.
-      clearTimeout(build.timer);
-      opening(() => {
-        event('*** Build Ended ***');
-        event('Prohibiting system sleep');
-        event('*** Build Starting ***');
-        event('System allowed to sleep again');
-      });
-    } else {
-      // Assumed: no capture shows a start of one mode while a build of the other mode runs; the running build's own
-      // end timer is dropped so its late end cannot arrive after the new build's events.
-      if (build !== undefined) clearTimeout(build.timer);
-      // Fact 43, raw/v2-build-isolate.txt l.54-56.
-      opening(() => {
-        event('Prohibiting system sleep');
-        event('*** Build Starting ***');
-        releaseTrailer();
-      });
-    }
-    build = { mode: 'full', timer: setTimeout(endBuild, BUILD_MS) };
-    return;
-  }
+  if (command === 'build start') return void startFull(undefined);
   if (command === 'build start tiled') {
     // Assumed: a tiled build replaces a preview as a full build does.
     previewUntil = 0;
@@ -489,7 +584,8 @@ async function handle(line) {
       // The held trailer is recorded now, so a start right after the stop releases it; only printing waits.
       if (LATE_TRAILER) trailerHeld = true;
       else later(() => event('System allowed to sleep again'));
-      later(() => out('Build started.\n'));
+      // Assumed: a stopped group build prints its own late line; no capture stops one.
+      later(() => out(lateLine(stopping)));
     } else {
       event('System allowed to sleep again');
       tiledConfirmationsOwed++;
@@ -542,7 +638,76 @@ async function handle(line) {
   const blank = project === 'empty';
   if (command === 'scene show') return void out(fixture(blank ? 'scene-show-blank.txt' : 'scene-show.txt'));
   if (command === 'scene list') return void out(fixture(blank ? 'scene-list-blank.txt' : 'scene-list.txt'));
-  if (command === 'group list')
-    return void out(blank ? 'No groups in the current project.\n' : fixture('group-list.txt'));
+  // Spec v2b facts 57-61: raw/v2b-snapshots.txt and raw/v2b-snapshot-restore.txt.
+  if (command === 'snapshot list' || command === 'snapshots') {
+    if (snapshots.length === 0) return void out('No snapshots.\n');
+    const rows = snapshots.map(
+      (snapshot, index) => `  [#${index}] '${snapshot.name}' - ${snapshot.created}\n`,
+    );
+    return void out(`Snapshots (${snapshots.length} total):\n${rows.join('')}\n`);
+  }
+  if (command === 'snapshot create') {
+    return void process.stderr.write('Error: Error: Usage: snapshot create <name>\n');
+  }
+  if (command.startsWith('snapshot create ')) {
+    // Fact 58: any name is accepted, a repeated one too. Fact 59: a snapshot is not an unsaved change.
+    const name = command.slice('snapshot create '.length);
+    snapshots.push({ name, created: minuteStamp(), state: graphState() });
+    return void out(`Created snapshot '${name}'\n`);
+  }
+  const snapshotChange = /^snapshot (restore|delete) (.+)$/.exec(command);
+  if (snapshotChange) {
+    const [, verb, ref] = snapshotChange;
+    const index = snapshotIndex(ref);
+    if (index === undefined) return;
+    const snapshot = snapshots[index];
+    if (verb === 'delete') {
+      // Assumed: a delete is not an unsaved change (no capture checks it; a create is not one, fact 59).
+      snapshots.splice(index, 1);
+      return void out(`Deleted snapshot [#${index}] '${snapshot.name}'\n`);
+    }
+    // Fact 60: the graph goes back to the snapshot, later snapshots are kept, and the restore is an unsaved change.
+    restoreGraphState(snapshot.state);
+    dirty = true;
+    return void out(`Restored snapshot [#${index}] '${snapshot.name}'\n`);
+  }
+  if (command === 'device organize') {
+    // Fact 62, raw/v2b-snapshots.txt l.261-286. The layout is not modelled.
+    dirty = true;
+    return void out('Devices organized by processing order.\n');
+  }
+  if (command === 'group list' || command.startsWith('group list ')) {
+    if (blank) return void out('No groups in the current project.\n');
+    // Fact 63, raw/v2b-groups.txt l.16-32: a filter keeps the unfiltered total in the header.
+    // Assumed: the filter matches any part of a name, case-sensitive, as the fake's device list filter does. Only a
+    // prefix match was captured (`Export`, l.25-28).
+    const filter = command.slice('group list'.length).trim();
+    const rows = SAMPLE_GROUPS.flatMap((group, index) =>
+      group.name.includes(filter)
+        ? [`  [#${index}] ${group.name.padEnd(24)} (${group.count} devices)\n`]
+        : [],
+    );
+    const header = `Groups (${SAMPLE_GROUPS.length} total):\n`;
+    return void out(rows.length === 0 ? `${header}  (no matches)\n` : `${header}${rows.join('')}\n`);
+  }
+  const groupCommand = /^group (enable|disable|build) (.+)$/.exec(command);
+  if (groupCommand) {
+    const [, verb, ref] = groupCommand;
+    const index = groupIndex(ref);
+    if (index === undefined) return;
+    const group = SAMPLE_GROUPS[index];
+    // Fact 65, raw/v2b-groups.txt l.257-258. Assumed: `group build` answers an empty group the same way.
+    if (group.count === 0) return void out(`Group '${group.name}' contains no devices.\n`);
+    // Fact 66: the events of a full build in the command's own frame, then its own late line.
+    if (verb === 'build') return void startFull(group);
+    // Fact 64: every member's own state is set, and the change is an unsaved one.
+    for (const id of group.members) {
+      if (verb === 'disable') sampleDisabled.add(id);
+      else sampleDisabled.delete(id);
+    }
+    dirty = true;
+    const verbed = verb === 'enable' ? 'Enabled' : 'Disabled';
+    return void out(`${verbed} ${group.count} device(s) in group '${group.name}'\n`);
+  }
   process.stderr.write(`Error: Unknown command: '${command}'. Type 'help' for a list of commands.\n`);
 }

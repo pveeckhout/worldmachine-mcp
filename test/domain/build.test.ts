@@ -81,6 +81,62 @@ describe('nextBuildState (spec v2a section 3)', () => {
     expect(isRunning(apply(stillOwed, 'build-started'))).toBe(false);
   });
 
+  it("ends a full run on a group build's late line, as on Build started. (spec v2b fact 66)", () => {
+    const ending = apply(
+      { ...NO_BUILD, pending: 'full' },
+      'sleep-prohibited',
+      'starting',
+      'ended',
+      'sleep-allowed',
+    );
+    expect(isRunning(ending)).toBe(true);
+    expect(apply(ending, 'group-build-started')).toEqual({
+      run: { mode: 'full', startedAt: 1_001, startedBy: 'server', state: 'ended' },
+      pending: undefined,
+      trailerOwed: false,
+      lateStartsOwed: 0,
+      ending: false,
+    });
+  });
+
+  it('ignores a group late line that no ended owes', () => {
+    const running = apply({ ...NO_BUILD, pending: 'full' }, 'starting');
+    expect(apply(running, 'group-build-started')).toEqual(running);
+    expect(apply(NO_BUILD, 'group-build-started')).toEqual(NO_BUILD);
+  });
+
+  it('ends a group build started in the World Machine window on its late line (spec v2b section 5)', () => {
+    const ended = apply(
+      NO_BUILD,
+      'sleep-prohibited',
+      'starting',
+      'ended',
+      'sleep-allowed',
+      'group-build-started',
+    );
+    expect(isRunning(ended)).toBe(false);
+    expect(ended.run).toEqual({ mode: 'full', startedAt: 1_000, startedBy: 'world-machine', state: 'ended' });
+  });
+
+  it('owes one late line per ended when a group build replaces a full run, whichever line pays (fact 45)', () => {
+    const first = apply({ ...NO_BUILD, pending: 'full' }, 'starting');
+    const replaced = apply(
+      { ...first, pending: 'full' },
+      'ended',
+      'sleep-prohibited',
+      'starting',
+      'sleep-allowed',
+    );
+    expect(replaced.lateStartsOwed).toBe(1);
+    const oldLine = apply(replaced, 'build-started');
+    expect(isRunning(oldLine)).toBe(true);
+    expect(apply(oldLine, 'ended', 'sleep-allowed', 'group-build-started')).toMatchObject({
+      run: { mode: 'full', startedBy: 'server', state: 'ended' },
+      lateStartsOwed: 0,
+      ending: false,
+    });
+  });
+
   it('replaces a running full run when a new one starts (fact 45, raw/v2-build-long.txt l.57-60)', () => {
     const first = apply({ ...NO_BUILD, pending: 'full' }, 'starting');
     const second = apply(

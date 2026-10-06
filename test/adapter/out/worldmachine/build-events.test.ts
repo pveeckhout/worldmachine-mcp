@@ -8,6 +8,7 @@ const TRANSCRIPTS = [
   'v2-build-export.txt',
   'v2-build-isolate.txt',
   'v2-build-long.txt',
+  'v2b-groups.txt',
 ] as const;
 
 function eventsOf(name: string): BuildEvent[] {
@@ -62,6 +63,20 @@ describe('parseBuildEvent (spec v2a section 5)', () => {
     expect(eventsOf('v2-build-isolate.txt').filter((event) => event === 'build-started')).toHaveLength(2);
   });
 
+  it('reads the group build of raw/v2b-groups.txt in order, ending with its late line (spec v2b fact 66)', () => {
+    expect(eventsOf('v2b-groups.txt')).toEqual([
+      'sleep-prohibited',
+      'starting',
+      'ended',
+      'sleep-allowed',
+      'group-build-started',
+    ]);
+    expect(parseBuildEvent("Building 6 device(s) in group 'Create your Terrain'")).toBe(
+      'group-build-started',
+    );
+    expect(parseBuildEvent("Building 5 device(s) in group 'Texture & View'")).toBe('group-build-started');
+  });
+
   it.each([
     'Preview build started.',
     'Build in progress...',
@@ -71,6 +86,12 @@ describe('parseBuildEvent (spec v2a section 5)', () => {
     ' Build started.',
     'Build started. ',
     '[Info       ] Closing current project',
+    "Building 6 device(s) in group 'Create your Terrain' ",
+    " Building 6 device(s) in group 'Create your Terrain'",
+    "Building 6 devices in group 'Create your Terrain'",
+    "Building device(s) in group 'Create your Terrain'",
+    "Disabled 6 device(s) in group 'Create your Terrain'",
+    "Group 'Welcome to World Machine!' contains no devices.",
   ])('does not classify %j', (line) => {
     expect(parseBuildEvent(line)).toBeUndefined();
   });

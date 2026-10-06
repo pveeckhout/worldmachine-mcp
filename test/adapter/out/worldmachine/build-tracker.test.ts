@@ -299,6 +299,8 @@ describe('BuildTracker (spec v2a section 5)', () => {
     fixtureLines(`raw/${name}`).forEach((line, index) => {
       if (line === '>>> build start') tracker.expect('full');
       if (line === '>>> build start tiled') tracker.expect('tiled');
+      // Spec v2b section 5: the server expects a full run for `group build`.
+      if (line.startsWith('>>> group build ')) tracker.expect('full');
       const waited = /^>>> \(waited (\d+) ms\)$/.exec(line)?.[1];
       if (waited !== undefined) vi.advanceTimersByTime(Number(waited));
       const seen = /^>>> \(waited for .*: (?:not )?seen after (\d+) s\)$/.exec(line)?.[1];
@@ -357,6 +359,25 @@ describe('BuildTracker (spec v2a section 5)', () => {
       expect(replay(name).tracker.running).toBe(false);
     },
   );
+
+  it('replays raw/v2b-groups.txt: a group build ends at its late line, not at its Ended (spec v2b fact 66)', () => {
+    const { tracker, running } = replay('v2b-groups.txt');
+    // l.274-283: the frame holds Prohibiting, Starting, and Ended; the trailer and the late line come 3 s later.
+    expect(running).toEqual({ 275: false, 276: true, 277: true, 282: true, 283: false });
+    expect(tracker.running).toBe(false);
+  });
+
+  it('ends a group run 10 s after its ended when its late line does not come (spec v2b section 5)', async () => {
+    const tracker = runningFull();
+    tracker.apply('ended');
+    tracker.apply('sleep-allowed');
+    await vi.advanceTimersByTimeAsync(LATE_START_MS - 1);
+    expect(tracker.running).toBe(true);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(tracker.running).toBe(false);
+    tracker.apply('group-build-started');
+    expect(tracker.snapshot()?.state).toBe('ended');
+  });
 
   it('replays raw/v2-build-export.txt: a stopped full build ends at its late line (l.66-80)', () => {
     const { running } = replay('v2-build-export.txt');
