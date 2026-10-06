@@ -1,7 +1,9 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
+import type { BuildEvent } from '../../../domain/build.js';
 import { WorldMachineError } from '../../../domain/errors.js';
 import type { Logger } from '../../../logger.js';
+import { parseBuildEvent } from './build-events.js';
 import type { CommandChannel } from './channel.js';
 import { isLicenceText, parseLogLine } from './log-lines.js';
 
@@ -39,6 +41,7 @@ export class WorldMachineProcess implements CommandChannel {
   readonly #child: ChildProcess;
   readonly #logger: Logger;
   readonly #lineListeners: ((line: string) => void)[] = [];
+  readonly #buildListeners: ((event: BuildEvent) => void)[] = [];
   readonly #exitListeners: (() => void)[] = [];
   readonly #recent: string[] = [];
   readonly #exitPromise: Promise<void>;
@@ -147,6 +150,14 @@ export class WorldMachineProcess implements CommandChannel {
     this.#lineListeners.push(listener);
   }
 
+  /**
+   * Build events (spec v2a section 5). They arrive unsolicited, also inside another command's frame (fact 47), and
+   * never reach line listeners, so no command frame contains one.
+   */
+  onBuildEvent(listener: (event: BuildEvent) => void): void {
+    this.#buildListeners.push(listener);
+  }
+
   /** A listener added after the exit still fires, asynchronously so callers can finish their own setup first. */
   onExit(listener: () => void): void {
     if (this.#exited) {
@@ -225,6 +236,12 @@ export class WorldMachineProcess implements CommandChannel {
   }
 
   #onLine(line: string): void {
+    const event = parseBuildEvent(line);
+    if (event !== undefined) {
+      this.#logger.debug(`World Machine build event: ${line}`);
+      for (const listener of this.#buildListeners) listener(event);
+      return;
+    }
     const log = parseLogLine(line);
     if (log) {
       if (log.text.includes(LICENCE_CHECKOUT_FAILED)) this.#noLicenceListener?.();

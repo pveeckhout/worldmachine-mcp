@@ -5,16 +5,18 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { FsPathPolicy } from '../../src/adapter/out/fs/path-policy.js';
 import { WorldMachineProcess } from '../../src/adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineSession } from '../../src/adapter/out/worldmachine/world-machine-session.js';
-import { captureLogger, FAKE_WM, fakeEnv } from '../support/fake-wm.js';
+import { captureLogger, FAKE_WM, fakeEnv, waitUntil } from '../support/fake-wm.js';
 
 const sessions: WorldMachineSession[] = [];
+const processes: WorldMachineProcess[] = [];
 afterEach(async () => {
   await Promise.all(sessions.splice(0).map((session) => session.shutdown()));
+  await Promise.all(processes.splice(0).map((proc) => proc.quit(2_000, 0)));
 });
 
-function session(): WorldMachineSession {
+function session(extra: Record<string, string> = {}): WorldMachineSession {
   const logger = captureLogger();
-  const env = fakeEnv();
+  const env = fakeEnv(extra);
   const created = new WorldMachineSession({
     executable: FAKE_WM,
     defaultProject: undefined,
@@ -223,6 +225,255 @@ describe('fake World Machine', () => {
   it('rejects an unquoted name with a space when no device is selected (raw/v6-param-values.txt)', async () => {
     expect(await outputs(session(), ['param set Height Output.exportAlways true'])).toEqual([
       [NO_DEVICE_SELECTED],
+    ]);
+  });
+});
+
+/**
+ * A fake World Machine without a session, recording its output lines and build events (as `<event>`) in arrival
+ * order. Commands go one per write; a test waits for an answer before the next.
+ */
+async function streamed(extra: Record<string, string> = {}) {
+  const proc = await WorldMachineProcess.start({
+    bin: FAKE_WM,
+    readyTimeoutMs: 5_000,
+    logger: captureLogger(),
+    env: fakeEnv(extra),
+  });
+  processes.push(proc);
+  const stream: string[] = [];
+  proc.onLine((line) => stream.push(line));
+  proc.onBuildEvent((event) => stream.push(`<${event}>`));
+  return { proc, stream };
+}
+
+describe('fake World Machine builds and exports (spec v2a facts 42-50)', () => {
+  it('starts a full build, ends it, and confirms it late (raw/v2-build-isolate.txt l.54-68)', async () => {
+    const { proc, stream } = await streamed({ FAKE_WM_BUILD_MS: '100' });
+    proc.write(['build start']);
+    await waitUntil(() => stream.includes('<build-started>'));
+    expect(stream).toEqual([
+      '<sleep-prohibited>',
+      '<starting>',
+      '<ended>',
+      '<sleep-allowed>',
+      '<build-started>',
+    ]);
+  });
+
+  it('replaces a running full build in one frame (fact 45, raw/v2-build-long.txt l.56-60)', async () => {
+    const { proc, stream } = await streamed({ FAKE_WM_BUILD_MS: '5000' });
+    proc.write(['build start']);
+    await waitUntil(() => stream.includes('<starting>'));
+    proc.write(['build start']);
+    await waitUntil(() => stream.filter((line) => line === '<starting>').length === 2);
+    expect(stream).toEqual([
+      '<sleep-prohibited>',
+      '<starting>',
+      '<ended>',
+      '<sleep-prohibited>',
+      '<starting>',
+      '<sleep-allowed>',
+    ]);
+  });
+
+  it('runs a tiled build with only the sleep events (fact 48)', async () => {
+    const { proc, stream } = await streamed({ FAKE_WM_BUILD_MS: '100' });
+    proc.write(['build start tiled']);
+    await waitUntil(() => stream.includes('<tiled-started>'));
+    expect(stream).toEqual(['<sleep-prohibited>', '<sleep-allowed>', '<tiled-started>']);
+  });
+
+  it('stops a full build (fact 46, raw/v2-build-long.txt l.62-68)', async () => {
+    const { proc, stream } = await streamed({ FAKE_WM_BUILD_MS: '5000' });
+    proc.write(['build start']);
+    await waitUntil(() => stream.includes('<starting>'));
+    proc.write(['build stop']);
+    await waitUntil(() => stream.includes('<build-started>'));
+    expect(stream).toEqual([
+      '<sleep-prohibited>',
+      '<starting>',
+      'Stop requested.',
+      '<ended>',
+      '<sleep-allowed>',
+      '<build-started>',
+    ]);
+  });
+
+  it('stops a tiled build and confirms it only after the next tiled build (raw/v2-build-concurrency.txt l.164-210)', async () => {
+    const { proc, stream } = await streamed({ FAKE_WM_BUILD_MS: '300' });
+    proc.write(['build start tiled']);
+    await waitUntil(() => stream.includes('<sleep-prohibited>'));
+    proc.write(['build stop']);
+    await waitUntil(() => stream.includes('<sleep-allowed>'));
+    expect(stream).toEqual(['<sleep-prohibited>', 'Stop requested.', '<sleep-allowed>']);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(stream).not.toContain('<tiled-started>');
+    proc.write(['build start tiled']);
+    await waitUntil(() => stream.filter((line) => line === '<tiled-started>').length === 2);
+    expect(stream.slice(3)).toEqual([
+      '<sleep-prohibited>',
+      '<sleep-allowed>',
+      '<tiled-started>',
+      '<tiled-started>',
+    ]);
+  });
+
+  it('holds a full build trailer until the next start with FAKE_WM_LATE_TRAILER (raw/v2-build-long.txt l.57-60)', async () => {
+    const { proc, stream } = await streamed({ FAKE_WM_BUILD_MS: '100', FAKE_WM_LATE_TRAILER: '1' });
+    proc.write(['build start']);
+    await waitUntil(() => stream.includes('<build-started>'));
+    proc.write(['build start tiled']);
+    await waitUntil(() => stream.includes('<sleep-allowed>'));
+    expect(stream).toEqual([
+      '<sleep-prohibited>',
+      '<starting>',
+      '<ended>',
+      '<build-started>',
+      '<sleep-prohibited>',
+      '<sleep-allowed>',
+    ]);
+  });
+
+  it('releases a stopped full build trailer at a tiled start sent right after the stop (FAKE_WM_LATE_TRAILER)', async () => {
+    const { proc, stream } = await streamed({ FAKE_WM_BUILD_MS: '1000', FAKE_WM_LATE_TRAILER: '1' });
+    proc.write(['build start']);
+    await waitUntil(() => stream.includes('<starting>'));
+    // Back to back: the tiled start leaves as soon as the stop's Ended arrives, well inside the fake's 20 ms delay.
+    proc.onBuildEvent((event) => {
+      if (event === 'ended') proc.write(['build start tiled']);
+    });
+    proc.write(['build stop']);
+    await waitUntil(() => stream.includes('<tiled-started>'));
+    expect(stream.filter((line) => line !== '<build-started>')).toEqual([
+      '<sleep-prohibited>',
+      '<starting>',
+      'Stop requested.',
+      '<ended>',
+      '<sleep-prohibited>',
+      '<sleep-allowed>',
+      '<sleep-allowed>',
+      '<tiled-started>',
+    ]);
+  });
+
+  it('starts a tiled build as if from the World Machine window with FAKE_WM_GUI_BUILD (assumption A1)', async () => {
+    const { proc, stream } = await streamed({
+      FAKE_WM_BUILD_MS: '100',
+      FAKE_WM_GUI_BUILD: 'tiled',
+      FAKE_WM_GUI_BUILD_ON: 'build status',
+    });
+    proc.write(['build status']);
+    await waitUntil(() => stream.includes('<tiled-started>'));
+    proc.write(['build status']);
+    await waitUntil(() => stream.filter((line) => line === 'No build running.').length === 2);
+    expect(stream).toEqual([
+      '<sleep-prohibited>',
+      'No build running.',
+      '<sleep-allowed>',
+      '<tiled-started>',
+      'No build running.',
+    ]);
+  });
+
+  it('starts a full build as if from the World Machine window with FAKE_WM_GUI_BUILD (assumption A1)', async () => {
+    const { proc, stream } = await streamed({
+      FAKE_WM_BUILD_MS: '100',
+      FAKE_WM_GUI_BUILD: 'full',
+      FAKE_WM_GUI_BUILD_ON: 'build status',
+    });
+    proc.write(['build status']);
+    await waitUntil(() => stream.includes('<build-started>'));
+    expect(stream).toEqual([
+      '<sleep-prohibited>',
+      '<starting>',
+      'No build running.',
+      '<ended>',
+      '<sleep-allowed>',
+      '<build-started>',
+    ]);
+  });
+
+  it('prints the opening events after the start frame with FAKE_WM_START_DELAY_MS', async () => {
+    const { proc, stream } = await streamed({ FAKE_WM_BUILD_MS: '5000', FAKE_WM_START_DELAY_MS: '200' });
+    proc.write(['build start']);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    proc.write(['build status']);
+    await waitUntil(() => stream.includes('<starting>'));
+    expect(stream).toEqual(['No build running.', '<sleep-prohibited>', '<starting>']);
+  });
+
+  it('ends a build inside the frame of the command named by FAKE_WM_BUILD_END_ON (fact 47)', async () => {
+    const { proc, stream } = await streamed({
+      FAKE_WM_BUILD_MS: '60000',
+      FAKE_WM_BUILD_END_ON: 'device list',
+    });
+    proc.write(['build start']);
+    await waitUntil(() => stream.includes('<starting>'));
+    proc.write(['device list']);
+    await waitUntil(() => stream.includes('Devices (17 total):'));
+    expect(stream.indexOf('<ended>')).toBeLessThan(stream.indexOf('Devices (17 total):'));
+  });
+
+  it('reports a preview through build status only (facts 42, 44)', async () => {
+    const s = session({ FAKE_WM_PREVIEW_MS: '300', FAKE_WM_BUILD_MS: '5000' });
+    expect(await outputs(s, ['build preview', 'build status', 'build start', 'build status'])).toEqual([
+      ['Preview build started.'],
+      ['Build in progress...'],
+      [],
+      ['No build running.'],
+    ]);
+    expect(await outputs(s, ['build stop', 'build status'])).toEqual([
+      ['Stop requested.'],
+      ['No build running.'],
+    ]);
+  });
+
+  it('lists the default exports and refuses export all before a build (facts 49, 50)', async () => {
+    expect(await outputs(session(), ['export list', 'export all'])).toEqual([
+      [
+        'Configured exports:',
+        "  'Height Output       ' -> <project> <name>-<res>.png",
+        "  'Material Output     ' -> <project> <name> <res>.png",
+        "  'Colormap only       ' -> <project> <name> <res>.png",
+        "  'Splatmap            ' -> <project> <name> <res>.png",
+      ],
+      ["Error: Error: Some output devices are not built. Run 'build' first, then export."],
+    ]);
+  });
+
+  it('exports into the folder of the saved project after a full build (fact 50)', async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'fake-wm-export-'));
+    const s = session({ FAKE_WM_BUILD_MS: '50' });
+    await outputs(s, [`project save ${folder}/fw.tmd`, 'build start']);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(await outputs(s, ['export all'])).toEqual([
+      [
+        'Successfully exported 4 file(s):',
+        `  ${folder}/fw Height Output-2049.png`,
+        `  ${folder}/fw Material Output 2049.png`,
+        `  ${folder}/fw Colormap only 2049.png`,
+        `  ${folder}/fw Splatmap 2049.png`,
+      ],
+    ]);
+  });
+
+  it("clears the other mode's end timer at a start (ruling R8)", async () => {
+    const { proc, stream } = await streamed({ FAKE_WM_BUILD_MS: '600' });
+    proc.write(['build start']);
+    await waitUntil(() => stream.includes('<starting>'));
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    proc.write(['build start tiled']);
+    // The full build's own end would fall at 600 ms; the tiled build runs until about 1000 ms.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(stream).toEqual(['<sleep-prohibited>', '<starting>', '<sleep-prohibited>']);
+    await waitUntil(() => stream.includes('<tiled-started>'));
+    expect(stream).toEqual([
+      '<sleep-prohibited>',
+      '<starting>',
+      '<sleep-prohibited>',
+      '<sleep-allowed>',
+      '<tiled-started>',
     ]);
   });
 });

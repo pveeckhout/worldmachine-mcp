@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { afterEach, describe, expect, it } from 'vitest';
+import { CommandQueue } from '../../../../src/adapter/out/worldmachine/command-queue.js';
 import {
   KILL_ABORT,
   READY_LINE,
@@ -392,5 +393,73 @@ describe('WorldMachineProcess', () => {
       await waitUntil(() => proc.exited);
       expect(events).toEqual(['late line', '<exit>']);
     });
+  });
+});
+
+describe('WorldMachineProcess build events (spec v2a section 5)', () => {
+  /** A process over in-memory pipes, so a test decides exactly which lines arrive and when. */
+  async function pipedProcess() {
+    const child = Object.assign(new EventEmitter(), {
+      pid: 4243,
+      stdin: new PassThrough(),
+      stdout: new PassThrough(),
+      kill: () => true,
+    });
+    const logger = captureLogger();
+    const starting = WorldMachineProcess.start({
+      bin: FAKE_WM,
+      readyTimeoutMs: 5_000,
+      logger,
+      env: fakeEnv(),
+      spawn: (() => child) as unknown as typeof spawn,
+    });
+    child.stdout.write(`[Info       ] ${READY_LINE}\n`);
+    return { child, proc: await starting, logger };
+  }
+
+  it('delivers build events between batches to build listeners only, and logs them at debug level', async () => {
+    const { child, proc, logger } = await pipedProcess();
+    const lines: string[] = [];
+    const events: string[] = [];
+    proc.onLine((line) => lines.push(line));
+    proc.onBuildEvent((event) => events.push(event));
+    // raw/v2-build-isolate.txt l.61-68, then a preview's answer, which is not an event (fact 42).
+    child.stdout.write(
+      '[Build Event] *** Build Ended ***\n[Build Event] System allowed to sleep again\nBuild started.\nPreview build started.\n',
+    );
+    await waitUntil(() => lines.length === 1);
+    expect(events).toEqual(['ended', 'sleep-allowed', 'build-started']);
+    expect(lines).toEqual(['Preview build started.']);
+    expect(logger.lines).toContain('debug: World Machine build event: [Build Event] *** Build Ended ***');
+  });
+
+  it('removes build events from the frame of a pending batch and delivers them (raw/v2-build-isolate.txt l.146-153)', async () => {
+    const { child, proc } = await pipedProcess();
+    const events: string[] = [];
+    proc.onBuildEvent((event) => events.push(event));
+    const queue = new CommandQueue(proc, { timeoutMs: 2_000, nudgeMs: 0, newBatchId: () => 'b1' });
+    const pending = queue.execute(['export list', 'build start']);
+    // The queue writes the batch on a later tick; answer only once it is waiting.
+    await waitUntil(() => child.stdin.readableLength > 0);
+    child.stdout.write(
+      [
+        'Configured exports:',
+        "  'Height Output       ' -> <project> <name>-<res>.png",
+        '',
+        'Build started.',
+        "Error: Unknown command: '__end_b1_0'. Type 'help' for a list of commands.",
+        '[Build Event] Prohibiting system sleep',
+        '[Build Event] *** Build Starting ***',
+        "Error: Unknown command: '__end_b1_1'. Type 'help' for a list of commands.",
+        '',
+      ].join('\n'),
+    );
+    const [list, start] = await pending;
+    expect(list?.output).toEqual([
+      'Configured exports:',
+      "  'Height Output       ' -> <project> <name>-<res>.png",
+    ]);
+    expect(start).toEqual({ command: 'build start', output: [], errors: [] });
+    expect(events).toEqual(['build-started', 'sleep-prohibited', 'starting']);
   });
 });

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Test double that speaks the World Machine --cli console over pipes. Errors go to stderr like the real one.
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 const env = process.env;
@@ -64,12 +64,93 @@ let added = [];
 // project) also starts again at #536. Neither is captured.
 const firstFreeId = (next) => (next === 'sample' ? 536 : 1);
 let nextId = firstFreeId(project);
+// Builds and exports (spec v2a facts 42-50). Assumed: a full or tiled build takes FAKE_WM_BUILD_MS and a preview
+// FAKE_WM_PREVIEW_MS; real durations depend on the project and the resolution.
+const BUILD_MS = Number(env.FAKE_WM_BUILD_MS ?? '100');
+const PREVIEW_MS = Number(env.FAKE_WM_PREVIEW_MS ?? '100');
+// Assumed: the late confirmations arrive 20 ms after the build ended; captures show them a second or more later.
+const LATE_MS = 20;
+// raw/v2-build-export.txt l.15-20: the default project's outputs and templates.
+const EXPORT_ROWS = [
+  ['Height Output', '<project> <name>-<res>.png'],
+  ['Material Output', '<project> <name> <res>.png'],
+  ['Colormap only', '<project> <name> <res>.png'],
+  ['Splatmap', '<project> <name> <res>.png'],
+];
+// Assumed: the fake does not model `scene resolution`; `<res>` is the resolution of fixtures/wm-4067/scene-show.txt.
+const FAKE_RESOLUTION = 2049;
+// undefined, or { mode: 'full' | 'tiled', timer } while a build runs.
+let build;
+let previewUntil = 0;
+// Fact 50: `export all` refuses outputs that were not built since the project changed.
+// Assumed: only a full build that ends makes them built, and only a project switch makes them unbuilt again.
+let built = false;
+// The `.tmd` file that `project save` or `project open` named; templates resolve against its folder (fact 50).
+let savedPath;
+// FAKE_WM_LATE_TRAILER=1 holds an ended full build's sleep-allowed trailer until the next build start prints its
+// opening events (raw/v2-build-long.txt l.57-60 shows it after the next run's Starting). Assumed: the same order when
+// the next build is tiled.
+const LATE_TRAILER = env.FAKE_WM_LATE_TRAILER === '1';
+let trailerHeld = false;
+// FAKE_WM_START_DELAY_MS prints a start's opening events that long after its frame. Assumed: captures show them
+// inside the frame; the knob lets a test act while a start waits for its confirmation.
+const START_DELAY_MS = Number(env.FAKE_WM_START_DELAY_MS ?? '0');
+// raw/v2-build-concurrency.txt l.164-170 and l.202-210: a stopped tiled build's `Tiled build started.` is printed
+// only when the next tiled build ends, together with that build's own.
+let tiledConfirmationsOwed = 0;
+// FAKE_WM_GUI_BUILD=<full|tiled> starts a build as if from the World Machine window the first time the fake handles
+// the command named by FAKE_WM_GUI_BUILD_ON. Assumed (spec assumption A1): a window build prints the same lines as
+// one started from the console.
+let guiBuildStarted = false;
+const event = (text) => out(`[Build Event] ${text}\n`);
+const later = (action) => setTimeout(action, LATE_MS);
+const trailer = () => {
+  if (LATE_TRAILER) trailerHeld = true;
+  else event('System allowed to sleep again');
+};
+const releaseTrailer = () => {
+  if (!trailerHeld) return;
+  trailerHeld = false;
+  event('System allowed to sleep again');
+};
+const opening = (print) => {
+  if (START_DELAY_MS > 0) setTimeout(print, START_DELAY_MS);
+  else print();
+};
+const startGuiBuild = (mode) => {
+  guiBuildStarted = true;
+  previewUntil = 0;
+  event('Prohibiting system sleep');
+  if (mode === 'full') event('*** Build Starting ***');
+  build = { mode, timer: setTimeout(endBuild, BUILD_MS) };
+};
+const endBuild = () => {
+  const ending = build;
+  if (ending === undefined) return;
+  clearTimeout(ending.timer);
+  build = undefined;
+  if (ending.mode === 'full') {
+    // Fact 43, raw/v2-build-isolate.txt l.61-68.
+    event('*** Build Ended ***');
+    trailer();
+    built = true;
+    later(() => out('Build started.\n'));
+  } else {
+    // Fact 48, raw/v2-build-isolate.txt l.84-85.
+    event('System allowed to sleep again');
+    const confirmations = tiledConfirmationsOwed + 1;
+    tiledConfirmationsOwed = 0;
+    later(() => out('Tiled build started.\n'.repeat(confirmations)));
+  }
+};
 const switchTo = (next) => {
   project = next;
   selected = undefined;
   dirty = false;
   added = [];
   nextId = firstFreeId(next);
+  built = false;
+  savedPath = undefined;
 };
 // Spec fact 30: the name is the type, without de-duplication (two `device add Gradient` give two devices named
 // 'Gradient'; `device add Erosion` gives 'Erosion', raw/p2b-kind-markers.txt). Captured exception,
@@ -144,6 +225,11 @@ async function handle(line) {
   // Prints nothing for this exact command, so a confirmation line is missing.
   if (command === env.FAKE_WM_SILENT_ON) return;
   if (command === env.FAKE_WM_DELAY_ON) await sleep(Number(env.FAKE_WM_DELAY_MS ?? '0'));
+  // Fact 47: a running build's end events can land inside another command's frame, before its answer.
+  if (command === env.FAKE_WM_BUILD_END_ON) endBuild();
+  if (command === env.FAKE_WM_GUI_BUILD_ON && !guiBuildStarted && build === undefined) {
+    startGuiBuild(env.FAKE_WM_GUI_BUILD === 'tiled' ? 'tiled' : 'full');
+  }
   if (command === 'system quit force') {
     if (dirty) {
       // Spec fact 19: a modified project opens a modal dialog that blocks the console.
@@ -192,7 +278,8 @@ async function handle(line) {
       out('Failed to open project.\n');
     } else {
       switchTo('sample');
-      out(`Opened: ${command.slice('project open '.length).replace(/ force$/, '')}\n`);
+      savedPath = command.slice('project open '.length).replace(/ force$/, '');
+      out(`Opened: ${savedPath}\n`);
     }
     return;
   }
@@ -217,6 +304,7 @@ async function handle(line) {
       }
     }
     dirty = false;
+    savedPath = target;
     out(`Project saved to: ${target}\n`);
     return;
   }
@@ -321,6 +409,107 @@ async function handle(line) {
       out(fixture(file));
       return;
     }
+  }
+  if (command === 'build preview') {
+    // Fact 42, raw/v2-build-export.txt l.22-23.
+    previewUntil = Date.now() + PREVIEW_MS;
+    return void out('Preview build started.\n');
+  }
+  if (command === 'build status') {
+    // Facts 42 and 44: only a preview is reported.
+    return void out(Date.now() < previewUntil ? 'Build in progress...\n' : 'No build running.\n');
+  }
+  if (command === 'build start') {
+    // Spec v2a section 3: a full build replaces a preview; raw/v2-build-concurrency.txt l.85-86 reads
+    // `No build running.` during it.
+    previewUntil = 0;
+    if (build?.mode === 'full') {
+      // Fact 45, raw/v2-build-long.txt l.57-60: the running build ends and a new one starts in the same frame.
+      clearTimeout(build.timer);
+      opening(() => {
+        event('*** Build Ended ***');
+        event('Prohibiting system sleep');
+        event('*** Build Starting ***');
+        event('System allowed to sleep again');
+      });
+    } else {
+      // Assumed: no capture shows a start of one mode while a build of the other mode runs; the running build's own
+      // end timer is dropped so its late end cannot arrive after the new build's events.
+      if (build !== undefined) clearTimeout(build.timer);
+      // Fact 43, raw/v2-build-isolate.txt l.54-56.
+      opening(() => {
+        event('Prohibiting system sleep');
+        event('*** Build Starting ***');
+        releaseTrailer();
+      });
+    }
+    build = { mode: 'full', timer: setTimeout(endBuild, BUILD_MS) };
+    return;
+  }
+  if (command === 'build start tiled') {
+    // Assumed: a tiled build replaces a preview as a full build does.
+    previewUntil = 0;
+    // Assumed: no capture shows a start of one mode while a build of the other mode runs; the running build's own end
+    // timer is dropped so its late end cannot arrive after the new build's events.
+    if (build?.mode === 'full') clearTimeout(build.timer);
+    // Fact 48, raw/v2-build-isolate.txt l.73-74: no Starting or Ended events.
+    opening(() => {
+      event('Prohibiting system sleep');
+      releaseTrailer();
+    });
+    build = { mode: 'tiled', timer: setTimeout(endBuild, BUILD_MS) };
+    return;
+  }
+  if (command === 'build stop') {
+    // Fact 46: raw/v2-build-long.txt l.62-68 (full) and l.87-91 (preview), raw/v2-build-concurrency.txt
+    // l.164-166 (tiled).
+    out('Stop requested.\n');
+    previewUntil = 0;
+    const stopping = build;
+    if (stopping === undefined) return;
+    clearTimeout(stopping.timer);
+    build = undefined;
+    if (stopping.mode === 'full') {
+      event('*** Build Ended ***');
+      // The held trailer is recorded now, so a start right after the stop releases it; only printing waits.
+      if (LATE_TRAILER) trailerHeld = true;
+      else later(() => event('System allowed to sleep again'));
+      later(() => out('Build started.\n'));
+    } else {
+      event('System allowed to sleep again');
+      tiledConfirmationsOwed++;
+    }
+    return;
+  }
+  if (command === 'export list') {
+    // Fact 49, raw/v2-build-export.txt l.15-20. Assumed: a project without outputs prints the header and no rows.
+    const rows = project === 'empty' ? [] : EXPORT_ROWS;
+    out(
+      `Configured exports:\n${rows.map(([name, template]) => `  '${name.padEnd(20)}' -> ${template}\n`).join('')}\n`,
+    );
+    return;
+  }
+  if (command === 'export all') {
+    // Fact 50: raw/v2-build-long.txt l.103-104 (not built), raw/v2-build-export.txt l.85-91.
+    // Assumed: the fake prints the paths and writes no files.
+    if (!built) {
+      return void process.stderr.write(
+        "Error: Error: Some output devices are not built. Run 'build' first, then export.\n",
+      );
+    }
+    const folder = savedPath === undefined ? '/fake-home/Documents/WorldMachine' : dirname(savedPath);
+    const name = savedPath === undefined ? 'New Project' : basename(savedPath).replace(/\.tmd$/i, '');
+    const files = EXPORT_ROWS.map(([device, template]) =>
+      join(
+        folder,
+        template
+          .replace('<project>', name)
+          .replace('<name>', device)
+          .replace('<res>', String(FAKE_RESOLUTION)),
+      ),
+    );
+    out(`Successfully exported ${files.length} file(s):\n${files.map((file) => `  ${file}\n`).join('')}\n`);
+    return;
   }
   const blank = project === 'empty';
   if (command === 'scene show') return void out(fixture(blank ? 'scene-show-blank.txt' : 'scene-show.txt'));
