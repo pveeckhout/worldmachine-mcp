@@ -52,6 +52,10 @@ if (startup === 'ok' && env.FAKE_WM_UNLICENSED !== '1')
 
 let hung = false;
 let dirty = env.FAKE_WM_DIRTY_AT_START === '1';
+// FAKE_WM_STARTUP_UNSAVED=1: the start-up project counts as unsaved until the first project switch, so `project open`
+// without `force` is refused. Source: capture default-updated (wm-4067), where the freshly started World Machine
+// carried state from the previous session and refused an unforced open.
+let startupUnsaved = env.FAKE_WM_STARTUP_UNSAVED === '1';
 // undefined, SAMPLE_EROSION, or a device from `added`.
 let selected;
 // 'sample' is the 17-device startup project; 'empty' follows a blank project, a close, or a failed open.
@@ -151,6 +155,7 @@ const switchTo = (next) => {
   project = next;
   selected = undefined;
   dirty = false;
+  startupUnsaved = false;
   added = [];
   nextId = firstFreeId(next);
   built = false;
@@ -276,6 +281,12 @@ async function handle(line) {
   }
   // Outputs as captured in test/fixtures/wm-4067/raw (V3, V7).
   if (command.startsWith('project open ')) {
+    if (startupUnsaved && !command.endsWith(' force')) {
+      process.stderr.write(
+        "Error: Error: Project has unsaved changes. Use 'project save' first or 'project open <path> force'.\n",
+      );
+      return;
+    }
     if (env.FAKE_WM_OPEN_ERROR) {
       // Spec fact 17: a failed open leaves an empty project.
       switchTo('empty');

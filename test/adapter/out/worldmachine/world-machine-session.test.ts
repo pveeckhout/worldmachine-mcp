@@ -80,7 +80,14 @@ describe('WorldMachineSession', () => {
   it('opens an authorised default project, including a path with spaces', async () => {
     const { session: s, record } = session({}, { defaultProject: project });
     await s.ensureRunning();
-    expect(record.lines()).toContain(`project open ${project}`);
+    expect(record.lines()).toContain(`project open ${project} force`);
+    expect(s.status().session.binding).toEqual({ kind: 'opened', path: project });
+  });
+
+  it('opens the default project with force when World Machine counts its start-up project as unsaved', async () => {
+    const { session: s, record } = session({ FAKE_WM_STARTUP_UNSAVED: '1' }, { defaultProject: project });
+    await s.ensureRunning();
+    expect(record.lines()).toContain(`project open ${project} force`);
     expect(s.status().session.binding).toEqual({ kind: 'opened', path: project });
   });
 
@@ -537,13 +544,23 @@ describe('WorldMachineSession restart (spec section 6)', () => {
     await waitUntil(() => record.lines().includes('EXIT'));
     await s.ensureRunning();
     const restart = sinceLastStart(record.lines());
-    expect(restart).toContain(`project open ${project}`);
+    expect(restart).toContain(`project open ${project} force`);
     expect(restart).not.toContain('project new default force');
     expect(s.status().session).toEqual({
       state: 'ready',
       binding: { kind: 'opened', path: project },
       dirty: false,
     });
+  });
+
+  it('reopens with force after an idle quit when the start-up project counts as unsaved', async () => {
+    const { session: s, record } = session({ FAKE_WM_STARTUP_UNSAVED: '1' }, { idleTimeoutMs: 200 });
+    await s.ensureRunning();
+    s.bind({ kind: 'opened', path: project });
+    await waitUntil(() => record.lines().includes('EXIT'));
+    await s.ensureRunning();
+    expect(sinceLastStart(record.lines())).toContain(`project open ${project} force`);
+    expect(s.status().session.binding).toEqual({ kind: 'opened', path: project });
   });
 
   it('does not reopen a deleted project after forgetReopen, so an open or create start succeeds', async () => {
@@ -558,7 +575,7 @@ describe('WorldMachineSession restart (spec section 6)', () => {
     await s.ensureRunning();
     const restart = sinceLastStart(record.lines());
     expect(restart).toContain('project new default force');
-    expect(restart).not.toContain(`project open ${gone}`);
+    expect(restart).not.toContain(`project open ${gone} force`);
     expect(s.status().session.binding).toEqual({ kind: 'fresh' });
   });
 
@@ -569,7 +586,7 @@ describe('WorldMachineSession restart (spec section 6)', () => {
     expect((await failure(s.executeOne('device list'))).code).toBe('CRASHED');
     await s.ensureRunning();
     const restart = sinceLastStart(record.lines());
-    expect(restart).toContain(`project open ${project}`);
+    expect(restart).toContain(`project open ${project} force`);
     expect(restart).not.toContain('project new default force');
     expect(s.status().session.binding).toEqual({ kind: 'opened', path: project });
   });
@@ -583,7 +600,7 @@ describe('WorldMachineSession restart (spec section 6)', () => {
     await s.ensureRunning();
     const restart = sinceLastStart(record.lines());
     expect(restart).toContain('project new default force');
-    expect(restart).not.toContain(`project open ${project}`);
+    expect(restart).not.toContain(`project open ${project} force`);
     expect(s.status().session.binding).toEqual({ kind: 'fresh' });
   });
 
@@ -595,7 +612,7 @@ describe('WorldMachineSession restart (spec section 6)', () => {
     await s.ensureRunning();
     const restart = sinceLastStart(record.lines());
     expect(restart).toContain('project new default force');
-    expect(restart).not.toContain(`project open ${project}`);
+    expect(restart).not.toContain(`project open ${project} force`);
     expect(s.status().session.binding).toEqual({ kind: 'fresh' });
   });
 
@@ -646,14 +663,14 @@ describe('WorldMachineSession restart (spec section 6)', () => {
     const error = await failure(s.ensureRunning());
     expect(error.code).toBe('WM_COMMAND_FAILED');
     expect(error.worldMachineMessage).toBe('Failed to open project.');
-    expect(sinceLastStart(record.lines())).toContain(`project open ${project}`);
+    expect(sinceLastStart(record.lines())).toContain(`project open ${project} force`);
     expect(s.status().session).toEqual({ state: 'notRunning' });
     expect(record.lines().at(-1)).toBe('EXIT');
     // Spec section 6: the failed reopen forgot the path, so the next start opens the default project.
     await s.ensureRunning();
     const third = sinceLastStart(record.lines());
     expect(third).toContain('project new default force');
-    expect(third).not.toContain(`project open ${project}`);
+    expect(third).not.toContain(`project open ${project} force`);
     expect(s.status().session.binding).toEqual({ kind: 'fresh' });
   });
 });

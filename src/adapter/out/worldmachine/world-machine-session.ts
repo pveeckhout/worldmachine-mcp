@@ -312,7 +312,11 @@ export class WorldMachineSession implements WorldMachineSessionPort {
 
   async #bindProject(queue: CommandQueue, project: string | undefined): Promise<ProjectBinding> {
     if (project !== undefined) {
-      const opened = requireFrame((await queue.execute([buildCommand(['project', 'open'], project)]))[0]);
+      // World Machine has only just launched, so `force` discards only state it restored itself (spec fact 56),
+      // never changes made through the server.
+      const opened = requireFrame(
+        (await queue.execute([buildCommand(['project', 'open'], project, ['force'])]))[0],
+      );
       throwIfFailed(opened);
       // A failed open is a plain line, not an `Error:` line (spec fact 17).
       if (opened.output.includes(OPEN_FAILED)) {
