@@ -192,6 +192,93 @@ describe('WorldMachineProcess', () => {
     expect(error.message).toContain('300 ms');
   });
 
+  it('tries system quit force before ending a start that timed out', async () => {
+    const record = recorder();
+    const error = await startFailure(
+      { FAKE_WM_STARTUP: 'silent', FAKE_WM_RECORD: record.path },
+      FAKE_WM,
+      300,
+    );
+    expect(error.message).toBe('World Machine did not become ready within 300 ms');
+    expect(record.lines()).toEqual(['START', 'project close force', 'system quit force', 'EXIT']);
+  });
+
+  describe("with the 'Recover crashed session' dialog", () => {
+    function dialogStart(
+      extra: Record<string, string>,
+      bounds: { recoveryDialogMs?: number; recoveryDialogBoundMs?: number } = {},
+    ) {
+      const record = recorder();
+      const dialogs: number[] = [];
+      const began = Date.now();
+      const starting = WorldMachineProcess.start({
+        bin: FAKE_WM,
+        readyTimeoutMs: 1_000,
+        recoveryDialogMs: 300,
+        ...bounds,
+        logger: captureLogger(),
+        env: fakeEnv({ FAKE_WM_RECORD: record.path, ...extra }),
+        onSpawn: (proc) => {
+          started.push(proc);
+          proc.onRecoveryDialog(() => dialogs.push(Date.now() - began));
+        },
+      });
+      return { starting, record, dialogs };
+    }
+
+    it('reports the dialog after the session check, without ending World Machine or the start', async () => {
+      const { starting, record, dialogs } = dialogStart({ FAKE_WM_RECOVERY_DIALOG: '2000' });
+      await waitUntil(() => dialogs.length > 0, 3_000);
+      expect(dialogs).toHaveLength(1);
+      expect(record.pids().every(isAlive)).toBe(true);
+      // Past the 1 s readiness limit, which no longer applies once the dialog is open.
+      const proc = await starting;
+      expect(proc.exited).toBe(false);
+      expect(dialogs).toHaveLength(1);
+    });
+
+    it('starts without reporting a dialog when the ready line follows the session check in time', async () => {
+      const { starting, dialogs } = dialogStart({ FAKE_WM_RECOVERY_DIALOG: '0' });
+      await starting;
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      expect(dialogs).toEqual([]);
+    });
+
+    it('ends World Machine with START_FAILED when the dialog stays open past its bound', async () => {
+      const { starting, record, dialogs } = dialogStart(
+        { FAKE_WM_RECOVERY_DIALOG: 'never' },
+        { recoveryDialogBoundMs: 1_500 },
+      );
+      await expect(starting).rejects.toMatchObject({
+        code: 'START_FAILED',
+        message: 'World Machine did not become ready within 1500 ms',
+      });
+      expect(dialogs).toHaveLength(1);
+      expect(record.pids().some(isAlive)).toBe(false);
+    });
+
+    it('quits a start that waits on the dialog within the abort reason budget', async () => {
+      const controller = new AbortController();
+      const record = recorder();
+      const dialogs: number[] = [];
+      const starting = WorldMachineProcess.start({
+        bin: FAKE_WM,
+        readyTimeoutMs: 1_000,
+        recoveryDialogMs: 200,
+        logger: captureLogger(),
+        env: fakeEnv({ FAKE_WM_RECORD: record.path, FAKE_WM_RECOVERY_DIALOG: 'never' }),
+        signal: controller.signal,
+        onSpawn: (proc) => proc.onRecoveryDialog(() => dialogs.push(1)),
+      });
+      await waitUntil(() => dialogs.length > 0, 2_000);
+      const began = Date.now();
+      controller.abort({ graceMs: 200, termMs: 0 });
+      await expect(starting).rejects.toMatchObject({ code: 'START_FAILED' });
+      expect(Date.now() - began).toBeLessThan(2_000);
+      expect(record.pids().some(isAlive)).toBe(false);
+    });
+  });
+
   it('refuses to write after exit', async () => {
     const { proc } = await start();
     await proc.quit();

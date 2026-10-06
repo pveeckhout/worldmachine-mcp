@@ -15,6 +15,13 @@ export const DEFAULT_QUIT_GRACE_MS = 10_000;
 
 /** Abort reason that makes a pending start quit World Machine within the caller's shutdown budget. */
 export type QuitAbort = { readonly graceMs: number; readonly termMs: number };
+/** How long the ready line may lag the session check before World Machine counts as waiting on its recovery dialog. */
+export const RECOVERY_DIALOG_MS = 5_000;
+/** How long a start may wait on the recovery dialog before World Machine is closed. */
+export const RECOVERY_DIALOG_BOUND_MS = 600_000;
+/** The grace a start that never became ready gives `system quit force` before World Machine is killed. */
+const START_QUIT_GRACE_MS = 2_000;
+const SESSION_CHECK = 'Checking for session and autosave files';
 const RECENT_LINES = 10;
 const DISPLAY_ERROR = /could not connect to display/i;
 const DISPLAY_HINT =
@@ -38,6 +45,10 @@ export type ProcessOptions = {
   readonly spawn?: typeof spawn;
   /** Called synchronously once the process exists, before it is ready, so a caller can stop it while it starts. */
   readonly onSpawn?: (proc: WorldMachineProcess) => void;
+  /** Defaults to RECOVERY_DIALOG_MS; tests shorten it. */
+  readonly recoveryDialogMs?: number;
+  /** Defaults to RECOVERY_DIALOG_BOUND_MS; tests shorten it. */
+  readonly recoveryDialogBoundMs?: number;
 };
 
 export class WorldMachineProcess implements CommandChannel {
@@ -46,10 +57,12 @@ export class WorldMachineProcess implements CommandChannel {
   readonly #lineListeners: ((line: string) => void)[] = [];
   readonly #buildListeners: ((event: BuildEvent) => void)[] = [];
   readonly #exitListeners: (() => void)[] = [];
+  readonly #recoveryDialogListeners: (() => void)[] = [];
   readonly #recent: string[] = [];
   readonly #exitPromise: Promise<void>;
   #readyListener: (() => void) | undefined;
   #noLicenceListener: (() => void) | undefined;
+  #sessionCheckListener: (() => void) | undefined;
   #exited = false;
   /** 'exit' observed; `exited` waits for 'close' so the last output lines are delivered first. */
   #exitSeen = false;
@@ -88,9 +101,11 @@ export class WorldMachineProcess implements CommandChannel {
     options.onSpawn?.(proc);
     return new Promise((resolve, reject) => {
       let settled = false;
+      let dialogTimer: NodeJS.Timeout | undefined;
       const settle = () => {
         settled = true;
         clearTimeout(timer);
+        clearTimeout(dialogTimer);
         options.signal?.removeEventListener('abort', onAbort);
       };
       const fail = (
@@ -112,10 +127,22 @@ export class WorldMachineProcess implements CommandChannel {
           if (isQuitAbort(reason)) return proc.quit(reason.graceMs, reason.termMs);
           return proc.quit(5_000);
         });
-      const timer = setTimeout(
-        () => fail(`World Machine did not become ready within ${options.readyTimeoutMs} ms`),
-        options.readyTimeoutMs,
-      );
+      // A start that is merely slow is quit, not killed: every unclean exit queues one more crashed session (fact 73).
+      const timeOut = (ms: number) =>
+        fail(`World Machine did not become ready within ${ms} ms`, () => proc.quit(START_QUIT_GRACE_MS, 0));
+      let timer = setTimeout(() => timeOut(options.readyTimeoutMs), options.readyTimeoutMs);
+      // Fact 73: after the session check, World Machine prints nothing while its recovery dialog waits for the user.
+      // The readiness limit gives way to the dialog's bound, and World Machine is left running for the user to answer.
+      proc.#sessionCheckListener = () => {
+        if (settled || dialogTimer !== undefined) return;
+        dialogTimer = setTimeout(() => {
+          if (settled) return;
+          clearTimeout(timer);
+          const boundMs = options.recoveryDialogBoundMs ?? RECOVERY_DIALOG_BOUND_MS;
+          timer = setTimeout(() => timeOut(boundMs), boundMs);
+          for (const listener of proc.#recoveryDialogListeners) listener();
+        }, options.recoveryDialogMs ?? RECOVERY_DIALOG_MS);
+      };
       // Without a pid nothing was launched, so there is no process to wait for.
       child.on('error', (error) => {
         if (settled) {
@@ -138,6 +165,7 @@ export class WorldMachineProcess implements CommandChannel {
         settle();
         proc.#readyListener = undefined;
         proc.#noLicenceListener = undefined;
+        proc.#sessionCheckListener = undefined;
         resolve(proc);
       };
       if (options.signal?.aborted) onAbort();
@@ -151,6 +179,11 @@ export class WorldMachineProcess implements CommandChannel {
 
   onLine(listener: (line: string) => void): void {
     this.#lineListeners.push(listener);
+  }
+
+  /** Called when a start waits on World Machine's 'Recover crashed session' dialog (fact 73); the start goes on. */
+  onRecoveryDialog(listener: () => void): void {
+    this.#recoveryDialogListeners.push(listener);
   }
 
   /**
@@ -249,6 +282,7 @@ export class WorldMachineProcess implements CommandChannel {
     if (log) {
       if (log.text.includes(LICENCE_CHECKOUT_FAILED)) this.#noLicenceListener?.();
       this.#logger.worldMachine(log.level, log.text);
+      if (log.text.includes(SESSION_CHECK)) this.#sessionCheckListener?.();
       if (log.text.includes(READY_LINE)) this.#readyListener?.();
       return;
     }

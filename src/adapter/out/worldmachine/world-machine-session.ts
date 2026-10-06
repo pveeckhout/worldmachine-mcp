@@ -40,6 +40,8 @@ export type ShutdownBudget = { readonly drainMs: number; readonly graceMs: numbe
 const SHUTTING_DOWN_MESSAGE = 'The server is shutting down';
 const BUILD_RUNNING = 'A build is running; call stop_build or wait for it to finish';
 const LOST_CHANGES = 'World Machine exited unexpectedly; unsaved changes were lost';
+const RECOVERY_DIALOG =
+  "World Machine is showing its 'Recover crashed session' dialog. Answer it in the World Machine window (OK restores that session, Cancel does not), then retry.";
 // Errors that describe the request or World Machine's answer, not the shutdown; they keep their code.
 const KEEP_DURING_SHUTDOWN = new Set<ErrorCode>([
   'NOT_CONFIGURED',
@@ -52,6 +54,10 @@ export class WorldMachineSession implements WorldMachineSessionPort {
   readonly #options: SessionOptions;
   #state: SessionState = { kind: 'notRunning' };
   #starting: Promise<void> | undefined;
+  /** True while the pending start waits on World Machine's recovery dialog (fact 73). */
+  #recoveryDialog = false;
+  /** Rejects the calls waiting on the pending start; the start itself goes on. */
+  readonly #startWaiters = new Set<(error: WorldMachineError) => void>();
   #startAbort: AbortController | undefined;
   /** The process of a start that has spawned but is not ready yet; shutdown and kill cannot reach it otherwise. */
   #spawning: WorldMachineProcess | undefined;
@@ -113,7 +119,14 @@ export class WorldMachineSession implements WorldMachineSessionPort {
     this.#starting ??= this.#start().finally(() => {
       this.#starting = undefined;
     });
-    return this.#starting;
+    // Fact 73: while World Machine waits on its recovery dialog, calls fail at once and the start stays pending, so a
+    // call after the user answered joins it.
+    if (this.#recoveryDialog) return Promise.reject(recoveryDialogError());
+    const starting = this.#starting;
+    return new Promise((resolve, reject) => {
+      this.#startWaiters.add(reject);
+      void starting.then(resolve, reject).finally(() => this.#startWaiters.delete(reject));
+    });
   }
 
   async execute(commands: readonly string[]): Promise<readonly RawResponse[]> {
@@ -242,7 +255,9 @@ export class WorldMachineSession implements WorldMachineSessionPort {
     try {
       proc = await this.#options.startProcess(executable, abort.signal, (spawned) => {
         this.#spawning = spawned;
+        spawned.onRecoveryDialog(() => this.#onRecoveryDialog());
       });
+      this.#recoveryDialog = false;
       this.#spawning = undefined;
       const current = proc;
       this.#process = proc;
@@ -282,9 +297,16 @@ export class WorldMachineSession implements WorldMachineSessionPort {
         ? error
         : new WorldMachineError('START_FAILED', `World Machine setup failed: ${String(error)}`);
     } finally {
+      this.#recoveryDialog = false;
       this.#startAbort = undefined;
       this.#spawning = undefined;
     }
+  }
+
+  #onRecoveryDialog(): void {
+    this.#recoveryDialog = true;
+    for (const reject of this.#startWaiters) reject(recoveryDialogError());
+    this.#startWaiters.clear();
   }
 
   async #authorizeDefaultProject(): Promise<string | undefined> {
@@ -454,6 +476,10 @@ async function stopBuild(
     // World Machine exited; the quit that follows handles it.
   }
   return Math.max(graceMs - (Date.now() - started), 0);
+}
+
+function recoveryDialogError(): WorldMachineError {
+  return new WorldMachineError('START_FAILED', RECOVERY_DIALOG);
 }
 
 /** The path of an opened project, or undefined for a fresh one. */

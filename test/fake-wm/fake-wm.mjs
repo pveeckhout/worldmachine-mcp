@@ -47,6 +47,26 @@ if (env.FAKE_WM_UNLICENSED === '1') {
   log('Info', 'Startup: License manager checkout (LICENSE_RESULT 3)');
   log('Info', 'Startup: License Activation');
 }
+// FAKE_WM_RECOVERY_DIALOG=<ms>: the 'Recover crashed session' dialog (live probe, 2026-10-06) is open for that long
+// after the session check, then answered with OK; World Machine prints nothing while it is open. `never`: the dialog
+// is never answered and nothing is read from the console. Assumed: it ends when the console closes, so a failed test
+// leaves no process behind; the probe did not show what World Machine does then.
+const recoveryDialog = env.FAKE_WM_RECOVERY_DIALOG;
+if (startup === 'ok' && env.FAKE_WM_UNLICENSED !== '1' && recoveryDialog !== undefined) {
+  log('Info', 'Checking for session and autosave files');
+  if (recoveryDialog === 'never') {
+    process.stdin.on('end', () => exit(0));
+    process.stdin.resume();
+    await new Promise(() => undefined);
+  }
+  await sleep(Number(recoveryDialog));
+  log('Info', 'Session: adopting crash-recovery data from session-1233745');
+  log(
+    'Info',
+    'Autosave: Restoring from /fake-home/.config/WorldMachineCurrent/temp/session-1242908/autosave.tmd',
+  );
+  log('Info', 'Open Project from file');
+}
 if (startup === 'ok' && env.FAKE_WM_UNLICENSED !== '1')
   log('Info', 'Startup: Completed. Transferring control into event loop.');
 

@@ -839,3 +839,74 @@ describe('WorldMachineSession idle and shutdown during a build (spec v2a section
     expect(record.lines()).not.toContain('build stop');
   });
 });
+
+describe("WorldMachineSession and the 'Recover crashed session' dialog (fact 73)", () => {
+  const DIALOG_MESSAGE =
+    "World Machine is showing its 'Recover crashed session' dialog. Answer it in the World Machine window (OK restores that session, Cancel does not), then retry.";
+
+  function dialogSession(dialog: string, recoveryDialogBoundMs?: number) {
+    const record = recorder();
+    const logger = captureLogger();
+    const env = fakeEnv({ FAKE_WM_RECORD: record.path, FAKE_WM_RECOVERY_DIALOG: dialog });
+    const { session: s } = session(
+      {},
+      {
+        logger,
+        startProcess: (bin, signal, onSpawn) =>
+          WorldMachineProcess.start({
+            bin,
+            readyTimeoutMs: 1_000,
+            recoveryDialogMs: 200,
+            ...(recoveryDialogBoundMs === undefined ? {} : { recoveryDialogBoundMs }),
+            logger,
+            env,
+            signal,
+            onSpawn,
+          }),
+      },
+    );
+    return { session: s, record, logger };
+  }
+
+  it('fails the call at once, keeps World Machine running, and stays starting', async () => {
+    const { session: s, record } = dialogSession('2500');
+    const began = Date.now();
+    const error = await failure(s.ensureRunning());
+    expect(error).toMatchObject({ code: 'START_FAILED', message: DIALOG_MESSAGE });
+    expect(Date.now() - began).toBeLessThan(1_500);
+    expect(record.pids()).toHaveLength(1);
+    expect(record.pids().every(isAlive)).toBe(true);
+    expect(s.status().session).toEqual({ state: 'starting' });
+    // A call while the dialog is still open fails the same way and launches nothing.
+    expect(await failure(s.executeOne('device list'))).toMatchObject({ message: DIALOG_MESSAGE });
+    expect(record.pids()).toHaveLength(1);
+  });
+
+  it('lets a later call join the pending start once the dialog is answered, with the same process', async () => {
+    const { session: s, record, logger } = dialogSession('1500');
+    await failure(s.ensureRunning());
+    const [pid] = record.pids();
+    await waitUntil(() => logger.lines.some((line) => line.includes('Startup: Completed')), 4_000);
+    await s.ensureRunning();
+    expect(s.status().session.state).toBe('ready');
+    expect(record.pids()).toEqual([pid]);
+    expect(record.lines().filter((line) => line === 'START')).toHaveLength(1);
+    expect(isAlive(pid ?? 0)).toBe(true);
+  });
+
+  it('closes World Machine and returns to notRunning when the dialog outlasts its bound', async () => {
+    const { session: s, record } = dialogSession('never', 1_000);
+    expect(await failure(s.ensureRunning())).toMatchObject({ message: DIALOG_MESSAGE });
+    await waitUntil(() => s.status().session.state === 'notRunning', 5_000);
+    await waitUntil(() => !record.pids().some(isAlive), 3_000);
+  });
+
+  it('shuts down within its budget while the dialog is open', async () => {
+    const { session: s, record } = dialogSession('never');
+    await failure(s.ensureRunning());
+    const began = Date.now();
+    await s.shutdown({ drainMs: 100, graceMs: 300, termMs: 100 });
+    expect(Date.now() - began).toBeLessThan(1_500);
+    expect(record.pids().some(isAlive)).toBe(false);
+  });
+});
