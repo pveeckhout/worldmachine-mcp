@@ -151,7 +151,7 @@ export function nextBuildState(state: BuildState, event: BuildEvent, now: number
       if (state.lateStartsOwed === 0) return state;
       const lateStartsOwed = state.lateStartsOwed - 1;
       return lateStartsOwed === 0 && ending && run !== undefined
-        ? { ...state, run: { ...run, state: 'ended' }, lateStartsOwed, ending: false }
+        ? { ...state, run: { ...run, state: 'ended' }, lateStartsOwed, ending: false, groupRun: undefined }
         : { ...state, lateStartsOwed };
     }
     case 'tiled-started':

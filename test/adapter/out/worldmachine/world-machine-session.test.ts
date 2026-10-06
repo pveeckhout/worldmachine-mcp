@@ -761,6 +761,18 @@ describe('WorldMachineSession idle and shutdown during a build (spec v2a section
     expect(lines.indexOf('project close force')).toBeLessThan(lines.indexOf('system quit force'));
   });
 
+  it('ends a server group build on its trailer when shutdown stops it, without the half-grace wait (v2b fact 72)', async () => {
+    const { session: s, logger } = session({ FAKE_WM_BUILD_MS: '60000' });
+    await s.ensureRunning();
+    s.buildTracker()?.expect('group');
+    await s.executeOne('group build #0');
+    expect(s.buildTracker()?.running).toBe(true);
+    const started = Date.now();
+    await s.shutdown({ drainMs: 0, graceMs: 4_000, termMs: 0 });
+    expect(Date.now() - started).toBeLessThan(1_500);
+    expect(logger.lines.filter((line) => line.includes('did not end'))).toEqual([]);
+  });
+
   it('waits at most half the grace for a build that does not stop', async () => {
     // The fake neither stops the build nor quits in time, so each half of the 2 s grace is spent in full: 1 s waiting
     // for the build's end, then the 1 s left for the quit before the kill (decision D5).

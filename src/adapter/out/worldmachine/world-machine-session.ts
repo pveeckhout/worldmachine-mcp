@@ -437,6 +437,8 @@ async function stopBuild(
 ): Promise<number> {
   const started = Date.now();
   const waitMs = Math.floor(graceMs / 2);
+  // Spec v2b fact 72: a stopped server group build prints no late line, so the tracker learns of the stop first.
+  tracker.stopRequested();
   try {
     proc.write(['build stop']);
   } catch {

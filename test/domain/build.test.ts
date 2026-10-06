@@ -114,7 +114,21 @@ describe('nextBuildState (spec v2a section 3)', () => {
     expect(running.pending).toBeUndefined();
     const ending = apply(running, 'ended', 'sleep-allowed');
     expect(isRunning(ending)).toBe(true);
-    expect(isRunning(apply(ending, 'group-build-started'))).toBe(false);
+    const ended = apply(ending, 'group-build-started');
+    expect(isRunning(ended)).toBe(false);
+    expect(ended.groupRun).toBeUndefined();
+  });
+
+  it('ends a stopped group run that replaced a full run only on the late line still owed (facts 45, 72)', () => {
+    const first = apply({ ...NO_BUILD, pending: 'full' }, 'starting');
+    const replaced = apply({ ...first, pending: 'group' }, 'ended', 'starting', 'sleep-allowed');
+    expect(replaced).toMatchObject({ lateStartsOwed: 1, groupRun: 'started' });
+    const stopped = apply(stopRequested(replaced), 'ended', 'sleep-allowed');
+    expect(isRunning(stopped)).toBe(true);
+    expect(stopped).toMatchObject({ lateStartsOwed: 1, ending: true });
+    const ended = apply(stopped, 'build-started');
+    expect(isRunning(ended)).toBe(false);
+    expect(ended).toMatchObject({ lateStartsOwed: 0, ending: false, groupRun: undefined });
   });
 
   it('ends a stopped server group run on its trailer, owing no late line (spec v2b fact 72)', () => {
