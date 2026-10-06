@@ -306,6 +306,7 @@ describe('WorldMachineSession', () => {
         lineListener = listener;
       },
       onExit: (listener: () => void) => exitListeners.push(listener),
+      onBuildEvent: () => undefined,
       write: (lines: readonly string[]) => {
         if (exitSeen) throw new WorldMachineError('CRASHED', 'World Machine is not running');
         for (const line of lines) {
@@ -654,5 +655,127 @@ describe('WorldMachineSession restart (spec section 6)', () => {
     expect(third).toContain('project new default force');
     expect(third).not.toContain(`project open ${project}`);
     expect(s.status().session.binding).toEqual({ kind: 'fresh' });
+  });
+});
+
+describe('WorldMachineSession builds (spec v2a section 5)', () => {
+  it('creates a build tracker for each process that sees its build events', async () => {
+    const { session: s } = session({ FAKE_WM_BUILD_MS: '5000' });
+    expect(s.buildTracker()).toBeUndefined();
+    await s.ensureRunning();
+    const tracker = s.buildTracker();
+    tracker?.expect('full');
+    expect((await s.executeOne('build start')).output).toEqual([]);
+    expect(tracker?.snapshot()).toMatchObject({ mode: 'full', startedBy: 'server', state: 'running' });
+  });
+
+  it('refuses exclusive actions while a full build runs, and runs them once it ended', async () => {
+    const { session: s } = session({ FAKE_WM_BUILD_MS: '300' });
+    await s.ensureRunning();
+    await s.executeOne('build start');
+    let ran = false;
+    const refused = await failure(
+      s.exclusive(async () => {
+        ran = true;
+      }),
+    );
+    expect(refused).toMatchObject({
+      code: 'REFUSED',
+      message: 'A build is running; call stop_build or wait for it to finish',
+    });
+    expect(ran).toBe(false);
+    expect(await s.buildTracker()?.ended(2_000)).toBe(true);
+    await s.exclusive(async () => {
+      ran = true;
+    });
+    expect(ran).toBe(true);
+  });
+
+  it('does not refuse exclusive actions during a preview (spec v2a section 4)', async () => {
+    const { session: s } = session({ FAKE_WM_PREVIEW_MS: '5000' });
+    await s.ensureRunning();
+    await s.executeOne('build preview');
+    expect(await s.exclusive(async () => 'ran')).toBe('ran');
+  });
+
+  it('keeps a build end that arrives inside another batch out of its frame (fact 47)', async () => {
+    const { session: s } = session({ FAKE_WM_BUILD_MS: '60000', FAKE_WM_BUILD_END_ON: 'device list' });
+    await s.ensureRunning();
+    await s.executeOne('build start');
+    expect(s.buildTracker()?.running).toBe(true);
+    const list = await s.executeOne('device list');
+    expect(list.output).toHaveLength(18);
+    expect(list.output.some((line) => line.includes('Build'))).toBe(false);
+    expect(s.buildTracker()?.running).toBe(false);
+  });
+
+  it('drops the run when World Machine exits, failing a wait with CRASHED', async () => {
+    const { session: s } = session({ FAKE_WM_BUILD_MS: '60000', FAKE_WM_CRASH_ON: 'device list' });
+    await s.ensureRunning();
+    await s.executeOne('build start');
+    const tracker = s.buildTracker();
+    const ended = tracker?.ended(60_000);
+    expect((await failure(s.executeOne('device list'))).code).toBe('CRASHED');
+    await expect(ended).rejects.toMatchObject({ code: 'CRASHED' });
+    expect(tracker?.running).toBe(false);
+    expect(await s.exclusive(async () => 'ran')).toBe('ran');
+  });
+});
+
+describe('WorldMachineSession idle and shutdown during a build (spec v2a section 5)', () => {
+  it('does not idle-quit while a full build runs, and quits once it ended', async () => {
+    const { session: s, record } = session({ FAKE_WM_BUILD_MS: '700' }, { idleTimeoutMs: 200 });
+    await s.ensureRunning();
+    await s.executeOne('build start');
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(record.lines()).not.toContain('system quit force');
+    await waitUntil(() => record.lines().includes('system quit force'));
+    expect(s.buildTracker()).toBeUndefined();
+  });
+
+  it('stops a running build before it closes the project on shutdown', async () => {
+    const { session: s, record } = session({ FAKE_WM_BUILD_MS: '60000' });
+    await s.ensureRunning();
+    await s.executeOne('build start');
+    await s.shutdown();
+    const lines = record.lines();
+    expect(lines).toContain('build stop');
+    expect(lines.indexOf('build stop')).toBeLessThan(lines.indexOf('project close force'));
+    expect(lines.indexOf('project close force')).toBeLessThan(lines.indexOf('system quit force'));
+  });
+
+  it('waits at most half the grace for a build that does not stop', async () => {
+    // The fake neither stops the build nor quits in time, so each half of the 2 s grace is spent in full: 1 s waiting
+    // for the build's end, then the 1 s left for the quit before the kill (decision D5).
+    const { session: s, record } = session({
+      FAKE_WM_BUILD_MS: '60000',
+      FAKE_WM_SILENT_ON: 'build stop',
+      FAKE_WM_QUIT_DELAY_MS: '10000',
+    });
+    await s.ensureRunning();
+    await s.executeOne('build start');
+    const started = Date.now();
+    const stopping = s.shutdown({ drainMs: 0, graceMs: 2_000, termMs: 0 });
+    await waitUntil(() => record.lines().includes('project close force'));
+    const closedAfter = Date.now() - started;
+    await stopping;
+    const total = Date.now() - started;
+    const lines = record.lines();
+    expect(lines).toContain('build stop');
+    expect(lines.indexOf('build stop')).toBeLessThan(lines.indexOf('project close force'));
+    // Half the grace, not all of it, before the close; then only the remaining grace for the quit.
+    expect(closedAfter).toBeGreaterThanOrEqual(900);
+    expect(closedAfter).toBeLessThan(1_600);
+    expect(total).toBeGreaterThanOrEqual(1_900);
+    expect(total).toBeLessThan(2_600);
+  });
+
+  it('sends no build stop on shutdown without a running build', async () => {
+    const { session: s, record } = session({ FAKE_WM_BUILD_MS: '50' });
+    await s.ensureRunning();
+    await s.executeOne('build start');
+    await s.buildTracker()?.ended(2_000);
+    await s.shutdown();
+    expect(record.lines()).not.toContain('build stop');
   });
 });

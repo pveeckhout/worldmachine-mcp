@@ -7,12 +7,18 @@ import { type ErrorCode, WorldMachineError } from '../../../domain/errors.js';
 import { type ProjectBinding, type SessionState, summarize } from '../../../domain/session.js';
 import type { SystemInfo } from '../../../domain/system-info.js';
 import type { Logger } from '../../../logger.js';
+import { BuildTracker } from './build-tracker.js';
 import { buildCommand } from './command-builder.js';
 import { CommandQueue } from './command-queue.js';
 import { parseSystemInfo } from './parsers/system-info.js';
 import { OPEN_FAILED, requireCreatedLine, requireOpenedLine } from './project-confirmations.js';
 import { type RawResponse, requireFrame, throwIfFailed } from './raw-response.js';
-import { KILL_ABORT, type QuitAbort, type WorldMachineProcess } from './world-machine-process.js';
+import {
+  DEFAULT_QUIT_GRACE_MS,
+  KILL_ABORT,
+  type QuitAbort,
+  type WorldMachineProcess,
+} from './world-machine-process.js';
 
 export type SessionOptions = {
   readonly executable: string | null;
@@ -32,6 +38,7 @@ export type SessionOptions = {
 export type ShutdownBudget = { readonly drainMs: number; readonly graceMs: number; readonly termMs: number };
 
 const SHUTTING_DOWN_MESSAGE = 'The server is shutting down';
+const BUILD_RUNNING = 'A build is running; call stop_build or wait for it to finish';
 const LOST_CHANGES = 'World Machine exited unexpectedly; unsaved changes were lost';
 // Errors that describe the request or World Machine's answer, not the shutdown; they keep their code.
 const KEEP_DURING_SHUTDOWN = new Set<ErrorCode>([
@@ -52,6 +59,8 @@ export class WorldMachineSession implements WorldMachineSessionPort {
   #process: WorldMachineProcess | undefined;
   readonly #quitting = new Set<WorldMachineProcess>();
   #queue: CommandQueue | undefined;
+  /** The build events of the current process (spec v2a section 5); replaced with each new process. */
+  #tracker: BuildTracker | undefined;
   #systemInfo: SystemInfo | undefined;
   #idleTimer: NodeJS.Timeout | undefined;
   #inFlight = 0;
@@ -81,10 +90,18 @@ export class WorldMachineSession implements WorldMachineSessionPort {
     this.#reopen = undefined;
   }
 
+  /** The build tracker of the current World Machine process; undefined before the first start. */
+  buildTracker(): BuildTracker | undefined {
+    return this.#tracker;
+  }
+
   exclusive<T>(action: () => Promise<T>): Promise<T> {
     const run = this.#exclusiveTail.then(() => {
       // Checked when the action would start, so actions queued before the stop are refused too (spec section 6).
       this.assertAcceptingCalls();
+      // Spec v2a section 4: every command use case is refused while a full or tiled build runs. A preview does
+      // not count: World Machine starts previews on its own after edits (fact 42).
+      if (this.#tracker?.running) throw new WorldMachineError('REFUSED', BUILD_RUNNING);
       return action();
     });
     this.#exclusiveTail = run.catch(() => undefined);
@@ -230,6 +247,12 @@ export class WorldMachineSession implements WorldMachineSessionPort {
       const current = proc;
       this.#process = proc;
       proc.onExit(() => this.#onExit(current));
+      const tracker = new BuildTracker();
+      this.#tracker = tracker;
+      proc.onBuildEvent((event) => tracker.apply(event));
+      proc.onExit(() => tracker.drop());
+      // Spec v2a section 5: the idle timer waits for a running build and restarts when it ends.
+      tracker.onEnd(() => this.#armIdleTimer());
       const queue = new CommandQueue(proc, {
         timeoutMs: this.#options.commandTimeoutMs,
         logger: this.#options.logger,
@@ -318,6 +341,7 @@ export class WorldMachineSession implements WorldMachineSessionPort {
     const proc = this.#process;
     if (proc) this.#quitting.add(proc);
     const queue = this.#queue;
+    const tracker = this.#tracker;
     this.#reset();
     const previous = this.#stopping;
     const current = (async () => {
@@ -326,7 +350,9 @@ export class WorldMachineSession implements WorldMachineSessionPort {
       const drained = queue?.drain(reason);
       await (budget ? withinMs(drained, budget.drainMs) : drained);
       queue?.abort(reason);
-      await proc?.quit(budget?.graceMs, budget?.termMs);
+      const graceMs = budget?.graceMs ?? DEFAULT_QUIT_GRACE_MS;
+      const quitGraceMs = proc && tracker?.running ? await stopBuild(proc, tracker, graceMs) : graceMs;
+      await proc?.quit(quitGraceMs, budget?.termMs);
     })();
     this.#stopping = current;
     void current.finally(() => {
@@ -357,6 +383,8 @@ export class WorldMachineSession implements WorldMachineSessionPort {
   #armIdleTimer(): void {
     this.#clearIdleTimer();
     if (this.#options.idleTimeoutMs <= 0 || this.#inFlight > 0 || this.#state.kind !== 'ready') return;
+    // Spec v2a section 5: no idle quit while a full or tiled build runs; the tracker re-arms the timer at its end.
+    if (this.#tracker?.running) return;
     this.#idleTimer = setTimeout(() => void this.#onIdle(), this.#options.idleTimeoutMs);
     this.#idleTimer.unref();
   }
@@ -368,7 +396,7 @@ export class WorldMachineSession implements WorldMachineSessionPort {
 
   async #onIdle(): Promise<void> {
     const state = this.#state;
-    if (state.kind !== 'ready' || this.#inFlight > 0) return;
+    if (state.kind !== 'ready' || this.#inFlight > 0 || this.#tracker?.running) return;
     if (state.dirty) {
       this.#options.logger.warn('Idle timeout reached with unsaved changes; World Machine stays open');
       return;
@@ -383,9 +411,25 @@ export class WorldMachineSession implements WorldMachineSessionPort {
     this.#clearIdleTimer();
     this.#process = undefined;
     this.#queue = undefined;
+    this.#tracker = undefined;
     this.#systemInfo = undefined;
     this.#state = { kind: 'notRunning' };
   }
+}
+
+/**
+ * Spec v2a section 5: a build racing `project close force` is the likely crash of fact 52, so a running build is
+ * stopped first. The wait for its end event takes at most half the grace time; returns the grace left for the quit.
+ */
+async function stopBuild(proc: WorldMachineProcess, tracker: BuildTracker, graceMs: number): Promise<number> {
+  const started = Date.now();
+  try {
+    proc.write(['build stop']);
+    await tracker.ended(Math.floor(graceMs / 2));
+  } catch {
+    // World Machine exited or stopped reading; the quit that follows handles both.
+  }
+  return Math.max(graceMs - (Date.now() - started), 0);
 }
 
 /** The path of an opened project, or undefined for a fresh one. */

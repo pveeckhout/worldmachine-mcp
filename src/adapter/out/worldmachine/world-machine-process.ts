@@ -11,6 +11,9 @@ export const READY_LINE = 'Startup: Completed. Transferring control into event l
 /** Abort reason that makes a pending start SIGKILL World Machine instead of quitting it politely. */
 export const KILL_ABORT = 'kill';
 /** Abort reason that makes a pending start quit World Machine within the caller's shutdown budget. */
+/** The grace `quit` waits for World Machine to exit after `system quit force`, unless the caller passes one. */
+export const DEFAULT_QUIT_GRACE_MS = 10_000;
+
 export type QuitAbort = { readonly graceMs: number; readonly termMs: number };
 const RECENT_LINES = 10;
 const DISPLAY_ERROR = /could not connect to display/i;
@@ -177,7 +180,7 @@ export class WorldMachineProcess implements CommandChannel {
    * `project close force` and `system quit force`, then SIGTERM, then SIGKILL (spec section 9). `termMs` 0 skips SIGTERM. Resolves once
    * the process is gone.
    */
-  async quit(graceMs = 10_000, termMs = 2_000): Promise<void> {
+  async quit(graceMs = DEFAULT_QUIT_GRACE_MS, termMs = 2_000): Promise<void> {
     if (this.#exited) return;
     // Spec facts 19-20: a modified project turns `system quit force` into a modal dialog and a killed World
     // Machine keeps its licence seat, so close the project first, as its own write (spec section 9).
