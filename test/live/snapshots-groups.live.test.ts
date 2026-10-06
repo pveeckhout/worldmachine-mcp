@@ -1,5 +1,5 @@
 // The tests run in order against one World Machine session, so a failure cascades to the later ones.
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -28,6 +28,7 @@ import { OrganizeDevicesService } from '../../src/application/service/organize-d
 import { RestoreSnapshotService } from '../../src/application/service/restore-snapshot-service.js';
 import { SaveProjectService } from '../../src/application/service/save-project-service.js';
 import { SetGroupEnabledService } from '../../src/application/service/set-group-enabled-service.js';
+import { StopBuildService } from '../../src/application/service/stop-build-service.js';
 import { UndoService } from '../../src/application/service/undo-service.js';
 import type { Group } from '../../src/domain/group.js';
 import { captureLogger } from '../support/fake-wm.js';
@@ -73,6 +74,7 @@ describe.skipIf(!LIVE)('live World Machine snapshots, organize, and groups (spec
   const saveProject = new SaveProjectService(session, policy, writer);
   const openProject = new OpenProjectService(session, policy, writer);
   const exportOutputs = new ExportOutputsService(session, exporter, reader, policy);
+  const stopBuild = new StopBuildService(session, builder);
   const deviceIds = async () => (await listDevices.listDevices({})).devices.map((device) => device.id);
   const disabledCount = async () =>
     (await listDevices.listDevices({})).devices.filter((device) => !device.enabled).length;
@@ -159,4 +161,30 @@ describe.skipIf(!LIVE)('live World Machine snapshots, organize, and groups (spec
     ).toMatchObject({ state: 'finished', mode: 'group', group });
     await expect(exportOutputs.exportOutputs({})).rejects.toMatchObject({ code: 'WM_COMMAND_FAILED' });
   }, 360_000);
+
+  it('builds a group that exports an output with exportAlways set, its export line kept out of the frame (fact 71)', async () => {
+    // update_device_parameters refuses exportAlways by design, so the raw command sets it on the default project's
+    // File Output #1 (raw/v2b-assumptions.txt l.123-124); 'Export Basics' includes that output (l.159-169).
+    expect((await session.executeOne('param set #1.exportAlways true')).output).toEqual([
+      'Set #1.exportAlways = true',
+    ]);
+    try {
+      expect(
+        await buildProject.buildProject({ mode: 'group', group: 'Export Basics', waitSeconds: 300 }),
+      ).toMatchObject({ state: 'finished', mode: 'group', group: { name: 'Export Basics' } });
+      expect(readdirSync(liveRoot).filter((file) => file.startsWith('v2b Height Output'))).toHaveLength(1);
+    } finally {
+      await session.executeOne('param set #1.exportAlways false');
+    }
+  }, 360_000);
+
+  it('stops a group build at 4097 within 3 s, ending it on its trailer (fact 72)', async () => {
+    await scene.configureScene({ resolution: 4097 });
+    expect(
+      await buildProject.buildProject({ mode: 'group', group: `#${group?.index ?? 0}`, waitSeconds: 0 }),
+    ).toMatchObject({ state: 'running', mode: 'group' });
+    const started = Date.now();
+    expect(await stopBuild.stopBuild({})).toMatchObject({ stopped: 'full' });
+    expect(Date.now() - started).toBeLessThan(3_000);
+  }, 120_000);
 });
