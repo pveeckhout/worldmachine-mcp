@@ -81,7 +81,7 @@ While a full or tiled build runs, including a run World Machine started whose mo
 
 | Unit | Change |
 |---|---|
-| `build-events.ts` (new, `adapter/out/worldmachine/`) | `parseBuildEvent(line)`: the six lines of facts 43 and 48, exactly. |
+| `build-events.ts` (new, `adapter/out/worldmachine/`) | `parseBuildEvent(line)`: the six lines of facts 43 and 48, exactly. Any other line that starts with `[Build Event] ` (for example the automatic export line, v2b fact 71) is also a build event, and it is ignored. |
 | `WorldMachineProcess#onLine` | Runs `parseBuildEvent` before the log-line check. A build event goes to `onBuildEvent` listeners and is logged at debug level; it never reaches line listeners, so no command frame contains one (fact 47), whether it arrives inside or between batches. This also protects every v1 parser from a build's stray lines. |
 | `BuildTracker` (new) | Holds the current `BuildRun`, applies events (section 3), and offers `ended(ms): Promise<boolean>` and `snapshot()`. Created per process and dropped on exit. |
 | `WorldMachineBuilder` (new, implements `BuildPort`) | `start(mode)`, `previewRunning()`, `stop()`, `waitForEnd(ms)`. Confirms `Preview build started.` for previews (D12: a missing line is `UNEXPECTED_OUTPUT`). For `full` and `tiled` the start frame may hold only build events, which have been filtered out, so the confirmation is the tracker's `starting` or `sleep-prohibited` event within 5 s. A preview's end is polled with `build status` once a second. |
