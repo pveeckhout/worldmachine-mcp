@@ -826,6 +826,40 @@ const scenarios = [
       return sections;
     },
   ],
+  [
+    // v2a A3 follow-up: which name `export all` writes for a device name over 23 characters (the list and the report
+    // cut it to 23). Lists the files in <WORK> after the export. Default project at 257. Ends closed (fact 19).
+    'v2a-a3-files',
+    async () => {
+      const sections = [];
+      try {
+        const file = join(work, 'a3files.tmd');
+        sections.push(
+          ...(await run(['project new default force', 'scene resolution 257', `project save ${file}`])),
+        );
+        await pollBuild(sections);
+        sections.push(
+          ...(await run([
+            'device rename #1 Height Output With A Long Name',
+            'device select #1',
+            'device info',
+            'export list',
+          ])),
+        );
+        await pollBuild(sections);
+        await timed(sections, ['build start']);
+        sections.push(await waitForLine(/^Build started\.$/, 30_000));
+        const since = Date.now();
+        sections.push(...(await run(['export all'])));
+        sections.push(await wait(1500));
+        filesSince(sections, since, 'by export all with a long device name');
+        sections.push(...(await run(['project close force'])));
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
 ];
 
 async function buildAndExport(sections, since) {

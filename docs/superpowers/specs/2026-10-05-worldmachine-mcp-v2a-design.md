@@ -38,7 +38,7 @@ Captured on 2026-10-05 against build 4067 with `npm run capture-fixtures`, scena
 
 - A1. A build started from the World Machine window prints the same Build Event lines on stdout. If it does not, such a build is invisible to the server and `get_build_status` reports `idle` while it runs. A1 decides whether window-started builds are tracked at all (section 3: the provisional run); a capture with a build started from the window would settle it.
 - A2. `build stop` stops a tiled build before it writes all its tiles. The default layout finishes in about a second, and the layout cannot be enlarged from the console (fact 41), so stopping a long tiled build was never observed.
-- A3. `export list` shows device names longer than 20 characters in full.
+- A3. `export list` shows device names longer than 20 characters in full. Resolved: v1 fact 77 (names over 20 characters are shown in full up to 23; World Machine keeps no more than 23).
 - A4. A build that fails (a device error) still ends with `*** Build Ended ***`. No failing build was captured, so `build_project` cannot report a failed build as failed; it reports `finished`.
 
 ## 3. Domain model
