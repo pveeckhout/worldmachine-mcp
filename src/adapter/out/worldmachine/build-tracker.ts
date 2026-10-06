@@ -3,6 +3,7 @@ import {
   type BuildRun,
   type BuildState,
   isRunning,
+  lateStartMissed,
   NO_BUILD,
   nextBuildState,
   type TrackedBuildMode,
@@ -10,6 +11,8 @@ import {
 import { WorldMachineError } from '../../../domain/errors.js';
 
 export const BUILD_EXITED = 'World Machine exited during the build';
+/** Spec v2a section 3: how long an ending full run waits for its late `Build started.` before it ends anyway. */
+export const LATE_START_MS = 10_000;
 
 type Waiter = {
   readonly done: () => boolean;
@@ -26,6 +29,7 @@ export class BuildTracker {
   readonly #endListeners: (() => void)[] = [];
   #state: BuildState = NO_BUILD;
   #dropped = false;
+  #lateStartTimer: NodeJS.Timeout | undefined;
 
   constructor(now: () => number = Date.now) {
     this.#now = now;
@@ -33,6 +37,11 @@ export class BuildTracker {
 
   get running(): boolean {
     return isRunning(this.#state);
+  }
+
+  /** true once the process exited (`drop()`). */
+  get dropped(): boolean {
+    return this.#dropped;
   }
 
   /** The start the server sent whose opening event has not arrived yet (decision D4); `started()` waits for it. */
@@ -56,9 +65,7 @@ export class BuildTracker {
 
   apply(event: BuildEvent): void {
     if (this.#dropped) return;
-    const wasRunning = this.running;
-    this.#set(nextBuildState(this.#state, event, this.#now()));
-    if (wasRunning && !this.running) for (const listener of this.#endListeners) listener();
+    this.#transition(nextBuildState(this.#state, event, this.#now()));
   }
 
   /**
@@ -67,8 +74,7 @@ export class BuildTracker {
    */
   forget(): void {
     if (this.#dropped || !this.running) return;
-    this.#set({ ...this.#state, run: undefined });
-    for (const listener of this.#endListeners) listener();
+    this.#transition({ ...this.#state, run: undefined, lateStartsOwed: 0, ending: false });
   }
 
   /** Runs each time a running run ends; not when the process exits. */
@@ -95,8 +101,30 @@ export class BuildTracker {
   /** The process exited: the run is dropped and every waiter fails with CRASHED. */
   drop(): void {
     this.#dropped = true;
+    this.#clearLateStartTimer();
     this.#state = NO_BUILD;
     for (const waiter of [...this.#waiters]) waiter.settle(new WorldMachineError('CRASHED', BUILD_EXITED));
+  }
+
+  /** Sets the state, arms or clears the late-line timer of an ending run, and calls the end listeners. */
+  #transition(next: BuildState): void {
+    const wasRunning = this.running;
+    const wasEnding = this.#state.ending;
+    this.#set(next);
+    if (next.ending && !wasEnding) {
+      this.#lateStartTimer = setTimeout(() => {
+        this.#lateStartTimer = undefined;
+        this.#transition(lateStartMissed(this.#state));
+      }, LATE_START_MS);
+    } else if (!next.ending) {
+      this.#clearLateStartTimer();
+    }
+    if (wasRunning && !this.running) for (const listener of this.#endListeners) listener();
+  }
+
+  #clearLateStartTimer(): void {
+    clearTimeout(this.#lateStartTimer);
+    this.#lateStartTimer = undefined;
   }
 
   #set(state: BuildState): void {

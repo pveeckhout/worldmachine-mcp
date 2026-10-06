@@ -92,7 +92,10 @@ async function checkTarget(
     return { ...base, path: expanded.path, allowed: false, reason: TILED_RES_FOLDER };
   }
   try {
-    return { ...base, path: await policy.authorizeOutputPath(expanded.path), allowed: true };
+    // The policy's canonical path is only its proof; views report the path World Machine receives, as they do for
+    // `projectFolder`, refused targets, and `export all`'s files.
+    await policy.authorizeOutputPath(expanded.path);
+    return { ...base, path: expanded.path, allowed: true };
   } catch (error) {
     if (!(error instanceof WorldMachineError) || error.code !== 'REFUSED') throw error;
     return { ...base, path: expanded.path, allowed: false, reason: error.message };

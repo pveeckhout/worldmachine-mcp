@@ -70,6 +70,15 @@ describe('parameterText', () => {
     });
   });
 
+  it('refuses exportAlways: it makes World Machine write output on every full build (spec v2a section 6)', () => {
+    expect(parameterText({ name: 'exportAlways', type: 'bool', value: 'false' }, true)).toEqual({
+      problem: 'exportAlways makes World Machine write output on every full build and cannot be set',
+    });
+    expect(parameterText({ name: 'exportAlways', type: 'bool', value: 'false' }, false)).toHaveProperty(
+      'problem',
+    );
+  });
+
   it("words a bool refusal without implying World Machine's complete list (spec fact 35)", () => {
     expect(parameterText(param('bool'), 'no')).toEqual({
       problem: 'expected true or false, or 1, 0, yes, or off',

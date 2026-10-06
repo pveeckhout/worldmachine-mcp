@@ -30,6 +30,11 @@ const NUMBER_PROBLEM =
  * decision D6). World Machine still decides on what passes, per item.
  */
 export function parameterText(parameter: Parameter, value: ParameterValue): ParameterText {
+  // Spec v2a section 6 (fact 55): a File Output with exportAlways set writes its file on every full build, which then
+  // writes without the export check.
+  if (parameter.name === 'exportAlways') {
+    return { problem: 'exportAlways makes World Machine write output on every full build and cannot be set' };
+  }
   switch (parameter.type) {
     case 'float':
       return numberText(value, DECIMAL, NUMBER_PROBLEM);

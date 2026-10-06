@@ -51,9 +51,13 @@ const DEFAULT_DEVICES: readonly DeviceSummary[] = [
 export type ExportFakeOptions = {
   readonly session?: SessionSummary;
   readonly targets?: readonly ExportTarget[];
+  /** The canonical path the policy returns for an allowed path (a symlinked root); the path itself by default. */
+  readonly canonical?: (path: string) => string;
   /** A REFUSED reason for a path, or undefined to allow it. */
   readonly refuse?: (path: string) => string | undefined;
   readonly devices?: readonly DeviceSummary[];
+  /** Devices whose `exportAlways` is not confirmed off (fact 55, ruling P-FR-3). */
+  readonly exportAlways?: readonly string[];
 };
 
 /**
@@ -85,6 +89,10 @@ export function exportFakes(options: ExportFakeOptions = {}) {
       calls.push('export all');
       return [...DEFAULT_PATHS];
     },
+    exportingAlways: async (devices) => {
+      calls.push(`exportAlways ${devices.join(', ')}`);
+      return devices.filter((device) => options.exportAlways?.includes(device));
+    },
   };
   const unused = async (): Promise<never> => {
     throw new Error('not used by these services');
@@ -108,7 +116,7 @@ export function exportFakes(options: ExportFakeOptions = {}) {
       calls.push(`authorize ${path}`);
       const reason = options.refuse?.(path);
       if (reason !== undefined) throw new WorldMachineError('REFUSED', reason);
-      return path;
+      return options.canonical?.(path) ?? path;
     },
   };
   return { calls, session, exports, graph, policy };

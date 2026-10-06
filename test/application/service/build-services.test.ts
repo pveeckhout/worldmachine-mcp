@@ -94,7 +94,71 @@ describe('BuildProjectService (spec v2a section 4)', () => {
       elapsedSeconds: 12,
       session: SAVED,
     });
-    expect(f.calls).toEqual(['exclusive', 'start full', 'exclusive end', 'wait full 60000']);
+    expect(f.calls).toEqual([
+      'exclusive',
+      'export list',
+      'exportAlways Height Output, Material Output, Colormap only, Splatmap',
+      'start full',
+      'exclusive end',
+      'wait full 60000',
+    ]);
+  });
+
+  it('checks every export target before a full build when a File Output has exportAlways set (fact 55)', async () => {
+    const f = building({}, { exportAlways: ['Height Output'] });
+    expect(await f.service.buildProject({ mode: 'full', waitSeconds: 60 })).toEqual({
+      state: 'finished',
+      mode: 'full',
+      elapsedSeconds: 0,
+      session: SAVED,
+    });
+    expect(f.calls).toEqual([
+      'exclusive',
+      'export list',
+      'exportAlways Height Output, Material Output, Colormap only, Splatmap',
+      'ensureRunning',
+      'export list',
+      'scene show',
+      ...DEFAULT_PATHS.map((path) => `authorize ${path}`),
+      'start full',
+      'exclusive end',
+      'wait full 60000',
+    ]);
+  });
+
+  it('refuses a full build with exportAlways set for a project never saved, without starting it', async () => {
+    const f = building({}, { session: UNSAVED, exportAlways: ['Height Output'] });
+    expect(await failure(f.service.buildProject({ mode: 'full', waitSeconds: 60 }))).toMatchObject({
+      code: 'REFUSED',
+      message:
+        "Save the project inside the allowed roots before a full build that writes outputs ('Height Output' has exportAlways set): " +
+        `${NEVER_SAVED}.`,
+    });
+    expect(f.calls).not.toContain('start full');
+  });
+
+  it('refuses a full build with exportAlways set when a target is refused, naming it', async () => {
+    const f = building(
+      {},
+      {
+        exportAlways: ['Height Output'],
+        refuse: (path) =>
+          path.includes('Splatmap') ? 'The output folder does not exist: /r/maps' : undefined,
+      },
+    );
+    const error = await failure(f.service.buildProject({ mode: 'full', waitSeconds: 60 }));
+    expect(error.code).toBe('REFUSED');
+    expect(error.message).toContain("'Splatmap': The output folder does not exist: /r/maps");
+    expect(f.calls).not.toContain('start full');
+  });
+
+  it('reads no exportAlways for a preview or a tiled build', async () => {
+    const preview = building({}, { exportAlways: ['Height Output'] });
+    await preview.service.buildProject({ mode: 'preview', waitSeconds: 0 });
+    expect(preview.calls).toEqual(['exclusive', 'start preview', 'exclusive end', 'wait preview 0']);
+    const tiled = building({}, { exportAlways: ['Height Output'] });
+    await tiled.service.buildProject({ mode: 'tiled', waitSeconds: 0 });
+    expect(tiled.calls.some((call) => call.startsWith('exportAlways'))).toBe(false);
   });
 
   it('returns running when the wait bound passes, and passes the cancellation signal on', async () => {
@@ -110,6 +174,30 @@ describe('BuildProjectService (spec v2a section 4)', () => {
     expect(view).toMatchObject({ state: 'running', mode: 'preview' });
     expect(received).toBe(abort.signal);
     expect(f.calls).toContain('wait preview 0');
+  });
+
+  it('starts nothing when the call was cancelled while it waited for exclusive() (Minor 3)', async () => {
+    const f = building();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const exclusive = f.session.exclusive;
+    const queued: typeof f.session = {
+      ...f.session,
+      exclusive: async (action) => {
+        await gate;
+        return exclusive(action);
+      },
+    };
+    const service = new BuildProjectService(queued, buildFake(f.calls), f.exports, f.graph, f.policy);
+    const abort = new AbortController();
+    const view = service.buildProject({ mode: 'full', waitSeconds: 60, signal: abort.signal });
+    abort.abort();
+    release();
+    // As for a cancelled wait: the call returns, reporting the build as not finished.
+    expect(await view).toEqual({ state: 'running', mode: 'full', elapsedSeconds: 0, session: SAVED });
+    expect(f.calls).toEqual(['exclusive', 'exclusive end']);
   });
 
   it('reports elapsed seconds every 5 s while it waits', async () => {
@@ -145,6 +233,13 @@ describe('BuildProjectService (spec v2a section 4)', () => {
       'start tiled',
       'exclusive end',
       'wait tiled 60000',
+    ]);
+  });
+
+  it('returns the folders of the expanded paths, not of the canonical ones (Minor 4)', async () => {
+    const f = building({}, { canonical: (path) => path.replace('/r/', '/real/r/') });
+    expect((await f.service.buildProject({ mode: 'tiled', waitSeconds: 60 })).outputFolders).toEqual([
+      '/r/maps',
     ]);
   });
 

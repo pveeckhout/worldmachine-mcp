@@ -770,6 +770,37 @@ describe('WorldMachineSession idle and shutdown during a build (spec v2a section
     expect(total).toBeLessThan(2_600);
   });
 
+  it('stops a build whose start is still waiting for its opening events on shutdown (SIGNAL_BUDGET)', async () => {
+    const { session: s, record } = session({ FAKE_WM_BUILD_MS: '60000', FAKE_WM_START_DELAY_MS: '500' });
+    await s.ensureRunning();
+    s.buildTracker()?.expect('full');
+    await s.executeOne('build start');
+    expect(s.buildTracker()?.running).toBe(false);
+    expect(s.buildTracker()?.pending).toBe('full');
+    await s.shutdown({ drainMs: 0, graceMs: 500, termMs: 0 });
+    const lines = record.lines();
+    expect(lines).toContain('build stop');
+    expect(lines.indexOf('build stop')).toBeLessThan(lines.indexOf('project close force'));
+  });
+
+  it('logs a warning when the build does not end within half the grace on shutdown (Minor 6)', async () => {
+    const { session: s, logger } = session({ FAKE_WM_BUILD_MS: '60000', FAKE_WM_SILENT_ON: 'build stop' });
+    await s.ensureRunning();
+    await s.executeOne('build start');
+    await s.shutdown({ drainMs: 0, graceMs: 400, termMs: 0 });
+    expect(logger.lines).toContain(
+      'warn: The build did not end within 200 ms of build stop; quitting World Machine anyway',
+    );
+  });
+
+  it('logs no warning when the build ends after build stop on shutdown', async () => {
+    const { session: s, logger } = session({ FAKE_WM_BUILD_MS: '60000' });
+    await s.ensureRunning();
+    await s.executeOne('build start');
+    await s.shutdown();
+    expect(logger.lines.filter((line) => line.startsWith('warn:'))).toEqual([]);
+  });
+
   it('sends no build stop on shutdown without a running build', async () => {
     const { session: s, record } = session({ FAKE_WM_BUILD_MS: '50' });
     await s.ensureRunning();

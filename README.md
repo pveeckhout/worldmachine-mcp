@@ -2,7 +2,7 @@
 
 An [MCP](https://modelcontextprotocol.io) server that lets AI assistants inspect and edit [World Machine](https://www.world-machine.com) terrain projects through your own local World Machine installation.
 
-> **Status: early development.** All eighteen v1 tools listed below work against World Machine build 4067 on Linux. The design is in [`docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md`](docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md).
+> **Status: early development.** All twenty-three tools listed below work against World Machine build 4067 on Linux: the eighteen of v1 and the five build and export tools of v2a. The design is in [`docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md`](docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md) and [`docs/superpowers/specs/2026-10-05-worldmachine-mcp-v2a-design.md`](docs/superpowers/specs/2026-10-05-worldmachine-mcp-v2a-design.md).
 
 ## How it works
 
@@ -97,7 +97,7 @@ Any other MCP client that accepts a JSON configuration:
 
 If the working directory is `/` or your home directory and `WORLD_MACHINE_ALLOWED_ROOTS` is not set, tools that take a path refuse to run.
 
-## Tools (v1)
+## Tools
 
 | Read | Change |
 |---|---|
@@ -106,17 +106,31 @@ If the working directory is `/` or your home directory and `WORLD_MACHINE_ALLOWE
 | `get_device` | `update_device_parameters` |
 | `get_scene` | `connect_devices`, `disconnect_devices` |
 | `inspect_project` | `configure_scene`, `undo`, `redo` |
+| `get_build_status` | `build_project`, `stop_build` |
+| `list_exports` | `export_outputs` |
 
 Editing notes:
 
 - Devices are referenced by name or by their stable id `#<n>`. Names match regardless of case; a name that several devices share is refused, so use the id.
 - `add_device` and `rename_device` refuse names that `list_devices` could not show unambiguously: leading or trailing spaces, a trailing `[disabled]` or `[bypassed]`, trailing parenthesised text after two or more spaces, `#<n>`, or more than 23 characters.
-- `update_device_parameters` takes World Machine's internal values, not the displayed units: a width of `0.5` can read back as `4 km`. It takes plain decimal numbers, enum options as their 0-based index, and booleans as `true` or `false` (or `1`, `0`, `yes`, `off`); World Machine itself would also take exponent forms, enum labels, and other boolean words, which the tool refuses so each value is checked before it is sent. Parameter names are case-sensitive. `action`, `other`, and `filename` parameters cannot be set; `filename` because World Machine would write build output outside the allowed roots. Each item reports the value World Machine reads back.
+- `update_device_parameters` takes World Machine's internal values, not the displayed units: a width of `0.5` can read back as `4 km`. It takes plain decimal numbers, enum options as their 0-based index, and booleans as `true` or `false` (or `1`, `0`, `yes`, `off`); World Machine itself would also take exponent forms, enum labels, and other boolean words, which the tool refuses so each value is checked before it is sent. Parameter names are case-sensitive. `action`, `other`, and `filename` parameters and `exportAlways` cannot be set; `filename` because World Machine would write build output outside the allowed roots, `exportAlways` because it makes a full build write files. Each item reports the value World Machine reads back.
 - `set_device_enabled` and `disconnect_devices` read the result back, because World Machine prints the same confirmation whether or not anything changed. `connect_devices` leaves an existing wire alone, and refuses when several devices share the source name and the input is already wired from that name.
 - Bypass is reported but cannot be set.
 - No edit is rolled back automatically; use `undo`. It reverts one step per call: one parameter, one scene setting, or one device edit. `add_device` with a name is two steps (add, then rename), so the first undo reverts the rename and the second removes the device. Undoing a delete restores the device with its wires.
 
-Builds and exports are planned for v2, and declarative graph specifications for v3.
+Builds and exports:
+
+- `build_project` takes a mode. `preview` is World Machine's quick preview; `full` builds every device at the scene resolution and writes no files; `tiled` runs the tiled build set up in the World Machine window and writes every output as tiles (`<name>_x0_y0` and so on) next to its export path.
+- `build_project` waits up to `wait_seconds` (default 60, at most 600) for the build to end. If the wait ends first, the result says `running` and the build continues: check `get_build_status`, or stop it with `stop_build`. Cancelling the call does not stop the build.
+- While a full or tiled build runs, every other change tool is refused; the read tools keep working. World Machine starts previews on its own after edits, so a preview blocks nothing.
+- A build started in the World Machine window counts too, provided World Machine reports it on its console (assumed, not yet captured). `get_build_status` shows it with `startedBy: 'world-machine'` and mode `unknown` until it shows as a full build. If `stop_build` sees no end within 10 s, the server stops tracking such a build, so the change tools work again.
+- World Machine does not report a failed build, so `finished` means only that the build ended. A build ended by `stop_build` is reported as finished too.
+- If an output has `exportAlways` set (in the World Machine window), or the server cannot confirm that it is off, a full build may write its file, so `build_project` with `full` then checks every output path as an export does, and refuses for a project never saved or a path outside the allowed roots.
+- `export_outputs` runs World Machine's `export all` after a full build; it is refused when the outputs are not built. A Material Output writes four files (`_diffuse`, `_disp`, `_mask`, and `_roughness`) for its one listed path.
+- Exports and tiled builds overwrite files with the same names without asking. They are refused for a project that was never saved (World Machine would write into `~/Documents/WorldMachine`), and when any output would be written outside the allowed roots or into a folder that does not exist. `list_exports` shows each output's path and whether it is allowed.
+- Output templates, device names, and expanded output paths with a `.` or `..` segment are refused, including `./<name>.png`.
+
+Snapshots and `device organize` are planned for v2b, and declarative graph specifications for v3.
 
 ## What the MCP can and cannot set up
 
@@ -136,12 +150,13 @@ Set these up in World Machine first, because its console (build 4067) has no com
 - additional scenes: the console can select and change an existing scene but cannot create one;
 - device groups, macros, and blueprints: the console can list groups but cannot create them or assign devices to them.
 
-The console also offers builds, exports, snapshots, scene selection and locking, and group enable, disable, and build. The MCP does not expose these yet (builds and exports are planned for v2).
+The console also offers snapshots, scene selection and locking, and group enable, disable, and build. The MCP does not expose these yet (snapshots are planned for v2b).
 
 ## Safety
 
 - Projects can only be opened or saved inside the allowed roots. Symlinks are resolved before the check.
 - Saving never overwrites an existing file unless the tool call says so explicitly.
+- Exports and tiled builds write only into existing folders inside the allowed roots, and only for a saved project; they overwrite files of the same name.
 - Quitting always closes the project first, so World Machine shuts down normally and returns the licence seat; unsaved changes are discarded when the server stops.
 - Opening or creating a project refuses to discard unsaved changes unless the tool call says so explicitly.
 - There is no tool for running arbitrary World Machine console commands.
@@ -150,6 +165,7 @@ The console also offers builds, exports, snapshots, scene selection and locking,
 ## Documentation
 
 - [Design spec](docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md)
+- [v2a design: builds and exports](docs/superpowers/specs/2026-10-05-worldmachine-mcp-v2a-design.md)
 - [Feasibility findings](docs/research/2026-10-04-feasibility-findings.md)
 
 ## Licence

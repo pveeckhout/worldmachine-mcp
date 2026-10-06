@@ -121,6 +121,23 @@ describe('WorldMachineBuilder (spec v2a section 5)', () => {
     });
   });
 
+  it('fails a preview wait with CRASHED when World Machine restarted during it, though the new one is ready', async () => {
+    const { build, session, record } = builder({ FAKE_WM_PREVIEW_MS: '60000' }, { pollMs: 2_000 });
+    await build.start('preview');
+    const waiting = failure(build.waitForEnd('preview', 30_000));
+    await waitUntil(() => record.lines().includes('build status'));
+    // The first poll has its answer and the wait pauses until the next one.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    for (const pid of record.pids()) process.kill(pid, 'SIGKILL');
+    await waitUntil(() => session.status().session.state === 'unhealthy');
+    // Another call starts World Machine again before the next poll; its status reads `No build running.`.
+    await session.ensureRunning();
+    expect(await waiting).toMatchObject({
+      code: 'CRASHED',
+      message: 'World Machine exited during the build',
+    });
+  });
+
   it('fails the wait with SHUTTING_DOWN when the server stops during a build', async () => {
     const { build, session } = builder({ FAKE_WM_BUILD_MS: '60000', FAKE_WM_SILENT_ON: 'build stop' });
     await build.start('full');

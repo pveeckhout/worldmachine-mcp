@@ -10,10 +10,10 @@ import { isLicenceText, parseLogLine } from './log-lines.js';
 export const READY_LINE = 'Startup: Completed. Transferring control into event loop.';
 /** Abort reason that makes a pending start SIGKILL World Machine instead of quitting it politely. */
 export const KILL_ABORT = 'kill';
-/** Abort reason that makes a pending start quit World Machine within the caller's shutdown budget. */
 /** The grace `quit` waits for World Machine to exit after `system quit force`, unless the caller passes one. */
 export const DEFAULT_QUIT_GRACE_MS = 10_000;
 
+/** Abort reason that makes a pending start quit World Machine within the caller's shutdown budget. */
 export type QuitAbort = { readonly graceMs: number; readonly termMs: number };
 const RECENT_LINES = 10;
 const DISPLAY_ERROR = /could not connect to display/i;

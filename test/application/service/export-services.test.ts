@@ -54,6 +54,13 @@ describe('ListExportsService (spec v2a section 4)', () => {
     ]);
   });
 
+  it('reports the expanded path World Machine receives, not the canonical one the policy resolved (Minor 4)', async () => {
+    const f = listing({ canonical: (path) => path.replace('/r/', '/real/r/') });
+    const view = await f.service.listExports({});
+    expect(view.projectFolder).toBe('/r/maps');
+    expect(view.targets.map((target) => target.path)).toEqual(DEFAULT_PATHS);
+  });
+
   it('marks every target of a project never saved as not allowed, without expanding (spec v2a section 6)', async () => {
     const f = listing({ session: UNSAVED });
     const view = await f.service.listExports({});

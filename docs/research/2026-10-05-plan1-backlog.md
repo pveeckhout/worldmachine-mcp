@@ -89,3 +89,9 @@ Done in Plan 2c, except the fake's `param set` value rejection: it stays deferre
 - Done: Plan 2c final review: the "at least one" rules for `configure_scene` and `update_device_parameters` are enforced by the editors but absent from the input schemas. (JSON Schema cannot express it here, so the tool descriptions say it and the editors refuse with `REFUSED`, pinned by MCP tests.)
 - Done: Plan 2c final review, test gaps: missing `Enabled:`, `Disabled:`, and `Deleted:` confirmations; a command-level `Error:` for enable and delete; read-back error batches for disconnect.
 - Open (partly done): Captured in `p2c-undo-names` (spec facts 39-40): add-then-rename is two undo steps. Still open: no device type with a default name longer than 23 characters was found among the candidates tried, so the add echo comparison for such names stays Assumed; a full list of World Machine's device types would settle it.
+
+## Plan v2a (builds and exports)
+
+- Open: v2a spec A1: no capture shows what World Machine prints for a build started from the World Machine window. It needs a capture with a build started from the window (a full build and a tiled build), to settle whether such builds are tracked at all and what the provisional run sees.
+- Open: R12: a late trailer (`sleep-allowed`) of a World Machine-started run that `stop_build` dropped could close a later tiled run early. No capture shows it. Next to A1: the same capture should show the trailer order of a stopped window-started build.
+- Open: P11-4: compare the paths `export all` reports with the paths checked before the export, and find out whether World Machine reads template characters such as `~` or a backslash differently from the server's expansion.

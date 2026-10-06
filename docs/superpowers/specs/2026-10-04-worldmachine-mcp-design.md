@@ -374,7 +374,7 @@ Tool failures are returned as `isError: true` results. Protocol errors are left 
 
 ## 13. Out of scope for v1
 
-- Builds, exports, snapshots, `device organize`, groups mutation (v2).
+- Builds, exports, snapshots, `device organize`, groups mutation (v2). Builds and exports are specified in [the v2a design](2026-10-05-worldmachine-mcp-v2a-design.md).
 - `apply_graph` and graph templates (v3).
 - Windows and macOS adapters.
 - Default executable discovery.

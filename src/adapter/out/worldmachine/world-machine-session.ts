@@ -351,7 +351,11 @@ export class WorldMachineSession implements WorldMachineSessionPort {
       await (budget ? withinMs(drained, budget.drainMs) : drained);
       queue?.abort(reason);
       const graceMs = budget?.graceMs ?? DEFAULT_QUIT_GRACE_MS;
-      const quitGraceMs = proc && tracker?.running ? await stopBuild(proc, tracker, graceMs) : graceMs;
+      // A start already written may not have shown its opening events yet; `build stop` is harmless when nothing
+      // runs (fact 46).
+      const building = tracker !== undefined && (tracker.running || tracker.pending !== undefined);
+      const quitGraceMs =
+        proc && building ? await stopBuild(proc, tracker, graceMs, this.#options.logger) : graceMs;
       await proc?.quit(quitGraceMs, budget?.termMs);
     })();
     this.#stopping = current;
@@ -421,13 +425,27 @@ export class WorldMachineSession implements WorldMachineSessionPort {
  * Spec v2a section 5: a build racing `project close force` is the likely crash of fact 52, so a running build is
  * stopped first. The wait for its end event takes at most half the grace time; returns the grace left for the quit.
  */
-async function stopBuild(proc: WorldMachineProcess, tracker: BuildTracker, graceMs: number): Promise<number> {
+async function stopBuild(
+  proc: WorldMachineProcess,
+  tracker: BuildTracker,
+  graceMs: number,
+  logger: Logger,
+): Promise<number> {
   const started = Date.now();
+  const waitMs = Math.floor(graceMs / 2);
   try {
     proc.write(['build stop']);
-    await tracker.ended(Math.floor(graceMs / 2));
   } catch {
-    // World Machine exited or stopped reading; the quit that follows handles both.
+    // World Machine stopped reading; the quit that follows handles it.
+    logger.warn('build stop could not be sent; quitting World Machine anyway');
+    return graceMs;
+  }
+  try {
+    if (!(await tracker.ended(waitMs))) {
+      logger.warn(`The build did not end within ${waitMs} ms of build stop; quitting World Machine anyway`);
+    }
+  } catch {
+    // World Machine exited; the quit that follows handles it.
   }
   return Math.max(graceMs - (Date.now() - started), 0);
 }

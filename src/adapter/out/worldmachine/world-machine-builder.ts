@@ -133,9 +133,17 @@ export class WorldMachineBuilder implements BuildPort {
 
   async #pollPreview(ms: number, signal: AbortSignal | undefined): Promise<boolean> {
     const deadline = Date.now() + ms;
+    // The process the preview runs in, by its tracker: a World Machine started again meanwhile reads `No build
+    // running.` for a preview it never ran.
+    const tracker = this.#session.buildTracker();
     for (;;) {
       // A poll must not start World Machine again after it exited (spec v2a section 7: CRASHED).
-      if (this.#session.status().session.state !== 'ready')
+      if (
+        tracker === undefined ||
+        tracker.dropped ||
+        this.#session.buildTracker() !== tracker ||
+        this.#session.status().session.state !== 'ready'
+      )
         throw new WorldMachineError('CRASHED', BUILD_EXITED);
       if (!(await this.previewRunning())) return true;
       const left = deadline - Date.now();

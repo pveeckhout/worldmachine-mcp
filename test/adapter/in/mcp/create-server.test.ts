@@ -1,5 +1,5 @@
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
-import { createMcpHandler } from '@modelcontextprotocol/server';
+import { createMcpHandler, InMemoryTransport } from '@modelcontextprotocol/server';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createMcpServer, type McpDependencies } from '../../../../src/adapter/in/mcp/create-server.js';
 import { parseDeviceInfo } from '../../../../src/adapter/out/worldmachine/parsers/device-info.js';
@@ -8,6 +8,7 @@ import { parseGroupList } from '../../../../src/adapter/out/worldmachine/parsers
 import { parseParamList } from '../../../../src/adapter/out/worldmachine/parsers/param-list.js';
 import { parseSceneList, parseSceneShow } from '../../../../src/adapter/out/worldmachine/parsers/scene.js';
 import { parseWireList } from '../../../../src/adapter/out/worldmachine/parsers/wire-list.js';
+import type { BuildProjectCommand } from '../../../../src/application/port/in/command/build-project-command.js';
 import type { DeviceDetail } from '../../../../src/domain/device.js';
 import { WorldMachineError } from '../../../../src/domain/errors.js';
 import type { ProjectOverview } from '../../../../src/domain/project.js';
@@ -127,6 +128,26 @@ function deps(overrides: Partial<McpDependencies> = {}): McpDependencies {
     connectDevices: { connectDevices: async () => ({ ...WIRE, created: true, session: READY_DIRTY }) },
     disconnectDevices: { disconnectDevices: async () => ({ ...WIRE, removed: false, session: READY }) },
     configureScene: { configureScene: async () => ({ scene: SCENE, session: READY_DIRTY }) },
+    buildProject: {
+      buildProject: async (c) => ({ state: 'finished', mode: c.mode, elapsedSeconds: 3, session: READY }),
+    },
+    getBuildStatus: { getBuildStatus: async () => ({ build: null, previewRunning: false, session: READY }) },
+    stopBuild: { stopBuild: async () => ({ stopped: null, session: READY }) },
+    listExports: {
+      listExports: async () => ({
+        projectFolder: '/r',
+        targets: [
+          {
+            device: 'Height Output',
+            template: '<project> <name>-<res>.png',
+            path: '/r/a Height Output-257.png',
+            allowed: true,
+          },
+        ],
+        session: READY,
+      }),
+    },
+    exportOutputs: { exportOutputs: async () => ({ files: ['/r/a Height Output-257.png'], session: READY }) },
     currentSession: () => READY,
     logger: silentLogger(),
     ...overrides,
@@ -154,34 +175,41 @@ async function connect(dependencies: McpDependencies): Promise<Client> {
 }
 
 describe('createMcpServer', () => {
-  it('registers all eighteen tools as closed-world, the five read tools as read-only', async () => {
+  it('registers all twenty-three tools as closed-world, the seven read tools as read-only', async () => {
     const { tools } = await (await connect(deps())).listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       'add_device',
+      'build_project',
       'configure_scene',
       'connect_devices',
       'create_project',
       'delete_device',
       'disconnect_devices',
+      'export_outputs',
+      'get_build_status',
       'get_device',
       'get_scene',
       'get_world_machine_status',
       'inspect_project',
       'list_devices',
+      'list_exports',
       'open_project',
       'redo',
       'rename_device',
       'save_project',
       'set_device_enabled',
+      'stop_build',
       'undo',
       'update_device_parameters',
     ]);
     const readTools = [
+      'get_build_status',
       'get_device',
       'get_scene',
       'get_world_machine_status',
       'inspect_project',
       'list_devices',
+      'list_exports',
     ];
     for (const tool of tools) {
       if (readTools.includes(tool.name)) {
@@ -730,6 +758,322 @@ describe('createMcpServer edit tools', () => {
     expect(result.isError).toBe(true);
   });
 });
+
+/** Connects over in-memory pipes: unlike the HTTP handler, they carry the client's cancellation to the tool. */
+async function connectInMemory(
+  dependencies: McpDependencies,
+  tamper?: (serverTransport: InMemoryTransport) => void,
+): Promise<Client> {
+  const server = createMcpServer(dependencies);
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  tamper?.(serverTransport);
+  await server.connect(serverTransport);
+  const client = new Client({ name: 'test', version: '0.0.0' });
+  cleanups.push(
+    () => client.close(),
+    () => server.close(),
+  );
+  await client.connect(clientTransport);
+  return client;
+}
+
+describe('createMcpServer build and export tools (spec v2a section 4)', () => {
+  const ANNOTATIONS = (destructive: boolean, idempotent: boolean) => ({
+    readOnlyHint: false,
+    destructiveHint: destructive,
+    idempotentHint: idempotent,
+    openWorldHint: false,
+  });
+
+  it('annotates the five tools as spec v2a section 4 says', async () => {
+    const { tools } = await (await connect(deps())).listTools();
+    const annotations = Object.fromEntries(tools.map((tool) => [tool.name, tool.annotations]));
+    expect(annotations).toMatchObject({
+      build_project: ANNOTATIONS(true, false),
+      stop_build: ANNOTATIONS(false, true),
+      export_outputs: ANNOTATIONS(true, false),
+      get_build_status: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+      list_exports: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    });
+  });
+
+  it('says in the descriptions that tiled builds and exports overwrite files', async () => {
+    const { tools } = await (await connect(deps())).listTools();
+    const description = (name: string) => tools.find((tool) => tool.name === name)?.description ?? '';
+    expect(description('build_project')).toContain('overwriting files of the same name');
+    expect(description('export_outputs')).toContain('overwritten without asking');
+  });
+
+  it('names the build refusals and the stop_build failure in the descriptions (Minor 5)', async () => {
+    const { tools } = await (await connect(deps())).listTools();
+    const description = (name: string) => tools.find((tool) => tool.name === name)?.description ?? '';
+    expect(description('build_project')).toContain('unknown template token');
+    expect(description('build_project')).toContain('exportAlways');
+    expect(description('stop_build')).toContain('WM_COMMAND_FAILED');
+  });
+
+  it('describes tiled permission and stopped builds without pointing at list_exports (R1, P12-1)', async () => {
+    const { tools } = await (await connect(deps())).listTools();
+    const description = (name: string) => tools.find((tool) => tool.name === name)?.description ?? '';
+    expect(description('build_project')).not.toContain('list_exports');
+    expect(description('build_project')).toContain('<res>');
+    expect(description('build_project')).toContain('stop_build is reported as finished');
+    expect(description('list_exports')).not.toContain('tiled');
+  });
+
+  it('maps build_project arguments, with wait_seconds defaulting to 60 and the call signal passed on', async () => {
+    const seen: BuildProjectCommand[] = [];
+    const client = await connect(
+      deps({
+        buildProject: {
+          buildProject: async (command) => {
+            seen.push(command);
+            return { state: 'running', mode: command.mode, elapsedSeconds: 0, session: READY };
+          },
+        },
+      }),
+    );
+    await client.callTool({ name: 'build_project', arguments: { mode: 'tiled' } });
+    await client.callTool({ name: 'build_project', arguments: { mode: 'preview', wait_seconds: 0 } });
+    expect(seen.map(({ mode, waitSeconds }) => ({ mode, waitSeconds }))).toEqual([
+      { mode: 'tiled', waitSeconds: 60 },
+      { mode: 'preview', waitSeconds: 0 },
+    ]);
+    expect(seen[0]?.signal).toBeInstanceOf(AbortSignal);
+    expect(seen[0]?.onProgress).toBeUndefined();
+  });
+
+  it.each([
+    { mode: 'fast' },
+    { mode: 'full', wait_seconds: 601 },
+    { mode: 'full', wait_seconds: -1 },
+    { mode: 'full', wait_seconds: 1.5 },
+  ])('rejects build_project arguments %j through the schema', async (args) => {
+    const result = await (await connect(deps())).callTool({ name: 'build_project', arguments: args });
+    expect(result.isError).toBe(true);
+  });
+
+  it('sends progress notifications with the elapsed seconds when the client asks for progress', async () => {
+    const client = await connect(
+      deps({
+        buildProject: {
+          buildProject: async (command) => {
+            command.onProgress?.(5);
+            command.onProgress?.(10);
+            return { state: 'finished', mode: command.mode, elapsedSeconds: 12, session: READY };
+          },
+        },
+      }),
+    );
+    const progress: { progress: number; total?: number }[] = [];
+    await client.callTool(
+      { name: 'build_project', arguments: { mode: 'full' } },
+      { onprogress: ({ progress: value, total }) => progress.push({ progress: value, total }) },
+    );
+    expect(progress).toEqual([
+      { progress: 5, total: 60 },
+      { progress: 10, total: 60 },
+    ]);
+  });
+
+  it('still returns the result when the progress notification cannot be sent', async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      let reported = 0;
+      const client = await connectInMemory(
+        deps({
+          buildProject: {
+            buildProject: async (command) => {
+              command.onProgress?.(5);
+              reported += 1;
+              return { state: 'finished', mode: command.mode, elapsedSeconds: 6, session: READY };
+            },
+          },
+        }),
+        (transport) => {
+          const send = transport.send.bind(transport);
+          transport.send = async (message, options) => {
+            if ('method' in message && message.method === 'notifications/progress') {
+              throw new Error('transport closed');
+            }
+            return send(message, options);
+          };
+        },
+      );
+      const result = await client.callTool(
+        { name: 'build_project', arguments: { mode: 'full' } },
+        { onprogress: () => undefined },
+      );
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(reported).toBe(1);
+      expect(result.isError).toBeFalsy();
+      expect(result.structuredContent).toMatchObject({ state: 'finished', mode: 'full' });
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+  });
+
+  it('aborts the wait when the client cancels the call (spec v2a section 4)', async () => {
+    let aborted = false;
+    const client = await connectInMemory(
+      deps({
+        buildProject: {
+          buildProject: (command) =>
+            new Promise((resolve) => {
+              command.signal?.addEventListener('abort', () => {
+                aborted = true;
+                resolve({ state: 'running', mode: command.mode, elapsedSeconds: 1, session: READY });
+              });
+            }),
+        },
+      }),
+    );
+    const cancel = new AbortController();
+    const call = client.callTool(
+      { name: 'build_project', arguments: { mode: 'full' } },
+      { signal: cancel.signal },
+    );
+    setTimeout(() => cancel.abort('stop'), 50);
+    await expect(call).rejects.toThrow();
+    await waitFor(() => aborted);
+  });
+
+  it.each([
+    [
+      'build_project',
+      { mode: 'tiled' },
+      { state: 'finished', mode: 'tiled', elapsedSeconds: 3, session: READY },
+    ],
+    ['get_build_status', {}, { build: null, previewRunning: false, session: READY }],
+    ['stop_build', {}, { stopped: null, session: READY }],
+    [
+      'list_exports',
+      {},
+      {
+        projectFolder: '/r',
+        targets: [
+          {
+            device: 'Height Output',
+            template: '<project> <name>-<res>.png',
+            path: '/r/a Height Output-257.png',
+            allowed: true,
+          },
+        ],
+        session: READY,
+      },
+    ],
+    ['export_outputs', {}, { files: ['/r/a Height Output-257.png'], session: READY }],
+  ])('returns %s views as structured content that matches its output schema', async (name, args, view) => {
+    const result = await (await connect(deps())).callTool({ name, arguments: args });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toEqual(view);
+  });
+
+  it('returns the optional and nullable fields of the five views', async () => {
+    const views = {
+      build_project: {
+        state: 'finished',
+        mode: 'tiled',
+        elapsedSeconds: 2,
+        outputFolders: ['/r'],
+        session: READY,
+      },
+      get_build_status: {
+        build: { mode: 'full', elapsedSeconds: 30, startedBy: 'world-machine' },
+        previewRunning: true,
+        session: READY,
+      },
+      stop_build: { stopped: 'preview', session: READY },
+      list_exports: {
+        projectFolder: null,
+        targets: [
+          {
+            device: 'Height Output',
+            template: '<project> <name>-<res>.png',
+            path: null,
+            allowed: false,
+            reason: 'The project has never been saved',
+          },
+        ],
+        session: READY,
+      },
+      export_outputs: { files: ['/r/a.png'], note: 'A Material Output writes four files', session: READY },
+    } as const;
+    const client = await connect(
+      deps({
+        buildProject: { buildProject: async () => views.build_project },
+        getBuildStatus: { getBuildStatus: async () => views.get_build_status },
+        stopBuild: { stopBuild: async () => views.stop_build },
+        listExports: { listExports: async () => views.list_exports },
+        exportOutputs: { exportOutputs: async () => views.export_outputs },
+      }),
+    );
+    for (const [name, args] of [
+      ['build_project', { mode: 'tiled' }],
+      ['get_build_status', {}],
+      ['stop_build', {}],
+      ['list_exports', {}],
+      ['export_outputs', {}],
+    ] as const) {
+      const result = await client.callTool({ name, arguments: args });
+      expect(result.isError, name).toBeFalsy();
+      expect(result.structuredContent, name).toEqual(views[name]);
+    }
+  });
+
+  it('returns mode unknown for a build World Machine started (spec v2a section 4)', async () => {
+    const client = await connect(
+      deps({
+        getBuildStatus: {
+          getBuildStatus: async () => ({
+            build: { mode: 'unknown', elapsedSeconds: 1, startedBy: 'world-machine' },
+            previewRunning: false,
+            session: READY,
+          }),
+        },
+        stopBuild: { stopBuild: async () => ({ stopped: 'unknown', session: READY }) },
+      }),
+    );
+    const status = await client.callTool({ name: 'get_build_status', arguments: {} });
+    expect(status.isError).toBeFalsy();
+    expect(status.structuredContent).toMatchObject({
+      build: { mode: 'unknown', startedBy: 'world-machine' },
+    });
+    const stop = await client.callTool({ name: 'stop_build', arguments: {} });
+    expect(stop.isError).toBeFalsy();
+    expect(stop.structuredContent).toMatchObject({ stopped: 'unknown' });
+  });
+
+  it('rejects a build view with a field the output schema does not declare', async () => {
+    const client = await connect(
+      deps({
+        buildProject: {
+          buildProject: async () =>
+            ({
+              state: 'finished',
+              mode: 'full',
+              elapsedSeconds: 1,
+              session: READY,
+              extra: 1,
+            }) as unknown as Awaited<ReturnType<McpDependencies['buildProject']['buildProject']>>,
+        },
+      }),
+    );
+    const result = await client.callTool({ name: 'build_project', arguments: { mode: 'full' } });
+    expect(result.isError).toBe(true);
+  });
+});
+
+async function waitFor(condition: () => boolean): Promise<void> {
+  const deadline = Date.now() + 2_000;
+  while (!condition()) {
+    if (Date.now() > deadline) throw new Error('waitFor timed out');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
 
 type Loose = Record<string, unknown>;
 

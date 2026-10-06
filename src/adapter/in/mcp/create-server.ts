@@ -1,5 +1,6 @@
-import { McpServer } from '@modelcontextprotocol/server';
+import { McpServer, type ServerContext } from '@modelcontextprotocol/server';
 import type { AddDeviceCommandPort } from '../../../application/port/in/command/add-device-command.js';
+import type { BuildProjectCommandPort } from '../../../application/port/in/command/build-project-command.js';
 import type {
   ConfigureSceneCommand,
   ConfigureSceneCommandPort,
@@ -8,18 +9,22 @@ import type { ConnectDevicesCommandPort } from '../../../application/port/in/com
 import type { CreateProjectCommandPort } from '../../../application/port/in/command/create-project-command.js';
 import type { DeleteDeviceCommandPort } from '../../../application/port/in/command/delete-device-command.js';
 import type { DisconnectDevicesCommandPort } from '../../../application/port/in/command/disconnect-devices-command.js';
+import type { ExportOutputsCommandPort } from '../../../application/port/in/command/export-outputs-command.js';
 import type { OpenProjectCommandPort } from '../../../application/port/in/command/open-project-command.js';
 import type { RedoCommandPort } from '../../../application/port/in/command/redo-command.js';
 import type { RenameDeviceCommandPort } from '../../../application/port/in/command/rename-device-command.js';
 import type { SaveProjectCommandPort } from '../../../application/port/in/command/save-project-command.js';
 import type { SetDeviceEnabledCommandPort } from '../../../application/port/in/command/set-device-enabled-command.js';
+import type { StopBuildCommandPort } from '../../../application/port/in/command/stop-build-command.js';
 import type { UndoCommandPort } from '../../../application/port/in/command/undo-command.js';
 import type { UpdateDeviceParametersCommandPort } from '../../../application/port/in/command/update-device-parameters-command.js';
+import type { GetBuildStatusQueryPort } from '../../../application/port/in/query/get-build-status-query.js';
 import type { GetDeviceQueryPort } from '../../../application/port/in/query/get-device-query.js';
 import type { GetSceneQueryPort } from '../../../application/port/in/query/get-scene-query.js';
 import type { GetStatusQueryPort } from '../../../application/port/in/query/get-status-query.js';
 import type { InspectProjectQueryPort } from '../../../application/port/in/query/inspect-project-query.js';
 import type { ListDevicesQueryPort } from '../../../application/port/in/query/list-devices-query.js';
+import type { ListExportsQueryPort } from '../../../application/port/in/query/list-exports-query.js';
 import { WorldMachineError } from '../../../domain/errors.js';
 import type { WireEndpoint } from '../../../domain/graph-edit.js';
 import type { SessionSummary } from '../../../domain/session.js';
@@ -27,6 +32,9 @@ import type { Logger } from '../../../logger.js';
 import {
   addDeviceInputSchema,
   addDeviceViewSchema,
+  buildProjectInputSchema,
+  buildProjectViewSchema,
+  buildStatusViewSchema,
   configureSceneInputSchema,
   configureSceneViewSchema,
   connectDevicesViewSchema,
@@ -36,8 +44,10 @@ import {
   deviceListViewSchema,
   deviceViewSchema,
   disconnectDevicesViewSchema,
+  exportOutputsViewSchema,
   getDeviceInputSchema,
   listDevicesInputSchema,
+  listExportsViewSchema,
   noInputSchema,
   openProjectInputSchema,
   projectCommandViewSchema,
@@ -49,6 +59,7 @@ import {
   setDeviceEnabledInputSchema,
   setDeviceEnabledViewSchema,
   statusViewSchema,
+  stopBuildViewSchema,
   updateDeviceParametersInputSchema,
   updateDeviceParametersViewSchema,
   wireInputSchema,
@@ -75,6 +86,11 @@ export type McpDependencies = {
   readonly connectDevices: ConnectDevicesCommandPort;
   readonly disconnectDevices: DisconnectDevicesCommandPort;
   readonly configureScene: ConfigureSceneCommandPort;
+  readonly buildProject: BuildProjectCommandPort;
+  readonly getBuildStatus: GetBuildStatusQueryPort;
+  readonly stopBuild: StopBuildCommandPort;
+  readonly listExports: ListExportsQueryPort;
+  readonly exportOutputs: ExportOutputsCommandPort;
   readonly currentSession: () => SessionSummary;
   readonly logger: Logger;
 };
@@ -289,7 +305,7 @@ export function createMcpServer(deps: McpDependencies): McpServer {
     {
       title: 'Update device parameters',
       description:
-        "Set one or more parameters of one device; give at least one. Every name and value is checked against the device's parameter list first; if any is invalid, nothing is set. Names are case-sensitive. Numeric values are World Machine's internal values, not the units it displays: setting a width of 0.5 can read back as 4 km. This tool takes floats and integers in plain decimal notation, enum options as their 0-based index, and booleans as true or false (or 1, 0, yes, off); World Machine itself would also take exponent forms, enum labels, and other boolean words, which this tool refuses so that each value is checked before it is sent. Action, other, and filename parameters cannot be set (filename would let World Machine write outside the allowed roots). Each item reports whether World Machine applied or rejected it and the value read back afterwards, in display units. There is no automatic rollback; undo reverts one parameter per call.",
+        "Set one or more parameters of one device; give at least one. Every name and value is checked against the device's parameter list first; if any is invalid, nothing is set. Names are case-sensitive. Numeric values are World Machine's internal values, not the units it displays: setting a width of 0.5 can read back as 4 km. This tool takes floats and integers in plain decimal notation, enum options as their 0-based index, and booleans as true or false (or 1, 0, yes, off); World Machine itself would also take exponent forms, enum labels, and other boolean words, which this tool refuses so that each value is checked before it is sent. Action, other, and filename parameters and exportAlways cannot be set (filename would let World Machine write outside the allowed roots, and exportAlways makes every full build write files). Each item reports whether World Machine applied or rejected it and the value read back afterwards, in display units. There is no automatic rollback; undo reverts one parameter per call.",
       inputSchema: updateDeviceParametersInputSchema,
       outputSchema: updateDeviceParametersViewSchema,
       annotations: IDEMPOTENT_COMMAND,
@@ -365,7 +381,113 @@ export function createMcpServer(deps: McpDependencies): McpServer {
     ({ device }) => respond(deps, 'delete_device', () => deps.deleteDevice.deleteDevice({ device })),
   );
 
+  server.registerTool(
+    'build_project',
+    {
+      title: 'Build project',
+      description:
+        "Build the project in World Machine and wait up to wait_seconds (default 60, at most 600) for the build to end. preview runs World Machine's quick preview; full builds every device at the scene resolution and writes no files; tiled runs the tiled build set up in the World Machine window and writes every output as tiles next to its export path, overwriting files of the same name without asking. A tiled build checks its targets itself and is refused unless the project was saved and every output folder exists inside the allowed roots; it also refuses a file name template that uses <res> in a folder name, and one with an unknown template token, whose value the server cannot know. A full build checks the same way when an output has exportAlways set (or its setting cannot be read), because such an output may be written on every full build. If the wait ends first, state is running and the build continues: check get_build_status, or call stop_build. A build ended by stop_build is reported as finished. While a full or tiled build runs, every other change tool is refused. World Machine does not report failed builds, so finished means only that the build ended.",
+      inputSchema: buildProjectInputSchema,
+      outputSchema: buildProjectViewSchema,
+      annotations: DESTRUCTIVE,
+    },
+    ({ mode, wait_seconds }, ctx) =>
+      respond(deps, 'build_project', () =>
+        deps.buildProject.buildProject({
+          mode,
+          waitSeconds: wait_seconds,
+          signal: ctx.mcpReq.signal,
+          ...progressOf(ctx, wait_seconds, deps.logger),
+        }),
+      ),
+  );
+
+  server.registerTool(
+    'get_build_status',
+    {
+      title: 'Build status',
+      description:
+        'Report the running full or tiled build (mode, seconds since it started, and whether this server or the World Machine window started it) and whether a preview is running. A build started in the World Machine window shows only if World Machine prints its build events to the console; its mode is unknown until it shows as a full build (a tiled one stays unknown). Never starts World Machine.',
+      inputSchema: noInputSchema,
+      outputSchema: buildStatusViewSchema,
+      annotations: READ_ONLY,
+    },
+    () => respond(deps, 'get_build_status', () => deps.getBuildStatus.getBuildStatus({})),
+  );
+
+  server.registerTool(
+    'stop_build',
+    {
+      title: 'Stop build',
+      description:
+        'Stop the running build. A full, tiled, or unknown build is stopped and waited for, up to 10 s; otherwise a running preview is stopped. stopped names what was stopped, or is null when nothing was running (then nothing is sent). A stopped tiled build may already have written tiles. A run that shows no end within 10 s fails the call with WM_COMMAND_FAILED; a build started in the World Machine window is then no longer tracked, so the change tools work again.',
+      inputSchema: noInputSchema,
+      outputSchema: stopBuildViewSchema,
+      annotations: IDEMPOTENT_COMMAND,
+    },
+    () => respond(deps, 'stop_build', () => deps.stopBuild.stopBuild({})),
+  );
+
+  server.registerTool(
+    'list_exports',
+    {
+      title: 'List exports',
+      description:
+        "List the project's outputs as World Machine's export settings name them: each device, its file name template, the path it resolves to, and whether export_outputs may write there. A path is allowed when its folder exists inside the allowed roots; a project that was never saved allows none. File names, formats, and folders are set in the World Machine window.",
+      inputSchema: noInputSchema,
+      outputSchema: listExportsViewSchema,
+      annotations: READ_ONLY,
+    },
+    () => respond(deps, 'list_exports', () => deps.listExports.listExports({})),
+  );
+
+  server.registerTool(
+    'export_outputs',
+    {
+      title: 'Export outputs',
+      description:
+        "Export every output of the project with World Machine's export all, after a full build. Files with the same names are overwritten without asking. Refused while a build runs, for a project that was never saved, and when any output would be written outside the allowed roots or into a missing folder (list_exports shows which). files are the paths World Machine reports; a Material Output writes four files for its one path (_diffuse, _disp, _mask, and _roughness), and note says so.",
+      inputSchema: noInputSchema,
+      outputSchema: exportOutputsViewSchema,
+      annotations: DESTRUCTIVE,
+    },
+    () => respond(deps, 'export_outputs', () => deps.exportOutputs.exportOutputs({})),
+  );
+
   return server;
+}
+
+/**
+ * Spec v2a section 4: with a progress token, the wait reports elapsed seconds (the service calls every 5 s).
+ * The callback runs inside a service timer, so it must never throw or reject.
+ */
+function progressOf(
+  ctx: ServerContext,
+  total: number,
+  logger: Logger,
+): { onProgress?: (elapsedSeconds: number) => void } {
+  const progressToken = ctx.mcpReq._meta?.progressToken;
+  if (progressToken === undefined) return {};
+  const lost = (error: unknown) => logger.debug(`progress notification not sent: ${String(error)}`);
+  return {
+    onProgress: (elapsedSeconds) => {
+      try {
+        void Promise.resolve(
+          ctx.mcpReq.notify({
+            method: 'notifications/progress',
+            params: {
+              progressToken,
+              progress: elapsedSeconds,
+              total,
+              message: `Build running for ${elapsedSeconds} s`,
+            },
+          }),
+        ).catch(lost);
+      } catch (error) {
+        lost(error);
+      }
+    },
+  };
 }
 
 function endpoint(device: string, port: number | undefined): WireEndpoint {

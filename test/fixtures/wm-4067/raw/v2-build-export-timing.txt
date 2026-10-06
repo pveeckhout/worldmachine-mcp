@@ -1,0 +1,77 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> (batch took 0 s)
+<<<
+>>> scene resolution 257
+Set scene resolution to 257
+<<<
+>>> (batch took 0 s)
+<<<
+>>> project save <WORK>/timing.tmd
+Project saved to: <WORK>/timing.tmd
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /Build Ended/: seen after 0 s)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Build started\.$/: seen after 1 s)
+Build started.
+<<<
+>>> export all
+Successfully exported 4 file(s):
+  <WORK>/timing Height Output-257.png
+  <WORK>/timing Material Output 257.png
+  <WORK>/timing Colormap only 257.png
+  <WORK>/timing Splatmap 257.png
+
+<<<
+>>> (batch took 0 s)
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 3000 ms)
+[Info       ] QIODevice::read (QSslSocket): device not open
+Build started.
+<<<
+>>> export all
+Successfully exported 4 file(s):
+  <WORK>/timing Height Output-257.png
+  <WORK>/timing Material Output 257.png
+  <WORK>/timing Colormap only 257.png
+  <WORK>/timing Splatmap 257.png
+
+<<<
+>>> (batch took 0 s)
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<
+>>> (batch took 0 s)
+<<<

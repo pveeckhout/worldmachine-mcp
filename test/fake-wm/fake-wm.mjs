@@ -68,8 +68,9 @@ let nextId = firstFreeId(project);
 // FAKE_WM_PREVIEW_MS; real durations depend on the project and the resolution.
 const BUILD_MS = Number(env.FAKE_WM_BUILD_MS ?? '100');
 const PREVIEW_MS = Number(env.FAKE_WM_PREVIEW_MS ?? '100');
-// Assumed: the late confirmations arrive 20 ms after the build ended; captures show them a second or more later.
-const LATE_MS = 20;
+// Assumed: the late confirmations arrive FAKE_WM_LATE_MS (default 20 ms) after the build ended; captures show them a
+// second or more later (raw/v2-build-export-timing.txt l.37-38).
+const LATE_MS = Number(env.FAKE_WM_LATE_MS ?? '20');
 // raw/v2-build-export.txt l.15-20: the default project's outputs and templates.
 const EXPORT_ROWS = [
   ['Height Output', '<project> <name>-<res>.png'],
@@ -82,7 +83,8 @@ const FAKE_RESOLUTION = 2049;
 // undefined, or { mode: 'full' | 'tiled', timer } while a build runs.
 let build;
 let previewUntil = 0;
-// Fact 50: `export all` refuses outputs that were not built since the project changed.
+// Fact 50: `export all` refuses outputs that were not built since the project changed. Fact 54
+// (raw/v2-build-export-timing.txt l.29-41): they count as built only from the full build's late `Build started.`.
 // Assumed: only a full build that ends makes them built, and only a project switch makes them unbuilt again.
 let built = false;
 // The `.tmd` file that `project save` or `project open` named; templates resolve against its folder (fact 50).
@@ -133,8 +135,10 @@ const endBuild = () => {
     // Fact 43, raw/v2-build-isolate.txt l.61-68.
     event('*** Build Ended ***');
     trailer();
-    built = true;
-    later(() => out('Build started.\n'));
+    later(() => {
+      built = true;
+      out('Build started.\n');
+    });
   } else {
     // Fact 48, raw/v2-build-isolate.txt l.84-85.
     event('System allowed to sleep again');
@@ -488,6 +492,19 @@ async function handle(line) {
       `Configured exports:\n${rows.map(([name, template]) => `  '${name.padEnd(20)}' -> ${template}\n`).join('')}\n`,
     );
     return;
+  }
+  const exportAlways = /^param get #(\d+)\.exportAlways$/.exec(command);
+  if (exportAlways && project === 'sample') {
+    // raw/v2-build-isolate.txt l.17-42 (fact 51): the default project's File Output #1 reads its exportAlways; its
+    // Material Output and Bitmap Outputs have none. FAKE_WM_EXPORT_ALWAYS=1 reads #1 as set in the window (fact 55).
+    // Assumed: other ids are not modelled and get the unknown-command answer below.
+    const [, id] = exportAlways;
+    if (id === '1') return void out(`#1.exportAlways = ${env.FAKE_WM_EXPORT_ALWAYS === '1'}\n`);
+    if (['308', '309', '318'].includes(id)) {
+      return void process.stderr.write(
+        `Error: Error: Parameter 'exportAlways' not found on device '#${id}'.\n`,
+      );
+    }
   }
   if (command === 'export all') {
     // Fact 50: raw/v2-build-long.txt l.103-104 (not built), raw/v2-build-export.txt l.85-91.

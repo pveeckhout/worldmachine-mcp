@@ -429,6 +429,19 @@ describe('fake World Machine builds and exports (spec v2a facts 42-50)', () => {
     ]);
   });
 
+  it('reads exportAlways of the default outputs by id (raw/v2-build-isolate.txt l.17-42, fact 51)', async () => {
+    expect(
+      await outputs(session({ FAKE_WM_EXPORT_ALWAYS: '1' }), [
+        'param get #1.exportAlways',
+        'param get #318.exportAlways',
+      ]),
+    ).toEqual([
+      ['#1.exportAlways = true'],
+      ["Error: Error: Parameter 'exportAlways' not found on device '#318'."],
+    ]);
+    expect(await outputs(session(), ['param get #1.exportAlways'])).toEqual([['#1.exportAlways = false']]);
+  });
+
   it('lists the default exports and refuses export all before a build (facts 49, 50)', async () => {
     expect(await outputs(session(), ['export list', 'export all'])).toEqual([
       [
@@ -456,6 +469,18 @@ describe('fake World Machine builds and exports (spec v2a facts 42-50)', () => {
         `  ${folder}/fw Splatmap 2049.png`,
       ],
     ]);
+  });
+
+  it("refuses export all between a full build's Ended and its late Build started. (fact 54)", async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'fake-wm-export-'));
+    const s = session({ FAKE_WM_BUILD_MS: '60000', FAKE_WM_BUILD_END_ON: 'export all' });
+    await outputs(s, [`project save ${folder}/fw.tmd`, 'build start']);
+    // raw/v2-build-export-timing.txt l.29-33: the build ends inside the export's frame, before its late line.
+    expect(await outputs(s, ['export all'])).toEqual([
+      ["Error: Error: Some output devices are not built. Run 'build' first, then export."],
+    ]);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect((await outputs(s, ['export all']))[0]?.[0]).toBe('Successfully exported 4 file(s):');
   });
 
   it("clears the other mode's end timer at a start (ruling R8)", async () => {

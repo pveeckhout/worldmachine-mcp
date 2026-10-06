@@ -252,6 +252,22 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
     });
   });
 
+  it('finishes a full build only at its late Build started., so an export right after it succeeds (fact 54)', async () => {
+    const { session, policy, reader, writer, builder, exporter } = wired({
+      FAKE_WM_BUILD_MS: '100',
+      FAKE_WM_LATE_MS: '500',
+    });
+    await writer.saveProject(join(root, 'timing.tmd'), true);
+    expect(
+      await new BuildProjectService(session, builder, exporter, reader, policy).buildProject({
+        mode: 'full',
+        waitSeconds: 10,
+      }),
+    ).toMatchObject({ state: 'finished', mode: 'full' });
+    const exported = await new ExportOutputsService(session, exporter, reader, policy).exportOutputs({});
+    expect(exported.files).toHaveLength(4);
+  });
+
   it('reports no build when its end arrives inside the build status frame (fact 47)', async () => {
     const { session, policy, reader, builder, exporter } = wired({ FAKE_WM_BUILD_END_ON: 'build status' });
     await new BuildProjectService(session, builder, exporter, reader, policy).buildProject({

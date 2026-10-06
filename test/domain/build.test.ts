@@ -3,6 +3,7 @@ import {
   type BuildEvent,
   type BuildState,
   isRunning,
+  lateStartMissed,
   NO_BUILD,
   nextBuildState,
 } from '../../src/domain/build.js';
@@ -12,17 +13,72 @@ const apply = (state: BuildState, ...events: BuildEvent[]): BuildState =>
   events.reduce((current, event, index) => nextBuildState(current, event, 1_000 + index), state);
 
 describe('nextBuildState (spec v2a section 3)', () => {
-  it('opens a server full run on starting and closes it on ended (fact 43)', () => {
+  it('opens a server full run on starting and closes it on the late build-started after ended (facts 43, 54)', () => {
     const started = apply({ ...NO_BUILD, pending: 'full' }, 'sleep-prohibited', 'starting');
     expect(started).toEqual({
       run: { mode: 'full', startedAt: 1_001, startedBy: 'server', state: 'running' },
       pending: undefined,
       trailerOwed: false,
+      lateStartsOwed: 0,
+      ending: false,
     });
-    const ended = apply(started, 'ended', 'sleep-allowed', 'build-started');
-    expect(ended.run).toEqual({ mode: 'full', startedAt: 1_001, startedBy: 'server', state: 'ended' });
-    expect(ended.trailerOwed).toBe(false);
+    // Fact 54 (raw/v2-build-export-timing.txt l.29-41): outputs are not exportable until the late line.
+    const afterEnded = apply(started, 'ended', 'sleep-allowed');
+    expect(afterEnded).toEqual({ ...started, lateStartsOwed: 1, ending: true });
+    expect(isRunning(afterEnded)).toBe(true);
+    const ended = apply(afterEnded, 'build-started');
+    expect(ended).toEqual({
+      run: { mode: 'full', startedAt: 1_001, startedBy: 'server', state: 'ended' },
+      pending: undefined,
+      trailerOwed: false,
+      lateStartsOwed: 0,
+      ending: false,
+    });
     expect(isRunning(ended)).toBe(false);
+  });
+
+  it('ignores a build-started that no ended owes', () => {
+    const running = apply({ ...NO_BUILD, pending: 'full' }, 'starting');
+    expect(apply(running, 'build-started')).toEqual(running);
+    expect(apply(NO_BUILD, 'build-started')).toEqual(NO_BUILD);
+  });
+
+  it('ends an ending full run when its late build-started does not come (lateStartMissed, spec section 3)', () => {
+    const ending = apply({ ...NO_BUILD, pending: 'full' }, 'starting', 'ended');
+    const missed = lateStartMissed(ending);
+    expect(missed).toEqual({
+      run: { mode: 'full', startedAt: 1_000, startedBy: 'server', state: 'ended' },
+      pending: undefined,
+      trailerOwed: true,
+      lateStartsOwed: 0,
+      ending: false,
+    });
+    const running = apply({ ...NO_BUILD, pending: 'full' }, 'starting');
+    expect(lateStartMissed(running)).toBe(running);
+    expect(lateStartMissed(NO_BUILD)).toBe(NO_BUILD);
+  });
+
+  it("owes one build-started per ended across a restart, so the old run's late line does not end the new run (fact 45)", () => {
+    const first = apply({ ...NO_BUILD, pending: 'full' }, 'starting');
+    const restarted = apply(
+      { ...first, pending: 'full' },
+      'ended',
+      'sleep-prohibited',
+      'starting',
+      'sleep-allowed',
+    );
+    expect(restarted.lateStartsOwed).toBe(1);
+    expect(restarted.ending).toBe(false);
+    const oldLine = apply(restarted, 'build-started');
+    expect(isRunning(oldLine)).toBe(true);
+    expect(oldLine.lateStartsOwed).toBe(0);
+    const ended = apply(oldLine, 'ended', 'sleep-allowed', 'build-started');
+    expect(isRunning(ended)).toBe(false);
+    // Without the old run's line, the new run's own line leaves one owed and the run running.
+    const stillOwed = apply(restarted, 'ended', 'sleep-allowed', 'build-started');
+    expect(isRunning(stillOwed)).toBe(true);
+    expect(stillOwed).toMatchObject({ lateStartsOwed: 1, ending: true });
+    expect(isRunning(apply(stillOwed, 'build-started'))).toBe(false);
   });
 
   it('replaces a running full run when a new one starts (fact 45, raw/v2-build-long.txt l.57-60)', () => {
@@ -38,6 +94,8 @@ describe('nextBuildState (spec v2a section 3)', () => {
       run: { mode: 'full', startedAt: 1_002, startedBy: 'server', state: 'running' },
       pending: undefined,
       trailerOwed: false,
+      lateStartsOwed: 1,
+      ending: false,
     });
   });
 
@@ -56,6 +114,8 @@ describe('nextBuildState (spec v2a section 3)', () => {
       run: { mode: 'unknown', startedAt: 1_000, startedBy: 'world-machine', state: 'running' },
       pending: undefined,
       trailerOwed: false,
+      lateStartsOwed: 0,
+      ending: false,
     });
     expect(isRunning(started)).toBe(true);
     const ended = apply(started, 'sleep-allowed', 'tiled-started');
@@ -81,6 +141,8 @@ describe('nextBuildState (spec v2a section 3)', () => {
       run: { mode: 'full', startedAt: 1_000, startedBy: 'world-machine', state: 'ended' },
       pending: undefined,
       trailerOwed: false,
+      lateStartsOwed: 0,
+      ending: false,
     });
   });
 
@@ -92,11 +154,16 @@ describe('nextBuildState (spec v2a section 3)', () => {
       run: { mode: 'full', startedAt: 1_001, startedBy: 'world-machine', state: 'running' },
       pending: undefined,
       trailerOwed: false,
+      lateStartsOwed: 1,
+      ending: false,
     });
-    // l.62-67: Ended in the stop frame, the trailer in the next one.
+    // l.62-67: Ended in the stop frame, the trailer in the next one. No `Build started.` follows in the capture, so
+    // the run ends only when the late line is given up (spec section 3).
     const stopped = apply(restarted, 'ended');
-    expect(isRunning(stopped)).toBe(false);
+    expect(isRunning(stopped)).toBe(true);
+    expect(stopped).toMatchObject({ trailerOwed: true, lateStartsOwed: 2, ending: true });
     expect(apply(stopped, 'sleep-allowed')).toEqual({ ...stopped, trailerOwed: false });
+    expect(isRunning(lateStartMissed(stopped))).toBe(false);
   });
 
   it('keeps a running run on a sleep-prohibited that no start explains', () => {
@@ -110,6 +177,8 @@ describe('nextBuildState (spec v2a section 3)', () => {
       run: { mode: 'tiled', startedAt: 1_000, startedBy: 'server', state: 'running' },
       pending: undefined,
       trailerOwed: false,
+      lateStartsOwed: 0,
+      ending: false,
     });
     const ended = apply(started, 'sleep-allowed', 'tiled-started', 'tiled-started');
     expect(ended.run?.state).toBe('ended');
@@ -142,6 +211,8 @@ describe('nextBuildState (spec v2a section 3)', () => {
       run: { mode: 'tiled', startedAt: 1_000, startedBy: 'server', state: 'running' },
       pending: undefined,
       trailerOwed: false,
+      lateStartsOwed: 1,
+      ending: false,
     });
     expect(apply(tiled, 'sleep-allowed').run?.state).toBe('ended');
   });

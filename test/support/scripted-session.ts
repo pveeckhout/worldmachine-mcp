@@ -22,6 +22,7 @@ export function scriptedSession(script: Readonly<Record<string, readonly Reply[]
     });
   };
   const session = {
+    assertAcceptingCalls: () => undefined,
     execute,
     executeOne: async (command: string) => (await execute([command]))[0],
     markDirty: () => {

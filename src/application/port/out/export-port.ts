@@ -6,4 +6,10 @@ export interface ExportPort {
   targets(): Promise<ExportTarget[]>;
   /** `export all`: writes every output and returns the paths World Machine reports (fact 50). */
   exportAll(): Promise<string[]>;
+  /**
+   * The given output devices whose `exportAlways` is not confirmed off, so a full build may write their files (fact
+   * 55). Fails closed: only a device the name resolves to unambiguously that reads `false`, or that has no such
+   * parameter (fact 51), counts as off (ruling P-FR-3).
+   */
+  exportingAlways(devices: readonly string[]): Promise<string[]>;
 }

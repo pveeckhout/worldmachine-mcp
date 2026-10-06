@@ -682,6 +682,20 @@ const scenarios = [
       return sections;
     },
   ],
+  [
+    // v2a live finding: when a full build's results become exportable. `export all` right after `Build Ended`, after
+    // the late `Build started.`, and after a fixed wait. Ends closed (fact 19).
+    'v2-build-export-timing',
+    async () => {
+      const sections = [];
+      try {
+        await exportTiming(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
 ];
 
 async function buildAndExport(sections, since) {
@@ -852,6 +866,32 @@ async function concurrentBuilds(sections) {
   sections.push(await waitForLine(/Tiled build started/, 300_000));
   sections.push(await wait(2000));
   filesSince(sections, since, 'by the tiled build run to its end');
+  await timed(sections, ['project close force']);
+}
+
+// True when a section already holds the build's end line (a fast build can end inside its own start frame).
+function endedIn(sections) {
+  return sections.some((section) => section.lines.some((line) => line.includes('Build Ended')));
+}
+
+async function exportTiming(sections) {
+  await timed(sections, ['project new default force']);
+  await timed(sections, ['scene resolution 257']);
+  await timed(sections, [`project save ${join(work, 'timing.tmd')}`]);
+  await pollBuild(sections);
+
+  await timed(sections, ['build start']);
+  if (!endedIn(sections)) sections.push(await waitForLine(/Build Ended/, 60_000));
+  await timed(sections, ['export all']);
+  if (!sections.some((s) => s.lines.includes('Build started.')))
+    sections.push(await waitForLine(/^Build started\.$/, 30_000));
+  await timed(sections, ['export all']);
+
+  const second = sections.length;
+  await timed(sections, ['build start']);
+  if (!endedIn(sections.slice(second))) sections.push(await waitForLine(/Build Ended/, 60_000));
+  sections.push(await wait(3000));
+  await timed(sections, ['export all']);
   await timed(sections, ['project close force']);
 }
 

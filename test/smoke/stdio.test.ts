@@ -37,21 +37,26 @@ describe('stdio server', () => {
     const { tools } = await client.listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       'add_device',
+      'build_project',
       'configure_scene',
       'connect_devices',
       'create_project',
       'delete_device',
       'disconnect_devices',
+      'export_outputs',
+      'get_build_status',
       'get_device',
       'get_scene',
       'get_world_machine_status',
       'inspect_project',
       'list_devices',
+      'list_exports',
       'open_project',
       'redo',
       'rename_device',
       'save_project',
       'set_device_enabled',
+      'stop_build',
       'undo',
       'update_device_parameters',
     ]);
@@ -131,6 +136,28 @@ describe('stdio server', () => {
     expect(text).not.toContain('Wrong host');
     await waitUntil(() => record.pids().length > 0 && !record.pids().some(isAlive), 3_000);
     await client.close();
+  });
+
+  it('stops a running build before it closes the project when the client disconnects (spec v2a section 5)', async () => {
+    const record = recorder();
+    const client = await startServer({
+      WORLD_MACHINE_BIN: FAKE_WM,
+      WORLD_MACHINE_ALLOWED_ROOTS: mkdtempSync(join(tmpdir(), 'smoke-')),
+      FAKE_WM_RECORD: record.path,
+      FAKE_WM_BUILD_MS: '60000',
+    });
+    const build = await client.callTool({
+      name: 'build_project',
+      arguments: { mode: 'full', wait_seconds: 0 },
+    });
+    expect(build.structuredContent).toMatchObject({ state: 'running', mode: 'full' });
+    const status = await client.callTool({ name: 'get_build_status', arguments: {} });
+    expect(status.structuredContent).toMatchObject({ build: { mode: 'full', startedBy: 'server' } });
+    await client.close();
+    await waitUntil(() => record.lines().includes('system quit force'), 10_000);
+    const lines = record.lines();
+    expect(lines.indexOf('build stop')).toBeGreaterThan(-1);
+    expect(lines.indexOf('build stop')).toBeLessThan(lines.indexOf('project close force'));
   });
 
   it('reports NOT_CONFIGURED when WORLD_MACHINE_BIN is missing', async () => {

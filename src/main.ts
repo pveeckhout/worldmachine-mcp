@@ -5,7 +5,9 @@ import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import { createMcpServer } from './adapter/in/mcp/create-server.js';
 import { FsPathPolicy } from './adapter/out/fs/path-policy.js';
 import { resolveExecutable } from './adapter/out/worldmachine/locator.js';
+import { WorldMachineBuilder } from './adapter/out/worldmachine/world-machine-builder.js';
 import { WorldMachineDeviceEditor } from './adapter/out/worldmachine/world-machine-device-editor.js';
+import { WorldMachineExporter } from './adapter/out/worldmachine/world-machine-exporter.js';
 import { WorldMachineGraphReader } from './adapter/out/worldmachine/world-machine-graph-reader.js';
 import { WorldMachineParameterEditor } from './adapter/out/worldmachine/world-machine-parameter-editor.js';
 import { WorldMachineProcess } from './adapter/out/worldmachine/world-machine-process.js';
@@ -14,21 +16,26 @@ import { WorldMachineSceneEditor } from './adapter/out/worldmachine/world-machin
 import { WorldMachineSession } from './adapter/out/worldmachine/world-machine-session.js';
 import { WorldMachineWireEditor } from './adapter/out/worldmachine/world-machine-wire-editor.js';
 import { AddDeviceService } from './application/service/add-device-service.js';
+import { BuildProjectService } from './application/service/build-project-service.js';
 import { ConfigureSceneService } from './application/service/configure-scene-service.js';
 import { ConnectDevicesService } from './application/service/connect-devices-service.js';
 import { CreateProjectService } from './application/service/create-project-service.js';
 import { DeleteDeviceService } from './application/service/delete-device-service.js';
 import { DisconnectDevicesService } from './application/service/disconnect-devices-service.js';
+import { ExportOutputsService } from './application/service/export-outputs-service.js';
+import { GetBuildStatusService } from './application/service/get-build-status-service.js';
 import { GetDeviceService } from './application/service/get-device-service.js';
 import { GetSceneService } from './application/service/get-scene-service.js';
 import { GetStatusService } from './application/service/get-status-service.js';
 import { InspectProjectService } from './application/service/inspect-project-service.js';
 import { ListDevicesService } from './application/service/list-devices-service.js';
+import { ListExportsService } from './application/service/list-exports-service.js';
 import { OpenProjectService } from './application/service/open-project-service.js';
 import { RedoService } from './application/service/redo-service.js';
 import { RenameDeviceService } from './application/service/rename-device-service.js';
 import { SaveProjectService } from './application/service/save-project-service.js';
 import { SetDeviceEnabledService } from './application/service/set-device-enabled-service.js';
+import { StopBuildService } from './application/service/stop-build-service.js';
 import { UndoService } from './application/service/undo-service.js';
 import { UpdateDeviceParametersService } from './application/service/update-device-parameters-service.js';
 import { type Config, loadConfig } from './config.js';
@@ -65,6 +72,8 @@ const devices = new WorldMachineDeviceEditor(session);
 const parameters = new WorldMachineParameterEditor(session);
 const wires = new WorldMachineWireEditor(session);
 const scene = new WorldMachineSceneEditor(session);
+const builder = new WorldMachineBuilder(session);
+const exporter = new WorldMachineExporter(session);
 
 const handle = serveStdio(() =>
   createMcpServer({
@@ -88,6 +97,11 @@ const handle = serveStdio(() =>
     connectDevices: new ConnectDevicesService(session, wires),
     disconnectDevices: new DisconnectDevicesService(session, wires),
     configureScene: new ConfigureSceneService(session, scene),
+    buildProject: new BuildProjectService(session, builder, exporter, reader, pathPolicy),
+    getBuildStatus: new GetBuildStatusService(session, builder),
+    stopBuild: new StopBuildService(session, builder),
+    listExports: new ListExportsService(session, exporter, reader, pathPolicy),
+    exportOutputs: new ExportOutputsService(session, exporter, reader, pathPolicy),
     currentSession: () => session.status().session,
   }),
 );

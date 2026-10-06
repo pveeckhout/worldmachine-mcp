@@ -1,18 +1,23 @@
 import * as z from 'zod/v4';
 import type { AddDeviceView } from '../../../application/port/in/command/add-device-command.js';
+import type { BuildProjectView } from '../../../application/port/in/command/build-project-command.js';
 import type { ConfigureSceneView } from '../../../application/port/in/command/configure-scene-command.js';
 import type { ConnectDevicesView } from '../../../application/port/in/command/connect-devices-command.js';
 import type { DeleteDeviceView } from '../../../application/port/in/command/delete-device-command.js';
 import type { DisconnectDevicesView } from '../../../application/port/in/command/disconnect-devices-command.js';
+import type { ExportOutputsView } from '../../../application/port/in/command/export-outputs-command.js';
 import type { ProjectCommandView } from '../../../application/port/in/command/project-command-view.js';
 import type { RenameDeviceView } from '../../../application/port/in/command/rename-device-command.js';
 import type { SetDeviceEnabledView } from '../../../application/port/in/command/set-device-enabled-command.js';
+import type { StopBuildView } from '../../../application/port/in/command/stop-build-command.js';
 import type { UpdateDeviceParametersView } from '../../../application/port/in/command/update-device-parameters-command.js';
+import type { BuildStatusView } from '../../../application/port/in/query/get-build-status-query.js';
 import type { DeviceView } from '../../../application/port/in/query/get-device-query.js';
 import type { SceneView } from '../../../application/port/in/query/get-scene-query.js';
 import type { StatusView } from '../../../application/port/in/query/get-status-query.js';
 import type { ProjectView } from '../../../application/port/in/query/inspect-project-query.js';
 import type { DeviceListView } from '../../../application/port/in/query/list-devices-query.js';
+import type { ListExportsView } from '../../../application/port/in/query/list-exports-query.js';
 import type {
   DeviceDetail,
   DeviceSummary,
@@ -22,6 +27,7 @@ import type {
   PortLink,
 } from '../../../domain/device.js';
 import type { Group } from '../../../domain/group.js';
+import type { CheckedExportTarget } from '../../../domain/output-template.js';
 import type { ProjectOverview } from '../../../domain/project.js';
 import type { Scene, SceneSummary } from '../../../domain/scene.js';
 import type { ProjectBinding, SessionSummary } from '../../../domain/session.js';
@@ -303,3 +309,64 @@ export const configureSceneViewSchema = z.strictObject({
   scene: sceneSchema,
   session: sessionSummarySchema,
 }) satisfies z.ZodType<ConfigureSceneView>;
+
+// Spec v2a builds and exports. Output field names follow the v1 views (camelCase, with `session`), decision D1.
+
+const buildModeSchema = z.enum(['preview', 'full', 'tiled']);
+
+export const buildProjectInputSchema = z.object({
+  mode: buildModeSchema.describe('preview, full, or tiled; see the tool description'),
+  wait_seconds: z
+    .number()
+    .int()
+    .min(0)
+    .max(600)
+    .default(60)
+    .describe('Seconds to wait for the build to end, 0 to 600; the build keeps running after the wait'),
+});
+
+export const buildProjectViewSchema = z.strictObject({
+  state: z.enum(['finished', 'running']),
+  mode: buildModeSchema,
+  elapsedSeconds: z.number().int().min(0),
+  outputFolders: z.array(z.string()).optional(),
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<BuildProjectView>;
+
+export const buildStatusViewSchema = z.strictObject({
+  build: z
+    .strictObject({
+      // `unknown` only for a run World Machine started whose kind has not shown (spec v2a section 3).
+      mode: z.enum(['full', 'tiled', 'unknown']),
+      elapsedSeconds: z.number().int().min(0),
+      startedBy: z.enum(['server', 'world-machine']),
+    })
+    .nullable(),
+  previewRunning: z.boolean(),
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<BuildStatusView>;
+
+export const stopBuildViewSchema = z.strictObject({
+  stopped: z.enum(['preview', 'full', 'tiled', 'unknown']).nullable(),
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<StopBuildView>;
+
+const checkedExportTargetSchema = z.strictObject({
+  device: z.string(),
+  template: z.string(),
+  path: z.string().nullable(),
+  allowed: z.boolean(),
+  reason: z.string().optional(),
+}) satisfies z.ZodType<CheckedExportTarget>;
+
+export const listExportsViewSchema = z.strictObject({
+  projectFolder: z.string().nullable(),
+  targets: z.array(checkedExportTargetSchema),
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<ListExportsView>;
+
+export const exportOutputsViewSchema = z.strictObject({
+  files: z.array(z.string()),
+  note: z.string().optional(),
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<ExportOutputsView>;

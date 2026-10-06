@@ -68,11 +68,11 @@ describe('WorldMachineParameterEditor', () => {
     const s = scriptedSession({
       'device list': [{ output: DEVICES }],
       'param list #2': [{ output: HEIGHT_OUTPUT_PARAMS }],
-      // raw/v6b-param-set.txt l.126-130.
-      'param set #2.exportAlways true': [{ output: ['Set #2.exportAlways = true'] }],
-      'param get #2.exportAlways': [{ output: ['#2.exportAlways = true'] }],
+      // raw/v6b-param-set.txt l.126-130, adapted from exportAlways, which is refused (spec v2a section 6), to tiled.
+      'param set #2.tiled true': [{ output: ['Set #2.tiled = true'] }],
+      'param get #2.tiled': [{ output: ['#2.tiled = true'] }],
     });
-    const update = await editor(s).updateParameters('#2', { exportAlways: true });
+    const update = await editor(s).updateParameters('#2', { tiled: true });
     expect(update.parameters.map((item) => [item.outcome, item.value])).toEqual([['applied', 'true']]);
   });
 
@@ -100,7 +100,7 @@ describe('WorldMachineParameterEditor', () => {
     expect(s.dirtyMarks()).toBe(0);
   });
 
-  it('refuses action and filename parameters without sending edits (spec facts 36, section 9)', async () => {
+  it('refuses action, filename, and exportAlways parameters without sending edits (spec facts 36, section 9, v2a section 6)', async () => {
     const s = scriptedSession({
       'device list': [{ output: DEVICES }],
       'param list #2': [{ output: HEIGHT_OUTPUT_PARAMS }],
@@ -111,7 +111,8 @@ describe('WorldMachineParameterEditor', () => {
       code: 'REFUSED',
       message: expect.stringContaining(
         "'writeButton': action parameters are buttons and cannot be set; " +
-          "'filename': filename parameters set where World Machine writes output and cannot be set",
+          "'filename': filename parameters set where World Machine writes output and cannot be set; " +
+          "'exportAlways': exportAlways makes World Machine write output on every full build and cannot be set",
       ),
     });
     expect(s.batches).toEqual([['device list'], ['param list #2']]);
