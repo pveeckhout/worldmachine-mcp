@@ -22,6 +22,7 @@ export const RECOVERY_DIALOG_BOUND_MS = 600_000;
 /** The grace a start that never became ready gives `system quit force` before World Machine is killed. */
 const START_QUIT_GRACE_MS = 2_000;
 const SESSION_CHECK = 'Checking for session and autosave files';
+const SESSION_ADOPTED = 'Session: adopting crash-recovery data';
 const RECENT_LINES = 10;
 const DISPLAY_ERROR = /could not connect to display/i;
 const DISPLAY_HINT =
@@ -64,6 +65,7 @@ export class WorldMachineProcess implements CommandChannel {
   #noLicenceListener: (() => void) | undefined;
   #sessionCheckListener: (() => void) | undefined;
   #exited = false;
+  #recoveredSession = false;
   /** 'exit' observed; `exited` waits for 'close' so the last output lines are delivered first. */
   #exitSeen = false;
   #resolveExit: () => void = () => undefined;
@@ -177,6 +179,11 @@ export class WorldMachineProcess implements CommandChannel {
     return this.#exited;
   }
 
+  /** World Machine started with a project recovered from a crashed session (fact 74). */
+  get recoveredSession(): boolean {
+    return this.#recoveredSession;
+  }
+
   onLine(listener: (line: string) => void): void {
     this.#lineListeners.push(listener);
   }
@@ -283,6 +290,7 @@ export class WorldMachineProcess implements CommandChannel {
       if (log.text.includes(LICENCE_CHECKOUT_FAILED)) this.#noLicenceListener?.();
       this.#logger.worldMachine(log.level, log.text);
       if (log.text.includes(SESSION_CHECK)) this.#sessionCheckListener?.();
+      if (log.text.includes(SESSION_ADOPTED) && this.#readyListener) this.#recoveredSession = true;
       if (log.text.includes(READY_LINE)) this.#readyListener?.();
       return;
     }

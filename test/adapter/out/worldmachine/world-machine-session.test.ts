@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { FsPathPolicy } from '../../../../src/adapter/out/fs/path-policy.js';
 import { WorldMachineProcess } from '../../../../src/adapter/out/worldmachine/world-machine-process.js';
+import { WorldMachineProjectWriter } from '../../../../src/adapter/out/worldmachine/world-machine-project-writer.js';
 import {
   type SessionOptions,
   WorldMachineSession,
@@ -908,5 +909,32 @@ describe("WorldMachineSession and the 'Recover crashed session' dialog (fact 73)
     await s.shutdown({ drainMs: 100, graceMs: 300, termMs: 100 });
     expect(Date.now() - began).toBeLessThan(1_500);
     expect(record.pids().some(isAlive)).toBe(false);
+  });
+
+  it('keeps the recovered project instead of the default one and reports it until another project is bound', async () => {
+    const { session: s, record } = dialogSession('0');
+    await s.ensureRunning();
+    expect(record.lines()).toEqual(['START', 'system info', SENTINEL]);
+    expect(s.status().session).toEqual({
+      state: 'ready',
+      binding: { kind: 'fresh' },
+      dirty: true,
+      recovered: true,
+    });
+    s.markDirty();
+    expect(s.status().session.recovered).toBe(true);
+    await new WorldMachineProjectWriter(s).createProject();
+    expect(s.status().session).toEqual({ state: 'ready', binding: { kind: 'fresh' }, dirty: false });
+  });
+
+  it('clears the recovered flag when another project is opened', async () => {
+    const { session: s } = dialogSession('0');
+    await s.ensureRunning();
+    await new WorldMachineProjectWriter(s).openProject(project);
+    expect(s.status().session).toEqual({
+      state: 'ready',
+      binding: { kind: 'opened', path: project },
+      dirty: false,
+    });
   });
 });

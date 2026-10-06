@@ -276,8 +276,14 @@ export class WorldMachineSession implements WorldMachineSessionPort {
       const info = requireFrame((await queue.execute(['system info']))[0]);
       throwIfFailed(info);
       this.#systemInfo = parseSystemInfo(info.output);
-      const binding = await this.#bindProject(queue, project);
-      this.#state = { kind: 'ready', binding, dirty: false };
+      if (proc.recoveredSession) {
+        // Fact 74: the user chose to restore a crashed session, so its project stays open instead of the default one.
+        // It has no path the server knows of, and its changes are saved nowhere yet.
+        this.#state = { kind: 'ready', binding: { kind: 'fresh' }, dirty: true, recovered: true };
+      } else {
+        const binding = await this.#bindProject(queue, project);
+        this.#state = { kind: 'ready', binding, dirty: false };
+      }
       this.#armIdleTimer();
     } catch (error) {
       this.#reset();

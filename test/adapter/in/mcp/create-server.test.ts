@@ -358,6 +358,19 @@ describe('createMcpServer', () => {
     });
   });
 
+  it('returns the status of a project recovered from a crashed session', async () => {
+    const session = { state: 'ready', binding: { kind: 'fresh' }, dirty: true, recovered: true } as const;
+    const result = await (
+      await connect(
+        deps({
+          getStatus: { getStatus: async () => ({ configured: true, executable: '/opt/wm', session }) },
+        }),
+      )
+    ).callTool({ name: 'get_world_machine_status', arguments: {} });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toEqual({ configured: true, executable: '/opt/wm', session });
+  });
+
   it('passes the filter to the list-devices port', async () => {
     const result = await (await connect(deps())).callTool({
       name: 'list_devices',

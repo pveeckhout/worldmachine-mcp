@@ -23,6 +23,15 @@ describe('summarize', () => {
     });
   });
 
+  it('reports a project recovered from a crashed session', () => {
+    expect(summarize({ kind: 'ready', binding: { kind: 'fresh' }, dirty: true, recovered: true })).toEqual({
+      state: 'ready',
+      binding: { kind: 'fresh' },
+      dirty: true,
+      recovered: true,
+    });
+  });
+
   it('reports the reason when unhealthy', () => {
     expect(summarize({ kind: 'unhealthy', reason: 'timeout' })).toEqual({
       state: 'unhealthy',

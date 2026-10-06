@@ -234,14 +234,21 @@ describe('WorldMachineProcess', () => {
       // Past the 1 s readiness limit, which no longer applies once the dialog is open.
       const proc = await starting;
       expect(proc.exited).toBe(false);
+      expect(proc.recoveredSession).toBe(true);
       expect(dialogs).toHaveLength(1);
     });
 
     it('starts without reporting a dialog when the ready line follows the session check in time', async () => {
       const { starting, dialogs } = dialogStart({ FAKE_WM_RECOVERY_DIALOG: '0' });
-      await starting;
+      const proc = await starting;
       await new Promise((resolve) => setTimeout(resolve, 400));
       expect(dialogs).toEqual([]);
+      expect(proc.recoveredSession).toBe(true);
+    });
+
+    it('reports no recovered session after a start without one', async () => {
+      const { proc } = await start();
+      expect(proc.recoveredSession).toBe(false);
     });
 
     it('ends World Machine with START_FAILED when the dialog stays open past its bound', async () => {
