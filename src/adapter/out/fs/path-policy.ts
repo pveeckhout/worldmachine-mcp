@@ -1,3 +1,4 @@
+import type { Stats } from 'node:fs';
 import { lstat, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import type { PathPolicyPort, SaveTarget } from '../../../application/port/out/path-policy-port.js';
@@ -29,6 +30,7 @@ export class FsPathPolicy implements PathPolicyPort {
         `Not an existing .tmd project file inside the allowed roots: ${input}`,
       );
     }
+    requirePlainProjectName(resolved);
     try {
       const stats = await stat(resolved);
       if (path.extname(resolved).toLowerCase() !== '.tmd' || !stats.isFile()) {
@@ -61,6 +63,7 @@ export class FsPathPolicy implements PathPolicyPort {
       throw refused;
     }
     if (!canonicalRoots.some((root) => directory === root || isInside(directory, root))) throw refused;
+    requirePlainProjectName(input);
     const target = path.join(directory, path.basename(input));
     try {
       const stats = await lstat(target);
@@ -71,6 +74,44 @@ export class FsPathPolicy implements PathPolicyPort {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { path: target, exists: false };
       throw refused;
     }
+  }
+
+  async authorizeOutputPath(input: string): Promise<string> {
+    const canonicalRoots = await this.#canonicalRoots();
+    if (!path.isAbsolute(input))
+      throw new WorldMachineError('REFUSED', `Output paths must be absolute: ${input}`);
+    // Physical resolution of '..' behind a symlink differs from lexical normalisation, so only plain paths pass.
+    if (path.normalize(input) !== input || (input.length > 1 && input.endsWith(path.sep))) {
+      throw new WorldMachineError(
+        'REFUSED',
+        `The output path ${input} must be a plain absolute path without '.', '..', or repeated or trailing slashes.`,
+      );
+    }
+    const folder = path.dirname(input);
+    // Spec v2a section 5: World Machine's handling of a missing folder is unknown (fact 23 shows a save into one
+    // failing silently), so a missing folder is refused, not created.
+    const directory = await canonicalDirectory(folder);
+    if (directory === null)
+      throw new WorldMachineError('REFUSED', `The output folder does not exist: ${folder}`);
+    if (!canonicalRoots.some((root) => directory === root || isInside(directory, root))) {
+      throw new WorldMachineError('REFUSED', `The output folder is outside the allowed roots: ${folder}`);
+    }
+    const target = path.join(directory, path.basename(input));
+    let stats: Stats;
+    try {
+      stats = await lstat(target);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return target;
+      throw new WorldMachineError('REFUSED', `The output path cannot be checked: ${target}`);
+    }
+    // A symlink would let World Machine write outside the roots; a directory cannot be written as a file.
+    if (stats.isSymbolicLink() || !stats.isFile()) {
+      throw new WorldMachineError('REFUSED', `The output path exists and is not a regular file: ${target}`);
+    }
+    if (stats.nlink > 1) {
+      throw new WorldMachineError('REFUSED', `The output path ${target} is a file with several hard links.`);
+    }
+    return target;
   }
 
   async #canonicalRoots(): Promise<string[]> {
@@ -96,6 +137,15 @@ export class FsPathPolicy implements PathPolicyPort {
       );
     }
     return this.#roots;
+  }
+}
+
+/** A stem of `.` or `..` would make `<project>` expand to a dot segment in an output template. */
+function requirePlainProjectName(file: string): void {
+  const name = path.basename(file);
+  const stem = path.basename(name, path.extname(name));
+  if (stem === '.' || stem === '..') {
+    throw new WorldMachineError('REFUSED', `The project file name ${name} is not allowed.`);
   }
 }
 

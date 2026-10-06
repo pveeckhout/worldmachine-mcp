@@ -30,6 +30,9 @@ function fakes(session: SessionSummary, target: SaveTarget = { path: '/r/x.tmd',
       calls.push(`target:${p}`);
       return target;
     },
+    authorizeOutputPath: async () => {
+      throw new Error('not used by the project services');
+    },
   };
   const writer: ProjectGraphWritePort = {
     openProject: async (p) => void calls.push(`open:${p}`),

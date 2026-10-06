@@ -2,7 +2,12 @@
 import { basename, dirname, extname, isAbsolute, join, normalize } from 'node:path';
 
 /** One row of `export list` (fact 49): a device name and its file name template. */
-export type ExportTarget = { readonly device: string; readonly template: string };
+export type ExportTarget = {
+  readonly device: string;
+  readonly template: string;
+  /** The row held more than one `' -> '`, so device and template are a guess; the target is refused. */
+  readonly ambiguous?: true;
+};
 
 export type OutputPath =
   | { readonly kind: 'path'; readonly path: string }
@@ -42,6 +47,12 @@ function hasParentPathSegment(str: string): boolean {
  * - empty or "." final component in expanded path: prevents directory traversal
  */
 export function expandTemplate(target: ExportTarget, context: TemplateContext): OutputPath {
+  if (target.ambiguous) {
+    return {
+      kind: 'invalid',
+      reason: "the device name or the template contains ' -> ', so the target cannot be read reliably",
+    };
+  }
   // Check (a): reject ".." segments in template and device name before any join/normalize
   if (hasParentPathSegment(target.template) || hasParentPathSegment(target.device)) {
     return {
@@ -72,6 +83,12 @@ export function expandTemplate(target: ExportTarget, context: TemplateContext): 
     return value ?? match;
   });
   if (unknown !== undefined) return { kind: 'unknown-token', token: unknown };
+
+  // Ruling P11-2: a value substituted for a token (a project named `...tmd` gives `..`) can create a dot segment that
+  // the raw template did not have; World Machine resolves it through symlinks, join/normalize would not.
+  if (expanded.split('/').some((segment) => segment === '.' || segment === '..')) {
+    return { kind: 'invalid', reason: "the expanded path contains a '.' or '..' segment" };
+  }
 
   // Check (b): reject if expanded string ends with "/" or has an empty/dot final component
   if (expanded.endsWith('/')) {

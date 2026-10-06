@@ -1,4 +1,5 @@
-import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { linkSync, mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -12,6 +13,8 @@ mkdirSync(join(root, 'nested'), { recursive: true });
 mkdirSync(outside);
 writeFileSync(join(root, 'nested', 'world.tmd'), '');
 writeFileSync(join(root, 'notes.txt'), '');
+writeFileSync(join(root, '...tmd'), '');
+writeFileSync(join(root, '..tmd'), '');
 mkdirSync(join(root, 'folder.tmd'));
 writeFileSync(join(outside, 'secret.tmd'), '');
 writeFileSync(join(outside, 'notes.txt'), '');
@@ -173,5 +176,108 @@ describe('FsPathPolicy.authorizeSaveTarget', () => {
     ['a relative path', () => 'x.tmd'],
   ])('refuses %s', async (_label, input) => {
     expect(await codeOf(policy.authorizeSaveTarget(input()))).toBe('REFUSED');
+  });
+});
+
+describe('FsPathPolicy.authorizeOutputPath (spec v2a section 5)', () => {
+  const policy = new FsPathPolicy([root]);
+
+  it('accepts a new file directly in a root and in a subfolder', async () => {
+    expect(await policy.authorizeOutputPath(join(root, 'world Height Output-257.png'))).toBe(
+      join(root, 'world Height Output-257.png'),
+    );
+    expect(await policy.authorizeOutputPath(join(root, 'nested', 'tile.png'))).toBe(
+      join(root, 'nested', 'tile.png'),
+    );
+  });
+
+  it('accepts an existing regular file, which World Machine overwrites', async () => {
+    expect(await policy.authorizeOutputPath(join(root, 'notes.txt'))).toBe(join(root, 'notes.txt'));
+  });
+
+  it('returns the canonical path through a symlinked root', async () => {
+    expect(await policy.authorizeOutputPath(join(base, 'root-link', 'x.png'))).toBe(join(root, 'x.png'));
+  });
+
+  it.each([
+    ['a missing folder', () => join(root, 'no-such-dir', 'x.png'), 'The output folder does not exist'],
+    ['a folder that is a file', () => join(root, 'notes.txt', 'x.png'), 'The output folder does not exist'],
+    [
+      'a folder outside the roots',
+      () => join(outside, 'x.png'),
+      'The output folder is outside the allowed roots',
+    ],
+    [
+      'a symlinked folder pointing outside',
+      () => join(root, 'escape', 'x.png'),
+      'The output folder is outside the allowed roots',
+    ],
+    ['an existing symlink', () => join(root, 'link.tmd'), 'The output path exists and is not a regular file'],
+    ['an existing directory', () => join(root, 'nested'), 'The output path exists and is not a regular file'],
+    ['a relative path', () => 'x.png', 'Output paths must be absolute'],
+  ])('refuses %s', async (_label, input, message) => {
+    expect(await codeOf(policy.authorizeOutputPath(input()))).toBe('REFUSED');
+    expect(await messageOf(policy.authorizeOutputPath(input()))).toContain(message);
+  });
+
+  it('is NOT_CONFIGURED without allowed roots', async () => {
+    expect(await codeOf(new FsPathPolicy(null).authorizeOutputPath(join(root, 'x.png')))).toBe(
+      'NOT_CONFIGURED',
+    );
+  });
+});
+
+describe('FsPathPolicy.authorizeOutputPath hardening (review round 1)', () => {
+  const policy = new FsPathPolicy([root]);
+  mkdirSync(join(root, 'a', 'b'), { recursive: true });
+  symlinkSync(join(root, 'a', 'b'), join(root, 's'));
+  writeFileSync(join(root, 'hard-source.png'), '');
+  linkSync(join(root, 'hard-source.png'), join(root, 'hard.png'));
+  symlinkSync(join(root, 'no-such-target'), join(root, 'dangling.png'));
+  let fifo = false;
+  try {
+    execFileSync('mkfifo', [join(root, 'pipe.png')]);
+    fifo = true;
+  } catch {
+    // mkfifo unavailable: the FIFO test is skipped below.
+  }
+
+  it.each([
+    ['a symlink followed by two parent segments', () => `${join(root, 's')}/../../x.png`],
+    ['a dot segment', () => `${root}/./x.png`],
+    ['repeated slashes', () => `${root}//x.png`],
+    ['a trailing slash', () => `${join(root, 'x.png')}/`],
+  ])('refuses an unnormalised path: %s', async (_label, input) => {
+    expect(await codeOf(policy.authorizeOutputPath(input()))).toBe('REFUSED');
+    expect(await messageOf(policy.authorizeOutputPath(input()))).toContain('plain absolute path');
+  });
+
+  it('refuses an existing file with several hard links', async () => {
+    expect(await codeOf(policy.authorizeOutputPath(join(root, 'hard.png')))).toBe('REFUSED');
+    expect(await messageOf(policy.authorizeOutputPath(join(root, 'hard.png')))).toContain('hard links');
+  });
+
+  it('refuses a dangling symlink at the final path', async () => {
+    expect(await codeOf(policy.authorizeOutputPath(join(root, 'dangling.png')))).toBe('REFUSED');
+  });
+
+  it.skipIf(!fifo)('refuses a FIFO at the final path', async () => {
+    expect(await codeOf(policy.authorizeOutputPath(join(root, 'pipe.png')))).toBe('REFUSED');
+  });
+
+  it('accepts a file under the real folder when the root is configured as a symlink', async () => {
+    const linked = new FsPathPolicy([join(base, 'root-link')]);
+    expect(await linked.authorizeOutputPath(join(root, 'y.png'))).toBe(join(root, 'y.png'));
+  });
+});
+
+describe('FsPathPolicy project names that are dot segments (ruling P11-2)', () => {
+  const policy = new FsPathPolicy([root]);
+
+  it.each(['...tmd', '..tmd'])('refuses %s as an existing project and as a save target', async (name) => {
+    const existing = await messageOf(policy.authorizeExistingProject(join(root, name)));
+    expect(existing).toBe(`The project file name ${name} is not allowed.`);
+    const save = await messageOf(policy.authorizeSaveTarget(join(root, name)));
+    expect(save).toBe(`The project file name ${name} is not allowed.`);
   });
 });

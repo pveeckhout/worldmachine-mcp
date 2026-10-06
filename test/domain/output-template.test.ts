@@ -31,6 +31,13 @@ describe('expandTemplate (spec v2a section 3)', () => {
     });
   });
 
+  it('refuses an ambiguous target before any other check', () => {
+    expect(expandTemplate({ device: 'H', template: '../<name>.png', ambiguous: true }, context)).toEqual({
+      kind: 'invalid',
+      reason: "the device name or the template contains ' -> ', so the target cannot be read reliably",
+    });
+  });
+
   it('refuses a template containing a ".." path segment', () => {
     expect(expandTemplate({ device: 'H', template: '../<name>.png' }, context)).toEqual({
       kind: 'invalid',
@@ -101,5 +108,25 @@ describe('usesTokenInFolder', () => {
     expect(usesTokenInFolder('out-<res>/<name>.png', 'res')).toBe(true);
     expect(usesTokenInFolder('out/<name>-<res>.png', 'res')).toBe(false);
     expect(usesTokenInFolder('<project> <name>-<res>.png', 'res')).toBe(false);
+  });
+});
+
+describe('expandTemplate: dot segments produced by substitution (ruling P11-2)', () => {
+  it('refuses <project> expanding to ".." inside a folder, which the kernel resolves through a symlink', () => {
+    expect(
+      expandTemplate(
+        { device: 'H', template: 'link/<project>/<name>.png' },
+        { projectFile: '/R/a/...tmd', resolution: 257 },
+      ),
+    ).toEqual({ kind: 'invalid', reason: "the expanded path contains a '.' or '..' segment" });
+  });
+
+  it('refuses <project> expanding to "."', () => {
+    expect(
+      expandTemplate(
+        { device: 'H', template: 'x/<project>/<name>.png' },
+        { projectFile: '/R/a/..tmd', resolution: 257 },
+      ),
+    ).toEqual({ kind: 'invalid', reason: "the expanded path contains a '.' or '..' segment" });
   });
 });
