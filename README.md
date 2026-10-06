@@ -180,7 +180,9 @@ The console also offers scene selection and locking. The MCP does not expose the
 
 **"World Machine is showing its 'Recover crashed session' dialog."** World Machine found sessions that did not end cleanly and is asking which one to restore. Answer the dialog in the World Machine window (OK restores the chosen session, Cancel does not), then retry the tool call; the server keeps waiting for up to 10 minutes. After OK, the restored project stays open with unsaved changes, and `get_world_machine_status` reports `recovered: true`. Save it with `save_project` before the MCP client exits if you want to keep it: shutdown discards it, and World Machine removes its autosave when it exits cleanly.
 
-Every crash or forced kill of World Machine queues one more crashed session, and World Machine shows the dialog once per start. To clear the queue, start World Machine yourself (outside the MCP), answer the dialog, quit World Machine normally, and repeat until the dialog no longer appears. Whether Cancel leaves a session queued has not been checked.
+Every crash or forced kill of World Machine queues one more crashed session, and World Machine shows the dialog at a start only when more than one is queued; a single queued session is restored silently, with its project open and unsaved. To clear the queue, start World Machine yourself (outside the MCP), answer the dialog, quit World Machine normally, and repeat until the dialog no longer appears. Whether Cancel leaves a session queued has not been checked.
+
+**"I stopped a large build and World Machine did not quit."** After `stop_build` of a build at a high scene resolution (4097 was observed), World Machine can be unable to quit; this is a World Machine issue. The server ends it after its shutdown grace and logs a warning. The stopped project is restored at the next World Machine start, silently when it is the only queued session and with the 'Recover crashed session' dialog when several are queued. Save before stopping a large build if the project matters.
 
 ## Documentation
 
