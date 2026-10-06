@@ -35,7 +35,8 @@ import { type Config, loadConfig } from './config.js';
 import { createLogger } from './logger.js';
 import { createSignalShutdown } from './signal-shutdown.js';
 
-const READY_TIMEOUT_MS = 60_000;
+// Below the common 60 s MCP client request timeout, so the server's START_FAILED arrives first; normal startup takes about 4 s (spec fact 6).
+const READY_TIMEOUT_MS = 45_000;
 const { version } = createRequire(import.meta.url)('../package.json') as { version: string };
 
 let config: Config;
