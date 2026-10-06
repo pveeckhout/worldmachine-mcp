@@ -767,6 +767,21 @@ const scenarios = [
       return sections;
     },
   ],
+  [
+    // v2b assumptions that the console can settle: B1 (snapshot names over 40 characters), B3 (a restore brings back
+    // the scene), B5 (exportAlways during a group build), B6 (a stopped group build prints its late line), and B8 for
+    // snapshots (12 rows). Default project in <WORK>. Ends closed (fact 19).
+    'v2b-assumptions',
+    async () => {
+      const sections = [];
+      try {
+        await v2bAssumptions(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
 ];
 
 async function buildAndExport(sections, since) {
@@ -1139,6 +1154,64 @@ async function groups(sections) {
   await timed(sections, ['group build missing']);
   sections.push(await wait(2000));
   sections.push(...(await run(['project close force'])));
+}
+
+async function v2bAssumptions(sections) {
+  const file = join(work, 'assume.tmd');
+  sections.push(
+    ...(await run(['project new default force', 'scene resolution 257', `project save ${file}`])),
+  );
+  await pollBuild(sections);
+
+  // B1: long names.
+  sections.push(
+    ...(await run([
+      `snapshot create ${'a'.repeat(64)}`,
+      `snapshot create ${'b'.repeat(65)}`,
+      `snapshot create ${'c'.repeat(200)}`,
+      'snapshot list',
+    ])),
+  );
+
+  // B3: does a restore bring back the scene?
+  sections.push(
+    ...(await run(['snapshot create scene257', 'scene resolution 513', 'scene show', 'snapshot list'])),
+  );
+  const listed = sections.at(-1).lines.find((line) => line.includes("'scene257'"));
+  const index = listed?.match(/\[#(\d+)\]/)?.[1] ?? '3';
+  sections.push(...(await run([`snapshot restore #${index}`, 'scene show', 'scene list'])));
+
+  // B8 (snapshots): 12 or more rows.
+  sections.push(...(await run(Array.from({ length: 9 }, (_, i) => `snapshot create row${i}`))));
+  sections.push(...(await run(['snapshot list'])));
+
+  // B5: exportAlways on Height Output, then a group build of each group with devices, listing written files.
+  sections.push(
+    ...(await run([
+      'scene resolution 257',
+      `project save ${file}`,
+      'param set #1.exportAlways true',
+      'param get #1.exportAlways',
+      'group list',
+    ])),
+  );
+  await pollBuild(sections);
+  for (const group of [0, 1, 2, 4]) {
+    const since = Date.now();
+    await timed(sections, [`group build #${group}`]);
+    sections.push(await waitForLine(/^Building \d+ device\(s\) in group /, 30_000));
+    sections.push(await wait(2000));
+    filesSince(sections, since, `by group build #${group} with exportAlways true`);
+  }
+
+  // B6: a stopped group build at 4097: does its late line come?
+  sections.push(...(await run(['param set #1.exportAlways false', 'scene resolution 4097'])));
+  await pollBuild(sections);
+  await timed(sections, ['group build #0']);
+  await timed(sections, ['build stop']);
+  sections.push(await waitForLine(/^Building \d+ device\(s\) in group /, 60_000));
+  sections.push(await wait(2000));
+  sections.push(...(await run(['build status', 'project close force'])));
 }
 
 // `npm run capture-fixtures -- <name> ...` captures only the named scenarios (system info always runs first).

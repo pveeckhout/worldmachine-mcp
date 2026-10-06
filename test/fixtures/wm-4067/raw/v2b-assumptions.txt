@@ -1,0 +1,240 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 257
+Set scene resolution to 257
+<<<
+>>> project save <WORK>/assume.tmd
+Project saved to: <WORK>/assume.tmd
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> snapshot create aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+Created snapshot 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+<<<
+>>> snapshot create bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+Created snapshot 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+<<<
+>>> snapshot create cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+Created snapshot 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+<<<
+>>> snapshot list
+Snapshots (3 total):
+  [#0] 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' - 2026-10-06 14:45
+  [#1] 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' - 2026-10-06 14:45
+  [#2] 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' - 2026-10-06 14:45
+
+<<<
+>>> snapshot create scene257
+Created snapshot 'scene257'
+<<<
+>>> scene resolution 513
+Set scene resolution to 513
+<<<
+>>> scene show
+Scene 'Main Extents' (index 0 of 1):
+  Origin (center): 4.00, 4.00 km
+  Size:            12.00 x 12.00 km
+  Lower-left:      -2.00, -2.00 km
+  Upper-right:     10.00, 10.00 km
+  Resolution:      513
+  Locked:          no
+<<<
+>>> snapshot list
+Snapshots (4 total):
+  [#0] 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' - 2026-10-06 14:45
+  [#1] 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' - 2026-10-06 14:45
+  [#2] 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' - 2026-10-06 14:45
+  [#3] 'scene257' - 2026-10-06 14:45
+
+<<<
+>>> snapshot restore #3
+Restored snapshot [#3] 'scene257'
+<<<
+>>> scene show
+Scene 'Main Extents' (index 0 of 1):
+  Origin (center): 4.00, 4.00 km
+  Size:            12.00 x 12.00 km
+  Lower-left:      -2.00, -2.00 km
+  Upper-right:     10.00, 10.00 km
+  Resolution:      257
+  Locked:          no
+<<<
+>>> scene list
+Scenes (1 total):
+  [0] 'Main Extents' - 12.0x12.0 km, res 257 *
+
+* = current scene
+<<<
+>>> snapshot create row0
+Created snapshot 'row0'
+<<<
+>>> snapshot create row1
+Created snapshot 'row1'
+<<<
+>>> snapshot create row2
+Created snapshot 'row2'
+<<<
+>>> snapshot create row3
+Created snapshot 'row3'
+<<<
+>>> snapshot create row4
+Created snapshot 'row4'
+<<<
+>>> snapshot create row5
+Created snapshot 'row5'
+<<<
+>>> snapshot create row6
+Created snapshot 'row6'
+<<<
+>>> snapshot create row7
+Created snapshot 'row7'
+<<<
+>>> snapshot create row8
+Created snapshot 'row8'
+<<<
+>>> snapshot list
+Snapshots (13 total):
+  [#0] 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' - 2026-10-06 14:45
+  [#1] 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' - 2026-10-06 14:45
+  [#2] 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' - 2026-10-06 14:45
+  [#3] 'scene257' - 2026-10-06 14:45
+  [#4] 'row0' - 2026-10-06 14:45
+  [#5] 'row1' - 2026-10-06 14:45
+  [#6] 'row2' - 2026-10-06 14:45
+  [#7] 'row3' - 2026-10-06 14:45
+  [#8] 'row4' - 2026-10-06 14:45
+  [#9] 'row5' - 2026-10-06 14:45
+  [#10] 'row6' - 2026-10-06 14:45
+  [#11] 'row7' - 2026-10-06 14:45
+  [#12] 'row8' - 2026-10-06 14:45
+
+<<<
+>>> scene resolution 257
+Set scene resolution to 257
+<<<
+>>> project save <WORK>/assume.tmd
+Project saved to: <WORK>/assume.tmd
+<<<
+>>> param set #1.exportAlways true
+Set #1.exportAlways = true
+<<<
+>>> param get #1.exportAlways
+#1.exportAlways = true
+<<<
+>>> group list
+Groups (5 total):
+  [#0] Create your Terrain      (6 devices)
+  [#1] Export Basics            (4 devices)
+  [#2] Texture & View           (5 devices)
+  [#3] Welcome to World Machine! (0 devices)
+  [#4] Material Maps            (2 devices)
+
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> group build #0
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Building \d+ device\(s\) in group /: seen after 1 s)
+[Info       ] QIODevice::read (QSslSocket): device not open
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+Building 6 device(s) in group 'Create your Terrain'
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> (output files written by group build #0 with exportAlways true)
+<<<
+>>> group build #1
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] Automatic export of file <WORK>/assume Height Output-257.png succeeded
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Building \d+ device\(s\) in group /: seen after 1 s)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+Building 4 device(s) in group 'Export Basics'
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> (output files written by group build #1 with exportAlways true)
+<WORK>/assume Height Output-257.png
+<<<
+>>> group build #2
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Building \d+ device\(s\) in group /: seen after 1 s)
+Building 5 device(s) in group 'Texture & View'
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> (output files written by group build #2 with exportAlways true)
+<<<
+>>> group build #4
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Building \d+ device\(s\) in group /: seen after 1 s)
+Building 2 device(s) in group 'Material Maps'
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> (output files written by group build #4 with exportAlways true)
+<<<
+>>> param set #1.exportAlways false
+Set #1.exportAlways = false
+<<<
+>>> scene resolution 4097
+Set scene resolution to 4097
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> group build #0
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (batch took 0 s)
+<<<
+>>> build stop
+Stop requested.
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Building \d+ device\(s\) in group /: not seen after 60 s)
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<
