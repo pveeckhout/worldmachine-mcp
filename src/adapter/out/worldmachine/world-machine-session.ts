@@ -116,12 +116,13 @@ export class WorldMachineSession implements WorldMachineSessionPort {
 
   ensureRunning(): Promise<void> {
     if (this.#state.kind === 'ready') return Promise.resolve();
+    // Checked before a start is created, so no start is left without a caller; it also outranks the dialog below.
+    if (this.#shutDown) return Promise.reject(new WorldMachineError('SHUTTING_DOWN', SHUTTING_DOWN_MESSAGE));
     this.#starting ??= this.#start().finally(() => {
       this.#starting = undefined;
     });
     // Fact 73: while World Machine waits on its recovery dialog, calls fail at once and the start stays pending, so a
-    // call after the user answered joins it. A shutdown outranks the dialog.
-    if (this.#shutDown) return Promise.reject(new WorldMachineError('SHUTTING_DOWN', SHUTTING_DOWN_MESSAGE));
+    // call after the user answered joins it.
     if (this.#recoveryDialog) return Promise.reject(recoveryDialogError());
     const starting = this.#starting;
     return new Promise((resolve, reject) => {
