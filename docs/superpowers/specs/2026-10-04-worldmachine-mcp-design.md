@@ -70,6 +70,7 @@ Verified on 2026-10-04 against World Machine build 4067 (Dragontail Peak), Pro t
 41. Build 4067's console has no command for world settings: `help` lists the groups analytics, build, debug, device, export, group, param, project, scene, snapshot, system, update, and wire, and none of them sets sea level, height scale or units, or the tiled-build layout. `build start [tiled]` runs a tiled build with the layout configured in the window. `scene` can select, lock, and change an existing scene but not create one; `group` can list, enable, disable, and build groups but not create them or assign devices. (Captures `help`, `help-more`, 2026-10-05.)
 
 53. (42-52: v2a spec.) Without a licence, World Machine build 4067 prints, about 1.2 s after spawn, among its startup log lines: `[Error      ] License Manager.Checkout: License checkout failed for product wmpro`, `[Error      ] License Manager.RLM Details: Wrong host for license (-4)`, the plain line `Wrong host (-193): _check_rehost(): No rehostable root dir`, `[Info       ] Startup: License manager checkout (LICENSE_RESULT 3)`, and `[Info       ] Startup: License Activation`. It then shows a modal activation dialog and waits indefinitely; the ready line never comes. Choosing Quit in the dialog logs `Startup: Cannot launch World Machine due to licensing failure.`, shuts down normally, and exits with code 1. (Live probe, 2026-10-06.)
+56. On a freshly started World Machine, `project open <path>` without `force` prints `Error: Error: Project has unsaved changes. Use 'project save' first or 'project open <path> force'.`; the start-up project carried state from the previous session. The start path therefore opens with `force`. (Capture `default-updated`, 2026-10-06.)
 
 ### Verification items (first tasks of the implementation plan)
 
@@ -81,7 +82,7 @@ These are unverified and must be resolved before the code that depends on them i
 - V4. World Machine quoting rules for names containing spaces in multi-argument commands (`wire connect`, `device rename`, `param set`).
 - V5. Output format of `device info`, `wire list`, `scene show`, `scene list`, `group list`, and `param get`.
 - V6. Value syntax accepted by `param set` for `bool`, `enum`, numeric, and `filename` parameters.
-- V7. Output and failure behaviour of `project open`, `project save`, `project undo`, and `project redo`.
+- V7. Output and failure behaviour of `project open`, `project save`, `project undo`, and `project redo`. Resolved: fact 56.
 - V8. The log line or exit behaviour when licence checkout fails. Resolved: fact 53.
 
 ## 3. Technology
@@ -206,7 +207,7 @@ sequenceDiagram
   R->>S: ensureRunning()
   alt not running (first call)
     S->>W: spawn --cli, wait for readiness line
-    S->>W: project open <WORLD_MACHINE_DEFAULT_PROJECT> | project new default force
+    S->>W: project open <WORLD_MACHINE_DEFAULT_PROJECT> force | project new default force
   end
   R->>W: device list [filter], __end_<id>_0
   W-->>R: device table, Error: Unknown command: '__end_<id>_0'
@@ -253,7 +254,7 @@ Rules:
 
 - The server does not launch World Machine at startup. The first tool call that needs it calls `ensureRunning()`. `get_world_machine_status` never launches it.
 - If `WORLD_MACHINE_DEFAULT_PROJECT` is set, it is authorised by the path policy *before* World Machine is launched. If the policy refuses it, the start fails with that error (`REFUSED`, or `NOT_CONFIGURED` when there are no allowed roots) and World Machine is not launched. There is no fallback to a fresh project.
-- On launch, the server runs `project open <path>` for an authorised default project, otherwise `project new default force` (verified by V3: no prompt). The sample project is never left active.
+- On launch, the server runs `project open <path> force` for an authorised default project (fact 56: the start-up project can count as unsaved), otherwise `project new default force` (verified by V3: no prompt). The sample project is never left active.
 - Every successful command service call sets `dirty = true`, except `save_project`, which clears it, and `open_project` and `create_project`, which reset it. Edits that change nothing leave it alone: `set_device_enabled` when the read-back state equals the state before, `disconnect_devices` when no wire was removed, `connect_devices` for a wire that already existed, and `update_device_parameters` and `configure_scene` when World Machine rejected every item. A rejected or ineffective `add_device` (World Machine's `Error:` line, or a confirmed add with no new device in `device list`) fails with `WM_COMMAND_FAILED` and leaves it alone too. After World Machine accepted an edit command, a failed read-back sets it.
 - After a lifecycle command that World Machine accepted without its confirmation line (`UNEXPECTED_OUTPUT`), undo and redo set `dirty`, and open and create set binding `fresh` and `dirty`, because World Machine may have acted. A command World Machine rejects with `Error:` changes neither. For graph edits, a missing confirmation line is `UNEXPECTED_OUTPUT`; once World Machine accepted the command, `dirty` is set even if the read-back then fails, except that `add_device` sets it only when a new device appears or its read-back fails.
 - `open_project` and `create_project` return `REFUSED` when `dirty` unless `discard_unsaved: true`.
