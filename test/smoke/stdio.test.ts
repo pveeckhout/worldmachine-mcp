@@ -112,6 +112,27 @@ describe('stdio server', () => {
     await waitUntil(() => record.pids().length > 0 && !record.pids().some(isAlive), 3_000);
   });
 
+  it('fails fast with START_FAILED and no World Machine text when there is no licence', async () => {
+    const record = recorder();
+    const client = await startServer({
+      WORLD_MACHINE_BIN: FAKE_WM,
+      WORLD_MACHINE_ALLOWED_ROOTS: mkdtempSync(join(tmpdir(), 'smoke-')),
+      FAKE_WM_RECORD: record.path,
+      FAKE_WM_UNLICENSED: '1',
+    });
+    const began = Date.now();
+    const list = await client.callTool({ name: 'list_devices', arguments: {} });
+    expect(Date.now() - began).toBeLessThan(10_000);
+    expect(list.isError).toBe(true);
+    const text = (list.content as { text: string }[])[0]?.text ?? '';
+    expect(text).toContain('START_FAILED');
+    expect(text).toContain('World Machine has no valid licence on this machine.');
+    expect(text).not.toContain('worldMachineMessage');
+    expect(text).not.toContain('Wrong host');
+    await waitUntil(() => record.pids().length > 0 && !record.pids().some(isAlive), 3_000);
+    await client.close();
+  });
+
   it('reports NOT_CONFIGURED when WORLD_MACHINE_BIN is missing', async () => {
     const client = await startServer({ WORLD_MACHINE_ALLOWED_ROOTS: mkdtempSync(join(tmpdir(), 'smoke-')) });
     const status = await client.callTool({ name: 'get_world_machine_status', arguments: {} });

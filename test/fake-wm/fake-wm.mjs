@@ -36,7 +36,19 @@ if (startup === 'display') {
   out('qt.qpa.xcb: could not connect to display \n');
   exit(1);
 }
-if (startup === 'ok') log('Info', 'Startup: Completed. Transferring control into event loop.');
+// Plain (non-log) lines printed during startup, for tests of which of them reach a START_FAILED detail.
+if (env.FAKE_WM_STARTUP_OUT) out(`${env.FAKE_WM_STARTUP_OUT}\n`);
+if (env.FAKE_WM_UNLICENSED === '1') {
+  // Spec fact 53 (live probe, build 4067, no licence): the checkout fails, a modal activation dialog opens, and the
+  // ready line never comes. The process stays alive until it is terminated.
+  log('Error', 'License Manager.Checkout: License checkout failed for product wmpro');
+  log('Error', 'License Manager.RLM Details: Wrong host for license (-4)');
+  out('Wrong host (-193): _check_rehost(): No rehostable root dir\n');
+  log('Info', 'Startup: License manager checkout (LICENSE_RESULT 3)');
+  log('Info', 'Startup: License Activation');
+}
+if (startup === 'ok' && env.FAKE_WM_UNLICENSED !== '1')
+  log('Info', 'Startup: Completed. Transferring control into event loop.');
 
 let hung = false;
 let dirty = env.FAKE_WM_DIRTY_AT_START === '1';

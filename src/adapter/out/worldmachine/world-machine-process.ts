@@ -14,6 +14,12 @@ const RECENT_LINES = 10;
 const DISPLAY_ERROR = /could not connect to display/i;
 const DISPLAY_HINT =
   ' World Machine could not open its window. Pass DISPLAY, WAYLAND_DISPLAY, XAUTHORITY, and XDG_RUNTIME_DIR in the MCP server environment (see README).';
+const LICENCE_CHECKOUT_FAILED = 'License Manager.Checkout: License checkout failed';
+const NO_LICENCE_MESSAGE =
+  'World Machine has no valid licence on this machine. Start World Machine once outside the MCP and activate it, then retry.';
+// The logger drops every line that mentions a licence (spec section 8), so the logged copy avoids the word.
+const NO_LICENCE_LOG =
+  'World Machine is not activated on this machine. Start World Machine once outside the MCP and activate it, then retry.';
 // 'close' waits for stdout to drain; this bounds the wait if a grandchild keeps the pipe open.
 const STDIO_DRAIN_MS = 1_000;
 
@@ -37,6 +43,7 @@ export class WorldMachineProcess implements CommandChannel {
   readonly #recent: string[] = [];
   readonly #exitPromise: Promise<void>;
   #readyListener: (() => void) | undefined;
+  #noLicenceListener: (() => void) | undefined;
   #exited = false;
   /** 'exit' observed; `exited` waits for 'close' so the last output lines are delivered first. */
   #exitSeen = false;
@@ -80,10 +87,14 @@ export class WorldMachineProcess implements CommandChannel {
         clearTimeout(timer);
         options.signal?.removeEventListener('abort', onAbort);
       };
-      const fail = (message: string, stop: () => Promise<void> = () => proc.terminate()) => {
+      const fail = (
+        message: string,
+        stop: () => Promise<void> = () => proc.terminate(),
+        withDetail = true,
+      ) => {
         if (settled) return;
         settle();
-        const detail = proc.#recent.join('\n') || undefined;
+        const detail = withDetail ? proc.#startupDiagnostics() : undefined;
         const fullMessage =
           detail !== undefined && DISPLAY_ERROR.test(detail) ? message + DISPLAY_HINT : message;
         void stop().then(() => reject(new WorldMachineError('START_FAILED', fullMessage, detail)));
@@ -111,10 +122,16 @@ export class WorldMachineProcess implements CommandChannel {
         );
       });
       proc.#exitListeners.push(() => fail('World Machine exited during startup'));
+      proc.#noLicenceListener = () => {
+        if (settled) return;
+        options.logger.error(NO_LICENCE_LOG);
+        fail(NO_LICENCE_MESSAGE, undefined, false);
+      };
       proc.#readyListener = () => {
         if (settled) return;
         settle();
         proc.#readyListener = undefined;
+        proc.#noLicenceListener = undefined;
         resolve(proc);
       };
       if (options.signal?.aborted) onAbort();
@@ -202,9 +219,15 @@ export class WorldMachineProcess implements CommandChannel {
     });
   }
 
+  /** Only recent lines known to help the client; everything else stays in the debug log (spec section 8). */
+  #startupDiagnostics(): string | undefined {
+    return this.#recent.filter((line) => DISPLAY_ERROR.test(line)).join('\n') || undefined;
+  }
+
   #onLine(line: string): void {
     const log = parseLogLine(line);
     if (log) {
+      if (log.text.includes(LICENCE_CHECKOUT_FAILED)) this.#noLicenceListener?.();
       this.#logger.worldMachine(log.level, log.text);
       if (log.text.includes(READY_LINE)) this.#readyListener?.();
       return;

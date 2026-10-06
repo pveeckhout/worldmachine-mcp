@@ -13,6 +13,13 @@ import {
 import { WorldMachineError } from '../../../../src/domain/errors.js';
 import { captureLogger, FAKE_WM, fakeEnv, isAlive, recorder, waitUntil } from '../../../support/fake-wm.js';
 
+const NO_LICENCE =
+  'World Machine has no valid licence on this machine. Start World Machine once outside the MCP and activate it, then retry.';
+
+// The logger drops lines that mention a licence, so the logged copy avoids the word.
+const NO_LICENCE_LOG =
+  'World Machine is not activated on this machine. Start World Machine once outside the MCP and activate it, then retry.';
+
 const started: WorldMachineProcess[] = [];
 afterEach(async () => {
   await Promise.all(started.splice(0).map((proc) => proc.terminate()));
@@ -99,18 +106,66 @@ describe('WorldMachineProcess', () => {
     expect(error.code).toBe('START_FAILED');
   });
 
-  it('fails with START_FAILED when World Machine exits before ready, without log or licence text', async () => {
+  it('fails with START_FAILED when World Machine exits before ready, without passing unknown lines on', async () => {
     const error = await startFailure({ FAKE_WM_STARTUP: 'exit' });
     expect(error.code).toBe('START_FAILED');
-    expect(error.worldMachineMessage).toBe('fatal: simulated startup failure');
+    expect(error.worldMachineMessage).toBeUndefined();
+  });
+
+  it('fails at once with a fixed message and no detail when World Machine has no licence', async () => {
+    const record = recorder();
+    const began = Date.now();
+    const error = await startFailure({ FAKE_WM_UNLICENSED: '1', FAKE_WM_RECORD: record.path });
+    expect(error.code).toBe('START_FAILED');
+    expect(error.message).toBe(NO_LICENCE);
+    expect(error.worldMachineMessage).toBeUndefined();
+    expect(Date.now() - began).toBeLessThan(4_000);
+    await waitUntil(() => record.pids().length > 0 && !record.pids().some(isAlive), 3_000);
+  });
+
+  it('logs a licence-free copy of the no-licence sentence once at error level', async () => {
+    const logger = captureLogger();
+    await expect(
+      WorldMachineProcess.start({
+        bin: FAKE_WM,
+        readyTimeoutMs: 5_000,
+        logger,
+        env: fakeEnv({ FAKE_WM_UNLICENSED: '1' }),
+      }),
+    ).rejects.toThrow(NO_LICENCE);
+    expect(logger.lines.filter((line) => line.startsWith('error:'))).toHaveLength(1);
+    expect(logger.lines.filter((line) => line === `error: ${NO_LICENCE_LOG}`)).toHaveLength(1);
+  });
+
+  it('keeps unknown plain startup lines out of a readiness-timeout detail', async () => {
+    const error = await startFailure(
+      { FAKE_WM_STARTUP: 'silent', FAKE_WM_STARTUP_OUT: 'Wrong host (-193): _check_rehost()' },
+      FAKE_WM,
+      300,
+    );
+    expect(error.code).toBe('START_FAILED');
+    expect(error.message).toContain('300 ms');
+    expect(error.worldMachineMessage).toBeUndefined();
+  });
+
+  it('keeps a display error in a readiness-timeout detail, with the hint', async () => {
+    const error = await startFailure(
+      {
+        FAKE_WM_STARTUP: 'silent',
+        FAKE_WM_STARTUP_OUT: 'something odd\nqt.qpa.xcb: could not connect to display ',
+      },
+      FAKE_WM,
+      300,
+    );
+    expect(error.worldMachineMessage).toBe('qt.qpa.xcb: could not connect to display ');
+    expect(error.message).toContain('DISPLAY, WAYLAND_DISPLAY');
   });
 
   it('keeps a plain licence line out of the START_FAILED message and detail', async () => {
     const error = await startFailure({ FAKE_WM_STARTUP: 'licence' });
     expect(error.code).toBe('START_FAILED');
-    expect(error.worldMachineMessage).toBe('fatal: simulated startup failure');
+    expect(error.worldMachineMessage).toBeUndefined();
     expect(error.message).not.toMatch(/licen[cs]e/i);
-    expect(error.worldMachineMessage).not.toMatch(/licen[cs]e|denied/i);
   });
 
   it('adds a display hint when World Machine cannot open its window', async () => {
