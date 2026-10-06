@@ -696,6 +696,33 @@ const scenarios = [
       return sections;
     },
   ],
+  [
+    // The default project after World Machine updated it to the current build, saved by the user as
+    // updated_Project.tmd in the repository root (override with WM_UPDATED_PROJECT). Every device's info,
+    // parameters, and wires, plus scenes, groups, and exports. Opened with force, because a just-started World
+    // Machine reports unsaved changes and refuses a plain project open; ends closed without saving.
+    'default-updated',
+    async () => {
+      const file = process.env.WM_UPDATED_PROJECT ?? join(process.cwd(), 'updated_Project.tmd');
+      const sections = await run([`project open ${file} force`, 'device list'], 120_000);
+      const ids = devices(sections[1].lines).map((device) => device.id);
+      sections.push(
+        ...(await run(
+          ids.flatMap((id) => [
+            `device select #${id}`,
+            'device info',
+            `param list #${id}`,
+            `wire list #${id}`,
+          ]),
+          300_000,
+        )),
+      );
+      sections.push(
+        ...(await run(['scene list', 'scene show', 'group list', 'export list', 'project close force'])),
+      );
+      return sections;
+    },
+  ],
 ];
 
 async function buildAndExport(sections, since) {

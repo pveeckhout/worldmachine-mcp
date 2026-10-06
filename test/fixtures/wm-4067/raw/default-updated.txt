@@ -1,0 +1,663 @@
+>>> project open <REPO>/updated_Project.tmd force
+Opened: <REPO>/updated_Project.tmd
+[Info       ] Open Project from file
+[Info       ] Closing current project
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> device select #1
+Selected: Height Output
+<<<
+>>> device info
+Selected device:
+  Name:    Height Output
+  Type:    Height Output
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #1
+Parameters for 'Height Output' (Height Output):
+  filename                  filename  <project> <name>-<res>.png
+  format                    enum      PNG (16bit)
+  exportAlways              bool      false
+  tiled                     bool      true
+  writeButton               action    
+
+<<<
+>>> wire list #1
+Connections for '#1':
+  Inputs:
+    [1] Primary Input <- 'Thermal Weathering' [1]
+    [2] Metadata Input <- (none)
+  Outputs:
+
+<<<
+>>> device select #2
+Selected: Advanced Perlin
+<<<
+>>> device info
+Selected device:
+  Name:    Advanced Perlin
+  Type:    Advanced Perlin
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #2
+Parameters for 'Advanced Perlin' (Advanced Perlin):
+  Scale                     float     4 km
+  Style                     enum      Ridged
+  Persistence               float     0.453
+  Lacunarity                float     2.051
+  Octaves                   int       (auto)
+  Seed                      int       1924
+  Steepness                 float     0.5
+  Elevation                 float     1312 m
+  Specify Height Range      other     false
+  groupGuide                other     true
+  groupMultiscale           other     true
+  groupCustom               other     false
+  Minimum                   float     0 m
+  Maximum                   float     1.6 km
+  Multiscale Power          float     0.0
+  Offset                    float     0.0
+  Gain                      float     0.5
+  Multiscale Lead-in        int       1
+  Multiscale Type           enum      Signal Level
+  Shapeguide Power          int       1
+  Distortion Power          float     0.1
+  Persistence Guide         float     0.5
+  customFractal             other     
+
+<<<
+>>> wire list #2
+Connections for '#2':
+  Inputs:
+    [1] Shaping Guide <- (none)
+    [2] Distortion Guide <- (none)
+    [3] Persistence Guide <- (none)
+  Outputs:
+    [1] Primary Output -> 'Curves' [1]
+
+<<<
+>>> device select #3
+Selected: Curves
+<<<
+>>> device info
+Selected device:
+  Name:    Curves
+  Type:    Curves
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #3
+Parameters for 'Curves' (Curves):
+  curvedata                 other     
+  groupElev                 other     
+  Minimum Height            float     0 m
+  Maximum Height            float     2625 m
+  Curve Fade                float     1.0
+
+<<<
+>>> wire list #3
+Connections for '#3':
+  Inputs:
+    [1] Primary Input <- 'Advanced Perlin' [1]
+    [2] External Curve Input <- (none)
+  Outputs:
+    [1] Primary Output -> 'Flow Restructure' [1]
+
+<<<
+>>> device select #35
+Selected: Erosion
+<<<
+>>> device info
+Selected device:
+  Name:    Erosion
+  Type:    Erosion
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #35
+Parameters for 'Erosion' (Erosion):
+  Amount                    float     60.0
+  featureScale              float     400 m
+  groupBasic                other     
+  Hardness                  float     0.47
+  Capacity                  float     0.56
+  soil0                     float     14 m
+  soilScour                 float     0.1
+  groupAdv                  other     
+  soilDiffuse               float     0.7
+  massB                     float     0.0
+  wallAng                   float     74.0°
+  rockCrystal               float     0.75
+  Uplift                    float     0 m
+  waterMasking              float     16.0
+  groupMask                 other     
+  maskStr                   float     1.0
+  Structure                 float     0.429
+  soilMask                  enum      Presence Mask
+  maskSoil                  bool      true
+  compatibility             bool      false
+
+<<<
+>>> wire list #35
+Connections for '#35':
+  Inputs:
+    [1] Primary Input <- 'Flow Restructure' [1]
+    [2] Water input  <- (none)
+    [3] Bedrock Structure Value <- (none)
+  Outputs:
+    [1] Primary Output -> 'Thermal Weathering' [1]
+    [2] Flow Mask    -> 'Vegetation Layer' [2]
+                     -> 'Vegetation Layer' [2]
+    [3] Wear Mask    -> 'Rock and Soil' [5]
+    [4] Deposition Mask -> 'Rock and Soil' [6]
+    [5] Soil Mask    -> 'Rock and Soil' [2]
+
+<<<
+>>> device select #36
+Selected: Scene View
+<<<
+>>> device info
+Selected device:
+  Name:    Scene View
+  Type:    Scene View
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #36
+Parameters for 'Scene View' (Scene View):
+  matDisp                   bool      true
+  normalType                enum      Tangent Space
+
+<<<
+>>> wire list #36
+Connections for '#36':
+  Inputs:
+    [1] Terrain      <- 'Thermal Weathering' [1]
+    [2] World Material <- 'Layers' [1]
+    [3] Water        <- (none)
+    [4] Terrain Occlusion <- 'Ambient Occlusion' [1]
+    [5] Detail Normals <- (none)
+    [6] Shadow map   <- (none)
+    [7] Objects      <- (none)
+  Outputs:
+
+<<<
+>>> device select #222
+Selected: Vegetation Layer
+<<<
+>>> device info
+Selected device:
+  Name:    Vegetation Layer
+  Type:    Vegetation Layer
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #222
+Parameters for 'Vegetation Layer' (Vegetation Layer):
+  groupM                    other     
+  groupC                    other     
+  Mask Sensitivity          float     0.64
+  Amount                    float     0.5
+  parm3                     float     1.0
+  parm4                     float     0.6
+  parm14                    float     1.0
+  parm2                     float     0.3
+  parm8                     float     1.0
+  groupO                    other     
+  parm10                    enum      Material
+  parmS                     float     0.49
+  parm13                    float     0.92
+  parm17                    range     3 m - 21.5 m
+  parm16                    range     0.75 - 0.99
+
+<<<
+>>> wire list #222
+Connections for '#222':
+  Inputs:
+    [1] Terrain      <- 'Thermal Weathering' [1]
+    [2] Growth map   <- 'Erosion' [2]
+    [3] Color variation <- 'Erosion' [2]
+  Outputs:
+    [1] Color        -> 'Layers' [3]
+    [2] Mask         -> 'Texture Weightmap' [4]
+    [3] Variety      -> (none)
+
+<<<
+>>> device select #304
+Selected: Layers
+<<<
+>>> device info
+Selected device:
+  Name:    Layers
+  Type:    Layers
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #304
+Parameters for 'Layers' (Layers):
+  num                       int       2
+
+<<<
+>>> wire list #304
+Connections for '#304':
+  Inputs:
+    [1] Layer 1      <- 'Rock and Soil' [1]
+    [2] Mask 1       <- (none)
+    [3] Layer 2      <- 'Vegetation Layer' [1]
+    [4] Mask 2       <- (none)
+  Outputs:
+    [1] Primary Output -> 'Tap' [1]
+                          -> 'Scene View' [2]
+    [2] Composite Mask -> (none)
+    [3] Mask 1       -> (none)
+    [4] Mask 2       -> (none)
+
+<<<
+>>> device select #305
+Selected: Thermal Weathering
+<<<
+>>> device info
+Selected device:
+  Name:    Thermal Weathering
+  Type:    Thermal Weathering
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #305
+Parameters for 'Thermal Weathering' (Thermal Weathering):
+  simType                   enum      Thermal weathering
+  talus0                    float     0 m
+  group_bedrock             other     
+  Talus Production          float     0.6
+  massbalance               float     0.333
+  fractureStr               float     0.42
+  group_talus               other     
+  Talus Repose Angle        float     32.0°
+  Talus Size                float     1 m
+  talusApplyDisp            bool      true
+  waterMasking              float     16.0
+  group_output              other     
+  talusMask                 enum      Presence Mask
+  talusScour                float     1.313 m
+  group_iteration           other     
+  Simulation Length         int       24
+
+<<<
+>>> wire list #305
+Connections for '#305':
+  Inputs:
+    [1] Primary Input <- 'Erosion' [1]
+    [2] Water/Removal Mask <- (none)
+  Outputs:
+    [1] Primary Output -> 'Scene View' [1]
+                          -> 'Height Output' [1]
+                          -> 'Vegetation Layer' [1]
+                          -> 'Ambient Occlusion' [1]
+                          -> 'Rock and Soil' [1]
+    [2] Talus Mask   -> 'Rock and Soil' [3]
+
+<<<
+>>> device select #307
+Selected: Ambient Occlusion
+<<<
+>>> device info
+Selected device:
+  Name:    Ambient Occlusion
+  Type:    Ambient Occlusion
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #307
+Parameters for 'Ambient Occlusion' (Ambient Occlusion):
+  quality                   int       6
+  exag                      float     1.5
+  groupExt                  other     
+  startExt                  float     1 m
+  endExt                    float     32 km
+  rayPermute                bool      false
+
+<<<
+>>> wire list #307
+Connections for '#307':
+  Inputs:
+    [1] Primary Input <- 'Thermal Weathering' [1]
+  Outputs:
+    [1] Primary Output -> 'Scene View' [4]
+
+<<<
+>>> device select #308
+Selected: Material Output
+<<<
+>>> device info
+Selected device:
+  Name:    Material Output
+  Type:    Material Output
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #308
+Parameters for 'Material Output' (Material Output):
+  filename                  filename  <project> <name> <res>.png
+  writeOut                  action    
+  format                    enum      PNG  (8bits/channel)
+  groupChan                 other     
+  cDiffuse                  string    _diffuse
+  cNormal                   string    _normal
+  cHeight                   string    _disp
+  cAO                       string    _ao
+  cRough                    string    _roughness
+  cMetal                    string    _metal
+  cMask                     string    _mask
+  groupOpt                  other     
+  export                    bool      true
+  normalType                enum      OpenGL convention (Green +Y)
+  useSmooth                 bool      false
+
+<<<
+>>> wire list #308
+Connections for '#308':
+  Inputs:
+    [1] Primary Input <- 'Tap' [1]
+  Outputs:
+
+<<<
+>>> device select #309
+Selected: Colormap only
+<<<
+>>> device info
+Selected device:
+  Name:    Colormap only
+  Type:    Bitmap Output
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #309
+Parameters for 'Colormap only' (Bitmap Output):
+  Specify Output File...    action    
+  File Name                 string    <project> <name> <res>.png
+  File Format               enum      PNG  (8bits/channel)
+  Output File on every Build  bool      false
+  Participate in Tiled Builds  bool      true
+  Blend Across Tiles        bool      true
+  Write output to disk!     action    
+
+<<<
+>>> wire list #309
+Connections for '#309':
+  Inputs:
+    [1] RGB(A) Input <- 'Tap' [2]
+    [2] Alpha Input  <- (none)
+  Outputs:
+
+<<<
+>>> device select #310
+Selected: Tap
+<<<
+>>> device info
+Selected device:
+  Name:    Tap
+  Type:    Tap
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #310
+Parameters for 'Tap' (Tap):
+  member                    string    diffuse
+
+<<<
+>>> wire list #310
+Connections for '#310':
+  Inputs:
+    [1] Primary Input <- 'Layers' [1]
+    [2] Override diffuse <- (none)
+  Outputs:
+    [1] Primary Output -> 'Material Output' [1]
+    [2] Extract diffuse -> 'Colormap only' [1]
+
+<<<
+>>> device select #314
+Selected: Flow Restructure
+<<<
+>>> device info
+Selected device:
+  Name:    Flow Restructure
+  Type:    Flow Restructure
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #314
+Parameters for 'Flow Restructure' (Flow Restructure):
+  Drain to:                 enum      Map borders and drainage input
+  Basin Restructuring       float     1.25°
+  fillquality               enum      Fast
+  roughness                 float     0.667
+  preserveDetail            float     0.2
+  softclip                  bool      true
+
+<<<
+>>> wire list #314
+Connections for '#314':
+  Inputs:
+    [1] Primary Input <- 'Curves' [1]
+    [2] Drainage Input <- (none)
+  Outputs:
+    [1] Primary Output -> 'Erosion' [1]
+
+<<<
+>>> device select #317
+Selected: Texture Weightmap
+<<<
+>>> device info
+Selected device:
+  Name:    Texture Weightmap
+  Type:    Texture Weightmap
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #317
+Parameters for 'Texture Weightmap' (Texture Weightmap):
+  Number of Inputs          int       4
+  outputType                enum      Weight map (packed)
+  Priority Behavior         enum      Favor bottom inputs
+  Priority                  float     1.0
+  Exclusion                 float     0.0
+
+<<<
+>>> wire list #317
+Connections for '#317':
+  Inputs:
+    [1] Raw Mask 1   <- 'Rock and Soil' [2]
+    [2] Raw Mask 2   <- 'Rock and Soil' [3]
+    [3] Raw Mask 3   <- 'Rock and Soil' [4]
+    [4] Raw Mask 4   <- 'Vegetation Layer' [2]
+  Outputs:
+    [1] Splatmap 1   -> 'Splatmap' [1]
+
+<<<
+>>> device select #318
+Selected: Splatmap
+<<<
+>>> device info
+Selected device:
+  Name:    Splatmap
+  Type:    Bitmap Output
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #318
+Parameters for 'Splatmap' (Bitmap Output):
+  Specify Output File...    action    
+  File Name                 string    <project> <name> <res>.png
+  File Format               enum      PNG  (8bits/channel)
+  Output File on every Build  bool      false
+  Participate in Tiled Builds  bool      true
+  Blend Across Tiles        bool      true
+  Write output to disk!     action    
+
+<<<
+>>> wire list #318
+Connections for '#318':
+  Inputs:
+    [1] RGB(A) Input <- 'Texture Weightmap' [1]
+    [2] Alpha Input  <- (none)
+  Outputs:
+
+<<<
+>>> device select #319
+Selected: Easy Distortion
+<<<
+>>> device info
+Selected device:
+  Name:    Easy Distortion
+  Type:    Macro
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #319
+Parameters for 'Easy Distortion' (Macro):
+  Scale                     float     0.55
+  Roughness                 float     0.0
+
+<<<
+>>> wire list #319
+Connections for '#319':
+  Inputs:
+  Outputs:
+    [1] Distortion Out -> 'Advanced Perlin' [1]
+
+<<<
+>>> device select #373
+Selected: Rock and Soil
+<<<
+>>> device info
+Selected device:
+  Name:    Rock and Soil
+  Type:    Rock and Soil
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #373
+Parameters for 'Rock and Soil' (Rock and Soil):
+  rock                      other     
+  weather                   other     
+  parm0                     float     0.5
+  talus                     other     
+  soil                      other     
+  parm4                     float     0.6
+  parm19                    float     0.94
+  parm5                     float     1.0
+  parm7                     float     0.49
+  parm8                     float     0.32
+  parm11                    range     0.0 - 0.839
+  parm12                    float     -0.6
+  parm9                     float     0.2
+  parm13                    other     
+  parm10                    float     0.24
+  parm22                    float     1.0
+  parm14                    float     0.63
+  parm18                    float     1.0
+  parm15                    float     0.99
+  output                    other     
+  parm20                    enum      Material
+  parm16                    float     0.09
+  parm21                    range     0.49 - 0.91
+  parm23                    float     0.61
+  parm24                    other     
+  parm25                    float     1.4
+  parm26                    float     0.22
+  parm27                    float     0.0
+
+<<<
+>>> wire list #373
+Connections for '#373':
+  Inputs:
+    [1] Terrain      <- 'Thermal Weathering' [1]
+    [2] Soil Mask    <- 'Erosion' [5]
+    [3] Talus Mask   <- 'Thermal Weathering' [2]
+    [4] Bedrock Variety <- (none)
+    [5] Erosion Wear <- 'Erosion' [3]
+    [6] Erosion Deposit <- 'Erosion' [4]
+  Outputs:
+    [1] Texture output -> 'Layers' [1]
+    [2] Bedrock mask -> 'Texture Weightmap' [1]
+    [3] Talus mask   -> 'Texture Weightmap' [2]
+    [4] Soil mask    -> 'Vegetation Layer' [1]
+                     -> 'Texture Weightmap' [3]
+
+<<<
+>>> scene list
+Scenes (1 total):
+  [0] 'Main Extents' - 12.0x12.0 km, res 2049 *
+
+* = current scene
+<<<
+>>> scene show
+Scene 'Main Extents' (index 0 of 1):
+  Origin (center): 4.00, 4.00 km
+  Size:            12.00 x 12.00 km
+  Lower-left:      -2.00, -2.00 km
+  Upper-right:     10.00, 10.00 km
+  Resolution:      2049
+  Locked:          no
+<<<
+>>> group list
+Groups (5 total):
+  [#0] Create your Terrain      (6 devices)
+  [#1] Export Basics            (4 devices)
+  [#2] Texture & View           (5 devices)
+  [#3] Welcome to World Machine! (0 devices)
+  [#4] Material Maps            (2 devices)
+
+<<<
+>>> export list
+[Info       ] QIODevice::read (QSslSocket): device not open
+Configured exports:
+  'Height Output       ' -> <project> <name>-<res>.png
+  'Material Output     ' -> <project> <name> <res>.png
+  'Colormap only       ' -> <project> <name> <res>.png
+  'Splatmap            ' -> <project> <name> <res>.png
+
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<
