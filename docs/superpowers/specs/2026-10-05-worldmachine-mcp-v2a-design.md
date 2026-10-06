@@ -175,8 +175,8 @@ The README gets the five tools in its table, a "Builds and exports" note (the wa
 
 ## 10. Out of scope for v2a
 
-- Snapshots and `device organize` (v2b).
-- `group build` and per-group builds.
+- Snapshots and `device organize`: specified in [the v2b design](2026-10-06-worldmachine-mcp-v2b-design.md).
+- `group build` and per-group builds: specified in [the v2b design](2026-10-06-worldmachine-mcp-v2b-design.md) as `build_project` mode `group`.
 - Choosing which outputs to export: `export all` is the only export command (fact 49 lists no per-device form).
 - Reporting a failed build as failed (A4).
 - Setting output filenames, formats, or the tile layout (fact 41, v1 section 9).

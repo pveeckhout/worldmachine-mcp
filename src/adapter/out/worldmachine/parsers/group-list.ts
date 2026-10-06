@@ -8,8 +8,9 @@ const HEADER = /^Groups \((\d+) total\):$/;
 // Spec v2b fact 63 (raw/v2b-groups.txt l.16-24): two spaces, `[#<index>]`, a space, the name padded with spaces (a
 // longer name is printed whole and followed by one space), a space, and the device count. The name keeps everything
 // but the padding, so a name's own trailing spaces are lost; group references compare names the same way (spec v2b
-// section 4).
-const ROW = /^ {2}\[#(\d+)\] (.+?) +\((\d+) devices?\)$/;
+// section 4). Assumption B8: lists of 10 or more were not captured, so one or more spaces after `[#<index>]` are
+// accepted in case World Machine aligns the column; a name therefore also loses any leading spaces.
+const ROW = /^ {2}\[#(\d+)\] +(.+?) +\((\d+) devices?\)$/;
 // Decision D2 (raw/v2b-groups.txt l.30-32): a filter without a match prints the header and this line.
 const NO_MATCHES = '  (no matches)';
 

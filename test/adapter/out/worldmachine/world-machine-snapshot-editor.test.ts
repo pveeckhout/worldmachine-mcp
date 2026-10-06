@@ -134,6 +134,15 @@ describe('WorldMachineSnapshotEditor.restore', () => {
     expect(s.dirtyMarks()).toBe(1);
   });
 
+  it('resolves a listed name that ends in spaces by that exact name (final review F1)', async () => {
+    const s = scriptedSession({
+      'snapshot list': [{ output: listing('A', 'A  ') }],
+      'snapshot restore #1': [{ output: ["Restored snapshot [#1] 'A  '"] }],
+    });
+    expect(await new WorldMachineSnapshotEditor(s.session).restore('A  ')).toEqual(snapshot(1, 'A  '));
+    expect(s.batches).toEqual([['snapshot list'], ['snapshot restore #1']]);
+  });
+
   it.each([
     ['a name two snapshots have', 'A', "The snapshot name 'A' matches #0, #2; use #<index>"],
     ['a missing name', 'missing', "No snapshot 'missing' in the current project; see list_snapshots"],

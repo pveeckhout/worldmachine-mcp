@@ -41,7 +41,9 @@ describe('stdio server', () => {
       'configure_scene',
       'connect_devices',
       'create_project',
+      'create_snapshot',
       'delete_device',
+      'delete_snapshot',
       'disconnect_devices',
       'export_outputs',
       'get_build_status',
@@ -51,11 +53,16 @@ describe('stdio server', () => {
       'inspect_project',
       'list_devices',
       'list_exports',
+      'list_groups',
+      'list_snapshots',
       'open_project',
+      'organize_devices',
       'redo',
       'rename_device',
+      'restore_snapshot',
       'save_project',
       'set_device_enabled',
+      'set_group_enabled',
       'stop_build',
       'undo',
       'update_device_parameters',
@@ -78,6 +85,21 @@ describe('stdio server', () => {
       device: { id: 536, name: 'Grad A', kind: 'Gradient' },
       session: { state: 'ready', dirty: true },
     });
+
+    // Spec v2b section 3: the snapshot and group tools reach the fake through main.ts.
+    const snapshot = await client.callTool({ name: 'create_snapshot', arguments: { name: 'with grad' } });
+    expect(snapshot.isError).toBeFalsy();
+    expect(snapshot.structuredContent).toMatchObject({ index: 0, name: 'with grad' });
+    // raw/v2b-groups.txt l.25-28: the only captured filter.
+    const groups = await client.callTool({ name: 'list_groups', arguments: { filter: 'Export' } });
+    expect(groups.structuredContent).toMatchObject({
+      groups: [{ index: 1, name: 'Export Basics', deviceCount: 4 }],
+    });
+    const disabled = await client.callTool({
+      name: 'set_group_enabled',
+      arguments: { group: 'create your terrain', enabled: false },
+    });
+    expect(disabled.structuredContent).toMatchObject({ index: 0, deviceCount: 6, enabled: false });
 
     // Undo would mark the project dirty (spec §6); a discarding create_project leaves a clean
     // session so the server shuts down without the unsaved-changes warning.

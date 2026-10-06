@@ -7,14 +7,19 @@ import type {
 } from '../../../application/port/in/command/configure-scene-command.js';
 import type { ConnectDevicesCommandPort } from '../../../application/port/in/command/connect-devices-command.js';
 import type { CreateProjectCommandPort } from '../../../application/port/in/command/create-project-command.js';
+import type { CreateSnapshotCommandPort } from '../../../application/port/in/command/create-snapshot-command.js';
 import type { DeleteDeviceCommandPort } from '../../../application/port/in/command/delete-device-command.js';
+import type { DeleteSnapshotCommandPort } from '../../../application/port/in/command/delete-snapshot-command.js';
 import type { DisconnectDevicesCommandPort } from '../../../application/port/in/command/disconnect-devices-command.js';
 import type { ExportOutputsCommandPort } from '../../../application/port/in/command/export-outputs-command.js';
 import type { OpenProjectCommandPort } from '../../../application/port/in/command/open-project-command.js';
+import type { OrganizeDevicesCommandPort } from '../../../application/port/in/command/organize-devices-command.js';
 import type { RedoCommandPort } from '../../../application/port/in/command/redo-command.js';
 import type { RenameDeviceCommandPort } from '../../../application/port/in/command/rename-device-command.js';
+import type { RestoreSnapshotCommandPort } from '../../../application/port/in/command/restore-snapshot-command.js';
 import type { SaveProjectCommandPort } from '../../../application/port/in/command/save-project-command.js';
 import type { SetDeviceEnabledCommandPort } from '../../../application/port/in/command/set-device-enabled-command.js';
+import type { SetGroupEnabledCommandPort } from '../../../application/port/in/command/set-group-enabled-command.js';
 import type { StopBuildCommandPort } from '../../../application/port/in/command/stop-build-command.js';
 import type { UndoCommandPort } from '../../../application/port/in/command/undo-command.js';
 import type { UpdateDeviceParametersCommandPort } from '../../../application/port/in/command/update-device-parameters-command.js';
@@ -25,6 +30,8 @@ import type { GetStatusQueryPort } from '../../../application/port/in/query/get-
 import type { InspectProjectQueryPort } from '../../../application/port/in/query/inspect-project-query.js';
 import type { ListDevicesQueryPort } from '../../../application/port/in/query/list-devices-query.js';
 import type { ListExportsQueryPort } from '../../../application/port/in/query/list-exports-query.js';
+import type { ListGroupsQueryPort } from '../../../application/port/in/query/list-groups-query.js';
+import type { ListSnapshotsQueryPort } from '../../../application/port/in/query/list-snapshots-query.js';
 import { WorldMachineError } from '../../../domain/errors.js';
 import type { WireEndpoint } from '../../../domain/graph-edit.js';
 import type { SessionSummary } from '../../../domain/session.js';
@@ -39,25 +46,36 @@ import {
   configureSceneViewSchema,
   connectDevicesViewSchema,
   createProjectInputSchema,
+  createSnapshotInputSchema,
+  createSnapshotViewSchema,
   deleteDeviceInputSchema,
   deleteDeviceViewSchema,
+  deleteSnapshotViewSchema,
   deviceListViewSchema,
   deviceViewSchema,
   disconnectDevicesViewSchema,
   exportOutputsViewSchema,
   getDeviceInputSchema,
+  groupListViewSchema,
   listDevicesInputSchema,
   listExportsViewSchema,
+  listGroupsInputSchema,
   noInputSchema,
   openProjectInputSchema,
+  organizeDevicesViewSchema,
   projectCommandViewSchema,
   projectViewSchema,
   renameDeviceInputSchema,
   renameDeviceViewSchema,
+  restoreSnapshotViewSchema,
   saveProjectInputSchema,
   sceneViewSchema,
   setDeviceEnabledInputSchema,
   setDeviceEnabledViewSchema,
+  setGroupEnabledInputSchema,
+  setGroupEnabledViewSchema,
+  snapshotListViewSchema,
+  snapshotReferenceInputSchema,
   statusViewSchema,
   stopBuildViewSchema,
   updateDeviceParametersInputSchema,
@@ -91,6 +109,13 @@ export type McpDependencies = {
   readonly stopBuild: StopBuildCommandPort;
   readonly listExports: ListExportsQueryPort;
   readonly exportOutputs: ExportOutputsCommandPort;
+  readonly listSnapshots: ListSnapshotsQueryPort;
+  readonly createSnapshot: CreateSnapshotCommandPort;
+  readonly restoreSnapshot: RestoreSnapshotCommandPort;
+  readonly deleteSnapshot: DeleteSnapshotCommandPort;
+  readonly organizeDevices: OrganizeDevicesCommandPort;
+  readonly listGroups: ListGroupsQueryPort;
+  readonly setGroupEnabled: SetGroupEnabledCommandPort;
   readonly currentSession: () => SessionSummary;
   readonly logger: Logger;
 };
@@ -386,15 +411,16 @@ export function createMcpServer(deps: McpDependencies): McpServer {
     {
       title: 'Build project',
       description:
-        "Build the project in World Machine and wait up to wait_seconds (default 60, at most 600) for the build to end. preview runs World Machine's quick preview; full builds every device at the scene resolution and writes no files; tiled runs the tiled build set up in the World Machine window and writes every output as tiles next to its export path, overwriting files of the same name without asking. A tiled build checks its targets itself and is refused unless the project was saved and every output folder exists inside the allowed roots; it also refuses a file name template that uses <res> in a folder name, and one with an unknown template token, whose value the server cannot know. A full build checks the same way when an output has exportAlways set (or its setting cannot be read), because such an output may be written on every full build. If the wait ends first, state is running and the build continues: check get_build_status, or call stop_build. A build ended by stop_build is reported as finished. While a full or tiled build runs, every other change tool is refused. World Machine does not report failed builds, so finished means only that the build ended.",
+        "Build the project in World Machine and wait up to wait_seconds (default 60, at most 600) for the build to end. preview runs World Machine's quick preview; full builds every device at the scene resolution and writes no files; tiled runs the tiled build set up in the World Machine window and writes every output as tiles next to its export path, overwriting files of the same name without asking; group builds the devices of one device group, given as group (a name in any case, or #<n> from list_groups; required for mode group and refused for the others), and is tracked like a full build. A group build does not make the outputs exportable: export_outputs still needs a full build. A tiled build checks its targets itself and is refused unless the project was saved and every output folder exists inside the allowed roots; it also refuses a file name template that uses <res> in a folder name, and one with an unknown template token, whose value the server cannot know. A full or group build checks the same way when an output has exportAlways set (or its setting cannot be read), because such an output may be written on every full build. A group without devices is refused. If the wait ends first, state is running and the build continues: check get_build_status, or call stop_build. A build ended by stop_build is reported as finished. While a full, tiled, or group build runs, every other change tool is refused. World Machine does not report failed builds, so finished means only that the build ended.",
       inputSchema: buildProjectInputSchema,
       outputSchema: buildProjectViewSchema,
       annotations: DESTRUCTIVE,
     },
-    ({ mode, wait_seconds }, ctx) =>
+    ({ mode, group, wait_seconds }, ctx) =>
       respond(deps, 'build_project', () =>
         deps.buildProject.buildProject({
           mode,
+          ...(group === undefined ? {} : { group }),
           waitSeconds: wait_seconds,
           signal: ctx.mcpReq.signal,
           ...progressOf(ctx, wait_seconds, deps.logger),
@@ -452,6 +478,103 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       annotations: DESTRUCTIVE,
     },
     () => respond(deps, 'export_outputs', () => deps.exportOutputs.exportOutputs({})),
+  );
+
+  // Spec v2b section 3: snapshots serve as checkpoints and as variants; the tools are the same for both.
+
+  server.registerTool(
+    'list_snapshots',
+    {
+      title: 'List snapshots',
+      description:
+        "List the project's snapshots: index, name, and the time World Machine made each (YYYY-MM-DD HH:MM). A snapshot holds the device graph, as a checkpoint before risky edits or as a variant of the project to switch back to.",
+      inputSchema: noInputSchema,
+      outputSchema: snapshotListViewSchema,
+      annotations: READ_ONLY,
+    },
+    () => respond(deps, 'list_snapshots', () => deps.listSnapshots.listSnapshots({})),
+  );
+
+  server.registerTool(
+    'create_snapshot',
+    {
+      title: 'Create snapshot',
+      description:
+        'Take a named snapshot of the device graph, as a checkpoint before risky edits or as a variant to switch back to with restore_snapshot. The snapshot is stored in the project file and is kept only after save_project: closing the project without saving loses it, so the session counts as unsaved afterwards. Names are 1 to 64 characters without leading or trailing spaces, quotes, backslashes, or the form #<n>; a name that another snapshot already has is refused, because later references by that name would be ambiguous.',
+      inputSchema: createSnapshotInputSchema,
+      outputSchema: createSnapshotViewSchema,
+      annotations: COMMAND,
+    },
+    ({ name }) => respond(deps, 'create_snapshot', () => deps.createSnapshot.createSnapshot({ name })),
+  );
+
+  server.registerTool(
+    'restore_snapshot',
+    {
+      title: 'Restore snapshot',
+      description:
+        'Revert the device graph to a snapshot (a checkpoint, or the variant to switch to), referenced by its exact name or #<n> from list_snapshots. A name of the form #<n> is read as an index, so a snapshot whose name looks like that is reached by its #<index>. Snapshots made after it are kept. One undo reverts the restore. The project counts as unsaved afterwards. A name that several snapshots share is refused; use the index.',
+      inputSchema: snapshotReferenceInputSchema,
+      outputSchema: restoreSnapshotViewSchema,
+      annotations: DESTRUCTIVE,
+    },
+    ({ snapshot }) =>
+      respond(deps, 'restore_snapshot', () => deps.restoreSnapshot.restoreSnapshot({ snapshot })),
+  );
+
+  server.registerTool(
+    'delete_snapshot',
+    {
+      title: 'Delete snapshot',
+      description:
+        'Delete a snapshot (a checkpoint or a variant), referenced by its exact name or #<n> from list_snapshots. A name of the form #<n> is read as an index, so a snapshot whose name looks like that is reached by its #<index>. The snapshots after it move down one index; remaining lists them. The project counts as unsaved afterwards, and save_project keeps the deletion.',
+      inputSchema: snapshotReferenceInputSchema,
+      outputSchema: deleteSnapshotViewSchema,
+      annotations: DESTRUCTIVE,
+    },
+    ({ snapshot }) =>
+      respond(deps, 'delete_snapshot', () => deps.deleteSnapshot.deleteSnapshot({ snapshot })),
+  );
+
+  server.registerTool(
+    'organize_devices',
+    {
+      title: 'Organize devices',
+      description:
+        'Lay the device graph out in the World Machine window by processing order. Only the layout changes, and the console cannot show it. undo is expected to revert the layout, but the console cannot confirm it. The project counts as unsaved afterwards.',
+      inputSchema: noInputSchema,
+      outputSchema: organizeDevicesViewSchema,
+      annotations: IDEMPOTENT_COMMAND,
+    },
+    () => respond(deps, 'organize_devices', () => deps.organizeDevices.organizeDevices({})),
+  );
+
+  server.registerTool(
+    'list_groups',
+    {
+      title: 'List groups',
+      description:
+        "List the project's device groups: index, name, and device count. The console does not show which devices a group holds or whether they are enabled. Groups are created and filled in the World Machine window. filter is passed to World Machine's group list command; the header keeps the full count, so the indexes are those of the full list.",
+      inputSchema: listGroupsInputSchema,
+      outputSchema: groupListViewSchema,
+      annotations: READ_ONLY,
+    },
+    ({ filter }) =>
+      respond(deps, 'list_groups', () => deps.listGroups.listGroups(filter === undefined ? {} : { filter })),
+  );
+
+  server.registerTool(
+    'set_group_enabled',
+    {
+      title: 'Enable or disable group',
+      description:
+        "Enable or disable every device of a group, referenced by name (any case) or #<n> from list_groups. A name of the form #<n> is read as an index, so a group whose name looks like that, or ends in spaces, is reached by its #<index>. This sets each member device's own enabled state, so enabling a group also enables members that were disabled one by one. One undo reverts the whole group. A group without devices is not an error: deviceCount is 0 and nothing changes.",
+      inputSchema: setGroupEnabledInputSchema,
+      outputSchema: setGroupEnabledViewSchema,
+      annotations: IDEMPOTENT_COMMAND,
+    },
+    ({ group, enabled }) =>
+      respond(deps, 'set_group_enabled', () => deps.setGroupEnabled.setGroupEnabled({ group, enabled })),
   );
 
   return server;

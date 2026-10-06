@@ -15,8 +15,9 @@ export type IndexedKind = {
 
 /**
  * The listed item a reference names, resolved by the server, never by World Machine (spec v2b section 4): `#<n>` must
- * be an index in the list, and a name must match exactly one item. Anything else is REFUSED before a command uses
- * it. Callers list the items inside the same `exclusive()` action, so no other command can shift the indexes.
+ * be an index in the list that no item at another index has as its name, and a name must match exactly one item.
+ * Anything else is REFUSED before a command uses it. Callers list the items inside the same `exclusive()` action, so
+ * no other command can shift the indexes.
  */
 export function resolveIndexed<T extends Indexed>(
   items: readonly T[],
@@ -30,6 +31,17 @@ export function resolveIndexed<T extends Indexed>(
       throw new WorldMachineError(
         'REFUSED',
         `No ${kind.what} #${index} in the current project; see ${kind.listTool}`,
+      );
+    }
+    // Fail closed: an item named like the index (made in the window) would otherwise be shadowed by it.
+    const namesakes = items.filter(
+      (candidate) => candidate.index !== index && kind.sameName(candidate.name, reference),
+    );
+    if (namesakes.length > 0) {
+      const indexes = namesakes.map((namesake) => `#${namesake.index}`).join(', ');
+      throw new WorldMachineError(
+        'REFUSED',
+        `'${reference}' is both an index and the name of ${indexes}; use the other item's index or rename it in the window`,
       );
     }
     return item;

@@ -350,6 +350,7 @@ describe('BuildProjectService mode group (spec v2b section 3)', () => {
       'build_project with mode group needs group: a group name or #<index> (see list_groups)',
     ],
     [{ mode: 'full' as const, group: '#0' }, 'group applies only to mode group, not to mode full'],
+    [{ mode: 'tiled' as const, group: '#0' }, 'group applies only to mode group, not to mode tiled'],
     [{ mode: 'preview' as const, group: '#0' }, 'group applies only to mode group, not to mode preview'],
   ])('refuses %j before anything is sent', async (input, message) => {
     const f = building();
@@ -358,6 +359,18 @@ describe('BuildProjectService mode group (spec v2b section 3)', () => {
       message,
     });
     expect(f.calls).toEqual([]);
+  });
+
+  it('builds the view of the group field by field (final review F4)', async () => {
+    const f = building();
+    const groups = groupsFake(f.calls);
+    const extended = { ...TERRAIN, filter: 'Terrain' };
+    const service = new BuildProjectService(f.session, buildFake(f.calls), f.exports, f.graph, f.policy, {
+      ...groups,
+      resolve: async () => extended,
+    });
+    const view = await service.buildProject({ mode: 'group', group: '#0', waitSeconds: 60 });
+    expect(view.group).toStrictEqual(TERRAIN);
   });
 
   it('refuses a group without devices without starting it (decision D8)', async () => {

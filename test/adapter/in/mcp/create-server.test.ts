@@ -7,6 +7,7 @@ import { parseDeviceList } from '../../../../src/adapter/out/worldmachine/parser
 import { parseGroupList } from '../../../../src/adapter/out/worldmachine/parsers/group-list.js';
 import { parseParamList } from '../../../../src/adapter/out/worldmachine/parsers/param-list.js';
 import { parseSceneList, parseSceneShow } from '../../../../src/adapter/out/worldmachine/parsers/scene.js';
+import { parseSnapshotList } from '../../../../src/adapter/out/worldmachine/parsers/snapshot-list.js';
 import { parseWireList } from '../../../../src/adapter/out/worldmachine/parsers/wire-list.js';
 import type { BuildProjectCommand } from '../../../../src/application/port/in/command/build-project-command.js';
 import type { DeviceDetail } from '../../../../src/domain/device.js';
@@ -15,7 +16,7 @@ import type { ProjectOverview } from '../../../../src/domain/project.js';
 import type { Scene } from '../../../../src/domain/scene.js';
 import type { SessionSummary } from '../../../../src/domain/session.js';
 import { createLogger, type Logger } from '../../../../src/logger.js';
-import { fixtureLines } from '../../out/worldmachine/parsers/fixture.js';
+import { fixtureLines, rawFrame } from '../../out/worldmachine/parsers/fixture.js';
 
 const READY = { state: 'ready', binding: { kind: 'fresh' }, dirty: false } as const;
 const READY_DIRTY = { state: 'ready', binding: { kind: 'fresh' }, dirty: true } as const;
@@ -24,6 +25,10 @@ const WIRE = {
   source: { id: 1, name: 'Gradient', port: 1 },
   destination: { id: 2, name: 'Combiner', port: 1 },
 };
+
+// raw/v2b-snapshots.txt l.31 and raw/v2b-groups.txt l.18.
+const SNAPSHOT = { index: 0, name: 'A', created: '2026-10-06 11:09' };
+const TERRAIN = { index: 0, name: 'Create your Terrain', deviceCount: 6 };
 
 const SCENE: Scene = {
   name: 'Scene 1',
@@ -148,6 +153,21 @@ function deps(overrides: Partial<McpDependencies> = {}): McpDependencies {
       }),
     },
     exportOutputs: { exportOutputs: async () => ({ files: ['/r/a Height Output-257.png'], session: READY }) },
+    listSnapshots: { listSnapshots: async () => ({ snapshots: [SNAPSHOT], session: READY }) },
+    createSnapshot: {
+      createSnapshot: async (c) => ({ ...SNAPSHOT, name: c.name, session: READY_DIRTY }),
+    },
+    restoreSnapshot: {
+      restoreSnapshot: async () => ({ index: 0, name: 'A', session: READY_DIRTY }),
+    },
+    deleteSnapshot: {
+      deleteSnapshot: async () => ({ index: 0, name: 'A', remaining: [], session: READY_DIRTY }),
+    },
+    organizeDevices: { organizeDevices: async () => ({ session: READY_DIRTY }) },
+    listGroups: { listGroups: async () => ({ groups: [TERRAIN], session: READY }) },
+    setGroupEnabled: {
+      setGroupEnabled: async (c) => ({ ...TERRAIN, enabled: c.enabled, session: READY_DIRTY }),
+    },
     currentSession: () => READY,
     logger: silentLogger(),
     ...overrides,
@@ -175,7 +195,7 @@ async function connect(dependencies: McpDependencies): Promise<Client> {
 }
 
 describe('createMcpServer', () => {
-  it('registers all twenty-three tools as closed-world, the seven read tools as read-only', async () => {
+  it('registers all thirty tools as closed-world, the nine read tools as read-only', async () => {
     const { tools } = await (await connect(deps())).listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       'add_device',
@@ -183,7 +203,9 @@ describe('createMcpServer', () => {
       'configure_scene',
       'connect_devices',
       'create_project',
+      'create_snapshot',
       'delete_device',
+      'delete_snapshot',
       'disconnect_devices',
       'export_outputs',
       'get_build_status',
@@ -193,11 +215,16 @@ describe('createMcpServer', () => {
       'inspect_project',
       'list_devices',
       'list_exports',
+      'list_groups',
+      'list_snapshots',
       'open_project',
+      'organize_devices',
       'redo',
       'rename_device',
+      'restore_snapshot',
       'save_project',
       'set_device_enabled',
+      'set_group_enabled',
       'stop_build',
       'undo',
       'update_device_parameters',
@@ -210,6 +237,8 @@ describe('createMcpServer', () => {
       'inspect_project',
       'list_devices',
       'list_exports',
+      'list_groups',
+      'list_snapshots',
     ];
     for (const tool of tools) {
       if (readTools.includes(tool.name)) {
@@ -1063,6 +1092,222 @@ describe('createMcpServer build and export tools (spec v2a section 4)', () => {
       }),
     );
     const result = await client.callTool({ name: 'build_project', arguments: { mode: 'full' } });
+    expect(result.isError).toBe(true);
+  });
+});
+
+describe('createMcpServer snapshot, organize, and group tools (spec v2b section 3)', () => {
+  const ANNOTATIONS = (destructive: boolean, idempotent: boolean) => ({
+    readOnlyHint: false,
+    destructiveHint: destructive,
+    idempotentHint: idempotent,
+    openWorldHint: false,
+  });
+  const READ = { readOnlyHint: true, destructiveHint: false, openWorldHint: false };
+
+  it('annotates the seven tools as spec v2b section 3 says, and keeps build_project as it was', async () => {
+    const { tools } = await (await connect(deps())).listTools();
+    const annotations = Object.fromEntries(tools.map((tool) => [tool.name, tool.annotations]));
+    expect(annotations).toMatchObject({
+      list_snapshots: READ,
+      create_snapshot: ANNOTATIONS(false, false),
+      restore_snapshot: ANNOTATIONS(true, false),
+      delete_snapshot: ANNOTATIONS(true, false),
+      organize_devices: ANNOTATIONS(false, true),
+      list_groups: READ,
+      set_group_enabled: ANNOTATIONS(false, true),
+      build_project: ANNOTATIONS(true, false),
+    });
+  });
+
+  it('says what the spec asks in the descriptions', async () => {
+    const { tools } = await (await connect(deps())).listTools();
+    const description = (name: string) => tools.find((tool) => tool.name === name)?.description ?? '';
+    for (const name of ['list_snapshots', 'create_snapshot', 'restore_snapshot', 'delete_snapshot']) {
+      expect(description(name), name).toContain('checkpoint');
+      expect(description(name), name).toContain('variant');
+    }
+    expect(description('create_snapshot')).toContain('stored in the project file');
+    expect(description('create_snapshot')).toContain('save_project');
+    expect(description('create_snapshot')).toContain('already has');
+    expect(description('restore_snapshot')).toContain('One undo reverts the restore');
+    expect(description('set_group_enabled')).toContain("each member device's own enabled state");
+    expect(description('set_group_enabled')).toContain('disabled one by one');
+    expect(description('set_group_enabled')).toContain('One undo reverts the whole group');
+    expect(description('set_group_enabled')).toContain('deviceCount is 0');
+    expect(description('list_groups')).toContain('World Machine window');
+    expect(description('list_groups')).toContain('the header keeps the full count');
+    expect(description('build_project')).toContain('does not make the outputs exportable');
+    expect(description('build_project')).toContain('list_groups');
+  });
+
+  it('says that only an index-like snapshot name needs its #<index> (final review F1)', async () => {
+    const { tools } = await (await connect(deps())).listTools();
+    const description = (name: string) => tools.find((tool) => tool.name === name)?.description ?? '';
+    for (const name of ['restore_snapshot', 'delete_snapshot']) {
+      expect(description(name), name).toContain(
+        'A name of the form #<n> is read as an index, so a snapshot whose name looks like that is reached by its #<index>.',
+      );
+      expect(description(name), name).not.toContain('ends in spaces');
+    }
+    expect(description('set_group_enabled')).toContain('or ends in spaces, is reached by its #<index>');
+  });
+
+  it('maps the arguments to query and command objects', async () => {
+    const seen: unknown[] = [];
+    const client = await connect(
+      deps({
+        createSnapshot: {
+          createSnapshot: async (c) => {
+            seen.push(c);
+            return { ...SNAPSHOT, name: c.name, session: READY_DIRTY };
+          },
+        },
+        restoreSnapshot: {
+          restoreSnapshot: async (c) => {
+            seen.push(c);
+            return { index: 0, name: 'A', session: READY_DIRTY };
+          },
+        },
+        deleteSnapshot: {
+          deleteSnapshot: async (c) => {
+            seen.push(c);
+            return { index: 0, name: 'A', remaining: [], session: READY_DIRTY };
+          },
+        },
+        listGroups: {
+          listGroups: async (q) => {
+            seen.push(q);
+            return { groups: [], session: READY };
+          },
+        },
+        setGroupEnabled: {
+          setGroupEnabled: async (c) => {
+            seen.push(c);
+            return { ...TERRAIN, enabled: c.enabled, session: READY_DIRTY };
+          },
+        },
+        buildProject: {
+          buildProject: async (c) => {
+            seen.push({ mode: c.mode, group: c.group, waitSeconds: c.waitSeconds });
+            return { state: 'finished', mode: c.mode, elapsedSeconds: 1, group: TERRAIN, session: READY };
+          },
+        },
+      }),
+    );
+    for (const [name, args] of [
+      ['create_snapshot', { name: 'erosion a' }],
+      ['restore_snapshot', { snapshot: '#0' }],
+      ['delete_snapshot', { snapshot: 'erosion a' }],
+      ['list_groups', {}],
+      ['list_groups', { filter: 'Terrain' }],
+      ['set_group_enabled', { group: 'Create your Terrain', enabled: false }],
+      ['build_project', { mode: 'group', group: '#0' }],
+    ] as const) {
+      const result = await client.callTool({ name, arguments: args });
+      expect(result.isError, name).toBeFalsy();
+    }
+    expect(seen).toEqual([
+      { name: 'erosion a' },
+      { snapshot: '#0' },
+      { snapshot: 'erosion a' },
+      {},
+      { filter: 'Terrain' },
+      { group: 'Create your Terrain', enabled: false },
+      { mode: 'group', group: '#0', waitSeconds: 60 },
+    ]);
+  });
+
+  it.each([
+    ['create_snapshot', {}],
+    ['create_snapshot', { name: '' }],
+    ['restore_snapshot', {}],
+    ['delete_snapshot', { snapshot: '' }],
+    ['list_groups', { filter: '' }],
+    ['set_group_enabled', { group: '#0' }],
+    ['set_group_enabled', { group: '', enabled: true }],
+    ['build_project', { mode: 'group', group: '' }],
+    ['build_project', { mode: 'groups' }],
+  ])('rejects %s arguments %j through the schema', async (name, args) => {
+    const result = await (await connect(deps())).callTool({ name, arguments: args });
+    expect(result.isError).toBe(true);
+  });
+
+  it('returns each view as structured content, with the views the parsers build from the captures', async () => {
+    const snapshots = parseSnapshotList(rawFrame('v2b-snapshots.txt', 'snapshot list', 3));
+    const groups = parseGroupList(rawFrame('v2b-groups.txt', 'group list'));
+    const views = {
+      list_snapshots: { snapshots, session: READY },
+      create_snapshot: { index: 4, name: 'erosion a', created: '2026-10-06 11:09', session: READY_DIRTY },
+      restore_snapshot: { index: 1, name: 'B with space', session: READY_DIRTY },
+      delete_snapshot: {
+        index: 1,
+        name: 'B with space',
+        remaining: parseSnapshotList(rawFrame('v2b-snapshots.txt', 'snapshot list', 7)),
+        session: READY_DIRTY,
+      },
+      organize_devices: { session: READY_DIRTY },
+      list_groups: { groups, session: READY },
+      set_group_enabled: {
+        index: 3,
+        name: 'Welcome to World Machine!',
+        deviceCount: 0,
+        enabled: true,
+        session: READY,
+      },
+      build_project: { state: 'running', mode: 'group', elapsedSeconds: 0, group: TERRAIN, session: READY },
+    } as const;
+    const client = await connect(
+      deps({
+        listSnapshots: { listSnapshots: async () => views.list_snapshots },
+        createSnapshot: { createSnapshot: async () => views.create_snapshot },
+        restoreSnapshot: { restoreSnapshot: async () => views.restore_snapshot },
+        deleteSnapshot: { deleteSnapshot: async () => views.delete_snapshot },
+        organizeDevices: { organizeDevices: async () => views.organize_devices },
+        listGroups: { listGroups: async () => views.list_groups },
+        setGroupEnabled: { setGroupEnabled: async () => views.set_group_enabled },
+        buildProject: { buildProject: async () => views.build_project },
+      }),
+    );
+    for (const [name, args] of [
+      ['list_snapshots', {}],
+      ['create_snapshot', { name: 'erosion a' }],
+      ['restore_snapshot', { snapshot: 'B with space' }],
+      ['delete_snapshot', { snapshot: '#1' }],
+      ['organize_devices', {}],
+      ['list_groups', {}],
+      ['set_group_enabled', { group: '#3', enabled: true }],
+      ['build_project', { mode: 'group', group: '#0', wait_seconds: 0 }],
+    ] as const) {
+      const result = await client.callTool({ name, arguments: args });
+      expect(result.isError, name).toBeFalsy();
+      expect(result.structuredContent, name).toEqual(views[name]);
+    }
+  });
+
+  it.each([
+    [
+      'restore_snapshot',
+      { snapshot: '#0' },
+      { restoreSnapshot: { restoreSnapshot: async () => ({ ...SNAPSHOT, session: READY }) } },
+    ],
+    [
+      'set_group_enabled',
+      { group: '#0', enabled: true },
+      {
+        setGroupEnabled: {
+          setGroupEnabled: async () => ({ ...TERRAIN, enabled: true, changed: true, session: READY }),
+        },
+      },
+    ],
+    [
+      'list_groups',
+      {},
+      { listGroups: { listGroups: async () => ({ groups: [{ ...TERRAIN, members: [] }], session: READY }) } },
+    ],
+  ])('rejects a %s view with a field the output schema does not declare', async (name, args, override) => {
+    const client = await connect(deps(override as unknown as Partial<McpDependencies>));
+    const result = await client.callTool({ name, arguments: args });
     expect(result.isError).toBe(true);
   });
 });

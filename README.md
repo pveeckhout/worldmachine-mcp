@@ -2,7 +2,7 @@
 
 An [MCP](https://modelcontextprotocol.io) server that lets AI assistants inspect and edit [World Machine](https://www.world-machine.com) terrain projects through your own local World Machine installation.
 
-> **Status: early development.** All twenty-three tools listed below work against World Machine build 4067 on Linux: the eighteen of v1 and the five build and export tools of v2a. The design is in [`docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md`](docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md) and [`docs/superpowers/specs/2026-10-05-worldmachine-mcp-v2a-design.md`](docs/superpowers/specs/2026-10-05-worldmachine-mcp-v2a-design.md).
+> **Status: early development.** All thirty tools listed below work against World Machine build 4067 on Linux: the eighteen of v1, the five build and export tools of v2a, and the seven snapshot, layout, and group tools of v2b. The design is in [`docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md`](docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md), [`docs/superpowers/specs/2026-10-05-worldmachine-mcp-v2a-design.md`](docs/superpowers/specs/2026-10-05-worldmachine-mcp-v2a-design.md), and [`docs/superpowers/specs/2026-10-06-worldmachine-mcp-v2b-design.md`](docs/superpowers/specs/2026-10-06-worldmachine-mcp-v2b-design.md).
 
 ## How it works
 
@@ -108,6 +108,8 @@ If the working directory is `/` or your home directory and `WORLD_MACHINE_ALLOWE
 | `inspect_project` | `configure_scene`, `undo`, `redo` |
 | `get_build_status` | `build_project`, `stop_build` |
 | `list_exports` | `export_outputs` |
+| `list_snapshots` | `create_snapshot`, `restore_snapshot`, `delete_snapshot` |
+| `list_groups` | `set_group_enabled`, `organize_devices` |
 
 Editing notes:
 
@@ -120,17 +122,27 @@ Editing notes:
 
 Builds and exports:
 
-- `build_project` takes a mode. `preview` is World Machine's quick preview; `full` builds every device at the scene resolution and writes no files; `tiled` runs the tiled build set up in the World Machine window and writes every output as tiles (`<name>_x0_y0` and so on) next to its export path.
+- `build_project` takes a mode. `preview` is World Machine's quick preview; `full` builds every device at the scene resolution and writes no files; `tiled` runs the tiled build set up in the World Machine window and writes every output as tiles (`<name>_x0_y0` and so on) next to its export path; `group` builds the devices of one device group, named by `group` (a name in any case, or `#<n>` from `list_groups`). A group build does not make the outputs exportable: `export_outputs` still needs a full build. A group without devices is refused.
 - `build_project` waits up to `wait_seconds` (default 60, at most 600) for the build to end. If the wait ends first, the result says `running` and the build continues: check `get_build_status`, or stop it with `stop_build`. Cancelling the call does not stop the build.
-- While a full or tiled build runs, every other change tool is refused; the read tools keep working. World Machine starts previews on its own after edits, so a preview blocks nothing.
+- While a full, tiled, or group build runs, every other change tool is refused; the read tools keep working. World Machine starts previews on its own after edits, so a preview blocks nothing.
 - A build started in the World Machine window counts too, provided World Machine reports it on its console (assumed, not yet captured). `get_build_status` shows it with `startedBy: 'world-machine'` and mode `unknown` until it shows as a full build. If `stop_build` sees no end within 10 s, the server stops tracking such a build, so the change tools work again.
 - World Machine does not report a failed build, so `finished` means only that the build ended. A build ended by `stop_build` is reported as finished too.
-- If an output has `exportAlways` set (in the World Machine window), or the server cannot confirm that it is off, a full build may write its file, so `build_project` with `full` then checks every output path as an export does, and refuses for a project never saved or a path outside the allowed roots.
+- If an output has `exportAlways` set (in the World Machine window), or the server cannot confirm that it is off, a full or group build may write its file, so `build_project` with `full` or `group` then checks every output path as an export does, and refuses for a project never saved or a path outside the allowed roots.
 - `export_outputs` runs World Machine's `export all` after a full build; it is refused when the outputs are not built. A Material Output writes four files (`_diffuse`, `_disp`, `_mask`, and `_roughness`) for its one listed path.
 - Exports and tiled builds overwrite files with the same names without asking. They are refused for a project that was never saved (World Machine would write into `~/Documents/WorldMachine`), and when any output would be written outside the allowed roots or into a folder that does not exist. `list_exports` shows each output's path and whether it is allowed.
 - Output templates, device names, and expanded output paths with a `.` or `..` segment are refused, including `./<name>.png`.
 
-Snapshots and `device organize` are planned for v2b, and declarative graph specifications for v3.
+Snapshots, layout, and groups:
+
+- A snapshot holds the device graph. Use one as a checkpoint before a risky series of edits, or keep several as named variants of a project and switch between them with `restore_snapshot`.
+- Snapshots are stored in the project file and are kept only after `save_project`; closing the project without saving loses them, so the session counts as unsaved after `create_snapshot`, `restore_snapshot`, or `delete_snapshot`.
+- Snapshot names are 1 to 64 characters, without leading or trailing spaces, quotes, backslashes, or the form `#<n>`. A name another snapshot already has is refused, because World Machine would accept it and every later reference by that name would be ambiguous.
+- `restore_snapshot` reverts the graph and keeps the snapshots made after the restored one; one `undo` reverts the restore. `delete_snapshot` removes one snapshot, and the ones after it move down one index.
+- Snapshots and groups are referenced by name or by `#<index>`. Snapshot names compare exactly, group names regardless of case; a name several of them share is refused, so use the index.
+- `set_group_enabled` sets every member device's own enabled state: enabling a group also enables members that were disabled one by one. One `undo` reverts the whole group. A group without devices changes nothing. `list_groups` shows each group's device count, not its members.
+- `organize_devices` lays the graph out by processing order in the World Machine window; the console cannot show the layout, so the result cannot be confirmed, and `undo` is expected to revert it, but the console cannot confirm that either.
+
+Declarative graph specifications are planned for v3.
 
 ## What the MCP can and cannot set up
 
@@ -140,7 +152,9 @@ The MCP can set up:
 
 - the device graph: add, rename, enable or disable, and delete devices, and connect or disconnect them;
 - device parameters of type `float`, `int`, `bool`, and `enum`, including output-device switches such as File Output's `tiled`;
-- the current scene (render extent): its name, centre, size in km, and render resolution.
+- the current scene (render extent): its name, centre, size in km, and render resolution;
+- snapshots of the device graph, and the layout of the graph by processing order;
+- device groups that already exist: enabling or disabling all their devices, and building one group.
 
 Set these up in World Machine first, because its console (build 4067) has no command for them:
 
@@ -148,9 +162,9 @@ Set these up in World Machine first, because its console (build 4067) has no com
 - the tiled-build layout: tile count, tile resolution, and overlap or blending (a tiled build uses whatever is configured there);
 - output file names and folders of File Output devices (`filename` parameters are refused, see Safety);
 - additional scenes: the console can select and change an existing scene but cannot create one;
-- device groups, macros, and blueprints: the console can list groups but cannot create them or assign devices to them.
+- device groups, macros, and blueprints: the console can list, enable, disable, and build groups but cannot create them, rename them, or assign devices to them.
 
-The console also offers snapshots, scene selection and locking, and group enable, disable, and build. The MCP does not expose these yet (snapshots are planned for v2b).
+The console also offers scene selection and locking. The MCP does not expose these yet.
 
 ## Safety
 
@@ -166,6 +180,7 @@ The console also offers snapshots, scene selection and locking, and group enable
 
 - [Design spec](docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md)
 - [v2a design: builds and exports](docs/superpowers/specs/2026-10-05-worldmachine-mcp-v2a-design.md)
+- [v2b design: snapshots, device organize, and groups](docs/superpowers/specs/2026-10-06-worldmachine-mcp-v2b-design.md)
 - [Feasibility findings](docs/research/2026-10-04-feasibility-findings.md)
 
 ## Licence

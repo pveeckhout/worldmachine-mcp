@@ -38,6 +38,22 @@ describe('parseSnapshotList (spec v2b fact 57)', () => {
     ]);
   });
 
+  it('reads 12 rows whose one-digit indexes are padded to the width of two (final review F2, assumption B8)', () => {
+    const names = Array.from({ length: 12 }, (_, index) => `S${index}`);
+    const rows = names.map(
+      (name, index) => `  [#${index}]${index < 10 ? '  ' : ' '}'${name}' - 2026-10-06 11:09`,
+    );
+    expect(parseSnapshotList([`Snapshots (${names.length} total):`, ...rows])).toEqual(
+      names.map((name, index) => ({ index, name, created: '2026-10-06 11:09' })),
+    );
+  });
+
+  it('keeps the spaces inside the quotes after padded indexes', () => {
+    expect(parseSnapshotList(['Snapshots (1 total):', "  [#0]   ' A ' - 2026-10-06 11:09"])).toEqual([
+      { index: 0, name: ' A ', created: '2026-10-06 11:09' },
+    ]);
+  });
+
   it('accepts the blank line that ends the list', () => {
     expect(parseSnapshotList(['Snapshots (1 total):', "  [#0] 'A' - 2026-10-06 11:09", ''])).toEqual([A]);
   });

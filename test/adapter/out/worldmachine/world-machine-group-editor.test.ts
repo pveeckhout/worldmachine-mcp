@@ -91,6 +91,21 @@ describe('WorldMachineGroupEditor.setEnabled', () => {
     });
   });
 
+  it('enables by #<index> a group whose name starts with a space, matching the confirmation without edge spaces (ruling FR-6)', async () => {
+    const s = scriptedSession({
+      // Assumption B8: the padded row `[#0]  ` and a name with one leading space; the parser drops that space.
+      'group list': [{ output: ['Groups (1 total):', '  [#0]   X                     (2 devices)'] }],
+      'group enable #0': [{ output: ["Enabled 2 device(s) in group ' X'"] }],
+    });
+    expect(await new WorldMachineGroupEditor(s.session).setEnabled('#0', true)).toEqual({
+      index: 0,
+      name: 'X',
+      deviceCount: 2,
+    });
+    expect(s.batches).toEqual([['group list'], ['group enable #0']]);
+    expect(s.dirtyMarks()).toBe(1);
+  });
+
   it('returns a group without devices unchanged and leaves the session alone (fact 65)', async () => {
     const s = scriptedSession({
       'group list': [{ output: LIST }],

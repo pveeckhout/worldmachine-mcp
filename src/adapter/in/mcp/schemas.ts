@@ -3,12 +3,17 @@ import type { AddDeviceView } from '../../../application/port/in/command/add-dev
 import type { BuildProjectView } from '../../../application/port/in/command/build-project-command.js';
 import type { ConfigureSceneView } from '../../../application/port/in/command/configure-scene-command.js';
 import type { ConnectDevicesView } from '../../../application/port/in/command/connect-devices-command.js';
+import type { CreateSnapshotView } from '../../../application/port/in/command/create-snapshot-command.js';
 import type { DeleteDeviceView } from '../../../application/port/in/command/delete-device-command.js';
+import type { DeleteSnapshotView } from '../../../application/port/in/command/delete-snapshot-command.js';
 import type { DisconnectDevicesView } from '../../../application/port/in/command/disconnect-devices-command.js';
 import type { ExportOutputsView } from '../../../application/port/in/command/export-outputs-command.js';
+import type { OrganizeDevicesView } from '../../../application/port/in/command/organize-devices-command.js';
 import type { ProjectCommandView } from '../../../application/port/in/command/project-command-view.js';
 import type { RenameDeviceView } from '../../../application/port/in/command/rename-device-command.js';
+import type { RestoreSnapshotView } from '../../../application/port/in/command/restore-snapshot-command.js';
 import type { SetDeviceEnabledView } from '../../../application/port/in/command/set-device-enabled-command.js';
+import type { SetGroupEnabledView } from '../../../application/port/in/command/set-group-enabled-command.js';
 import type { StopBuildView } from '../../../application/port/in/command/stop-build-command.js';
 import type { UpdateDeviceParametersView } from '../../../application/port/in/command/update-device-parameters-command.js';
 import type { BuildStatusView } from '../../../application/port/in/query/get-build-status-query.js';
@@ -18,6 +23,8 @@ import type { StatusView } from '../../../application/port/in/query/get-status-q
 import type { ProjectView } from '../../../application/port/in/query/inspect-project-query.js';
 import type { DeviceListView } from '../../../application/port/in/query/list-devices-query.js';
 import type { ListExportsView } from '../../../application/port/in/query/list-exports-query.js';
+import type { GroupListView } from '../../../application/port/in/query/list-groups-query.js';
+import type { SnapshotListView } from '../../../application/port/in/query/list-snapshots-query.js';
 import type {
   DeviceDetail,
   DeviceSummary,
@@ -31,6 +38,7 @@ import type { CheckedExportTarget } from '../../../domain/output-template.js';
 import type { ProjectOverview } from '../../../domain/project.js';
 import type { Scene, SceneSummary } from '../../../domain/scene.js';
 import type { ProjectBinding, SessionSummary } from '../../../domain/session.js';
+import type { Snapshot } from '../../../domain/snapshot.js';
 
 const projectBindingSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('fresh') }),
@@ -312,10 +320,19 @@ export const configureSceneViewSchema = z.strictObject({
 
 // Spec v2a builds and exports. Output field names follow the v1 views (camelCase, with `session`), decision D1.
 
-const buildModeSchema = z.enum(['preview', 'full', 'tiled']);
+// Spec v2b section 4: groups are referenced by name, compared regardless of case, or by index.
+const groupReferenceSchema = z
+  .string()
+  .min(1)
+  .describe('Group name (any case) or its index as #<n>, as list_groups shows them');
+
+const buildModeSchema = z.enum(['preview', 'full', 'tiled', 'group']);
 
 export const buildProjectInputSchema = z.object({
-  mode: buildModeSchema.describe('preview, full, or tiled; see the tool description'),
+  mode: buildModeSchema.describe('preview, full, tiled, or group; see the tool description'),
+  group: groupReferenceSchema
+    .optional()
+    .describe('Mode group only, and required there: group name (any case) or #<n> (see list_groups)'),
   wait_seconds: z
     .number()
     .int()
@@ -330,6 +347,7 @@ export const buildProjectViewSchema = z.strictObject({
   mode: buildModeSchema,
   elapsedSeconds: z.number().int().min(0),
   outputFolders: z.array(z.string()).optional(),
+  group: groupSchema.optional(),
   session: sessionSummarySchema,
 }) satisfies z.ZodType<BuildProjectView>;
 
@@ -370,3 +388,78 @@ export const exportOutputsViewSchema = z.strictObject({
   note: z.string().optional(),
   session: sessionSummarySchema,
 }) satisfies z.ZodType<ExportOutputsView>;
+
+// Spec v2b snapshots, organize, and groups (section 3). Output fields are camelCase and every view carries session.
+
+const snapshotSchema = z.strictObject({
+  index: z.number().int(),
+  name: z.string(),
+  created: z.string(),
+}) satisfies z.ZodType<Snapshot>;
+
+export const snapshotListViewSchema = z.strictObject({
+  snapshots: z.array(snapshotSchema),
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<SnapshotListView>;
+
+export const createSnapshotInputSchema = z.object({
+  name: z
+    .string()
+    .min(1)
+    .describe(
+      'Name for the new snapshot: 1 to 64 characters, unique in the project, no leading or trailing spaces',
+    ),
+});
+
+export const createSnapshotViewSchema = z.strictObject({
+  index: z.number().int(),
+  name: z.string(),
+  created: z.string(),
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<CreateSnapshotView>;
+
+export const snapshotReferenceInputSchema = z.object({
+  snapshot: z
+    .string()
+    .min(1)
+    .describe('Snapshot name, exactly as list_snapshots shows it, or its index as #<n>'),
+});
+
+export const restoreSnapshotViewSchema = z.strictObject({
+  index: z.number().int(),
+  name: z.string(),
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<RestoreSnapshotView>;
+
+export const deleteSnapshotViewSchema = z.strictObject({
+  index: z.number().int(),
+  name: z.string(),
+  remaining: z.array(snapshotSchema),
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<DeleteSnapshotView>;
+
+export const organizeDevicesViewSchema = z.strictObject({
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<OrganizeDevicesView>;
+
+export const listGroupsInputSchema = z.object({
+  filter: z.string().min(1).optional().describe("Filter text passed to World Machine's group list command"),
+});
+
+export const groupListViewSchema = z.strictObject({
+  groups: z.array(groupSchema),
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<GroupListView>;
+
+export const setGroupEnabledInputSchema = z.object({
+  group: groupReferenceSchema,
+  enabled: z.boolean().describe('true to enable every device of the group, false to disable them'),
+});
+
+export const setGroupEnabledViewSchema = z.strictObject({
+  index: z.number().int(),
+  name: z.string(),
+  deviceCount: z.number().int(),
+  enabled: z.boolean(),
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<SetGroupEnabledView>;

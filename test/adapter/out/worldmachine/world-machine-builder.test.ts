@@ -9,6 +9,7 @@ import {
 } from '../../../../src/adapter/out/worldmachine/world-machine-builder.js';
 import { WorldMachineProcess } from '../../../../src/adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineSession } from '../../../../src/adapter/out/worldmachine/world-machine-session.js';
+import { GROUP_BUILD_NEEDS_GROUP } from '../../../../src/application/port/out/build-port.js';
 import type { WorldMachineError } from '../../../../src/domain/errors.js';
 import { captureLogger, FAKE_WM, fakeEnv, recorder, waitUntil } from '../../../support/fake-wm.js';
 
@@ -79,7 +80,11 @@ describe('WorldMachineBuilder group builds (spec v2b sections 3 and 5)', () => {
 
   it('refuses mode group without a group and sends nothing', async () => {
     const { build, record } = builder();
-    expect((await failure(build.start('group'))).code).toBe('REFUSED');
+    expect(await failure(build.start('group'))).toMatchObject({
+      code: 'REFUSED',
+      // Final review F4: the same message as the service's refusal.
+      message: GROUP_BUILD_NEEDS_GROUP,
+    });
     expect(record.lines()).toEqual([]);
   });
 

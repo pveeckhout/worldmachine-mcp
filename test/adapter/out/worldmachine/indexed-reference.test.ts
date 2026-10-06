@@ -76,4 +76,44 @@ describe('resolveIndexed (spec v2b section 4)', () => {
       message: 'No group #0 in the current project; see list_groups',
     });
   });
+
+  it('refuses #<n> when an item at another index has that name, naming both indexes (final review F3)', () => {
+    const items = [...ITEMS, { index: 4, name: '#1' }];
+    expect(refusal(() => resolveIndexed(items, '#1', EXACT))).toMatchObject({
+      code: 'REFUSED',
+      message:
+        "'#1' is both an index and the name of #4; use the other item's index or rename it in the window",
+    });
+    expect(refusal(() => resolveIndexed(items, '#1', ANY_CASE))).toMatchObject({ code: 'REFUSED' });
+  });
+
+  it('resolves #<n> when only the item at that index has that name', () => {
+    expect(
+      resolveIndexed(
+        [
+          { index: 0, name: 'A' },
+          { index: 1, name: '#1' },
+        ],
+        '#1',
+        EXACT,
+      ),
+    ).toEqual({
+      index: 1,
+      name: '#1',
+    });
+  });
+
+  it("compares the shadowing name with the caller's name comparison", () => {
+    const items = [...ITEMS, { index: 4, name: '#01' }];
+    expect(resolveIndexed(items, '#1', EXACT)).toEqual({ index: 1, name: 'B with space' });
+    const noLeadingZeros: IndexedKind = {
+      ...EXACT,
+      sameName: (listed, wanted) => listed.replace(/^#0+/, '#') === wanted,
+    };
+    expect(refusal(() => resolveIndexed(items, '#1', noLeadingZeros))).toMatchObject({
+      code: 'REFUSED',
+      message:
+        "'#1' is both an index and the name of #4; use the other item's index or rename it in the window",
+    });
+  });
 });

@@ -43,6 +43,16 @@ describe('parseGroupList', () => {
     ]);
   });
 
+  it('reads 12 rows whose one-digit indexes are padded to the width of two (final review F2, assumption B8)', () => {
+    const names = Array.from({ length: 12 }, (_, index) => `Group ${index}`);
+    const rows = names.map(
+      (name, index) => `  [#${index}]${index < 10 ? '  ' : ' '}${name.padEnd(24)} (${index} devices)`,
+    );
+    expect(parseGroupList([`Groups (${names.length} total):`, ...rows])).toEqual(
+      names.map((name, index) => ({ index, name, deviceCount: index })),
+    );
+  });
+
   it('reads a filtered list, whose header keeps the unfiltered total (l.25-28)', () => {
     expect(parseGroupList(rawFrame('v2b-groups.txt', 'group list Export'), true)).toEqual([
       { index: 1, name: 'Export Basics', deviceCount: 4 },

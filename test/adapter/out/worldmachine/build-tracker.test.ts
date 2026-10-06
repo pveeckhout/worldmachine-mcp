@@ -375,8 +375,16 @@ describe('BuildTracker (spec v2a section 5)', () => {
     expect(tracker.running).toBe(true);
     await vi.advanceTimersByTimeAsync(1);
     expect(tracker.running).toBe(false);
+    // Final review F4: the late line that missed the bound is not counted against the next full run, which still waits
+    // for its own late line.
     tracker.apply('group-build-started');
     expect(tracker.snapshot()?.state).toBe('ended');
+    tracker.expect('full');
+    for (const event of ['sleep-prohibited', 'starting', 'ended', 'sleep-allowed'] as const)
+      tracker.apply(event);
+    expect(tracker.running).toBe(true);
+    tracker.apply('build-started');
+    expect(tracker.running).toBe(false);
   });
 
   it('replays raw/v2-build-export.txt: a stopped full build ends at its late line (l.66-80)', () => {

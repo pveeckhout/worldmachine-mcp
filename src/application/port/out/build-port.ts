@@ -1,6 +1,10 @@
 import type { BuildMode, BuildRun, RunMode } from '../../../domain/build.js';
 import type { Group } from '../../../domain/group.js';
 
+/** Spec v2b section 3: the refusal of mode `group` without a group, shared by the service and the adapter. */
+export const GROUP_BUILD_NEEDS_GROUP =
+  'build_project with mode group needs group: a group name or #<index> (see list_groups)';
+
 /** Builds (spec v2a sections 4-5). Only `previewRunning` and `waitForEnd` for a preview read World Machine's status. */
 export interface BuildPort {
   /** The running full or tiled build, from World Machine's build events; sends nothing and never launches. */

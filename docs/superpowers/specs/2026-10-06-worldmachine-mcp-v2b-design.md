@@ -40,6 +40,7 @@ Captured on 2026-10-06 against build 4067 with `npm run capture-fixtures`, scena
 - B5. A group build writes the files of an output device with `exportAlways` set, as a full build might (v2a fact 55); the v2a check for full builds is applied to group builds too.
 - B6. A stopped group build prints its own late line (the fake assumes it); if it does not, the run ends at the 10 s bound of v2a fact 54.
 - B7. The singular row form `(1 device)` was not captured; the parser accepts `device` and `devices`.
+- B8. Rows of `snapshot list` and `group list` with 10 or more entries were not captured; the parsers accept one or more spaces after `[#<index>]` in case World Machine aligns the column.
 
 ## 3. MCP tools
 
@@ -65,10 +66,12 @@ The command tools run inside `exclusive()`, so the v2a build guard refuses them 
 A snapshot reference in `restore_snapshot` and `delete_snapshot` is resolved by the server, never by World Machine:
 
 1. The adapter reads `snapshot list` inside the same `exclusive()` action, so no other command can shift the indexes before the restore or delete is sent.
-2. `#<n>` must be an index in the list. A name must match exactly one snapshot, compared exactly (case and spaces included, as World Machine compares). A name that matches several snapshots is refused, naming their indexes; one that matches none is refused.
+2. `#<n>` must be an index in the list, and no item at another index may have `#<n>` as its name (one named in the window); such a reference is refused, naming both indexes. A name must match exactly one snapshot, compared exactly (case and spaces included, as World Machine compares). A name that matches several snapshots is refused, naming their indexes; one that matches none is refused.
 3. The command is always sent as `snapshot restore #<index>` or `snapshot delete #<index>`, and the confirmation must name the same index and name.
 
 A group reference in `set_group_enabled` and `build_project` mode `group` follows the same three steps with `group list` (no filter) and `group enable|disable|build #<index>`. Group names are compared regardless of case, as World Machine compares them (fact 64), and the padded names of the list are compared with their trailing spaces removed. Without a filter, the indexes of `group list` must run 0 to n-1; otherwise the list is `UNEXPECTED_OUTPUT`. The confirmation of `group enable` and `group disable` must name the same group. The start frame of `group build` holds only build events (fact 66), so a group build's group is confirmed by the resolution inside the same `exclusive()` action, not by a confirmation line.
+
+The server resolves a snapshot or group and sends its `#<index>` inside one exclusive action, so its own calls cannot shift the index, but a change made in the World Machine window between the resolve and the command can redirect that one command (like the accepted check and write race in v2a section 6).
 
 A name for `create_snapshot` must be 1 to 64 characters, with no space at either end, no `'` (the list prints names inside quotes, so a quote inside a name would make a row ambiguous), no control characters, and not the form `#<n>`, which every later reference would read as an index. A name that an existing snapshot already has is refused, although World Machine accepts it (fact 58): a variant needs its own name, and a duplicate makes every later name reference ambiguous.
 

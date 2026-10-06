@@ -9,6 +9,7 @@ import { ConfigureSceneService } from '../../../src/application/service/configur
 import { ConnectDevicesService } from '../../../src/application/service/connect-devices-service.js';
 import { DeleteDeviceService } from '../../../src/application/service/delete-device-service.js';
 import { DisconnectDevicesService } from '../../../src/application/service/disconnect-devices-service.js';
+import { OrganizeDevicesService } from '../../../src/application/service/organize-devices-service.js';
 import { RenameDeviceService } from '../../../src/application/service/rename-device-service.js';
 import { SetDeviceEnabledService } from '../../../src/application/service/set-device-enabled-service.js';
 import { UpdateDeviceParametersService } from '../../../src/application/service/update-device-parameters-service.js';
@@ -138,6 +139,14 @@ describe('edit services', () => {
       session: READY_DIRTY,
     });
     expect(f.calls).toEqual(inExclusive('delete:#1'));
+  });
+
+  it('OrganizeDevicesService organizes inside exclusive and returns the session (spec v2b section 3)', async () => {
+    const f = fakes();
+    expect(await new OrganizeDevicesService(f.session, f.devices).organizeDevices({})).toEqual({
+      session: READY_DIRTY,
+    });
+    expect(f.calls).toEqual(inExclusive('organize'));
   });
 
   it('UpdateDeviceParametersService passes the parameters through inside exclusive', async () => {

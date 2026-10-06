@@ -5,6 +5,7 @@ import { buildCommand } from './command-builder.js';
 import { requireOnlyLine } from './edit-checks.js';
 import { type IndexedKind, resolveIndexed } from './indexed-reference.js';
 import { parseSnapshotList } from './parsers/snapshot-list.js';
+import { outputPayload } from './parsers/unexpected.js';
 import { requireFrame, throwIfFailed } from './raw-response.js';
 import type { WorldMachineSession } from './world-machine-session.js';
 
@@ -15,7 +16,7 @@ const SNAPSHOTS: IndexedKind = {
   sameName: (listed, wanted) => listed === wanted,
 };
 /** Spec v2b section 4 and assumption B1. */
-export const SNAPSHOT_NAME_LIMIT = 64;
+const SNAPSHOT_NAME_LIMIT = 64;
 const INDEX_LIKE = /^#\d+$/;
 
 /** Refuses a name before anything is sent (spec v2b section 4, decision D4), then applies the command builder's rules. */
@@ -79,7 +80,7 @@ export class WorldMachineSnapshotEditor implements SnapshotPort {
       throw new WorldMachineError(
         'WM_COMMAND_FAILED',
         `World Machine confirmed snapshot '${name}', but snapshot list does not show it as the newest snapshot`,
-        list.output.slice(0, 20).join('\n') || undefined,
+        outputPayload(list.output),
       );
     }
     return newest;
@@ -125,7 +126,7 @@ export class WorldMachineSnapshotEditor implements SnapshotPort {
       throw new WorldMachineError(
         'WM_COMMAND_FAILED',
         `World Machine confirmed deleting snapshot #${target.index} '${target.name}', but snapshot list does not show it removed`,
-        list.output.slice(0, 20).join('\n') || undefined,
+        outputPayload(list.output),
       );
     }
     return { deleted: target, remaining };

@@ -13,22 +13,30 @@ import { WorldMachineProcess } from '../../../src/adapter/out/worldmachine/world
 import { WorldMachineProjectWriter } from '../../../src/adapter/out/worldmachine/world-machine-project-writer.js';
 import { WorldMachineSceneEditor } from '../../../src/adapter/out/worldmachine/world-machine-scene-editor.js';
 import { WorldMachineSession } from '../../../src/adapter/out/worldmachine/world-machine-session.js';
+import { WorldMachineSnapshotEditor } from '../../../src/adapter/out/worldmachine/world-machine-snapshot-editor.js';
 import { WorldMachineWireEditor } from '../../../src/adapter/out/worldmachine/world-machine-wire-editor.js';
 import { AddDeviceService } from '../../../src/application/service/add-device-service.js';
 import { BuildProjectService } from '../../../src/application/service/build-project-service.js';
 import { ConfigureSceneService } from '../../../src/application/service/configure-scene-service.js';
 import { ConnectDevicesService } from '../../../src/application/service/connect-devices-service.js';
 import { CreateProjectService } from '../../../src/application/service/create-project-service.js';
+import { CreateSnapshotService } from '../../../src/application/service/create-snapshot-service.js';
 import { DeleteDeviceService } from '../../../src/application/service/delete-device-service.js';
+import { DeleteSnapshotService } from '../../../src/application/service/delete-snapshot-service.js';
 import { DisconnectDevicesService } from '../../../src/application/service/disconnect-devices-service.js';
 import { ExportOutputsService } from '../../../src/application/service/export-outputs-service.js';
 import { GetBuildStatusService } from '../../../src/application/service/get-build-status-service.js';
 import { ListDevicesService } from '../../../src/application/service/list-devices-service.js';
+import { ListGroupsService } from '../../../src/application/service/list-groups-service.js';
+import { ListSnapshotsService } from '../../../src/application/service/list-snapshots-service.js';
 import { OpenProjectService } from '../../../src/application/service/open-project-service.js';
+import { OrganizeDevicesService } from '../../../src/application/service/organize-devices-service.js';
 import { RedoService } from '../../../src/application/service/redo-service.js';
 import { RenameDeviceService } from '../../../src/application/service/rename-device-service.js';
+import { RestoreSnapshotService } from '../../../src/application/service/restore-snapshot-service.js';
 import { SaveProjectService } from '../../../src/application/service/save-project-service.js';
 import { SetDeviceEnabledService } from '../../../src/application/service/set-device-enabled-service.js';
+import { SetGroupEnabledService } from '../../../src/application/service/set-group-enabled-service.js';
 import { StopBuildService } from '../../../src/application/service/stop-build-service.js';
 import { UndoService } from '../../../src/application/service/undo-service.js';
 import { UpdateDeviceParametersService } from '../../../src/application/service/update-device-parameters-service.js';
@@ -83,6 +91,8 @@ describe('the build guard across the command tools (spec v2a section 4)', () => 
     });
     const sent = w.record.lines().length;
     const wires = new WorldMachineWireEditor(session);
+    const snapshots = new WorldMachineSnapshotEditor(session);
+    const groups = new WorldMachineGroupEditor(session);
     const commands: [string, () => Promise<unknown>][] = [
       [
         'open_project',
@@ -150,6 +160,25 @@ describe('the build guard across the command tools (spec v2a section 4)', () => 
       ['redo', () => new RedoService(session, writer).redo({})],
       ['build_project', () => buildProject.buildProject({ mode: 'preview', waitSeconds: 0 })],
       ['export_outputs', () => new ExportOutputsService(session, exporter, reader, policy).exportOutputs({})],
+      // Spec v2b section 3: the new command tools are refused too.
+      ['create_snapshot', () => new CreateSnapshotService(session, snapshots).createSnapshot({ name: 'S' })],
+      [
+        'restore_snapshot',
+        () => new RestoreSnapshotService(session, snapshots).restoreSnapshot({ snapshot: '#0' }),
+      ],
+      [
+        'delete_snapshot',
+        () => new DeleteSnapshotService(session, snapshots).deleteSnapshot({ snapshot: '#0' }),
+      ],
+      ['organize_devices', () => new OrganizeDevicesService(session, devices).organizeDevices({})],
+      [
+        'set_group_enabled',
+        () => new SetGroupEnabledService(session, groups).setGroupEnabled({ group: '#0', enabled: false }),
+      ],
+      [
+        'build_project group',
+        () => buildProject.buildProject({ mode: 'group', group: '#0', waitSeconds: 0 }),
+      ],
     ];
     for (const [name, call] of commands) {
       await expect(call(), name).rejects.toMatchObject({
@@ -164,6 +193,8 @@ describe('the build guard across the command tools (spec v2a section 4)', () => 
         .filter((line) => line !== ''),
     ).toEqual([]);
     expect((await new ListDevicesService(session, reader).listDevices({})).devices).toHaveLength(17);
+    expect((await new ListSnapshotsService(session, snapshots).listSnapshots({})).snapshots).toEqual([]);
+    expect((await new ListGroupsService(session, groups).listGroups({})).groups).toHaveLength(5);
     expect((await new GetBuildStatusService(session, builder).getBuildStatus({})).build?.mode).toBe('full');
     expect((await new StopBuildService(session, builder).stopBuild({})).stopped).toBe('full');
     await expect(new UndoService(session, writer).undo({})).resolves.toMatchObject({

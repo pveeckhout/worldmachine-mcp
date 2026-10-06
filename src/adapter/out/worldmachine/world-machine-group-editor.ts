@@ -2,26 +2,31 @@ import type { GroupPort } from '../../../application/port/out/group-port.js';
 import { WorldMachineError } from '../../../domain/errors.js';
 import type { Group } from '../../../domain/group.js';
 import { buildCommand } from './command-builder.js';
+import { foldCase } from './device-reference.js';
 import { type IndexedKind, resolveIndexed } from './indexed-reference.js';
 import { parseGroupList } from './parsers/group-list.js';
+import { outputPayload } from './parsers/unexpected.js';
 import { throwIfFailed } from './raw-response.js';
 import type { WorldMachineSession } from './world-machine-session.js';
 
 /**
- * Spec v2b section 4: group names compare regardless of case, as World Machine compares them (fact 64). `toLowerCase()`
- * for the reason `device-reference.ts` gives. The parser has already removed the list's padding.
+ * Spec v2b section 4: group names compare regardless of case, as World Machine compares them (fact 64), with the case
+ * folding of `device-reference.ts`. The parser has already removed the list's padding.
  */
 const GROUPS: IndexedKind = {
   what: 'group',
   listTool: 'list_groups',
-  sameName: (listed, wanted) => listed.toLowerCase() === wanted.toLowerCase(),
+  sameName: (listed, wanted) => foldCase(listed) === foldCase(wanted),
 };
 // raw/v2b-groups.txt l.34-35, l.203-204, and l.257-258 (facts 64 and 65).
 const CHANGED = /^(Enabled|Disabled) (\d+) device\(s\) in group '(.*)'$/;
 const NO_DEVICES = /^Group '(.*)' contains no devices\.$/;
 
-/** Whether a name World Machine printed in quotes is the listed name, whose trailing spaces the list cannot show. */
-const isListedName = (printed: string | undefined, listed: string): boolean => printed?.trimEnd() === listed;
+/**
+ * Whether a name World Machine printed in quotes is the listed name, whose edge spaces the list cannot show (the
+ * padding, and assumption B8). The command went by #<index>, so the name is a sanity check (ruling FR-6).
+ */
+const isListedName = (printed: string | undefined, listed: string): boolean => printed?.trim() === listed;
 
 export class WorldMachineGroupEditor implements GroupPort {
   readonly #session: WorldMachineSession;
@@ -72,7 +77,7 @@ export class WorldMachineGroupEditor implements GroupPort {
       throw new WorldMachineError(
         'UNEXPECTED_OUTPUT',
         `Expected World Machine to ${verb} the ${target.deviceCount} device(s) of group #${target.index} '${target.name}'`,
-        response.output.slice(0, 20).join('\n') || undefined,
+        outputPayload(response.output),
       );
     }
     return target;

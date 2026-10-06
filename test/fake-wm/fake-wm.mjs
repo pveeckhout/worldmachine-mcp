@@ -445,6 +445,8 @@ async function handle(line) {
     return;
   }
   if (command === 'project undo' || command === 'project redo') {
+    // Not modelled: undo only marks the project unsaved; it does not revert a snapshot restore or a group enable or
+    // disable (facts 60, 64).
     dirty = true;
     out(command === 'project undo' ? 'Undo performed.\n' : 'Redo performed.\n');
     return;

@@ -14,7 +14,7 @@ export function idOfReference(reference: string): number | undefined {
  * `toLocaleLowerCase()`: its result does not depend on the server's locale (a Turkish locale maps `I` to a dotless
  * `ı`), and fact 31 was observed on ASCII names only, so a locale-specific mapping would add nothing verified.
  */
-const foldCase = (name: string): string => name.toLowerCase();
+export const foldCase = (name: string): string => name.toLowerCase();
 
 /**
  * Turns a device reference from a tool call into the reference commands use (spec section 9), given the devices of

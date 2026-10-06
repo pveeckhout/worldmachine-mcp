@@ -1,4 +1,4 @@
-import type { BuildPort } from '../../../application/port/out/build-port.js';
+import { type BuildPort, GROUP_BUILD_NEEDS_GROUP } from '../../../application/port/out/build-port.js';
 import type { BuildMode, BuildRun, RunMode } from '../../../domain/build.js';
 import { WorldMachineError } from '../../../domain/errors.js';
 import type { Group } from '../../../domain/group.js';
@@ -166,7 +166,7 @@ function startCommand(mode: Exclude<BuildMode, 'preview'>, group: Group | undefi
       return 'build start tiled';
     case 'group':
       if (group === undefined) {
-        throw new WorldMachineError('REFUSED', 'A group build needs a group; see list_groups');
+        throw new WorldMachineError('REFUSED', GROUP_BUILD_NEEDS_GROUP);
       }
       return buildCommand(['group', 'build', `#${group.index}`]);
   }

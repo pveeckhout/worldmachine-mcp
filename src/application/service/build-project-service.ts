@@ -5,7 +5,7 @@ import type {
   BuildProjectCommandPort,
   BuildProjectView,
 } from '../port/in/command/build-project-command.js';
-import type { BuildPort } from '../port/out/build-port.js';
+import { type BuildPort, GROUP_BUILD_NEEDS_GROUP } from '../port/out/build-port.js';
 import type { ExportPort } from '../port/out/export-port.js';
 import type { GroupPort } from '../port/out/group-port.js';
 import type { PathPolicyPort } from '../port/out/path-policy-port.js';
@@ -24,10 +24,7 @@ export const PROGRESS_INTERVAL_MS = 5_000;
 /** Spec v2b section 3: `group` is required for mode `group` and refused for the others, before anything is sent. */
 function checkGroupInput(command: BuildProjectCommand): void {
   if (command.mode === 'group' && command.group === undefined) {
-    throw new WorldMachineError(
-      'REFUSED',
-      'build_project with mode group needs group: a group name or #<index> (see list_groups)',
-    );
+    throw new WorldMachineError('REFUSED', GROUP_BUILD_NEEDS_GROUP);
   }
   if (command.mode !== 'group' && command.group !== undefined) {
     throw new WorldMachineError('REFUSED', `group applies only to mode group, not to mode ${command.mode}`);
@@ -124,7 +121,9 @@ export class BuildProjectService implements BuildProjectCommandPort {
       mode,
       elapsedSeconds: elapsedSeconds(),
       ...(folders === undefined ? {} : { outputFolders: folders }),
-      ...(group === undefined ? {} : { group }),
+      ...(group === undefined
+        ? {}
+        : { group: { index: group.index, name: group.name, deviceCount: group.deviceCount } }),
       session: session.status().session,
     };
   }
