@@ -38,6 +38,8 @@ export type SessionOptions = {
 export type ShutdownBudget = { readonly drainMs: number; readonly graceMs: number; readonly termMs: number };
 
 const SHUTTING_DOWN_MESSAGE = 'The server is shutting down';
+const QUIT_HANG_AFTER_STOP =
+  'World Machine did not quit after a stopped build (a World Machine issue, spec fact 75); it was ended, and its project will be restored at the next start.';
 const BUILD_RUNNING = 'A build is running; call stop_build or wait for it to finish';
 const LOST_CHANGES = 'World Machine exited unexpectedly; unsaved changes were lost';
 const RECOVERY_DIALOG =
@@ -62,6 +64,8 @@ export class WorldMachineSession implements WorldMachineSessionPort {
   /** The process of a start that has spawned but is not ready yet; shutdown and kill cannot reach it otherwise. */
   #spawning: WorldMachineProcess | undefined;
   #stopping: Promise<void> | undefined;
+  /** Processes that were sent `build stop`; spec fact 75: such a World Machine may never quit. */
+  readonly #stopped = new WeakSet<WorldMachineProcess>();
   #process: WorldMachineProcess | undefined;
   readonly #quitting = new Set<WorldMachineProcess>();
   #queue: CommandQueue | undefined;
@@ -175,6 +179,11 @@ export class WorldMachineSession implements WorldMachineSessionPort {
   bind(binding: ProjectBinding): void {
     if (this.#state.kind === 'ready') this.#state = { kind: 'ready', binding, dirty: false };
     this.#armIdleTimer();
+  }
+
+  /** The server sent `build stop` to the current process (stop_build); see `#stopped`. */
+  noteBuildStopped(): void {
+    if (this.#process) this.#stopped.add(this.#process);
   }
 
   /** Without a budget the long sequence applies: full drain, 10 s grace, 2 s SIGTERM. */
@@ -389,8 +398,11 @@ export class WorldMachineSession implements WorldMachineSessionPort {
       // runs (fact 46).
       const building = tracker !== undefined && (tracker.running || tracker.pending !== undefined);
       const quitGraceMs =
-        proc && building ? await stopBuild(proc, tracker, graceMs, this.#options.logger) : graceMs;
-      await proc?.quit(quitGraceMs, budget?.termMs);
+        proc && building
+          ? await stopBuild(proc, tracker, graceMs, this.#options.logger, this.#stopped)
+          : graceMs;
+      const quitOnItsOwn = (await proc?.quit(quitGraceMs, budget?.termMs)) ?? true;
+      if (proc && !quitOnItsOwn && this.#stopped.has(proc)) this.#options.logger.warn(QUIT_HANG_AFTER_STOP);
     })();
     this.#stopping = current;
     void current.finally(() => {
@@ -464,6 +476,7 @@ async function stopBuild(
   tracker: BuildTracker,
   graceMs: number,
   logger: Logger,
+  stopped: WeakSet<WorldMachineProcess>,
 ): Promise<number> {
   const started = Date.now();
   const waitMs = Math.floor(graceMs / 2);
@@ -471,6 +484,7 @@ async function stopBuild(
   tracker.stopRequested();
   try {
     proc.write(['build stop']);
+    stopped.add(proc);
   } catch {
     // World Machine stopped reading; the quit that follows handles it.
     logger.warn('build stop could not be sent; quitting World Machine anyway');

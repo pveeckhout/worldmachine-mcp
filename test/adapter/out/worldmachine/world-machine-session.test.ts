@@ -243,6 +243,41 @@ describe('WorldMachineSession', () => {
     expect(record.pids().some(isAlive)).toBe(false);
   });
 
+  const QUIT_HANG_WARNING =
+    'World Machine did not quit after a stopped build (a World Machine issue, spec fact 75); it was ended, and its project will be restored at the next start.';
+
+  it('warns when World Machine hangs on quit after the shutdown stopped a build', async () => {
+    const {
+      session: s,
+      record,
+      logger,
+    } = session({ FAKE_WM_BUILD_MS: '60000', FAKE_WM_QUIT_HANG_AFTER_STOP: '1' });
+    await s.ensureRunning();
+    await s.executeOne('build start');
+    const started = Date.now();
+    await s.shutdown({ drainMs: 0, graceMs: 600, termMs: 300 });
+    expect(Date.now() - started).toBeLessThan(3_000);
+    expect(logger.lines).toContain(`warn: ${QUIT_HANG_WARNING}`);
+    expect(record.pids().some(isAlive)).toBe(false);
+  });
+
+  it('warns after a stop that stop_build sent through noteBuildStopped', async () => {
+    const { session: s, logger } = session({ FAKE_WM_BUILD_MS: '60000', FAKE_WM_QUIT_HANG_AFTER_STOP: '1' });
+    await s.ensureRunning();
+    await s.executeOne('build start');
+    await s.executeOne('build stop');
+    s.noteBuildStopped();
+    await s.shutdown({ drainMs: 0, graceMs: 600, termMs: 300 });
+    expect(logger.lines).toContain(`warn: ${QUIT_HANG_WARNING}`);
+  });
+
+  it('does not warn about a quit hang when no build was stopped', async () => {
+    const { session: s, logger } = session({ FAKE_WM_QUIT_HANG_AFTER_STOP: '1' });
+    await s.ensureRunning();
+    await s.shutdown({ drainMs: 0, graceMs: 600, termMs: 300 });
+    expect(logger.lines.join('\n')).not.toContain('did not quit after a stopped build');
+  });
+
   it('caps the drain of a running batch at drainMs', async () => {
     const { session: s, record } = session({ FAKE_WM_DELAY_ON: 'device list', FAKE_WM_DELAY_MS: '5000' });
     await s.ensureRunning();

@@ -101,6 +101,7 @@ export class WorldMachineBuilder implements BuildPort {
     // Spec v2b fact 72: the stop frame holds the run's Ended and trailer, so the tracker learns of the stop first.
     this.#session.buildTracker()?.stopRequested();
     const response = await this.#session.executeOne('build stop');
+    this.#session.noteBuildStopped();
     throwIfFailed(response);
     requireLine(response, STOP_REQUESTED, 'build stop');
   }

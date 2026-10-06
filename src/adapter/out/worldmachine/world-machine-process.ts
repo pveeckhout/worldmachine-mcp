@@ -112,7 +112,7 @@ export class WorldMachineProcess implements CommandChannel {
       };
       const fail = (
         message: string,
-        stop: () => Promise<void> = () => proc.terminate(),
+        stop: () => Promise<unknown> = () => proc.terminate(),
         withDetail = true,
       ) => {
         if (settled) return;
@@ -219,9 +219,10 @@ export class WorldMachineProcess implements CommandChannel {
   /**
    * `project close force` and `system quit force`, then SIGTERM, then SIGKILL (spec section 9). `termMs` 0 skips SIGTERM. Resolves once
    * the process is gone.
+   * Returns true when World Machine exited by itself within `graceMs`, false when it had to be terminated.
    */
-  async quit(graceMs = DEFAULT_QUIT_GRACE_MS, termMs = 2_000): Promise<void> {
-    if (this.#exited) return;
+  async quit(graceMs = DEFAULT_QUIT_GRACE_MS, termMs = 2_000): Promise<boolean> {
+    if (this.#exited) return true;
     // Spec facts 19-20: a modified project turns `system quit force` into a modal dialog and a killed World
     // Machine keeps its licence seat, so close the project first, as its own write (spec section 9).
     // Facts 14-15: World Machine reads one new line per read, so nudge until both have been read.
@@ -231,12 +232,13 @@ export class WorldMachineProcess implements CommandChannel {
       if (!this.#exited) this.#child.stdin?.write('\n');
     }, 100);
     try {
-      if (await this.#exitedWithin(graceMs)) return;
+      if (await this.#exitedWithin(graceMs)) return true;
       if (termMs > 0) {
         this.#child.kill('SIGTERM');
-        if (await this.#exitedWithin(termMs)) return;
+        if (await this.#exitedWithin(termMs)) return false;
       }
       await this.terminate();
+      return false;
     } finally {
       clearInterval(nudge);
     }

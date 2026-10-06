@@ -75,6 +75,7 @@ let dirty = env.FAKE_WM_DIRTY_AT_START === '1';
 // FAKE_WM_STARTUP_UNSAVED=1: the start-up project counts as unsaved until the first project switch, so `project open`
 // without `force` is refused. Source: capture default-updated (wm-4067), where the freshly started World Machine
 // carried state from the previous session and refused an unforced open.
+let stoppedBuild = false;
 let startupUnsaved = env.FAKE_WM_STARTUP_UNSAVED === '1';
 // undefined, SAMPLE_EROSION, or a device from `added`.
 let selected;
@@ -391,6 +392,9 @@ async function handle(line) {
     }
     quitting = true;
     out('Exiting World Machine...\n');
+    // Assumed: FAKE_WM_QUIT_HANG_AFTER_STOP=1 mirrors spec fact 75 (live probe, 2026-10-06): after a `build stop` the quit
+    // prints its line and then never ends; only a signal does. Real World Machine hung for 120 s at resolution 4097.
+    if (env.FAKE_WM_QUIT_HANG_AFTER_STOP === '1' && stoppedBuild) return;
     log('Info', 'License Manager.Checkin: License returned to license server');
     await sleep(Number(env.FAKE_WM_QUIT_DELAY_MS ?? '0'));
     exit(0);
@@ -617,6 +621,7 @@ async function handle(line) {
     // Fact 46: raw/v2-build-long.txt l.62-68 (full) and l.87-91 (preview), raw/v2-build-concurrency.txt
     // l.164-166 (tiled).
     out('Stop requested.\n');
+    stoppedBuild = true;
     previewUntil = 0;
     const stopping = build;
     if (stopping === undefined) return;
