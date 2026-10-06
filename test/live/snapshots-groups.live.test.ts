@@ -168,6 +168,11 @@ describe.skipIf(!LIVE)('live World Machine snapshots, organize, and groups (spec
     expect((await session.executeOne('param set #1.exportAlways true')).output).toEqual([
       'Set #1.exportAlways = true',
     ]);
+    // A group build of unchanged devices reuses its result and exports nothing (raw/diag-export-twice.txt), so a
+    // resolution change makes the group build again after the earlier tests.
+    expect((await session.executeOne('scene resolution 321')).output).toEqual([
+      'Set scene resolution to 321',
+    ]);
     try {
       expect(
         await buildProject.buildProject({ mode: 'group', group: 'Export Basics', waitSeconds: 300 }),
