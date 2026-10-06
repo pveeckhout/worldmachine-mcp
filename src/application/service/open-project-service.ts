@@ -19,8 +19,11 @@ export class OpenProjectService implements OpenProjectCommandPort {
   openProject(command: OpenProjectCommand): Promise<ProjectCommandView> {
     return this.#session.exclusive(async () => {
       const path = await this.#policy.authorizeExistingProject(command.path);
-      refuseUnsavedChanges(this.#session, command.discardUnsaved);
+      // The start this call may cause can bind a recovered project with unsaved changes (fact 74), so the guard reads
+      // the session after the start; the remembered path is forgotten first so that start does not reopen it.
       this.#session.forgetReopen();
+      await this.#session.ensureRunning();
+      refuseUnsavedChanges(this.#session, command.discardUnsaved);
       await this.#writer.openProject(path);
       return { session: this.#session.status().session, path };
     });

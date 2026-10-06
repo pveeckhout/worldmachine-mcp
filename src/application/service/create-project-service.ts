@@ -18,8 +18,10 @@ export class CreateProjectService implements CreateProjectCommandPort {
 
   createProject(command: CreateProjectCommand): Promise<ProjectCommandView> {
     return this.#session.exclusive(async () => {
-      refuseUnsavedChanges(this.#session, command.discardUnsaved);
+      // As in OpenProjectService: the guard reads the session after the start, which can bind a recovered project.
       this.#session.forgetReopen();
+      await this.#session.ensureRunning();
+      refuseUnsavedChanges(this.#session, command.discardUnsaved);
       await this.#writer.createProject();
       return { session: this.#session.status().session };
     });

@@ -1,4 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+import { FsPathPolicy } from '../../../src/adapter/out/fs/path-policy.js';
+import { WorldMachineProcess } from '../../../src/adapter/out/worldmachine/world-machine-process.js';
+import { WorldMachineProjectWriter } from '../../../src/adapter/out/worldmachine/world-machine-project-writer.js';
+import { WorldMachineSession } from '../../../src/adapter/out/worldmachine/world-machine-session.js';
 import type { PathPolicyPort, SaveTarget } from '../../../src/application/port/out/path-policy-port.js';
 import type { ProjectGraphWritePort } from '../../../src/application/port/out/project-graph-write-port.js';
 import type { WorldMachineSessionPort } from '../../../src/application/port/out/world-machine-session-port.js';
@@ -8,11 +15,12 @@ import { RedoService } from '../../../src/application/service/redo-service.js';
 import { SaveProjectService } from '../../../src/application/service/save-project-service.js';
 import { UndoService } from '../../../src/application/service/undo-service.js';
 import type { SessionSummary } from '../../../src/domain/session.js';
+import { captureLogger, FAKE_WM, fakeEnv, recorder } from '../../support/fake-wm.js';
 
 function fakes(session: SessionSummary, target: SaveTarget = { path: '/r/x.tmd', exists: false }) {
   const calls: string[] = [];
   const sessionPort: WorldMachineSessionPort = {
-    ensureRunning: async () => {},
+    ensureRunning: async () => void calls.push('ensure'),
     status: () => ({ executable: '/wm', session }),
     shutdown: async () => {},
     forgetReopen: () => void calls.push('forget'),
@@ -58,7 +66,7 @@ describe('OpenProjectService', () => {
       path: '/r/b.tmd',
       discardUnsaved: false,
     });
-    expect(f.calls).toEqual(['exclusive', 'authorize:/r/b.tmd', 'forget', 'open:/canon/r/b.tmd']);
+    expect(f.calls).toEqual(['exclusive', 'authorize:/r/b.tmd', 'forget', 'ensure', 'open:/canon/r/b.tmd']);
     expect(view).toEqual({ session: READY_CLEAN, path: '/canon/r/b.tmd' });
   });
 
@@ -70,7 +78,7 @@ describe('OpenProjectService', () => {
         discardUnsaved: false,
       }),
     ).rejects.toMatchObject({ code: 'REFUSED' });
-    expect(f.calls).toEqual(['exclusive', 'authorize:/r/b.tmd']);
+    expect(f.calls).toEqual(['exclusive', 'authorize:/r/b.tmd', 'forget', 'ensure']);
   });
 
   it('opens over unsaved changes with discard_unsaved', async () => {
@@ -91,10 +99,10 @@ describe('CreateProjectService', () => {
     ).rejects.toMatchObject({
       code: 'REFUSED',
     });
-    expect(dirty.calls).toEqual(['exclusive']);
+    expect(dirty.calls).toEqual(['exclusive', 'forget', 'ensure']);
     const clean = fakes({ state: 'notRunning' });
     await new CreateProjectService(clean.sessionPort, clean.writer).createProject({ discardUnsaved: false });
-    expect(clean.calls).toEqual(['exclusive', 'forget', 'create']);
+    expect(clean.calls).toEqual(['exclusive', 'forget', 'ensure', 'create']);
   });
 });
 
@@ -157,5 +165,73 @@ describe('UndoService and RedoService', () => {
     await new UndoService(ready.sessionPort, ready.writer).undo({});
     await new RedoService(ready.sessionPort, ready.writer).redo({});
     expect(ready.calls).toEqual(['exclusive', 'undo', 'exclusive', 'redo']);
+  });
+});
+
+describe('OpenProjectService and CreateProjectService over a recovered project (fact 74)', () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'recovered-')));
+  const other = join(root, 'other.tmd');
+  writeFileSync(other, '');
+  const sessions: WorldMachineSession[] = [];
+  afterEach(async () => {
+    await Promise.all(sessions.splice(0).map((s) => s.shutdown()));
+  });
+
+  // FAKE_WM_RECOVERY_DIALOG=0: the dialog is answered at once, so the start that the call itself causes adopts a
+  // crashed session.
+  function recovering() {
+    const record = recorder();
+    const logger = captureLogger();
+    const env = fakeEnv({ FAKE_WM_RECORD: record.path, FAKE_WM_RECOVERY_DIALOG: '0' });
+    const policy = new FsPathPolicy([root]);
+    const session = new WorldMachineSession({
+      executable: FAKE_WM,
+      defaultProject: undefined,
+      pathPolicy: policy,
+      commandTimeoutMs: 2_000,
+      idleTimeoutMs: 0,
+      logger,
+      startProcess: (bin, signal, onSpawn) =>
+        WorldMachineProcess.start({ bin, readyTimeoutMs: 5_000, logger, env, signal, onSpawn }),
+    });
+    sessions.push(session);
+    const writer = new WorldMachineProjectWriter(session);
+    return { session, record, policy, writer };
+  }
+  const AFTER_START = ['START', 'system info', expect.stringMatching(/^__end_/)];
+
+  it('open_project refuses without discard_unsaved and sends nothing after the start', async () => {
+    const { session, record, policy, writer } = recovering();
+    await expect(
+      new OpenProjectService(session, policy, writer).openProject({ path: other, discardUnsaved: false }),
+    ).rejects.toMatchObject({ code: 'REFUSED' });
+    expect(record.lines()).toEqual(AFTER_START);
+    expect(session.status().session.recovered).toBe(true);
+  });
+
+  it('open_project opens with discard_unsaved', async () => {
+    const { session, record, policy, writer } = recovering();
+    await new OpenProjectService(session, policy, writer).openProject({ path: other, discardUnsaved: true });
+    expect(record.lines()).toContain(`project open ${other} force`);
+    expect(session.status().session).toEqual({
+      state: 'ready',
+      binding: { kind: 'opened', path: other },
+      dirty: false,
+    });
+  });
+
+  it('create_project refuses without discard_unsaved and sends nothing after the start', async () => {
+    const { session, record, writer } = recovering();
+    await expect(
+      new CreateProjectService(session, writer).createProject({ discardUnsaved: false }),
+    ).rejects.toMatchObject({ code: 'REFUSED' });
+    expect(record.lines()).toEqual(AFTER_START);
+  });
+
+  it('create_project creates with discard_unsaved', async () => {
+    const { session, record, writer } = recovering();
+    await new CreateProjectService(session, writer).createProject({ discardUnsaved: true });
+    expect(record.lines()).toContain('project new default force');
+    expect(session.status().session).toEqual({ state: 'ready', binding: { kind: 'fresh' }, dirty: false });
   });
 });
