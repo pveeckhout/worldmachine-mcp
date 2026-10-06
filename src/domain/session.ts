@@ -17,7 +17,7 @@ export type SessionSummary = {
   readonly binding?: ProjectBinding;
   readonly dirty?: boolean;
   readonly reason?: string;
-  readonly recovered?: boolean;
+  readonly recovered?: true;
 };
 
 export function summarize(state: SessionState): SessionSummary {

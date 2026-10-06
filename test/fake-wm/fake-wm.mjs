@@ -342,6 +342,8 @@ let partial = '';
 let pending = [];
 const work = [];
 let draining = false;
+// Assumed: World Machine reads console input that arrives before its ready line once it gets to it, so a start that
+// never becomes ready (FAKE_WM_STARTUP=silent) still answers commands. No capture shows input before the ready line.
 
 // Spec facts 14-15: a read handles leftover lines plus only the first new line; the rest waits for the next read.
 process.stdin.on('data', (chunk) => {

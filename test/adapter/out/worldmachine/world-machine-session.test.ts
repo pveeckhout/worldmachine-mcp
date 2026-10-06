@@ -902,6 +902,14 @@ describe("WorldMachineSession and the 'Recover crashed session' dialog (fact 73)
     await waitUntil(() => !record.pids().some(isAlive), 3_000);
   });
 
+  it('fails a call with SHUTTING_DOWN, not the dialog message, once shutdown began', async () => {
+    const { session: s } = dialogSession('never');
+    await failure(s.ensureRunning());
+    const stopping = s.shutdown({ drainMs: 0, graceMs: 300, termMs: 100 });
+    expect((await failure(s.ensureRunning())).code).toBe('SHUTTING_DOWN');
+    await stopping;
+  });
+
   it('shuts down within its budget while the dialog is open', async () => {
     const { session: s, record } = dialogSession('never');
     await failure(s.ensureRunning());

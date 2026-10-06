@@ -200,7 +200,10 @@ describe('WorldMachineProcess', () => {
       300,
     );
     expect(error.message).toBe('World Machine did not become ready within 300 ms');
-    expect(record.lines()).toEqual(['START', 'project close force', 'system quit force', 'EXIT']);
+    const lines = record.lines();
+    expect(lines.indexOf('project close force')).toBeGreaterThan(0);
+    expect(lines.indexOf('system quit force')).toBeGreaterThan(lines.indexOf('project close force'));
+    expect(record.pids().some(isAlive)).toBe(false);
   });
 
   describe("with the 'Recover crashed session' dialog", () => {

@@ -371,6 +371,23 @@ describe('createMcpServer', () => {
     expect(result.structuredContent).toEqual({ configured: true, executable: '/opt/wm', session });
   });
 
+  it('rejects a recovered flag other than true through the strict output schema', async () => {
+    const session = { state: 'ready', binding: { kind: 'fresh' }, dirty: false, recovered: false };
+    const result = await (
+      await connect(
+        deps({
+          getStatus: {
+            getStatus: async () =>
+              ({ configured: true, executable: '/opt/wm', session }) as unknown as Awaited<
+                ReturnType<McpDependencies['getStatus']['getStatus']>
+              >,
+          },
+        }),
+      )
+    ).callTool({ name: 'get_world_machine_status', arguments: {} });
+    expect(result.isError).toBe(true);
+  });
+
   it('passes the filter to the list-devices port', async () => {
     const result = await (await connect(deps())).callTool({
       name: 'list_devices',

@@ -50,7 +50,7 @@ export const sessionSummarySchema = z.strictObject({
   binding: projectBindingSchema.optional(),
   dirty: z.boolean().optional(),
   reason: z.string().optional(),
-  recovered: z.boolean().optional(),
+  recovered: z.literal(true).optional(),
 }) satisfies z.ZodType<SessionSummary>;
 
 export const statusViewSchema = z.strictObject({
