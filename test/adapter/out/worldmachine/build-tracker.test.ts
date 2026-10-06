@@ -299,8 +299,10 @@ describe('BuildTracker (spec v2a section 5)', () => {
     fixtureLines(`raw/${name}`).forEach((line, index) => {
       if (line === '>>> build start') tracker.expect('full');
       if (line === '>>> build start tiled') tracker.expect('tiled');
-      // Spec v2b section 5: the server expects a full run for `group build`.
-      if (line.startsWith('>>> group build ')) tracker.expect('full');
+      // Spec v2b section 5: a `group build` opens a full run the tracker knows to be a group run.
+      if (line.startsWith('>>> group build ')) tracker.expect('group');
+      // The builder tells the tracker before it sends `build stop` (spec v2b fact 72).
+      if (line === '>>> build stop') tracker.stopRequested();
       const waited = /^>>> \(waited (\d+) ms\)$/.exec(line)?.[1];
       if (waited !== undefined) vi.advanceTimersByTime(Number(waited));
       const seen = /^>>> \(waited for .*: (?:not )?seen after (\d+) s\)$/.exec(line)?.[1];
@@ -382,6 +384,44 @@ describe('BuildTracker (spec v2a section 5)', () => {
     tracker.expect('full');
     for (const event of ['sleep-prohibited', 'starting', 'ended', 'sleep-allowed'] as const)
       tracker.apply(event);
+    expect(tracker.running).toBe(true);
+    tracker.apply('build-started');
+    expect(tracker.running).toBe(false);
+  });
+
+  it('replays raw/v2b-assumptions.txt: a stopped group build ends at its trailer (spec v2b facts 71 and 72)', () => {
+    const { tracker, running } = replay('v2b-assumptions.txt');
+    // l.159-169: the automatic export changes nothing, and the run ends at its late line.
+    expect(running[162]).toBe(true);
+    expect(running[168]).toBe(true);
+    expect(running[169]).toBe(false);
+    // l.217-230: the stopped run ends at its trailer; no late line comes within 60 s.
+    expect(running[225]).toBe(true);
+    expect(running[226]).toBe(false);
+    expect(tracker.running).toBe(false);
+  });
+
+  it('ends a stopped server group run on its trailer without the late-line timer (spec v2b fact 72)', async () => {
+    const tracker = new BuildTracker();
+    tracker.expect('group');
+    expect(tracker.pending).toBe('group');
+    tracker.apply('sleep-prohibited');
+    tracker.apply('starting');
+    expect(tracker.snapshot()).toMatchObject({ mode: 'full', startedBy: 'server', state: 'running' });
+    tracker.stopRequested();
+    const ended = tracker.ended(1_000);
+    tracker.apply('ended');
+    expect(tracker.running).toBe(true);
+    tracker.apply('sleep-allowed');
+    expect(await ended).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('keeps a stopped full run waiting for its late line (spec v2a fact 54)', () => {
+    const tracker = runningFull();
+    tracker.stopRequested();
+    tracker.apply('ended');
+    tracker.apply('sleep-allowed');
     expect(tracker.running).toBe(true);
     tracker.apply('build-started');
     expect(tracker.running).toBe(false);

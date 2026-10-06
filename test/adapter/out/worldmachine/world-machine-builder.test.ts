@@ -10,6 +10,7 @@ import {
 import { WorldMachineProcess } from '../../../../src/adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineSession } from '../../../../src/adapter/out/worldmachine/world-machine-session.js';
 import { GROUP_BUILD_NEEDS_GROUP } from '../../../../src/application/port/out/build-port.js';
+import { StopBuildService } from '../../../../src/application/service/stop-build-service.js';
 import type { WorldMachineError } from '../../../../src/domain/errors.js';
 import { captureLogger, FAKE_WM, fakeEnv, recorder, waitUntil } from '../../../support/fake-wm.js';
 
@@ -93,6 +94,15 @@ describe('WorldMachineBuilder group builds (spec v2b sections 3 and 5)', () => {
       message: GROUP_BUILD_NEEDS_GROUP,
     });
     expect(record.lines()).toEqual([]);
+  });
+
+  it('stop_build ends a server group build on its trailer, well before the 10 s late-line bound (fact 72)', async () => {
+    const { build, session } = builder({ FAKE_WM_BUILD_MS: '60000' });
+    await build.start('group', TERRAIN);
+    const started = Date.now();
+    expect(await new StopBuildService(session, build).stopBuild({})).toMatchObject({ stopped: 'full' });
+    expect(Date.now() - started).toBeLessThan(2_000);
+    expect(build.current()).toBeUndefined();
   });
 
   it('tracks a group build started in the World Machine window until its late line (spec v2b section 5)', async () => {

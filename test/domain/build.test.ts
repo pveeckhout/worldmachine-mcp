@@ -6,6 +6,7 @@ import {
   lateStartMissed,
   NO_BUILD,
   nextBuildState,
+  stopRequested,
 } from '../../src/domain/build.js';
 
 /** Applies events in order; the n-th event of one call arrives at time 1000 + n. */
@@ -105,6 +106,53 @@ describe('nextBuildState (spec v2a section 3)', () => {
       lateStartsOwed: 0,
       ending: false,
     });
+  });
+
+  it('opens a full run on starting after a group start, and still ends it on its late line (spec v2b fact 66)', () => {
+    const running = apply({ ...NO_BUILD, pending: 'group' }, 'sleep-prohibited', 'starting');
+    expect(running.run).toEqual({ mode: 'full', startedAt: 1_001, startedBy: 'server', state: 'running' });
+    expect(running.pending).toBeUndefined();
+    const ending = apply(running, 'ended', 'sleep-allowed');
+    expect(isRunning(ending)).toBe(true);
+    expect(isRunning(apply(ending, 'group-build-started'))).toBe(false);
+  });
+
+  it('ends a stopped server group run on its trailer, owing no late line (spec v2b fact 72)', () => {
+    const running = apply({ ...NO_BUILD, pending: 'group' }, 'sleep-prohibited', 'starting');
+    // raw/v2b-assumptions.txt l.223-226: Stop requested., Ended, and the trailer, then no late line.
+    const stopping = apply(stopRequested(running), 'ended');
+    expect(isRunning(stopping)).toBe(true);
+    expect(stopping).toMatchObject({ lateStartsOwed: 0, trailerOwed: true });
+    expect(apply(stopping, 'sleep-allowed')).toEqual({
+      run: { mode: 'full', startedAt: 1_001, startedBy: 'server', state: 'ended' },
+      pending: undefined,
+      trailerOwed: false,
+      lateStartsOwed: 0,
+      ending: false,
+    });
+  });
+
+  it('ends a stopped full build on its late line, as before (spec v2a fact 54, raw/v2-build-export.txt l.66-80)', () => {
+    const running = apply({ ...NO_BUILD, pending: 'full' }, 'sleep-prohibited', 'starting');
+    const stopped = apply(stopRequested(running), 'ended', 'sleep-allowed');
+    expect(isRunning(stopped)).toBe(true);
+    expect(stopped).toMatchObject({ lateStartsOwed: 1, ending: true });
+    expect(isRunning(apply(stopped, 'build-started'))).toBe(false);
+  });
+
+  it('keeps a stopped group build from the window waiting for its late line (spec v2b section 5)', () => {
+    const running = apply(NO_BUILD, 'sleep-prohibited', 'starting');
+    const stopped = apply(stopRequested(running), 'ended', 'sleep-allowed');
+    expect(isRunning(stopped)).toBe(true);
+    expect(stopped).toMatchObject({ lateStartsOwed: 1, ending: true });
+  });
+
+  it('changes nothing on a stop request without a running server group run', () => {
+    expect(stopRequested(NO_BUILD)).toEqual(NO_BUILD);
+    const tiled = apply({ ...NO_BUILD, pending: 'tiled' }, 'sleep-prohibited');
+    expect(stopRequested(tiled)).toEqual(tiled);
+    const ending = apply({ ...NO_BUILD, pending: 'group' }, 'starting', 'ended');
+    expect(apply(stopRequested(ending), 'sleep-allowed')).toMatchObject({ lateStartsOwed: 1, ending: true });
   });
 
   it('ignores a group late line that no ended owes', () => {

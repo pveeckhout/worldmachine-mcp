@@ -50,8 +50,8 @@ export class WorldMachineBuilder implements BuildPort {
     await this.#session.ensureRunning();
     const tracker = this.#session.buildTracker();
     if (tracker === undefined) throw new WorldMachineError('CRASHED', 'World Machine is not running');
-    // Spec v2b section 5: a group build runs as a full run.
-    tracker.expect(mode === 'tiled' ? 'tiled' : 'full');
+    // Spec v2b section 5: a group build runs as a full run, which the tracker knows to be a group run.
+    tracker.expect(mode);
     let output: readonly string[] = [];
     const confirmed = await this.#untilSettled(async () => {
       try {
@@ -98,6 +98,8 @@ export class WorldMachineBuilder implements BuildPort {
 
   async stop(): Promise<void> {
     this.#session.assertAcceptingCalls();
+    // Spec v2b fact 72: the stop frame holds the run's Ended and trailer, so the tracker learns of the stop first.
+    this.#session.buildTracker()?.stopRequested();
     const response = await this.#session.executeOne('build stop');
     throwIfFailed(response);
     requireLine(response, STOP_REQUESTED, 'build stop');

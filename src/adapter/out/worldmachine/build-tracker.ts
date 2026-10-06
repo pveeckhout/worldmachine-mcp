@@ -6,7 +6,8 @@ import {
   lateStartMissed,
   NO_BUILD,
   nextBuildState,
-  type TrackedBuildMode,
+  type PendingStart,
+  stopRequested,
 } from '../../../domain/build.js';
 import { WorldMachineError } from '../../../domain/errors.js';
 
@@ -45,7 +46,7 @@ export class BuildTracker {
   }
 
   /** The start the server sent whose opening event has not arrived yet (decision D4); `started()` waits for it. */
-  get pending(): TrackedBuildMode | undefined {
+  get pending(): PendingStart | undefined {
     return this.#state.pending;
   }
 
@@ -54,8 +55,11 @@ export class BuildTracker {
     return this.#state.run;
   }
 
-  /** Called before the server sends `build start` or `build start tiled`; the run's opening event confirms it. */
-  expect(mode: TrackedBuildMode): void {
+  /**
+   * Called before the server sends `build start`, `build start tiled`, or `group build`; the run's opening event
+   * confirms it.
+   */
+  expect(mode: PendingStart): void {
     this.#set({ ...this.#state, pending: mode });
   }
 
@@ -68,13 +72,25 @@ export class BuildTracker {
     this.#transition(nextBuildState(this.#state, event, this.#now()));
   }
 
+  /** Called before the server sends `build stop`: a stopped server group run ends on its trailer (v2b fact 72). */
+  stopRequested(): void {
+    if (this.#dropped) return;
+    this.#transition(stopRequested(this.#state));
+  }
+
   /**
    * Stops tracking the running run, as if it ended: `stop_build` gives up on a run World Machine started that showed
    * no end, so a stray event cannot block the change tools until World Machine restarts (spec v2a section 4).
    */
   forget(): void {
     if (this.#dropped || !this.running) return;
-    this.#transition({ ...this.#state, run: undefined, lateStartsOwed: 0, ending: false });
+    this.#transition({
+      ...this.#state,
+      run: undefined,
+      lateStartsOwed: 0,
+      ending: false,
+      groupRun: undefined,
+    });
   }
 
   /** Runs each time a running run ends; not when the process exits. */

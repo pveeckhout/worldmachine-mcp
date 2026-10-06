@@ -492,19 +492,19 @@ describe('fake World Machine snapshots, organize, and groups (spec v2b facts 57-
     ]);
   });
 
-  it('stops a group build, whose late line is still its own (assumed)', async () => {
-    const { proc, stream } = await streamed({ FAKE_WM_BUILD_MS: '5000' });
+  it('stops a group build, which prints no late line (fact 72, raw/v2b-assumptions.txt l.217-230)', async () => {
+    const { proc, stream } = await streamed({ FAKE_WM_BUILD_MS: '5000', FAKE_WM_LATE_MS: '20' });
     proc.write(['group build #0']);
     await waitUntil(() => stream.includes('<starting>'));
     proc.write(['build stop']);
-    await waitUntil(() => stream.includes('<group-build-started>'));
+    await waitUntil(() => stream.includes('<sleep-allowed>'));
+    await new Promise((resolve) => setTimeout(resolve, 200));
     expect(stream).toEqual([
       '<sleep-prohibited>',
       '<starting>',
       'Stop requested.',
       '<ended>',
       '<sleep-allowed>',
-      '<group-build-started>',
     ]);
   });
 

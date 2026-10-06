@@ -605,8 +605,8 @@ async function handle(line) {
       // The held trailer is recorded now, so a start right after the stop releases it; only printing waits.
       if (LATE_TRAILER) trailerHeld = true;
       else later(() => event('System allowed to sleep again'));
-      // Assumed: a stopped group build prints its own late line; no capture stops one.
-      later(() => out(lateLine(stopping)));
+      // Spec v2b fact 72 (raw/v2b-assumptions.txt l.217-230): a stopped group build prints no late line.
+      if (stopping.group === undefined) later(() => out(lateLine(stopping)));
     } else {
       event('System allowed to sleep again');
       tiledConfirmationsOwed++;
