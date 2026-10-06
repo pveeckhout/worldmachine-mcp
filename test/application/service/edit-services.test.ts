@@ -61,6 +61,7 @@ function fakes() {
       calls.push(`delete:${device}`);
       return GRADIENT;
     },
+    organize: async () => void calls.push('organize'),
   };
   const parameters: ParameterEditPort = {
     updateParameters: async (device, values) => {

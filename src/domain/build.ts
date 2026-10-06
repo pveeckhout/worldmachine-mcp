@@ -1,6 +1,10 @@
-/** Spec v2a section 3. A preview is visible only to `build status` (fact 42); full and tiled builds only through their events (fact 44). */
-export type BuildMode = 'preview' | 'full' | 'tiled';
-export type TrackedBuildMode = Exclude<BuildMode, 'preview'>;
+/**
+ * Spec v2a section 3 and spec v2b section 3. A preview is visible only to `build status` (fact 42); full, tiled, and
+ * group builds only through their events (fact 44, v2b fact 66).
+ */
+export type BuildMode = 'preview' | 'full' | 'tiled' | 'group';
+/** The runs the tracker follows. A group build runs as a full run (spec v2b section 5, decision D6). */
+export type TrackedBuildMode = 'full' | 'tiled';
 
 /** The six unsolicited build lines of facts 43 and 48, and the late line of a group build (spec v2b fact 66). */
 export type BuildEvent =

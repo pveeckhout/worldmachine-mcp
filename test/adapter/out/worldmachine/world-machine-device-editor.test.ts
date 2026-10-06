@@ -553,3 +553,34 @@ describe('WorldMachineDeviceEditor.deleteDevice', () => {
     expect(sent(record)).toEqual(['device list']);
   });
 });
+
+describe('WorldMachineDeviceEditor.organize', () => {
+  it('organizes the devices and marks the session unsaved (spec v2b fact 62)', async () => {
+    const { session, editor: e, record } = editor();
+    await session.ensureRunning();
+    await e.organize();
+    expect(sent(record)).toEqual(['device organize']);
+    expect(session.status().session.dirty).toBe(true);
+  });
+
+  it("reports World Machine's Error: line as WM_COMMAND_FAILED and leaves the session alone", async () => {
+    // Assumed: no capture shows `device organize` failing; the shape of every other `Error:` answer.
+    const s = scriptedSession({ 'device organize': [{ errors: ['Error: Error: No devices to organize'] }] });
+    await expect(new WorldMachineDeviceEditor(s.session).organize()).rejects.toMatchObject({
+      code: 'WM_COMMAND_FAILED',
+    });
+    expect(s.dirtyMarks()).toBe(0);
+  });
+
+  it.each([
+    ['no confirmation', []],
+    ['another line', ['Devices organized.']],
+    ['an extra line', ['Devices organized by processing order.', 'Something else']],
+  ])('reports %s as UNEXPECTED_OUTPUT, with the session marked unsaved', async (_label, output) => {
+    const s = scriptedSession({ 'device organize': [{ output }] });
+    await expect(new WorldMachineDeviceEditor(s.session).organize()).rejects.toMatchObject({
+      code: 'UNEXPECTED_OUTPUT',
+    });
+    expect(s.dirtyMarks()).toBe(1);
+  });
+});

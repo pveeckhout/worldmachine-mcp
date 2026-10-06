@@ -14,4 +14,9 @@ export interface DeviceEditPort {
   setDeviceEnabled(device: string, enabled: boolean): Promise<DeviceEnabledState>;
   /** Returns the deleted device's row from before the delete. */
   deleteDevice(device: string): Promise<DeviceSummary>;
+  /**
+   * `device organize`: lays the graph out by processing order in the World Machine window (spec v2b fact 62). The
+   * console shows no layout, so nothing is read back.
+   */
+  organize(): Promise<void>;
 }

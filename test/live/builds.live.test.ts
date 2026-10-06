@@ -7,6 +7,7 @@ import { resolveExecutable } from '../../src/adapter/out/worldmachine/locator.js
 import { WorldMachineBuilder } from '../../src/adapter/out/worldmachine/world-machine-builder.js';
 import { WorldMachineExporter } from '../../src/adapter/out/worldmachine/world-machine-exporter.js';
 import { WorldMachineGraphReader } from '../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
+import { WorldMachineGroupEditor } from '../../src/adapter/out/worldmachine/world-machine-group-editor.js';
 import { WorldMachineProcess } from '../../src/adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineProjectWriter } from '../../src/adapter/out/worldmachine/world-machine-project-writer.js';
 import { WorldMachineSceneEditor } from '../../src/adapter/out/worldmachine/world-machine-scene-editor.js';
@@ -42,7 +43,14 @@ describe.skipIf(!LIVE)('live World Machine builds and exports (spec v2a section 
   const scene = new WorldMachineSceneEditor(session);
   const builder = new WorldMachineBuilder(session);
   const exporter = new WorldMachineExporter(session);
-  const buildProject = new BuildProjectService(session, builder, exporter, reader, policy);
+  const buildProject = new BuildProjectService(
+    session,
+    builder,
+    exporter,
+    reader,
+    policy,
+    new WorldMachineGroupEditor(session),
+  );
   const stopBuild = new StopBuildService(session, builder);
   const buildStatus = new GetBuildStatusService(session, builder);
   const listExports = new ListExportsService(session, exporter, reader, policy);

@@ -1,7 +1,9 @@
 import type { BuildPort } from '../../../application/port/out/build-port.js';
 import type { BuildMode, BuildRun, RunMode } from '../../../domain/build.js';
 import { WorldMachineError } from '../../../domain/errors.js';
+import type { Group } from '../../../domain/group.js';
 import { BUILD_EXITED } from './build-tracker.js';
+import { buildCommand } from './command-builder.js';
 import { requireLine } from './edit-checks.js';
 import { unexpectedOutput } from './parsers/unexpected.js';
 import { throwIfFailed } from './raw-response.js';
@@ -36,7 +38,7 @@ export class WorldMachineBuilder implements BuildPort {
     return run?.state === 'running' ? run : undefined;
   }
 
-  async start(mode: BuildMode): Promise<void> {
+  async start(mode: BuildMode, group?: Group): Promise<void> {
     this.#session.assertAcceptingCalls();
     if (mode === 'preview') {
       const response = await this.#session.executeOne('build preview');
@@ -44,20 +46,23 @@ export class WorldMachineBuilder implements BuildPort {
       requireLine(response, PREVIEW_STARTED, 'build preview');
       return;
     }
+    const command = startCommand(mode, group);
     await this.#session.ensureRunning();
     const tracker = this.#session.buildTracker();
     if (tracker === undefined) throw new WorldMachineError('CRASHED', 'World Machine is not running');
-    tracker.expect(mode);
+    // Spec v2b section 5: a group build runs as a full run.
+    tracker.expect(mode === 'tiled' ? 'tiled' : 'full');
     let output: readonly string[] = [];
     const confirmed = await this.#untilSettled(async () => {
       try {
-        const response = await this.#session.executeOne(
-          mode === 'full' ? 'build start' : 'build start tiled',
-        );
+        const response = await this.#session.executeOne(command);
         output = response.output;
         throwIfFailed(response);
-        // Facts 43 and 48: the start frame holds only build events, which the process took out of it, so the
-        // confirmation is the run's opening event.
+        // Facts 43 and 48, v2b fact 66: the start frame holds only build events, which the process took out of it, so
+        // the confirmation is the run's opening event. A group build's frame with any other line, such as an empty
+        // group's answer (fact 65), started nothing.
+        if (mode === 'group' && response.output.length > 0)
+          throw unexpectedOutput('group build', response.output);
         return await tracker.started(this.#confirmMs);
       } finally {
         // Every exit, thrown or not, forgets the expected start, so an unbounded `started()` wait settles.
@@ -149,6 +154,21 @@ export class WorldMachineBuilder implements BuildPort {
       const left = deadline - Date.now();
       if (left <= 0 || !(await pause(Math.min(this.#pollMs, left), signal))) return false;
     }
+  }
+}
+
+/** The command that starts a full, tiled, or group build; a group goes by its index (spec v2b section 4). */
+function startCommand(mode: Exclude<BuildMode, 'preview'>, group: Group | undefined): string {
+  switch (mode) {
+    case 'full':
+      return 'build start';
+    case 'tiled':
+      return 'build start tiled';
+    case 'group':
+      if (group === undefined) {
+        throw new WorldMachineError('REFUSED', 'A group build needs a group; see list_groups');
+      }
+      return buildCommand(['group', 'build', `#${group.index}`]);
   }
 }
 

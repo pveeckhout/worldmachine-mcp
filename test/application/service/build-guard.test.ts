@@ -7,6 +7,7 @@ import { WorldMachineBuilder } from '../../../src/adapter/out/worldmachine/world
 import { WorldMachineDeviceEditor } from '../../../src/adapter/out/worldmachine/world-machine-device-editor.js';
 import { WorldMachineExporter } from '../../../src/adapter/out/worldmachine/world-machine-exporter.js';
 import { WorldMachineGraphReader } from '../../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
+import { WorldMachineGroupEditor } from '../../../src/adapter/out/worldmachine/world-machine-group-editor.js';
 import { WorldMachineParameterEditor } from '../../../src/adapter/out/worldmachine/world-machine-parameter-editor.js';
 import { WorldMachineProcess } from '../../../src/adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineProjectWriter } from '../../../src/adapter/out/worldmachine/world-machine-project-writer.js';
@@ -69,7 +70,14 @@ describe('the build guard across the command tools (spec v2a section 4)', () => 
   it('refuses every command tool while a full build runs, keeps the reads working, and lifts after stop_build', async () => {
     const w = wired();
     const { session, policy, reader, writer, devices, builder, exporter } = w;
-    const buildProject = new BuildProjectService(session, builder, exporter, reader, policy);
+    const buildProject = new BuildProjectService(
+      session,
+      builder,
+      exporter,
+      reader,
+      policy,
+      new WorldMachineGroupEditor(session),
+    );
     expect(await buildProject.buildProject({ mode: 'full', waitSeconds: 0 })).toMatchObject({
       state: 'running',
     });
@@ -176,7 +184,14 @@ async function failure(promise: Promise<unknown>): Promise<WorldMachineError> {
 describe('build services over the fake World Machine (spec v2a sections 3-5)', () => {
   it('keeps a tiled build running across the late trailer of the full build before it', async () => {
     const { session, policy, reader, writer, builder, exporter } = wired({ FAKE_WM_LATE_TRAILER: '1' });
-    const buildProject = new BuildProjectService(session, builder, exporter, reader, policy);
+    const buildProject = new BuildProjectService(
+      session,
+      builder,
+      exporter,
+      reader,
+      policy,
+      new WorldMachineGroupEditor(session),
+    );
     const stopBuild = new StopBuildService(session, builder);
     await writer.saveProject(join(root, 'late.tmd'), true);
     await buildProject.buildProject({ mode: 'full', waitSeconds: 0 });
@@ -191,7 +206,14 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
 
   it('stops a build whose start is still waiting for its opening event', async () => {
     const { session, policy, reader, builder, exporter } = wired({ FAKE_WM_START_DELAY_MS: '300' });
-    const building = new BuildProjectService(session, builder, exporter, reader, policy).buildProject({
+    const building = new BuildProjectService(
+      session,
+      builder,
+      exporter,
+      reader,
+      policy,
+      new WorldMachineGroupEditor(session),
+    ).buildProject({
       mode: 'full',
       waitSeconds: 0,
     });
@@ -204,7 +226,14 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
   it('fails stop_build with SHUTTING_DOWN when the server stops during it (decision D14)', async () => {
     const w = wired({ FAKE_WM_DELAY_ON: 'build stop', FAKE_WM_DELAY_MS: '300' });
     const { session, policy, reader, builder, exporter } = w;
-    await new BuildProjectService(session, builder, exporter, reader, policy).buildProject({
+    await new BuildProjectService(
+      session,
+      builder,
+      exporter,
+      reader,
+      policy,
+      new WorldMachineGroupEditor(session),
+    ).buildProject({
       mode: 'full',
       waitSeconds: 0,
     });
@@ -259,7 +288,14 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
     });
     await writer.saveProject(join(root, 'timing.tmd'), true);
     expect(
-      await new BuildProjectService(session, builder, exporter, reader, policy).buildProject({
+      await new BuildProjectService(
+        session,
+        builder,
+        exporter,
+        reader,
+        policy,
+        new WorldMachineGroupEditor(session),
+      ).buildProject({
         mode: 'full',
         waitSeconds: 10,
       }),
@@ -268,9 +304,74 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
     expect(exported.files).toHaveLength(4);
   });
 
+  it('refuses command tools during a group build, which ends at its late line and leaves exports refused (spec v2b facts 66-67)', async () => {
+    const { session, policy, reader, writer, builder, exporter } = wired({ FAKE_WM_BUILD_MS: '500' });
+    const groups = new WorldMachineGroupEditor(session);
+    const buildProject = new BuildProjectService(session, builder, exporter, reader, policy, groups);
+    await writer.saveProject(join(root, 'group.tmd'), true);
+    expect(await buildProject.buildProject({ mode: 'group', group: '#0', waitSeconds: 0 })).toMatchObject({
+      state: 'running',
+      mode: 'group',
+      group: { index: 0, name: 'Create your Terrain', deviceCount: 6 },
+    });
+    expect((await new GetBuildStatusService(session, builder).getBuildStatus({})).build).toMatchObject({
+      mode: 'full',
+      startedBy: 'server',
+    });
+    expect(await failure(new UndoService(session, writer).undo({}))).toMatchObject({
+      code: 'REFUSED',
+      message: 'A build is running; call stop_build or wait for it to finish',
+    });
+    expect(await groups.list()).toHaveLength(5);
+    expect(await builder.waitForEnd('group', 5_000)).toBe(true);
+    expect(
+      await buildProject.buildProject({ mode: 'group', group: 'create your terrain', waitSeconds: 10 }),
+    ).toMatchObject({ state: 'finished', mode: 'group' });
+    expect(
+      await failure(new ExportOutputsService(session, exporter, reader, policy).exportOutputs({})),
+    ).toMatchObject({ code: 'WM_COMMAND_FAILED' });
+  });
+
+  it('stops a group build, reports it as full, and lifts the guard (spec v2b section 3, assumption B6)', async () => {
+    const { session, policy, reader, writer, builder, exporter } = wired();
+    const groups = new WorldMachineGroupEditor(session);
+    await new BuildProjectService(session, builder, exporter, reader, policy, groups).buildProject({
+      mode: 'group',
+      group: '#0',
+      waitSeconds: 0,
+    });
+    expect((await new StopBuildService(session, builder).stopBuild({})).stopped).toBe('full');
+    expect(builder.current()).toBeUndefined();
+    await expect(new UndoService(session, writer).undo({})).resolves.toMatchObject({
+      session: { state: 'ready' },
+    });
+  });
+
+  it('stops a running group build before it closes the project on shutdown (spec v2a section 5)', async () => {
+    const w = wired();
+    const { session, policy, reader, builder, exporter } = w;
+    const groups = new WorldMachineGroupEditor(session);
+    await new BuildProjectService(session, builder, exporter, reader, policy, groups).buildProject({
+      mode: 'group',
+      group: '#0',
+      waitSeconds: 0,
+    });
+    await session.shutdown();
+    const lines = w.record.lines();
+    expect(lines.indexOf('build stop')).toBeGreaterThan(lines.indexOf('group build #0'));
+    expect(lines.indexOf('build stop')).toBeLessThan(lines.indexOf('project close force'));
+  });
+
   it('reports no build when its end arrives inside the build status frame (fact 47)', async () => {
     const { session, policy, reader, builder, exporter } = wired({ FAKE_WM_BUILD_END_ON: 'build status' });
-    await new BuildProjectService(session, builder, exporter, reader, policy).buildProject({
+    await new BuildProjectService(
+      session,
+      builder,
+      exporter,
+      reader,
+      policy,
+      new WorldMachineGroupEditor(session),
+    ).buildProject({
       mode: 'full',
       waitSeconds: 0,
     });

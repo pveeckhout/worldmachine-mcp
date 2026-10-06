@@ -7,6 +7,12 @@ export function requireLine(response: RawResponse, line: string, what: string): 
   if (!response.output.includes(line)) throw unexpectedOutput(what, response.output);
 }
 
+/** Requires `line` as the command's only output line; anything else is UNEXPECTED_OUTPUT for `what`. */
+export function requireOnlyLine(response: RawResponse, line: string, what: string): void {
+  if (response.output.length !== 1 || response.output[0] !== line)
+    throw unexpectedOutput(what, response.output);
+}
+
 /** The first output line matching `pattern` (no `g` flag); none is UNEXPECTED_OUTPUT for `what`. */
 export function requireMatch(response: RawResponse, pattern: RegExp, what: string): RegExpExecArray {
   for (const line of response.output) {

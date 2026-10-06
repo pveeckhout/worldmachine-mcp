@@ -45,6 +45,58 @@ async function failure(promise: Promise<unknown>): Promise<WorldMachineError> {
   throw new Error('expected rejection');
 }
 
+// raw/v2b-groups.txt l.16-24.
+const TERRAIN = { index: 0, name: 'Create your Terrain', deviceCount: 6 };
+
+describe('WorldMachineBuilder group builds (spec v2b sections 3 and 5)', () => {
+  it('starts a group build by #<index>, tracks it as a full run, and waits for its late line', async () => {
+    const { build, record } = builder({ FAKE_WM_BUILD_MS: '200' });
+    await build.start('group', TERRAIN);
+    expect(record.lines()).toContain('group build #0');
+    expect(build.current()).toMatchObject({ mode: 'full', startedBy: 'server', state: 'running' });
+    expect(await build.waitForEnd('group', 5_000)).toBe(true);
+    expect(build.current()).toBeUndefined();
+  });
+
+  it('fails at once with UNEXPECTED_OUTPUT when the start frame holds a line, and forgets the expected start', async () => {
+    const { build, session } = builder({}, { confirmMs: 5_000 });
+    const started = Date.now();
+    const error = await failure(
+      build.start('group', { index: 3, name: 'Welcome to World Machine!', deviceCount: 0 }),
+    );
+    expect(error.code).toBe('UNEXPECTED_OUTPUT');
+    expect(error.worldMachineMessage).toBe("Group 'Welcome to World Machine!' contains no devices.");
+    expect(Date.now() - started).toBeLessThan(2_000);
+    expect(session.buildTracker()?.pending).toBeUndefined();
+  });
+
+  it("reports World Machine's Error: line for a group it does not have as WM_COMMAND_FAILED", async () => {
+    const { build } = builder();
+    const error = await failure(build.start('group', { index: 9, name: 'Gone', deviceCount: 1 }));
+    expect(error.code).toBe('WM_COMMAND_FAILED');
+    expect(error.worldMachineMessage).toBe('Error: Error: Invalid group index: #9 (valid range: #0 - #4)');
+  });
+
+  it('refuses mode group without a group and sends nothing', async () => {
+    const { build, record } = builder();
+    expect((await failure(build.start('group'))).code).toBe('REFUSED');
+    expect(record.lines()).toEqual([]);
+  });
+
+  it('tracks a group build started in the World Machine window until its late line (spec v2b section 5)', async () => {
+    const { build, session } = builder({
+      FAKE_WM_BUILD_MS: '300',
+      FAKE_WM_GUI_BUILD: 'group',
+      FAKE_WM_GUI_BUILD_ON: 'build status',
+    });
+    await session.ensureRunning();
+    expect(await build.previewRunning()).toBe(false);
+    expect(build.current()).toMatchObject({ mode: 'full', startedBy: 'world-machine', state: 'running' });
+    expect(await build.waitForEnd('full', 5_000)).toBe(true);
+    expect(build.current()).toBeUndefined();
+  });
+});
+
 describe('WorldMachineBuilder (spec v2a section 5)', () => {
   it('starts a full build, reports it as current, and waits for its end', async () => {
     const { build } = builder({ FAKE_WM_BUILD_MS: '300' });

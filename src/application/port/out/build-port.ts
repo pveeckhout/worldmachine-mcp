@@ -1,11 +1,15 @@
 import type { BuildMode, BuildRun, RunMode } from '../../../domain/build.js';
+import type { Group } from '../../../domain/group.js';
 
 /** Builds (spec v2a sections 4-5). Only `previewRunning` and `waitForEnd` for a preview read World Machine's status. */
 export interface BuildPort {
   /** The running full or tiled build, from World Machine's build events; sends nothing and never launches. */
   current(): BuildRun | undefined;
-  /** Starts a build and waits for World Machine's confirmation, not for the end. */
-  start(mode: BuildMode): Promise<void>;
+  /**
+   * Starts a build and waits for World Machine's confirmation, not for the end. Mode `group` takes the group the
+   * caller resolved inside the same `exclusive()` action and sends its index (spec v2b section 4).
+   */
+  start(mode: BuildMode, group?: Group): Promise<void>;
   /** Resolves once no full or tiled start waits for its opening event, so `current()` shows the run it opened. */
   awaitStart(): Promise<void>;
   /** `build status` (fact 42); false without sending anything when World Machine is not running. */

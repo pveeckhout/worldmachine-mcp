@@ -9,6 +9,7 @@ import { WorldMachineBuilder } from './adapter/out/worldmachine/world-machine-bu
 import { WorldMachineDeviceEditor } from './adapter/out/worldmachine/world-machine-device-editor.js';
 import { WorldMachineExporter } from './adapter/out/worldmachine/world-machine-exporter.js';
 import { WorldMachineGraphReader } from './adapter/out/worldmachine/world-machine-graph-reader.js';
+import { WorldMachineGroupEditor } from './adapter/out/worldmachine/world-machine-group-editor.js';
 import { WorldMachineParameterEditor } from './adapter/out/worldmachine/world-machine-parameter-editor.js';
 import { WorldMachineProcess } from './adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineProjectWriter } from './adapter/out/worldmachine/world-machine-project-writer.js';
@@ -74,6 +75,7 @@ const wires = new WorldMachineWireEditor(session);
 const scene = new WorldMachineSceneEditor(session);
 const builder = new WorldMachineBuilder(session);
 const exporter = new WorldMachineExporter(session);
+const groups = new WorldMachineGroupEditor(session);
 
 const handle = serveStdio(() =>
   createMcpServer({
@@ -97,7 +99,7 @@ const handle = serveStdio(() =>
     connectDevices: new ConnectDevicesService(session, wires),
     disconnectDevices: new DisconnectDevicesService(session, wires),
     configureScene: new ConfigureSceneService(session, scene),
-    buildProject: new BuildProjectService(session, builder, exporter, reader, pathPolicy),
+    buildProject: new BuildProjectService(session, builder, exporter, reader, pathPolicy, groups),
     getBuildStatus: new GetBuildStatusService(session, builder),
     stopBuild: new StopBuildService(session, builder),
     listExports: new ListExportsService(session, exporter, reader, pathPolicy),

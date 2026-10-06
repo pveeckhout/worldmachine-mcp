@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BuildPort } from '../../../src/application/port/out/build-port.js';
+import type { GroupPort } from '../../../src/application/port/out/group-port.js';
 import { BuildProjectService } from '../../../src/application/service/build-project-service.js';
 import { NEVER_SAVED } from '../../../src/application/service/export-rules.js';
 import { GetBuildStatusService } from '../../../src/application/service/get-build-status-service.js';
 import { StopBuildService } from '../../../src/application/service/stop-build-service.js';
 import type { BuildMode, BuildRun, RunMode } from '../../../src/domain/build.js';
-import type { WorldMachineError } from '../../../src/domain/errors.js';
+import { WorldMachineError } from '../../../src/domain/errors.js';
+import type { Group } from '../../../src/domain/group.js';
 import {
   DEFAULT_PATHS,
   type ExportFakeOptions,
@@ -28,9 +30,16 @@ function buildFake(calls: string[], options: BuildFakeOptions = {}): BuildPort {
   return {
     current: () => run,
     awaitStart: async () => undefined,
-    start: async (mode) => {
-      calls.push(`start ${mode}`);
-      if (mode !== 'preview') run = { mode, startedAt: Date.now(), startedBy: 'server', state: 'running' };
+    start: async (mode, group) => {
+      calls.push(group === undefined ? `start ${mode}` : `start ${mode} #${group.index}`);
+      if (mode === 'preview') return;
+      // Spec v2b section 5: a group build runs as a full run.
+      run = {
+        mode: mode === 'tiled' ? 'tiled' : 'full',
+        startedAt: Date.now(),
+        startedBy: 'server',
+        state: 'running',
+      };
     },
     previewRunning: async () => {
       calls.push('build status');
@@ -48,10 +57,41 @@ function buildFake(calls: string[], options: BuildFakeOptions = {}): BuildPort {
   };
 }
 
+// raw/v2b-groups.txt l.16-24.
+const TERRAIN: Group = { index: 0, name: 'Create your Terrain', deviceCount: 6 };
+const WELCOME: Group = { index: 3, name: 'Welcome to World Machine!', deviceCount: 0 };
+
+/** A GroupPort that resolves the two groups above by name or index, recording its calls into `calls`. */
+function groupsFake(calls: string[]): GroupPort {
+  const unused = async (): Promise<never> => {
+    throw new Error('not used by the build service');
+  };
+  return {
+    list: unused,
+    setEnabled: unused,
+    resolve: async (reference) => {
+      calls.push(`resolve ${reference}`);
+      const group = [TERRAIN, WELCOME].find(
+        (candidate) => reference === `#${candidate.index}` || reference === candidate.name,
+      );
+      if (group === undefined) {
+        throw new WorldMachineError(
+          'REFUSED',
+          `No group '${reference}' in the current project; see list_groups`,
+        );
+      }
+      return group;
+    },
+  };
+}
+
 function building(build: BuildFakeOptions = {}, ports: ExportFakeOptions = {}) {
   const f = exportFakes(ports);
   const port = buildFake(f.calls, build);
-  return { ...f, service: new BuildProjectService(f.session, port, f.exports, f.graph, f.policy) };
+  return {
+    ...f,
+    service: new BuildProjectService(f.session, port, f.exports, f.graph, f.policy, groupsFake(f.calls)),
+  };
 }
 
 async function failure(promise: Promise<unknown>): Promise<WorldMachineError> {
@@ -190,7 +230,14 @@ describe('BuildProjectService (spec v2a section 4)', () => {
         return exclusive(action);
       },
     };
-    const service = new BuildProjectService(queued, buildFake(f.calls), f.exports, f.graph, f.policy);
+    const service = new BuildProjectService(
+      queued,
+      buildFake(f.calls),
+      f.exports,
+      f.graph,
+      f.policy,
+      groupsFake(f.calls),
+    );
     const abort = new AbortController();
     const view = service.buildProject({ mode: 'full', waitSeconds: 60, signal: abort.signal });
     abort.abort();
@@ -277,6 +324,106 @@ describe('BuildProjectService (spec v2a section 4)', () => {
   it('allows <res> in a folder name for a full build, which writes no files', async () => {
     const f = building({}, { targets: [{ device: 'Height Output', template: 'tiles-<res>/<name>.png' }] });
     expect((await f.service.buildProject({ mode: 'full', waitSeconds: 60 })).state).toBe('finished');
+  });
+});
+
+describe('BuildProjectService mode group (spec v2b section 3)', () => {
+  it('resolves the group, checks exportAlways, and starts it inside exclusive(), then waits outside', async () => {
+    const f = building();
+    expect(
+      await f.service.buildProject({ mode: 'group', group: 'Create your Terrain', waitSeconds: 60 }),
+    ).toEqual({ state: 'finished', mode: 'group', elapsedSeconds: 0, group: TERRAIN, session: SAVED });
+    expect(f.calls).toEqual([
+      'exclusive',
+      'resolve Create your Terrain',
+      'export list',
+      'exportAlways Height Output, Material Output, Colormap only, Splatmap',
+      'start group #0',
+      'exclusive end',
+      'wait group 60000',
+    ]);
+  });
+
+  it.each([
+    [
+      { mode: 'group' as const },
+      'build_project with mode group needs group: a group name or #<index> (see list_groups)',
+    ],
+    [{ mode: 'full' as const, group: '#0' }, 'group applies only to mode group, not to mode full'],
+    [{ mode: 'preview' as const, group: '#0' }, 'group applies only to mode group, not to mode preview'],
+  ])('refuses %j before anything is sent', async (input, message) => {
+    const f = building();
+    expect(await failure(f.service.buildProject({ ...input, waitSeconds: 60 }))).toMatchObject({
+      code: 'REFUSED',
+      message,
+    });
+    expect(f.calls).toEqual([]);
+  });
+
+  it('refuses a group without devices without starting it (decision D8)', async () => {
+    const f = building();
+    expect(
+      await failure(f.service.buildProject({ mode: 'group', group: '#3', waitSeconds: 60 })),
+    ).toMatchObject({
+      code: 'REFUSED',
+      message: "Group #3 'Welcome to World Machine!' contains no devices, so there is nothing to build",
+    });
+    expect(f.calls).toEqual(['exclusive', 'resolve #3', 'exclusive end']);
+  });
+
+  it('returns running without a group when a group build is cancelled while it queued for exclusive()', async () => {
+    // Records the current behaviour only: the SDK sends no result for an aborted request, so no client sees this view.
+    const f = building();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const exclusive = f.session.exclusive;
+    const queued: typeof f.session = {
+      ...f.session,
+      exclusive: async (action) => {
+        await gate;
+        return exclusive(action);
+      },
+    };
+    const service = new BuildProjectService(
+      queued,
+      buildFake(f.calls),
+      f.exports,
+      f.graph,
+      f.policy,
+      groupsFake(f.calls),
+    );
+    const abort = new AbortController();
+    const view = service.buildProject({ mode: 'group', group: '#0', waitSeconds: 60, signal: abort.signal });
+    abort.abort();
+    release();
+    expect(await view).toEqual({ state: 'running', mode: 'group', elapsedSeconds: 0, session: SAVED });
+    expect(f.calls).toEqual(['exclusive', 'exclusive end']);
+  });
+
+  it('passes a refused group reference on without starting anything', async () => {
+    const f = building();
+    expect(
+      await failure(f.service.buildProject({ mode: 'group', group: 'missing', waitSeconds: 60 })),
+    ).toMatchObject({
+      code: 'REFUSED',
+      message: "No group 'missing' in the current project; see list_groups",
+    });
+    expect(f.calls).toEqual(['exclusive', 'resolve missing', 'exclusive end']);
+  });
+
+  it('checks every export target before a group build when an output has exportAlways set (assumption B5)', async () => {
+    const f = building({}, { session: UNSAVED, exportAlways: ['Height Output'] });
+    expect(
+      await failure(f.service.buildProject({ mode: 'group', group: '#0', waitSeconds: 60 })),
+    ).toMatchObject({
+      code: 'REFUSED',
+      message:
+        "Save the project inside the allowed roots before a group build that writes outputs ('Height Output' has exportAlways set): " +
+        `${NEVER_SAVED}.`,
+    });
+    expect(f.calls).not.toContain('start group #0');
   });
 });
 

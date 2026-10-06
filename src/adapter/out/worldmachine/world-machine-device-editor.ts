@@ -5,7 +5,7 @@ import type { DeviceEnabledState, RenamedDevice } from '../../../domain/graph-ed
 import { buildCommand } from './command-builder.js';
 import { listAllDevices, lookUpDevice } from './device-lookup.js';
 import { assertReadableDeviceName, matchesListedName } from './device-reference.js';
-import { readBack, requireLine, requireMatch } from './edit-checks.js';
+import { readBack, requireLine, requireMatch, requireOnlyLine } from './edit-checks.js';
 import { parseDeviceInfo } from './parsers/device-info.js';
 import { parseDeviceList } from './parsers/device-list.js';
 import { unexpectedOutput } from './parsers/unexpected.js';
@@ -152,6 +152,15 @@ export class WorldMachineDeviceEditor implements DeviceEditPort {
       );
     }
     return target;
+  }
+
+  async organize(): Promise<void> {
+    const response = await this.#session.executeOne('device organize');
+    throwIfFailed(response);
+    // Fact 62: World Machine counts the new layout as an unsaved change.
+    this.#session.markDirty();
+    // raw/v2b-snapshots.txt l.261-262.
+    requireOnlyLine(response, 'Devices organized by processing order.', 'device organize');
   }
 
   /** `device rename #<id> <name>`, then the device's `device list` row, which must show the new name. */
