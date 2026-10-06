@@ -73,7 +73,9 @@ let nextId = firstFreeId(project);
 // prints its captured count and changes no device.
 const SAMPLE_GROUPS = [
   { name: 'Create your Terrain', count: 6, members: [2, 3, 35, 305, 314, 319] },
-  { name: 'Export Basics', count: 4, members: [] },
+  // raw/v2b-assumptions.txt l.159-169: a build of 'Export Basics' exports the File Output #1 whose exportAlways is
+  // set, so the group includes it; the builds of groups #0, #2, and #4 (l.143-200) do not export it.
+  { name: 'Export Basics', count: 4, members: [], exportsOutput: true },
   { name: 'Texture & View', count: 5, members: [] },
   { name: 'Welcome to World Machine!', count: 0, members: [] },
   { name: 'Material Maps', count: 2, members: [] },
@@ -125,6 +127,19 @@ let tiledConfirmationsOwed = 0;
 // the command named by FAKE_WM_GUI_BUILD_ON. Assumed (spec assumption A1): a window build prints the same lines as
 // one started from the console.
 let guiBuildStarted = false;
+// Facts 51 and 55: File Output #1's exportAlways; FAKE_WM_EXPORT_ALWAYS=1 sets it as if in the window, and
+// `param set #1.exportAlways <value>` sets it (raw/v2b-assumptions.txt l.123-124). Assumed: a project switch reads
+// it from FAKE_WM_EXPORT_ALWAYS again.
+let outputExportAlways = env.FAKE_WM_EXPORT_ALWAYS === '1';
+// Spec v2b fact 71 (raw/v2b-assumptions.txt l.159-162): with exportAlways set, a build that includes File Output #1
+// exports its file inside the start frame, after Starting. Assumed: a full build includes it and prints the same
+// line at the same place; no capture shows a full build with exportAlways set. The fake writes no file.
+const automaticExport = (group) => {
+  if (!outputExportAlways || (group !== undefined && !group.exportsOutput)) return;
+  const folder = savedPath === undefined ? '/fake-home/Documents/WorldMachine' : dirname(savedPath);
+  const name = savedPath === undefined ? 'New Project' : basename(savedPath).replace(/\.tmd$/i, '');
+  event(`Automatic export of file ${join(folder, `${name} Height Output-${FAKE_RESOLUTION}.png`)} succeeded`);
+};
 const event = (text) => out(`[Build Event] ${text}\n`);
 const later = (action) => setTimeout(action, LATE_MS);
 const trailer = () => {
@@ -190,6 +205,7 @@ const startFull = (group) => {
       event('Prohibiting system sleep');
       event('*** Build Starting ***');
       event('System allowed to sleep again');
+      automaticExport(group);
     });
   } else {
     // Assumed: no capture shows a start of one mode while a build of the other mode runs; the running build's own
@@ -200,6 +216,7 @@ const startFull = (group) => {
       event('Prohibiting system sleep');
       event('*** Build Starting ***');
       releaseTrailer();
+      automaticExport(group);
     });
   }
   build = { mode: 'full', group, timer: setTimeout(endBuild, BUILD_MS) };
@@ -215,6 +232,7 @@ const switchTo = (next) => {
   savedPath = undefined;
   sampleDisabled = new Set();
   snapshots = [];
+  outputExportAlways = env.FAKE_WM_EXPORT_ALWAYS === '1';
 };
 // Spec fact 30: the name is the type, without de-duplication (two `device add Gradient` give two devices named
 // 'Gradient'; `device add Erosion` gives 'Erosion', raw/p2b-kind-markers.txt). Captured exception,
@@ -473,6 +491,7 @@ async function handle(line) {
       target = `${selected.name}.${target}`;
     }
     dirty = true;
+    if (target === '#1.exportAlways' && project === 'sample') outputExportAlways = value === 'true';
     out(`Set ${target} = ${value.replace(/^"(.*)"$/, '$1')}\n`);
     return;
   }
@@ -608,7 +627,7 @@ async function handle(line) {
     // Material Output and Bitmap Outputs have none. FAKE_WM_EXPORT_ALWAYS=1 reads #1 as set in the window (fact 55).
     // Assumed: other ids are not modelled and get the unknown-command answer below.
     const [, id] = exportAlways;
-    if (id === '1') return void out(`#1.exportAlways = ${env.FAKE_WM_EXPORT_ALWAYS === '1'}\n`);
+    if (id === '1') return void out(`#1.exportAlways = ${outputExportAlways}\n`);
     if (['308', '309', '318'].includes(id)) {
       return void process.stderr.write(
         `Error: Error: Parameter 'exportAlways' not found on device '#${id}'.\n`,

@@ -37,6 +37,14 @@ describe('nextBuildState (spec v2a section 3)', () => {
     expect(isRunning(ended)).toBe(false);
   });
 
+  it('changes no run on an other event, such as an automatic export (spec v2b fact 71)', () => {
+    const running = apply({ ...NO_BUILD, pending: 'full' }, 'starting');
+    expect(apply(running, 'other')).toEqual(running);
+    const ending = apply(running, 'ended');
+    expect(apply(ending, 'other')).toEqual(ending);
+    expect(apply(NO_BUILD, 'other')).toEqual(NO_BUILD);
+  });
+
   it('ignores a build-started that no ended owes', () => {
     const running = apply({ ...NO_BUILD, pending: 'full' }, 'starting');
     expect(apply(running, 'build-started')).toEqual(running);

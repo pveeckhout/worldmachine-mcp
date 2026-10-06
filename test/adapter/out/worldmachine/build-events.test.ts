@@ -9,6 +9,7 @@ const TRANSCRIPTS = [
   'v2-build-isolate.txt',
   'v2-build-long.txt',
   'v2b-groups.txt',
+  'v2b-assumptions.txt',
 ] as const;
 
 function eventsOf(name: string): BuildEvent[] {
@@ -78,11 +79,33 @@ describe('parseBuildEvent (spec v2a section 5)', () => {
   });
 
   it.each([
+    // raw/v2b-assumptions.txt l.162 (spec v2b fact 71).
+    '[Build Event] Automatic export of file <WORK>/assume Height Output-257.png succeeded',
+    '[Build Event] Something else',
+    '[Build Event] ',
+  ])('classifies any other [Build Event] line %j as an ignored event (spec v2b fact 71)', (line) => {
+    expect(parseBuildEvent(line)).toBe('other');
+  });
+
+  it('reads the group builds of raw/v2b-assumptions.txt, the automatic export inside the start frame', () => {
+    const events = eventsOf('v2b-assumptions.txt');
+    expect(events.slice(5, 11)).toEqual([
+      'sleep-prohibited',
+      'starting',
+      'other',
+      'ended',
+      'sleep-allowed',
+      'group-build-started',
+    ]);
+    // l.214-226: the stopped group build prints no late line (spec v2b fact 72).
+    expect(events.slice(-4)).toEqual(['sleep-prohibited', 'starting', 'ended', 'sleep-allowed']);
+  });
+
+  it.each([
     'Preview build started.',
     'Build in progress...',
     'No build running.',
     'Stop requested.',
-    '[Build Event] Something else',
     ' Build started.',
     'Build started. ',
     '[Info       ] Closing current project',

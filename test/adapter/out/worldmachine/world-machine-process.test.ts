@@ -462,4 +462,27 @@ describe('WorldMachineProcess build events (spec v2a section 5)', () => {
     expect(start).toEqual({ command: 'build start', output: [], errors: [] });
     expect(events).toEqual(['build-started', 'sleep-prohibited', 'starting']);
   });
+
+  it('keeps any other [Build Event] line out of a pending frame (raw/v2b-assumptions.txt l.159-162, v2b fact 71)', async () => {
+    const { child, proc, logger } = await pipedProcess();
+    const events: string[] = [];
+    proc.onBuildEvent((event) => events.push(event));
+    const queue = new CommandQueue(proc, { timeoutMs: 2_000, nudgeMs: 0, newBatchId: () => 'b1' });
+    const pending = queue.execute(['group build #1']);
+    await waitUntil(() => child.stdin.readableLength > 0);
+    const exported = '[Build Event] Automatic export of file /work/assume Height Output-257.png succeeded';
+    child.stdout.write(
+      [
+        '[Build Event] Prohibiting system sleep',
+        '[Build Event] *** Build Starting ***',
+        exported,
+        "Error: Unknown command: '__end_b1_0'. Type 'help' for a list of commands.",
+        '',
+      ].join('\n'),
+    );
+    const [start] = await pending;
+    expect(start).toEqual({ command: 'group build #1', output: [], errors: [] });
+    expect(events).toEqual(['sleep-prohibited', 'starting', 'other']);
+    expect(logger.lines).toContain(`debug: World Machine build event: ${exported}`);
+  });
 });

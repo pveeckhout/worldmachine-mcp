@@ -59,6 +59,13 @@ describe('WorldMachineBuilder group builds (spec v2b sections 3 and 5)', () => {
     expect(build.current()).toBeUndefined();
   });
 
+  it('starts a group build whose start frame holds an automatic export (raw/v2b-assumptions.txt l.159-162, fact 71)', async () => {
+    const { build } = builder({ FAKE_WM_BUILD_MS: '200', FAKE_WM_EXPORT_ALWAYS: '1' });
+    await build.start('group', { index: 1, name: 'Export Basics', deviceCount: 4 });
+    expect(build.current()).toMatchObject({ mode: 'full', startedBy: 'server', state: 'running' });
+    expect(await build.waitForEnd('group', 5_000)).toBe(true);
+  });
+
   it('fails at once with UNEXPECTED_OUTPUT when the start frame holds a line, and forgets the expected start', async () => {
     const { build, session } = builder({}, { confirmMs: 5_000 });
     const started = Date.now();

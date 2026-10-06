@@ -6,7 +6,10 @@ export type BuildMode = 'preview' | 'full' | 'tiled' | 'group';
 /** The runs the tracker follows. A group build runs as a full run (spec v2b section 5, decision D6). */
 export type TrackedBuildMode = 'full' | 'tiled';
 
-/** The six unsolicited build lines of facts 43 and 48, and the late line of a group build (spec v2b fact 66). */
+/**
+ * The six unsolicited build lines of facts 43 and 48, the late line of a group build (spec v2b fact 66), and any other
+ * `[Build Event] ` line (`other`, such as an automatic export, spec v2b fact 71).
+ */
 export type BuildEvent =
   | 'sleep-prohibited'
   | 'starting'
@@ -14,7 +17,8 @@ export type BuildEvent =
   | 'sleep-allowed'
   | 'build-started'
   | 'tiled-started'
-  | 'group-build-started';
+  | 'group-build-started'
+  | 'other';
 
 export type BuildStarter = 'server' | 'world-machine';
 
@@ -126,6 +130,9 @@ export function nextBuildState(state: BuildState, event: BuildEvent, now: number
     }
     case 'tiled-started':
       // A late confirmation, printed after the tiled build ended (fact 48).
+      return state;
+    case 'other':
+      // Spec v2b fact 71: an automatic export, or any other build line, changes no run.
       return state;
     default: {
       // A new BuildEvent fails to compile here until it has a transition.

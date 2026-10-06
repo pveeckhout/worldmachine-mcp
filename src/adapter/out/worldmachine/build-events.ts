@@ -13,7 +13,15 @@ const EVENTS: ReadonlyMap<string, BuildEvent> = new Map([
 // Spec v2b fact 66 (raw/v2b-groups.txt l.283): a group build's late line, in place of `Build started.`.
 const GROUP_BUILD_STARTED = /^Building \d+ device\(s\) in group '.*'$/;
 
-/** The build event a line carries, or undefined. `Preview build started.` is a command answer, not an event. */
+const BUILD_EVENT_PREFIX = '[Build Event] ';
+
+/**
+ * The build event a line carries, or undefined. `Preview build started.` is a command answer, not an event. Any other
+ * `[Build Event] ` line, such as an automatic export (spec v2b fact 71), is an `other` event, so it never reaches a
+ * command frame.
+ */
 export function parseBuildEvent(line: string): BuildEvent | undefined {
-  return EVENTS.get(line) ?? (GROUP_BUILD_STARTED.test(line) ? 'group-build-started' : undefined);
+  const event = EVENTS.get(line) ?? (GROUP_BUILD_STARTED.test(line) ? 'group-build-started' : undefined);
+  if (event !== undefined) return event;
+  return line.startsWith(BUILD_EVENT_PREFIX) ? 'other' : undefined;
 }

@@ -508,6 +508,32 @@ describe('fake World Machine snapshots, organize, and groups (spec v2b facts 57-
     ]);
   });
 
+  it('exports Height Output in a group build that includes it when its exportAlways is set (fact 71)', async () => {
+    const { proc, stream, logger } = await streamed({ FAKE_WM_BUILD_MS: '100' });
+    // raw/v2b-assumptions.txt l.123-124 and l.159-169: group #1 'Export Basics' exports it, inside its start frame.
+    proc.write(['param set #1.exportAlways true']);
+    await waitUntil(() => stream.includes('Set #1.exportAlways = true'));
+    proc.write(['group build #1']);
+    await waitUntil(() => stream.includes('<group-build-started>'));
+    expect(stream.slice(1)).toEqual([
+      '<sleep-prohibited>',
+      '<starting>',
+      '<other>',
+      '<ended>',
+      '<sleep-allowed>',
+      '<group-build-started>',
+    ]);
+    expect(logger.lines).toContain(
+      'debug: World Machine build event: [Build Event] Automatic export of file ' +
+        '/fake-home/Documents/WorldMachine/New Project Height Output-2049.png succeeded',
+    );
+    // l.143-153: group #0 'Create your Terrain' does not include it.
+    stream.length = 0;
+    proc.write(['group build #0']);
+    await waitUntil(() => stream.includes('<group-build-started>'));
+    expect(stream).not.toContain('<other>');
+  });
+
   it('starts a group build as if from the World Machine window with FAKE_WM_GUI_BUILD=group', async () => {
     const { proc, stream } = await streamed({
       FAKE_WM_BUILD_MS: '100',
@@ -554,17 +580,18 @@ describe('fake World Machine snapshots, organize, and groups (spec v2b facts 57-
  * order. Commands go one per write; a test waits for an answer before the next.
  */
 async function streamed(extra: Record<string, string> = {}) {
+  const logger = captureLogger();
   const proc = await WorldMachineProcess.start({
     bin: FAKE_WM,
     readyTimeoutMs: 5_000,
-    logger: captureLogger(),
+    logger,
     env: fakeEnv(extra),
   });
   processes.push(proc);
   const stream: string[] = [];
   proc.onLine((line) => stream.push(line));
   proc.onBuildEvent((event) => stream.push(`<${event}>`));
-  return { proc, stream };
+  return { proc, stream, logger };
 }
 
 describe('fake World Machine builds and exports (spec v2a facts 42-50)', () => {
@@ -579,6 +606,21 @@ describe('fake World Machine builds and exports (spec v2a facts 42-50)', () => {
       '<sleep-allowed>',
       '<build-started>',
     ]);
+  });
+
+  it('exports Height Output in a full build when its exportAlways is set (assumed, as a group build does, fact 71)', async () => {
+    const { proc, stream, logger } = await streamed({ FAKE_WM_BUILD_MS: '100', FAKE_WM_EXPORT_ALWAYS: '1' });
+    proc.write(['build start']);
+    await waitUntil(() => stream.includes('<build-started>'));
+    expect(stream).toEqual([
+      '<sleep-prohibited>',
+      '<starting>',
+      '<other>',
+      '<ended>',
+      '<sleep-allowed>',
+      '<build-started>',
+    ]);
+    expect(logger.lines.filter((line) => line.includes('Automatic export'))).toHaveLength(1);
   });
 
   it('replaces a running full build in one frame (fact 45, raw/v2-build-long.txt l.56-60)', async () => {
