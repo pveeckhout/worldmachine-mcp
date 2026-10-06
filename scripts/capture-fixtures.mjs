@@ -789,6 +789,43 @@ const scenarios = [
   ['diag-group-stop-quit', () => diagnostic('group-stop')],
   ['diag-full-stop-quit', () => diagnostic('full-stop')],
   ['diag-export-twice', () => diagnostic('export-twice')],
+  [
+    // v2a A3 (export list with a device name over 20 characters) and A4 (what a failing build prints, if a file-input
+    // device type exists and fails without a file). Candidate type names are guesses; an unknown one prints `Device type
+    // not found` (fact 32). Default project at 257 in <WORK>. Ends closed (fact 19).
+    'v2a-a3-a4',
+    async () => {
+      const sections = [];
+      try {
+        const file = join(work, 'a3a4.tmd');
+        sections.push(
+          ...(await run(['project new default force', 'scene resolution 257', `project save ${file}`])),
+        );
+        await pollBuild(sections);
+        sections.push(
+          ...(await run([
+            'device rename #1 Height Output With A Long Name',
+            'device list',
+            'export list',
+            'device add File Input',
+            'device add Height File Input',
+            'device add Heightfield Input',
+            'device add Import',
+            'device add File Input Device',
+            'device list',
+          ])),
+        );
+        await pollBuild(sections);
+        await timed(sections, ['build start']);
+        sections.push(await waitForLine(/Build Ended/, 60_000));
+        sections.push(await waitForLine(/^Build started\.$/, 15_000));
+        sections.push(...(await run(['build status', 'export all', 'project close force'])));
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
 ];
 
 async function buildAndExport(sections, since) {

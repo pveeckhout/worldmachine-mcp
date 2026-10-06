@@ -1,0 +1,118 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 257
+Set scene resolution to 257
+<<<
+>>> project save <WORK>/a3a4.tmd
+Project saved to: <WORK>/a3a4.tmd
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> device rename #1 Height Output With A Long Name
+Renamed '#1' to 'Height Output With A Long Name'
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output With A Lo  (Height Output)
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> export list
+Configured exports:
+  'Height Output With A Lo' -> <project> <name>-<res>.png
+  'Material Output     ' -> <project> <name> <res>.png
+  'Colormap only       ' -> <project> <name> <res>.png
+  'Splatmap            ' -> <project> <name> <res>.png
+
+<<<
+>>> device add File Input
+Added 'File Input'
+<<<
+>>> device add Height File Input
+Error: Error: Device type not found: 'Height File Input'
+<<<
+>>> device add Heightfield Input
+Error: Error: Device type not found: 'Heightfield Input'
+<<<
+>>> device add Import
+Error: Error: Device type not found: 'Import'
+<<<
+>>> device add File Input Device
+Error: Error: Device type not found: 'File Input Device'
+<<<
+>>> device list
+Devices (18 total):
+  #1     Height Output With A Lo  (Height Output)
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   File Input              
+
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /Build Ended/: not seen after 60 s)
+[Info       ] QIODevice::read (QSslSocket): device not open
+Build started.
+<<<
+>>> (waited for /^Build started\.$/: not seen after 15 s)
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Successfully exported 4 file(s):
+  <WORK>/a3a4 Height Output With A Lo-257.png
+  <WORK>/a3a4 Material Output 257.png
+  <WORK>/a3a4 Colormap only 257.png
+  <WORK>/a3a4 Splatmap 257.png
+
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<
