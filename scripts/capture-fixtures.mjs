@@ -723,6 +723,50 @@ const scenarios = [
       return sections;
     },
   ],
+  [
+    // v2b: snapshot create, list, restore, and delete (names, duplicates, indexes, missing ones), whether a snapshot,
+    // a restore, or `device organize` counts as an unsaved change, whether undo reverts them, and whether snapshots
+    // persist in the saved .tmd. Default project at 257 in <WORK>. Ends closed (fact 19).
+    'v2b-snapshots',
+    async () => {
+      const sections = [];
+      try {
+        await snapshots(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
+    // v2b follow-up: what `snapshot restore` does to the graph, to later snapshots, to the unsaved state, and to
+    // undo. Default project at 257 in <WORK>. Ends closed (fact 19).
+    'v2b-snapshot-restore',
+    async () => {
+      const sections = [];
+      try {
+        await snapshotRestore(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
+    // v2b groups: list and filter, enable and disable by name and #index, what that does to each member device's
+    // own state, unsaved state, undo, missing and empty groups, and what `group build` prints and writes.
+    // Default project at 257 in <WORK>. Ends closed (fact 19).
+    'v2b-groups',
+    async () => {
+      const sections = [];
+      try {
+        await groups(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
 ];
 
 async function buildAndExport(sections, since) {
@@ -920,6 +964,181 @@ async function exportTiming(sections) {
   sections.push(await wait(3000));
   await timed(sections, ['export all']);
   await timed(sections, ['project close force']);
+}
+
+// Lists every file in <WORK> (names only), to see whether snapshots are written next to the project.
+function workFiles(sections, label) {
+  const names = readdirSync(work, { recursive: true }).map(String).sort();
+  sections.push({ command: `(files in <WORK> ${label})`, lines: names });
+}
+
+// A plain `project new default` is refused while the project has unsaved changes (v7-project-ops), so it shows
+// whether the previous command marked the project as changed. It is followed by reopening the saved project.
+async function dirtyProbe(sections, file) {
+  sections.push(...(await run(['project new default'])));
+  sections.push(...(await run([`project open ${file} force`])));
+}
+
+async function snapshots(sections) {
+  const file = join(work, 'snap.tmd');
+  sections.push(
+    ...(await run(['project new default force', 'scene resolution 257', `project save ${file}`])),
+  );
+  await pollBuild(sections);
+  workFiles(sections, 'after the first save');
+
+  sections.push(...(await run(['snapshot list', 'snapshots', 'snapshot create A', 'snapshot list'])));
+  workFiles(sections, 'after snapshot create A');
+  await dirtyProbe(sections, file);
+  sections.push(...(await run(['snapshot list'])));
+
+  sections.push(
+    ...(await run([
+      'snapshot create A',
+      `project save ${file}`,
+      'device disable Thermal Weathering',
+      'device list',
+      'snapshot create B with space',
+      'snapshot create A',
+      'snapshot create',
+      `snapshot create ${'n'.repeat(40)}`,
+      'snapshot list',
+    ])),
+  );
+
+  sections.push(
+    ...(await run([
+      'snapshot restore A',
+      'device list',
+      'snapshot list',
+      'project undo',
+      'device list',
+      'snapshot restore #0',
+      'device list',
+      'snapshot restore missing',
+      'snapshot restore #99',
+    ])),
+  );
+  sections.push(...(await run([`project save ${file}`, 'snapshot restore A'])));
+  await dirtyProbe(sections, file);
+
+  sections.push(
+    ...(await run(['snapshot list', 'project close force', `project open ${file} force`, 'snapshot list'])),
+  );
+
+  sections.push(
+    ...(await run([
+      'snapshot delete B with space',
+      'snapshot list',
+      'snapshot delete #0',
+      'snapshot list',
+      'snapshot delete missing',
+      'snapshot delete #99',
+    ])),
+  );
+
+  sections.push(...(await run([`project save ${file}`, 'device organize', 'device list'])));
+  await dirtyProbe(sections, file);
+  sections.push(...(await run(['device organize', 'project undo', 'device list'])));
+  workFiles(sections, 'at the end');
+  sections.push(...(await run(['project close force'])));
+}
+
+async function snapshotRestore(sections) {
+  const file = join(work, 'restore.tmd');
+  sections.push(
+    ...(await run(['project new default force', 'scene resolution 257', `project save ${file}`])),
+  );
+  await pollBuild(sections);
+  sections.push(
+    ...(await run([
+      'snapshot create S0',
+      `project save ${file}`,
+      'device disable Thermal Weathering',
+      'device add Gradient',
+      'snapshot create S1',
+      'device list',
+      'snapshot restore #0',
+      'device list',
+      'snapshot list',
+    ])),
+  );
+  await dirtyProbe(sections, file);
+  sections.push(
+    ...(await run([
+      'device list',
+      'snapshot list',
+      'device disable Thermal Weathering',
+      'snapshot restore #0',
+      'device list',
+      'project undo',
+      'device list',
+      'project undo',
+      'device list',
+      'project redo',
+      'device list',
+      'project close force',
+    ])),
+  );
+}
+
+async function groups(sections) {
+  const file = join(work, 'groups.tmd');
+  sections.push(
+    ...(await run(['project new default force', 'scene resolution 257', `project save ${file}`])),
+  );
+  await pollBuild(sections);
+  sections.push(...(await run(['group list', 'group list Export', 'group list nomatch'])));
+
+  sections.push(...(await run(['group disable Create your Terrain', 'device list', 'group list'])));
+  await dirtyProbe(sections, file);
+  sections.push(
+    ...(await run([
+      'group disable #0',
+      'device list',
+      'project undo',
+      'device list',
+      'project redo',
+      'device list',
+    ])),
+  );
+  sections.push(...(await run([`project open ${file} force`])));
+
+  sections.push(
+    ...(await run([
+      'device disable Thermal Weathering',
+      'device disable Erosion',
+      'device list',
+      'group disable #0',
+      'device list',
+      'group enable #0',
+      'device list',
+      'group enable Texture & View',
+      'device list',
+    ])),
+  );
+
+  sections.push(
+    ...(await run([
+      'group disable missing',
+      'group enable #99',
+      'group disable Welcome to World Machine!',
+      'group enable create your terrain',
+    ])),
+  );
+
+  sections.push(...(await run([`project open ${file} force`])));
+  await pollBuild(sections);
+  const since = Date.now();
+  await timed(sections, ['group build #0']);
+  sections.push(await wait(3000));
+  await timed(sections, ['build status']);
+  sections.push(await wait(3000));
+  filesSince(sections, since, 'by group build #0');
+  await timed(sections, ['export all']);
+  await timed(sections, ['group build missing']);
+  sections.push(await wait(2000));
+  sections.push(...(await run(['project close force'])));
 }
 
 // `npm run capture-fixtures -- <name> ...` captures only the named scenarios (system info always runs first).

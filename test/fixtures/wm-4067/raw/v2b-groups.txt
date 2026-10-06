@@ -1,0 +1,309 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 257
+Set scene resolution to 257
+<<<
+>>> project save <WORK>/groups.tmd
+Project saved to: <WORK>/groups.tmd
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> group list
+Groups (5 total):
+  [#0] Create your Terrain      (6 devices)
+  [#1] Export Basics            (4 devices)
+  [#2] Texture & View           (5 devices)
+  [#3] Welcome to World Machine! (0 devices)
+  [#4] Material Maps            (2 devices)
+
+<<<
+>>> group list Export
+Groups (5 total):
+  [#1] Export Basics            (4 devices)
+
+<<<
+>>> group list nomatch
+Groups (5 total):
+  (no matches)
+<<<
+>>> group disable Create your Terrain
+Disabled 6 device(s) in group 'Create your Terrain'
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin          [disabled]
+  #3     Curves                   [disabled]
+  #35    Erosion                  [disabled]
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering       [disabled]
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure         [disabled]
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro) [disabled]
+  #373   Rock and Soil           
+
+<<<
+>>> group list
+Groups (5 total):
+  [#0] Create your Terrain      (6 devices)
+  [#1] Export Basics            (4 devices)
+  [#2] Texture & View           (5 devices)
+  [#3] Welcome to World Machine! (0 devices)
+  [#4] Material Maps            (2 devices)
+
+<<<
+>>> project new default
+Error: Error: Project has unsaved changes. Use 'project save' first or 'project new force'.
+<<<
+>>> project open <WORK>/groups.tmd force
+Opened: <WORK>/groups.tmd
+[Info       ] Open Project from file
+[Info       ] Closing current project
+<<<
+>>> group disable #0
+Disabled 6 device(s) in group 'Create your Terrain'
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin          [disabled]
+  #3     Curves                   [disabled]
+  #35    Erosion                  [disabled]
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering       [disabled]
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure         [disabled]
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro) [disabled]
+  #373   Rock and Soil           
+
+<<<
+>>> project undo
+Undo performed.
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> project redo
+Redo performed.
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin          [disabled]
+  #3     Curves                   [disabled]
+  #35    Erosion                  [disabled]
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering       [disabled]
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure         [disabled]
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro) [disabled]
+  #373   Rock and Soil           
+
+<<<
+>>> project open <WORK>/groups.tmd force
+Opened: <WORK>/groups.tmd
+[Info       ] Open Project from file
+[Info       ] Closing current project
+<<<
+>>> device disable Thermal Weathering
+Disabled: Thermal Weathering
+<<<
+>>> device disable Erosion
+Disabled: Erosion
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                  [disabled]
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering       [disabled]
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> group disable #0
+Disabled 6 device(s) in group 'Create your Terrain'
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin          [disabled]
+  #3     Curves                   [disabled]
+  #35    Erosion                  [disabled]
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering       [disabled]
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure         [disabled]
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro) [disabled]
+  #373   Rock and Soil           
+
+<<<
+>>> group enable #0
+Enabled 6 device(s) in group 'Create your Terrain'
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> group enable Texture & View
+Enabled 5 device(s) in group 'Texture & View'
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> group disable missing
+Error: Error: Group not found: 'missing'
+<<<
+>>> group enable #99
+Error: Error: Invalid group index: #99 (valid range: #0 - #4)
+<<<
+>>> group disable Welcome to World Machine!
+Group 'Welcome to World Machine!' contains no devices.
+<<<
+>>> group enable create your terrain
+Enabled 6 device(s) in group 'Create your Terrain'
+<<<
+>>> project open <WORK>/groups.tmd force
+Opened: <WORK>/groups.tmd
+[Info       ] Open Project from file
+[Info       ] Closing current project
+<<<
+>>> (waited 1000 ms)
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> build status
+No build running.
+<<<
+>>> group build #0
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 3000 ms)
+[Build Event] System allowed to sleep again
+Building 6 device(s) in group 'Create your Terrain'
+<<<
+>>> build status
+No build running.
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 3000 ms)
+<<<
+>>> (output files written by group build #0)
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (batch took 0 s)
+<<<
+>>> group build missing
+Error: Error: Group not found: 'missing'
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<

@@ -1,0 +1,327 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 257
+Set scene resolution to 257
+<<<
+>>> project save <WORK>/snap.tmd
+Project saved to: <WORK>/snap.tmd
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> (files in <WORK> after the first save)
+dir with space
+snap.tmd
+<<<
+>>> snapshot list
+No snapshots.
+<<<
+>>> snapshots
+No snapshots.
+<<<
+>>> snapshot create A
+Created snapshot 'A'
+<<<
+>>> snapshot list
+Snapshots (1 total):
+  [#0] 'A' - 2026-10-06 11:09
+
+<<<
+>>> (files in <WORK> after snapshot create A)
+dir with space
+snap.tmd
+<<<
+>>> project new default
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> project open <WORK>/snap.tmd force
+Opened: <WORK>/snap.tmd
+[Info       ] Open Project from file
+[Info       ] Closing current project
+<<<
+>>> snapshot list
+No snapshots.
+<<<
+>>> snapshot create A
+Created snapshot 'A'
+<<<
+>>> project save <WORK>/snap.tmd
+Project saved to: <WORK>/snap.tmd
+<<<
+>>> device disable Thermal Weathering
+Disabled: Thermal Weathering
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering       [disabled]
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> snapshot create B with space
+Created snapshot 'B with space'
+<<<
+>>> snapshot create A
+Created snapshot 'A'
+<<<
+>>> snapshot create
+Error: Error: Usage: snapshot create <name>
+<<<
+>>> snapshot create nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn
+Created snapshot 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn'
+<<<
+>>> snapshot list
+Snapshots (4 total):
+  [#0] 'A' - 2026-10-06 11:09
+  [#1] 'B with space' - 2026-10-06 11:09
+  [#2] 'A' - 2026-10-06 11:09
+  [#3] 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' - 2026-10-06 11:09
+
+<<<
+>>> snapshot restore A
+Error: Error: Multiple snapshots match 'A':
+  [#0] 'A'
+  [#2] 'A'
+Use #index to specify which one.
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering       [disabled]
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> snapshot list
+Snapshots (4 total):
+  [#0] 'A' - 2026-10-06 11:09
+  [#1] 'B with space' - 2026-10-06 11:09
+  [#2] 'A' - 2026-10-06 11:09
+  [#3] 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' - 2026-10-06 11:09
+
+<<<
+>>> project undo
+Undo performed.
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> snapshot restore #0
+Restored snapshot [#0] 'A'
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> snapshot restore missing
+Error: Error: Snapshot not found: 'missing'
+<<<
+>>> snapshot restore #99
+Error: Error: Invalid snapshot index: #99 (valid range: #0 - #3)
+<<<
+>>> project save <WORK>/snap.tmd
+Project saved to: <WORK>/snap.tmd
+<<<
+>>> snapshot restore A
+Error: Error: Multiple snapshots match 'A':
+  [#0] 'A'
+  [#2] 'A'
+Use #index to specify which one.
+<<<
+>>> project new default
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> project open <WORK>/snap.tmd force
+Opened: <WORK>/snap.tmd
+[Info       ] Open Project from file
+[Info       ] QIODevice::read (QSslSocket): device not open
+[Info       ] Closing current project
+<<<
+>>> snapshot list
+Snapshots (4 total):
+  [#0] 'A' - 2026-10-06 11:09
+  [#1] 'B with space' - 2026-10-06 11:09
+  [#2] 'A' - 2026-10-06 11:09
+  [#3] 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' - 2026-10-06 11:09
+
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<
+>>> project open <WORK>/snap.tmd force
+Opened: <WORK>/snap.tmd
+[Info       ] Open Project from file
+[Info       ] Closing current project
+<<<
+>>> snapshot list
+Snapshots (4 total):
+  [#0] 'A' - 2026-10-06 11:09
+  [#1] 'B with space' - 2026-10-06 11:09
+  [#2] 'A' - 2026-10-06 11:09
+  [#3] 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' - 2026-10-06 11:09
+
+<<<
+>>> snapshot delete B with space
+Deleted snapshot [#1] 'B with space'
+<<<
+>>> snapshot list
+Snapshots (3 total):
+  [#0] 'A' - 2026-10-06 11:09
+  [#1] 'A' - 2026-10-06 11:09
+  [#2] 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' - 2026-10-06 11:09
+
+<<<
+>>> snapshot delete #0
+Deleted snapshot [#0] 'A'
+<<<
+>>> snapshot list
+Snapshots (2 total):
+  [#0] 'A' - 2026-10-06 11:09
+  [#1] 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' - 2026-10-06 11:09
+
+<<<
+>>> snapshot delete missing
+Error: Error: Snapshot not found: 'missing'
+<<<
+>>> snapshot delete #99
+Error: Error: Invalid snapshot index: #99 (valid range: #0 - #1)
+<<<
+>>> project save <WORK>/snap.tmd
+Project saved to: <WORK>/snap.tmd
+<<<
+>>> device organize
+Devices organized by processing order.
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> project new default
+Error: Error: Project has unsaved changes. Use 'project save' first or 'project new force'.
+<<<
+>>> project open <WORK>/snap.tmd force
+Opened: <WORK>/snap.tmd
+[Info       ] Open Project from file
+[Info       ] Closing current project
+<<<
+>>> device organize
+Devices organized by processing order.
+<<<
+>>> project undo
+Undo performed.
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> (files in <WORK> at the end)
+dir with space
+snap.tmd
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<
