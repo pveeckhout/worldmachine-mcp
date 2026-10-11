@@ -281,23 +281,61 @@ const SHAPES = {
     parameters: [
       ['Direction', 'int', '0'],
       ['Width', 'float', '8 km'],
-      ['Tiling', 'enum', 'Clamp'],
+      // raw/p2c-edits.txt: index 1 reads `Mirrored Repeat`, the range is 0-2. Assumed: the third option's label.
+      ['Tiling', 'enum', 'Clamp', ['Clamp', 'Mirrored Repeat', 'Repeat']],
     ],
   },
   Combiner: {
     inputs: ['Primary Input', 'Primary Input'],
     parameters: [
-      ['Method', 'enum', 'Average'],
+      ['Method', 'enum', 'Average', ['Average', 'Add', 'Subtract']],
       ['Strength', 'float', '0.5'],
       ['Clamp', 'bool', 'true'],
     ],
   },
 };
 const OTHER_SHAPE = { inputs: ['Primary Input'], parameters: [] };
-// Assumed: World Machine shows a bool as true or false. Any other value is kept as sent, so the fake shows no display
-// units for a float (fact 18) and no label for an enum index.
-const shownValue = (type, text) =>
-  type === 'bool' ? String(['true', '1', 'yes', 'on'].includes(text.toLowerCase())) : text;
+// Backlog item 49: World Machine's checks on a value for a parameter of an added device. raw/v6b-param-set.txt
+// l.96-118 and l.177-178 (rejections), raw/p2c-edits.txt l.182-240 (exponent and leading-dot floats, enum labels in any
+// case, the out-of-range index text), raw/v6b-param-set.txt l.126-157 (bool words in any case). Assumed: the text of a
+// rejected bool word, which no capture shows. Returns the error line, or undefined for an accepted value.
+const BOOL_WORDS = ['true', 'false', '1', '0', 'yes', 'no', 'on', 'off'];
+const rejection = (parameter, text) => {
+  switch (parameter.type) {
+    case 'float':
+      return /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(text)
+        ? undefined
+        : `Invalid float value: ${text}`;
+    case 'int':
+      return /^-?\d+$/.test(text) ? undefined : `Invalid integer value: ${text}`;
+    case 'bool':
+      return BOOL_WORDS.includes(text.toLowerCase()) ? undefined : `Invalid bool value: ${text}`;
+    case 'enum': {
+      const options = parameter.options ?? [];
+      if (/^\d+$/.test(text)) {
+        return Number(text) < options.length
+          ? undefined
+          : `Enum index out of range (0-${options.length - 1}): ${text}`;
+      }
+      return options.some((option) => option.toLowerCase() === text.toLowerCase())
+        ? undefined
+        : `Invalid enum value: ${text}`;
+    }
+    default:
+      return undefined;
+  }
+};
+// raw/p2c-edits.txt (fact 35): an enum shows its label, given as an index or as a label in any case. Assumed: a bool
+// shows true or false; a float keeps the text sent, so the fake shows no display units (fact 18).
+const shownValue = (parameter, text) => {
+  if (parameter.type === 'bool') return String(['true', '1', 'yes', 'on'].includes(text.toLowerCase()));
+  if (parameter.type === 'enum' && parameter.options) {
+    return /^\d+$/.test(text)
+      ? parameter.options[Number(text)]
+      : parameter.options.find((option) => option.toLowerCase() === text.toLowerCase());
+  }
+  return text;
+};
 // raw/p2a-edge-cases.txt l.59-64: the header names the device and its type; rows pad the name to 26 and the type to 10.
 const paramList = (device) =>
   `Parameters for '${device.name}' (${device.type}):\n${device.parameters
@@ -566,8 +604,8 @@ async function handle(line) {
   }
   if (command.startsWith('param set ')) {
     // raw/v6b-param-set.txt l.54-61 and l.195-196: World Machine drops the quotes around a reference or a value.
-    // Assumed: any `<device>.<param>` reference is echoed as a success, an unknown device or parameter included;
-    // no capture shows World Machine's answer for those.
+    // An added device's parameter is checked as World Machine checks it (backlog item 49). Assumed: a reference to a
+    // device the fake does not model (the sample project's own devices) is echoed as a success.
     const args = command.slice('param set '.length);
     let target;
     let value;
@@ -590,14 +628,21 @@ async function handle(line) {
       // Assumed text: no capture shows World Machine rejecting a value of a settable type this way.
       return void process.stderr.write(`Error: Error: Invalid value for '${target}'\n`);
     }
-    dirty = true;
-    if (target === '#1.exportAlways' && project === 'sample') outputExportAlways = value === 'true';
     const shown = value.replace(/^"(.*)"$/, '$1');
     const dot = target.indexOf('.');
-    const parameter = findAdded(target.slice(0, dot))?.parameters.find(
-      (p) => p.name === target.slice(dot + 1),
-    );
-    if (parameter !== undefined) parameter.value = shownValue(parameter.type, shown);
+    const device = findAdded(target.slice(0, dot));
+    const parameter = device?.parameters.find((p) => p.name === target.slice(dot + 1));
+    if (device !== undefined && parameter === undefined) {
+      // raw/p2c-edits.txt: names are case-sensitive (`#1.width` is not found).
+      return void process.stderr.write(
+        `Error: Error: Parameter '${target.slice(dot + 1)}' not found on device '${target.slice(0, dot)}'.\n`,
+      );
+    }
+    const problem = parameter === undefined ? undefined : rejection(parameter, shown);
+    if (problem !== undefined) return void process.stderr.write(`Error: Error: ${problem}\n`);
+    dirty = true;
+    if (target === '#1.exportAlways' && project === 'sample') outputExportAlways = value === 'true';
+    if (parameter !== undefined) parameter.value = shownValue(parameter, shown);
     out(`Set ${target} = ${shown}\n`);
     return;
   }
@@ -623,10 +668,11 @@ async function handle(line) {
       type: name,
       enabled: true,
       inputs: shape.inputs,
-      parameters: shape.parameters.map(([parameter, kind, value]) => ({
+      parameters: shape.parameters.map(([parameter, kind, value, options]) => ({
         name: parameter,
         type: kind,
         value,
+        ...(options ? { options } : {}),
       })),
     };
     added.push(device);

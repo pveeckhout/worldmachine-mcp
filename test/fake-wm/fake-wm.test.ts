@@ -967,3 +967,59 @@ describe('fake World Machine: parameters and wires of added devices (spec v3 sec
     ]);
   });
 });
+
+describe('fake World Machine: param set values on added devices (backlog item 49)', () => {
+  it('rejects the values World Machine rejects and keeps the old value (raw/v6b-param-set.txt)', async () => {
+    const s = session();
+    await s.execute(['project new blank force', 'device add Gradient']);
+    expect(
+      await outputs(s, [
+        'param set #1.Width 1.5 km',
+        'param set #1.Width 1,5',
+        'param get #1.Width',
+        'param set #1.Direction 3.0',
+        'param set #1.Direction 0.5',
+        'param get #1.Direction',
+        'param set #1.Tiling invalid-enum-value',
+        'param set #1.Tiling 99',
+        'param get #1.Tiling',
+        'param set #1.width 1',
+      ]),
+    ).toEqual([
+      ['Error: Error: Invalid float value: 1.5 km'],
+      ['Error: Error: Invalid float value: 1,5'],
+      ['#1.Width = 8 km'],
+      ['Error: Error: Invalid integer value: 3.0'],
+      ['Error: Error: Invalid integer value: 0.5'],
+      ['#1.Direction = 0'],
+      ['Error: Error: Invalid enum value: invalid-enum-value'],
+      ['Error: Error: Enum index out of range (0-2): 99'],
+      ['#1.Tiling = Clamp'],
+      ["Error: Error: Parameter 'width' not found on device '#1'."],
+    ]);
+  });
+
+  it('accepts the forms World Machine accepts and shows an enum by its label (raw/p2c-edits.txt)', async () => {
+    const s = session();
+    await s.execute(['project new blank force', 'device add Gradient']);
+    expect(
+      await outputs(s, [
+        'param set #1.Width .5',
+        'param set #1.Width 1e-1',
+        'param set #1.Direction -1',
+        'param set #1.Tiling 1',
+        'param get #1.Tiling',
+        'param set #1.Tiling clamp',
+        'param get #1.Tiling',
+      ]),
+    ).toEqual([
+      ['Set #1.Width = .5'],
+      ['Set #1.Width = 1e-1'],
+      ['Set #1.Direction = -1'],
+      ['Set #1.Tiling = 1'],
+      ['#1.Tiling = Mirrored Repeat'],
+      ['Set #1.Tiling = clamp'],
+      ['#1.Tiling = Clamp'],
+    ]);
+  });
+});
