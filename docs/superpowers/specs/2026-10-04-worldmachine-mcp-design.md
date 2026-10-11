@@ -299,7 +299,7 @@ All tools declare `inputSchema` and `outputSchema`; a tool without arguments dec
 
 Devices are referenced by name or by `#<id>`. There is no raw console tool.
 
-Bypass is reported (`get_device`, `list_devices`) but not settable: `device bypass` toggles (fact 25), and v1 has no bypass tool. `list_devices` omits it for a disabled device (fact 29), so `get_device` is the authority.
+Bypass is reported (`get_device`, `list_devices`); v1 had no bypass tool because `device bypass` toggles (fact 25). `list_devices` omits it for a disabled device (fact 29), so `get_device` is the authority. Added 2026-10-12: `set_device_bypassed` sets it, reading the state with `device info` first and sending `device bypass` only when the device is not already in the requested state, confirmed by `Set bypass: #<id>` or `Removed bypass: #<id>` (`raw/p2b-graph-edits.txt` l.74-95).
 
 `update_device_parameters` reads `param list` first, validates every name and value against the reported type, and refuses the whole call if any item is invalid. It then applies all items in one batch, each `param set` followed by a `param get` of the same parameter, and reports per item the outcome and the value World Machine read back. Commands reference the device as `#<id>` (fact 18). Its description tells the model that numeric values are World Machine's internal values and that the read-back value shows the effect in display units. `filename`, `action`, and `other` parameters are refused (fact 36 and section 9). There is no automatic rollback; failure results point to `undo`.
 

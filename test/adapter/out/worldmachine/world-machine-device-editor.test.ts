@@ -337,6 +337,36 @@ describe('WorldMachineDeviceEditor.setDeviceBypassed', () => {
     expect(s.dirtyMarks()).toBe(1);
   });
 
+  it('sends no `device bypass` when bypass is requested on an already bypassed device', async () => {
+    const { session, editor: e, record } = editor();
+    await e.addDevice('Gradient');
+    await e.setDeviceBypassed('#536', true);
+    session.bind({ kind: 'fresh' });
+    expect(await e.setDeviceBypassed('#536', true)).toEqual({
+      device: { id: 536, name: 'Gradient' },
+      bypassed: true,
+      changed: false,
+    });
+    // Only the first call's toggle is in the record.
+    expect(sent(record).filter((line) => line.startsWith('device bypass'))).toEqual(['device bypass #536']);
+    expect(session.status().session.dirty).toBe(false);
+  });
+
+  it('reports a wrong-direction confirmation as UNEXPECTED_OUTPUT', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: ONE_GRADIENT }],
+      'device select #1': [{ output: ['Selected: Gradient'] }, { output: ['Selected: Gradient'] }],
+      'device info': [{ output: info('yes', 'no') }, { output: info('yes', 'yes') }],
+      // raw/p2b-graph-edits.txt l.94-95 is the confirmation for removing bypass; here bypass is being set (Assumed).
+      'device bypass #1': [{ output: ['Removed bypass: #1'] }],
+    });
+    await expect(new WorldMachineDeviceEditor(s.session).setDeviceBypassed('#1', true)).rejects.toMatchObject(
+      {
+        code: 'UNEXPECTED_OUTPUT',
+      },
+    );
+  });
+
   it('reports a read-back that disagrees with the request as WM_COMMAND_FAILED', async () => {
     const s = scriptedSession({
       'device list': [{ output: ONE_GRADIENT }],

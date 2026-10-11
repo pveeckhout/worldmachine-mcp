@@ -98,28 +98,7 @@ export class WorldMachineDeviceEditor implements DeviceEditPort {
     const select = requireFrame(responses[1]);
     const info = requireFrame(responses[2]);
     throwIfFailed(command);
-    const after = readBack(this.#session, () => {
-      throwIfFailed(select);
-      throwIfFailed(info);
-      // raw/p2b-graph-edits.txt l.37-38: `device select` echoes the name, not the reference. Both it and `device info`
-      // must name the target, or the state read back is another device's. Names are compared by their listed form
-      // (spec fact 33, ruling K4').
-      const selected = requireMatch(select, SELECTED, 'device select')[1] ?? '';
-      const state = parseDeviceInfo(info.output);
-      for (const [verbed, reported] of [
-        ['selected', selected],
-        ['reported', state.name],
-      ] as const) {
-        if (!matchesListedName(reported, target.name)) {
-          throw new WorldMachineError(
-            'UNEXPECTED_OUTPUT',
-            `Expected ${ref} ('${target.name}'), but World Machine ${verbed} '${reported}'`,
-            [...select.output, ...info.output].slice(0, 20).join('\n'),
-          );
-        }
-      }
-      return state;
-    });
+    const after = readBack(this.#session, () => this.#readSelected(select, info, ref, target.name));
     // `device list` shows `[disabled]` reliably (spec facts 24 and 29), so it is the state before.
     const changed = after.enabled !== target.enabled;
     if (changed) this.#session.markDirty();
