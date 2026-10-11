@@ -3,8 +3,9 @@
 Date: 2026-10-06
 Status: draft, awaiting review
 Revision 1 (2026-10-11): facts 78-79 from raw/v3-assumptions.txt; C1 holds, C2 does not (type mapping in fact 79).
-Revision 2 (2026-10-11): plan decisions D1, D6, D7, D8
+Revision 2 (2026-10-11): plan decisions D1, D6, D7, D8.
 Revision 3 (2026-10-11): facts 80-81 from raw/v3-rename-probe.txt and raw/v3-rename-types.txt (only a Combiner ignores a rename; `device add` also accepts aliases).
+Revision 4 (2026-10-12): section 6 robustness: `diffError` when the result cannot be read after a successful apply, a restore after an internal error, and a process generation in the session check; the plan and diff examples show step ids (D8) and the defined step order.
 Builds on: [v1 design](2026-10-04-worldmachine-mcp-design.md) (facts 1-41 and 77, the edit tools of section 7, the errors of section 8), [v2a design](2026-10-05-worldmachine-mcp-v2a-design.md) (the build guard), and [v2b design](2026-10-06-worldmachine-mcp-v2b-design.md) (facts 57-61, the snapshot tools)
 
 ## 1. Purpose and scope
@@ -81,7 +82,7 @@ Refused with `REFUSED`, nothing sent:
 - a name that is empty, longer than 23 characters, starts or ends with a space, or has the form `#<n>`;
 - two `devices` entries whose names are equal regardless of case; a name in both `devices` and `remove`;
 - a port number that is not a positive integer; a source string that does not parse;
-- a name that ends in `[disabled]` or `[bypassed]`, or that has two spaces followed by parenthesised text (as `add_device` refuses); an empty name; a `remove` entry listed twice;
+- a name that ends in `[disabled]` or `[bypassed]`, or that has two spaces followed by parenthesised text (as `add_device` refuses); a `remove` entry listed twice;
 - a `remove` entry that is not a `#<id>` reference and breaks a device name rule (longer than 23 characters, starts or ends with whitespace, ends in a marker or a kind suffix, or has the form `#<n>`), because World Machine keeps 23 characters of a name and `device list` trims names, so such an entry never matches and would be reported as already absent while the device stays;
 - the `exportAlways` parameter, and a number written in exponent form (v1 section 9).
 
@@ -146,11 +147,13 @@ A spec applied twice in a row therefore plans only its `comparable: false` steps
   "planId": "3f9a…",
   "conflicts": [],
   "steps": [
+    { "op": "disconnect", "device": "Eroded", "id": 20, "port": 1, "from": "Old.1",
+      "source": { "device": "Old", "id": 12, "port": 1 } },
     { "op": "add", "device": "Base", "type": "Advanced Perlin" },
     { "op": "set-parameter", "device": "Base", "name": "scale", "to": "0.4", "comparable": false },
-    { "op": "set-parameter", "device": "Eroded", "name": "steps", "from": "4", "to": "6", "comparable": true },
-    { "op": "disconnect", "device": "Eroded", "port": 1, "from": "Old.1" },
-    { "op": "connect", "device": "Eroded", "port": 1, "from": "Base.1" }
+    { "op": "set-parameter", "device": "Eroded", "id": 20, "name": "steps", "from": "4", "to": "6", "comparable": true },
+    { "op": "connect", "device": "Eroded", "id": 20, "port": 1, "from": "Base.1",
+      "source": { "device": "Base", "port": 1 } }
   ],
   "unchanged": ["Shape"],
   "session": { "state": "ready", "dirty": false }
@@ -226,7 +229,7 @@ After success, the referenced devices are read back:
       "after": { "id": 536, "type": "Advanced Perlin", "enabled": true,
                  "parameters": { "scale": "4 km" }, "inputs": { "1": "Shape.1" } } },
     { "device": "Old Noise", "change": "removed", "before": { "id": 12, "type": "Perlin Noise" } },
-    { "device": "Eroded", "change": "changed",
+    { "device": "Eroded", "change": "changed", "id": 20,
       "parameters": { "steps": { "before": "4", "after": "6" } },
       "inputs": { "1": { "before": "Old.1", "after": "Base.1" } } }
   ],

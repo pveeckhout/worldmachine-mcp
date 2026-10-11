@@ -171,7 +171,7 @@ Snapshots, layout, and groups:
 - Conflicts include a name that several devices share (a wire source too), a device of another type than the spec's, an unknown port or parameter, and, for an existing device, a value its parameter type refuses. For a device the plan adds, a wrong port or value fails during the apply and is rolled back.
 - Floats and enums are always planned with `comparable: false`, because World Machine shows display units and labels but takes internal values and indexes, so the current value cannot be compared. Spec values for an enum are indexes; labels are refused. Applying the same spec twice therefore plans only these steps the second time.
 - Steps run under the snapshot `apply_graph <12 hex>`. A failed step restores it and returns `APPLY_FAILED` with `rolledBack`, the failed step, and the completed steps. After a crash or timeout nothing is restored and the snapshot is gone, since snapshots live in memory until `save_project`. A successful apply deletes the snapshot unless `keep_snapshot` is true, and returns a diff of the devices it touched.
-- After a rolled-back apply the snapshot is kept. Retrying the same spec gives the same `planId` and is refused while that snapshot exists; remove it with `delete_snapshot`, then retry.
+- After a failed apply the snapshot is kept: restored to (`rolledBack: true`), or left for you when the restore could not be confirmed. Retrying the same spec gives the same `planId` and is refused while that snapshot exists; inspect or restore it, remove it with `delete_snapshot`, then retry.
 - A running full, tiled, or group build refuses an apply. `undo` does not revert an apply in one step; the snapshot does.
 
 ## What the MCP can and cannot set up
