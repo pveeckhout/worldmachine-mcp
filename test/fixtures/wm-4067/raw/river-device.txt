@@ -1,0 +1,561 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> device add River
+Added 'River'
+<<<
+>>> device list
+Devices (18 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   River                   
+
+<<<
+>>> param list #536
+Parameters for 'River' (River):
+  Sinuosity                 float     0.0
+  Channel Gradient          float     0.0
+  Planform Type             enum      Simple Alignment
+  Reach Heading             int       0
+  Reach Length              float     8 km
+  Reach Elevation Datum     float     800 m
+  Reach Slope               float     0.02
+  Layout Alignment Uses Datum  bool      false
+  Draw Alignment...         action    
+  Channel Type              enum      Curved
+  Trapezoid Aspect          float     0.5
+  Channel Depth from Shields Eqn  bool      false
+  Critical Shear Stress     float     0.04
+  Particle Size             float     0.256
+  Bankfull Depth            float     2 m
+  Floodplain Height         float     21 m
+  Valley Height             float     112 m
+  Bankfull Width            float     10 m
+  Floodplain Width          float     10 m
+  Valley Width              float     500 m
+  Render Valley Wall        bool      true
+  Smooth Valley Profile     bool      true
+  Flatten Meander Belt Area  float     0.0
+  Terrain Bleed Amount      float     0.0
+  Quality                   float     6.0
+
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Terrain Input <- (none)
+    [2] River Parameters <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+    [2] Water        -> (none)
+    [3] Valley Mask  -> (none)
+    [4] Channel Mask -> (none)
+    [5] Meanderbelt Mask -> (none)
+    [6] GCS Covariance -> (none)
+
+<<<
+>>> param get #536.Sinuosity
+#536.Sinuosity = 0.0
+<<<
+>>> param get #536.Planform Type
+#536.Planform Type = Simple Alignment
+<<<
+>>> param get "#536.Planform Type"
+#536.Planform Type = Simple Alignment
+<<<
+>>> param get #536."Planform Type"
+#536.Planform Type = Simple Alignment
+<<<
+>>> param get '#536.Planform Type'
+#536.Planform Type = Simple Alignment
+<<<
+>>> param get #536.Planform_Type
+Error: Error: Parameter 'Planform_Type' not found on device '#536'.
+<<<
+>>> param get #536.PlanformType
+Error: Error: Parameter 'PlanformType' not found on device '#536'.
+<<<
+>>> param set #536.Planform Type 1
+Error: Error: Parameter 'Planform' not found on device '#536'.
+<<<
+>>> param get #536.Planform Type
+#536.Planform Type = Simple Alignment
+<<<
+>>> param set "#536.Planform Type" 1
+Set #536.Planform Type = 1
+<<<
+>>> param get #536.Planform Type
+#536.Planform Type = Layout Alignment
+<<<
+>>> param set #536."Planform Type" 1
+Set #536.Planform Type = 1
+<<<
+>>> param get #536.Planform Type
+#536.Planform Type = Layout Alignment
+<<<
+>>> param set '#536.Planform Type' 1
+Set #536.Planform Type = 1
+<<<
+>>> param get #536.Planform Type
+#536.Planform Type = Layout Alignment
+<<<
+>>> param set "#536.Planform Type" 0
+Set #536.Planform Type = 0
+<<<
+>>> param get "#536.Planform Type"
+#536.Planform Type = Simple Alignment
+<<<
+>>> param set "#536.Planform Type" 1
+Set #536.Planform Type = 1
+<<<
+>>> param get "#536.Planform Type"
+#536.Planform Type = Layout Alignment
+<<<
+>>> param set "#536.Planform Type" 2
+Error: Error: Enum index out of range (0-1): 2
+<<<
+>>> param get "#536.Planform Type"
+#536.Planform Type = Layout Alignment
+<<<
+>>> param set "#536.Planform Type" 3
+Error: Error: Enum index out of range (0-1): 3
+<<<
+>>> param get "#536.Planform Type"
+#536.Planform Type = Layout Alignment
+<<<
+>>> param set "#536.Planform Type" 4
+Error: Error: Enum index out of range (0-1): 4
+<<<
+>>> param get "#536.Planform Type"
+#536.Planform Type = Layout Alignment
+<<<
+>>> param set "#536.Planform Type" 5
+Error: Error: Enum index out of range (0-1): 5
+<<<
+>>> param get "#536.Planform Type"
+#536.Planform Type = Layout Alignment
+<<<
+>>> param set "#536.Bankfull Width" 25 m
+Error: Error: Invalid float value: 25 m
+<<<
+>>> param get "#536.Bankfull Width"
+#536.Bankfull Width = 10 m
+<<<
+>>> param list #536
+Parameters for 'River' (River):
+  Sinuosity                 float     0.0
+  Channel Gradient          float     0.0
+  Planform Type             enum      Layout Alignment
+  Reach Heading             int       0
+  Reach Length              float     8 km
+  Reach Elevation Datum     float     800 m
+  Reach Slope               float     0.02
+  Layout Alignment Uses Datum  bool      false
+  Draw Alignment...         action    
+  Channel Type              enum      Curved
+  Trapezoid Aspect          float     0.5
+  Channel Depth from Shields Eqn  bool      false
+  Critical Shear Stress     float     0.04
+  Particle Size             float     0.256
+  Bankfull Depth            float     2 m
+  Floodplain Height         float     21 m
+  Valley Height             float     112 m
+  Bankfull Width            float     10 m
+  Floodplain Width          float     10 m
+  Valley Width              float     500 m
+  Render Valley Wall        bool      true
+  Smooth Valley Profile     bool      true
+  Flatten Meander Belt Area  float     0.0
+  Terrain Bleed Amount      float     0.0
+  Quality                   float     6.0
+
+<<<
+>>> device add Shapes
+Added 'Shapes'
+<<<
+>>> device list
+Devices (19 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   River                   
+  #537   Shapes                  
+
+<<<
+>>> wire list #537
+Connections for '#537':
+  Inputs:
+    [1] Terrain Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+    [2] Shape Mask   -> (none)
+
+<<<
+>>> wire connect #537 #536.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Terrain Input <- (none)
+    [2] River Parameters <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+    [2] Bankfull Depth -> (none)
+    [3] Valley Mask  -> (none)
+    [4] Channel Mask -> (none)
+    [5] Meanderbelt Mask -> (none)
+    [6] GCS Covariance -> (none)
+
+<<<
+>>> device add Reach Scaling
+Added 'Reach Scaling'
+<<<
+>>> device list
+Devices (20 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   River                   
+  #537   Shapes                  
+  #538   Reach Scaling           
+
+<<<
+>>> param list #538
+Parameters for 'Reach Scaling' (Reach Scaling):
+  Meander Scaled to         enum      Bankfull Width (Wavelength)
+  Meander Belt Width        float     800 m
+  Meander Wavelength        float     10.9
+  Meander Radius            float     2.34
+  Channel Scaled to         enum      Use meander scaling
+  Valley Scaled to          enum      Use meander scaling
+  Valley Wall Amplitude     float     400 m
+
+<<<
+>>> wire list #538
+[Info       ] QIODevice::read (QSslSocket): device not open
+Connections for '#538':
+  Inputs:
+    [1] Alignment    <- (none)
+    [2] Bankfull Width <- (none)
+    [3] Thalweg Undulation <- (none)
+    [4] Thalweg Curvature <- (none)
+    [5] Left Valley Wall <- (none)
+    [6] Right Valley Wall <- (none)
+  Outputs:
+    [1] River Parameters -> (none)
+
+<<<
+>>> wire connect #538 #536.2
+Connected '#538' [1] -> '#536' [2]
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Terrain Input <- (none)
+    [2] River Parameters <- 'Reach Scaling' [1]
+  Outputs:
+    [1] Primary Output -> (none)
+    [2] Bankfull Depth -> (none)
+    [3] Valley Mask  -> (none)
+    [4] Channel Mask -> (none)
+    [5] Meanderbelt Mask -> (none)
+    [6] GCS Covariance -> (none)
+
+<<<
+>>> device add Scalar Generator
+Added 'Scalar Generator'
+<<<
+>>> device list
+Devices (21 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   River                   
+  #537   Shapes                  
+  #538   Reach Scaling           
+  #539   Scalar Generator        
+
+<<<
+>>> param list #539
+Parameters for 'Scalar Generator' (Scalar Generator):
+  Value                     float     0.0
+
+<<<
+>>> wire list #539
+Connections for '#539':
+  Inputs:
+  Outputs:
+    [1] Parameter Output -> (none)
+
+<<<
+>>> wire connect #539 #536.2
+Error: Error: Input '#536' is already connected. Disconnect first.
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Terrain Input <- (none)
+    [2] River Parameters <- 'Reach Scaling' [1]
+  Outputs:
+    [1] Primary Output -> (none)
+    [2] Bankfull Depth -> (none)
+    [3] Valley Mask  -> (none)
+    [4] Channel Mask -> (none)
+    [5] Meanderbelt Mask -> (none)
+    [6] GCS Covariance -> (none)
+
+<<<
+>>> device add Composite Type
+Added 'Composite Type'
+<<<
+>>> device list
+Devices (22 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   River                   
+  #537   Shapes                  
+  #538   Reach Scaling           
+  #539   Scalar Generator        
+  #540   Composite Type          
+
+<<<
+>>> param list #540
+Parameters for 'Composite Type' (Composite Type):
+  Pack/Unpack               enum      Unpack from Composite Type
+  Type                      enum      0
+
+<<<
+>>> wire list #540
+Connections for '#540':
+  Inputs:
+  Outputs:
+
+<<<
+>>> wire connect #540 #536.2
+Error: Error: Input '#536' is already connected. Disconnect first.
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Terrain Input <- (none)
+    [2] River Parameters <- 'Reach Scaling' [1]
+  Outputs:
+    [1] Primary Output -> (none)
+    [2] Bankfull Depth -> (none)
+    [3] Valley Mask  -> (none)
+    [4] Channel Mask -> (none)
+    [5] Meanderbelt Mask -> (none)
+    [6] GCS Covariance -> (none)
+
+<<<
+>>> device add Construct Range
+Added 'Construct Range'
+<<<
+>>> device list
+Devices (23 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   River                   
+  #537   Shapes                  
+  #538   Reach Scaling           
+  #539   Scalar Generator        
+  #540   Composite Type          
+  #541   Construct Range          (Construct Parameter)
+
+<<<
+>>> param list #541
+Parameters for 'Construct Range' (Construct Parameter):
+  type                      enum      Range
+  groupRange                other     
+  minval                    float     0.0
+  maxval                    float     1.0
+  low                       float     0.25
+  high                      float     0.75
+  groupColor                other     
+  colorFrom                 enum      RGB
+  groupRGB                  other     
+  groupHSL                  other     
+  r                         float     0.0
+  g                         float     0.0
+  b                         float     0.0
+  h                         float     0.0
+  s                         float     0.0
+  l                         float     0.0
+
+<<<
+>>> wire list #541
+Connections for '#541':
+  Inputs:
+  Outputs:
+    [1] Parameter Output -> (none)
+
+<<<
+>>> wire connect #541 #536.2
+Error: Error: Input '#536' is already connected. Disconnect first.
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Terrain Input <- (none)
+    [2] River Parameters <- 'Reach Scaling' [1]
+  Outputs:
+    [1] Primary Output -> (none)
+    [2] Bankfull Depth -> (none)
+    [3] Valley Mask  -> (none)
+    [4] Channel Mask -> (none)
+    [5] Meanderbelt Mask -> (none)
+    [6] GCS Covariance -> (none)
+
+<<<
+>>> device add Parameter Arithmetic
+Added 'Parameter Arithmetic'
+<<<
+>>> device list
+Devices (24 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   River                   
+  #537   Shapes                  
+  #538   Reach Scaling           
+  #539   Scalar Generator        
+  #540   Composite Type          
+  #541   Construct Range          (Construct Parameter)
+  #542   Parameter Arithmetic    
+
+<<<
+>>> param list #542
+Parameters for 'Parameter Arithmetic' (Parameter Arithmetic):
+  Amount                    float     0.0
+  Operation                 enum      Add to value
+  Clipping                  enum      Clip
+
+<<<
+>>> wire list #542
+Connections for '#542':
+  Inputs:
+    [1] Parameter Input <- (none)
+  Outputs:
+    [1] Parameter Output -> (none)
+
+<<<
+>>> wire connect #542 #536.2
+Error: Error: Input '#536' is already connected. Disconnect first.
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Terrain Input <- (none)
+    [2] River Parameters <- 'Reach Scaling' [1]
+  Outputs:
+    [1] Primary Output -> (none)
+    [2] Bankfull Depth -> (none)
+    [3] Valley Mask  -> (none)
+    [4] Channel Mask -> (none)
+    [5] Meanderbelt Mask -> (none)
+    [6] GCS Covariance -> (none)
+
+<<<

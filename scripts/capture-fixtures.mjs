@@ -219,6 +219,71 @@ async function freshDevice(sections, type) {
 const scenarios = [
   ['system-info', () => run(['system info'])],
   ['device-list-sample', () => run(['device list', 'device list Height'])],
+  // River device inputs: does it need a drawn path (Shapes) or only a heightfield? Then: how World Machine takes a
+  // parameter name with spaces, the Planform Type options, and whether a Shapes device feeds River Parameters.
+  [
+    'river-device',
+    async () => {
+      const sections = await run(['project new default force']);
+      const river = await freshDevice(sections, 'River');
+      const ref = `#${river.id}`;
+      sections.push(...(await run([`param list ${ref}`, `wire list ${ref}`])));
+      const forms = [
+        `${ref}.Sinuosity`,
+        `${ref}.Planform Type`,
+        `"${ref}.Planform Type"`,
+        `${ref}."Planform Type"`,
+        `'${ref}.Planform Type'`,
+        `${ref}.Planform_Type`,
+        `${ref}.PlanformType`,
+      ];
+      sections.push(...(await run(forms.map((form) => `param get ${form}`))));
+      // Every get form above works (rest of line), so each set form is tried, with a get after it.
+      const setForms = forms.slice(1, 5);
+      const tries = await run(
+        setForms.flatMap((form) => [`param set ${form} 1`, `param get ${ref}.Planform Type`]),
+      );
+      sections.push(...tries);
+      // The first set form that printed no error is used for the option sweep.
+      const working = setForms.find((_, i) => !tries[2 * i].lines.some((line) => line.startsWith('Error')));
+      if (working) {
+        const sets = [0, 1, 2, 3, 4, 5].flatMap((index) => [
+          `param set ${working} ${index}`,
+          `param get ${working}`,
+        ]);
+        const bankfull = working.replace('Planform Type', 'Bankfull Width');
+        sets.push(`param set ${bankfull} 25 m`, `param get ${bankfull}`, `param list ${ref}`);
+        sections.push(...(await run(sets)));
+      }
+      const shapes = await freshDevice(sections, 'Shapes');
+      sections.push(
+        ...(await run([
+          `wire list #${shapes.id}`,
+          `wire connect #${shapes.id} ${ref}.2`,
+          `wire list ${ref}`,
+        ])),
+      );
+      // Candidate producers for River Parameters (input 2), picked by name from raw/v3-rename-types.txt.
+      for (const type of [
+        'Reach Scaling',
+        'Scalar Generator',
+        'Composite Type',
+        'Construct Range',
+        'Parameter Arithmetic',
+      ]) {
+        const candidate = await freshDevice(sections, type);
+        sections.push(
+          ...(await run([
+            `param list #${candidate.id}`,
+            `wire list #${candidate.id}`,
+            `wire connect #${candidate.id} ${ref}.2`,
+            `wire list ${ref}`,
+          ])),
+        );
+      }
+      return sections;
+    },
+  ],
   [
     'v5-read-formats',
     () =>
