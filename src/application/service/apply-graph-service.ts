@@ -1,10 +1,9 @@
 import type { DeviceDetail } from '../../domain/device.js';
 import { foldCase } from '../../domain/device-name.js';
-import { WorldMachineError, worldMachineText } from '../../domain/errors.js';
+import { type ErrorCode, WorldMachineError, worldMachineText } from '../../domain/errors.js';
 import { type DiffEntry, graphDiff } from '../../domain/graph-diff.js';
 import { type GraphState, listedType, type PlanStep, planGraph, planId } from '../../domain/graph-plan.js';
 import { type GraphSpec, validateGraphSpec } from '../../domain/graph-spec.js';
-import type { SessionSummary } from '../../domain/session.js';
 import type {
   ApplyFailureDetails,
   ApplyGraphCommand,
@@ -16,7 +15,7 @@ import type { ParameterEditPort } from '../port/out/parameter-edit-port.js';
 import type { ProjectGraphReadPort } from '../port/out/project-graph-read-port.js';
 import type { SnapshotPort } from '../port/out/snapshot-port.js';
 import type { WireEditPort } from '../port/out/wire-edit-port.js';
-import type { WorldMachineSessionPort } from '../port/out/world-machine-session-port.js';
+import type { SessionStatus, WorldMachineSessionPort } from '../port/out/world-machine-session-port.js';
 import { readGraphState } from './read-graph-state.js';
 
 export const APPLY_SNAPSHOT_PREFIX = 'apply_graph ';
@@ -80,7 +79,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
         );
       }
       await this.#snapshots.create(snapshot);
-      const start = this.#session.status().session;
+      const start = this.#session.status();
       const added = new Map<string, number>();
       for (const [index, step] of plan.steps.entries()) {
         try {
@@ -108,18 +107,22 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
           throw await this.#failed(error, index, plan.steps.length, step, snapshot, spec, id, start);
         }
       }
+      const lostAfterApply = (code: ErrorCode, detail: string): WorldMachineError =>
+        new WorldMachineError(
+          code,
+          `All ${plan.steps.length} steps were applied, but World Machine was stopped before the result could be read (${detail}); the unsaved changes and snapshot '${snapshot}' are gone with it.`,
+        );
+      if (!this.#sameSession(start)) {
+        throw lostAfterApply('CRASHED', 'World Machine restarted after the last step');
+      }
       let diff: DiffEntry[];
       try {
         diff = await this.#diff(plan.steps, state, added);
       } catch (error) {
         if (!(error instanceof WorldMachineError)) throw error;
-        const lost = error.code === 'TIMEOUT' || error.code === 'CRASHED' || !this.#sameSession(start);
-        if (lost) {
-          throw new WorldMachineError(
-            error.code,
-            `All ${plan.steps.length} steps were applied, but World Machine was stopped before the result could be read (${error.message}); the unsaved changes and snapshot '${snapshot}' are gone with it.`,
-          );
-        }
+        if (error.code === 'TIMEOUT') throw lostAfterApply('TIMEOUT', error.message);
+        if (error.code === 'CRASHED' || !this.#sameSession(start))
+          throw lostAfterApply('CRASHED', error.message);
         // The apply succeeded: report it, keep the snapshot, and say why the diff is empty.
         return {
           applied: plan.steps.length,
@@ -211,7 +214,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
     snapshot: string,
     spec: GraphSpec,
     before: string,
-    start: SessionSummary,
+    start: SessionStatus,
   ): Promise<WorldMachineError> {
     const text =
       error.worldMachineMessage === undefined
@@ -256,26 +259,37 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
     snapshot: string,
     spec: GraphSpec,
     before: string,
-    start: SessionSummary,
+    start: SessionStatus,
   ): Promise<Error> {
-    const outcome = !this.#sameSession(start)
-      ? 'World Machine was not the same session any more, so nothing was restored'
-      : (await this.#restore(snapshot, spec, before))
-        ? `the project was restored to snapshot '${snapshot}', which is kept`
-        : `the restore of snapshot '${snapshot}' could not be confirmed`;
-    const detail = original instanceof Error ? (original.stack ?? original.message) : String(original);
+    const text = (value: unknown): string =>
+      value instanceof Error ? (value.stack ?? value.message) : String(value);
+    let outcome: string;
+    let restoreError = '';
+    if (!this.#sameSession(start)) {
+      outcome = 'World Machine was not the same session any more, so nothing was restored';
+    } else {
+      try {
+        outcome = (await this.#restore(snapshot, spec, before))
+          ? `the project was restored to snapshot '${snapshot}', which is kept`
+          : `the restore of snapshot '${snapshot}' could not be confirmed`;
+      } catch (error) {
+        outcome = `the restore of snapshot '${snapshot}' could not be confirmed`;
+        restoreError = ` Restore error: ${text(error)}`;
+      }
+    }
     return new Error(
-      `apply_graph step ${index + 1} of ${total} (${step.op} '${step.device}') failed with an internal error; ${outcome}. Original error: ${detail}`,
+      `apply_graph step ${index + 1} of ${total} (${step.op} '${step.device}') failed with an internal error; ${outcome}. Original error: ${text(original)}${restoreError}`,
       { cause: original },
     );
   }
 
   /** True while the session is the ready one the apply started in: same state and same project binding. */
-  #sameSession(start: SessionSummary): boolean {
-    const now = this.#session.status().session;
-    if (now.state !== 'ready') return false;
+  #sameSession(start: SessionStatus): boolean {
+    const nowStatus = this.#session.status();
+    const now = nowStatus.session;
+    if (now.state !== 'ready' || nowStatus.generation !== start.generation) return false;
     const a = now.binding;
-    const b = start.binding;
+    const b = start.session.binding;
     if (a === undefined || b === undefined) return a === b;
     return a.kind === b.kind && (a.kind === 'fresh' || (b.kind === 'opened' && a.path === b.path));
   }

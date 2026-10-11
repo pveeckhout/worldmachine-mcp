@@ -5,6 +5,11 @@ export type SessionStatus = {
   readonly executable: string | null;
   readonly session: SessionSummary;
   readonly systemInfo?: SystemInfo;
+  /**
+   * Increases each time a World Machine process becomes the session's current one. Set by WorldMachineSession; stubs
+   * may omit it. It tells a silent restart (same state, same binding, new process) from the same session.
+   */
+  readonly generation?: number;
 };
 
 export interface WorldMachineSessionPort {

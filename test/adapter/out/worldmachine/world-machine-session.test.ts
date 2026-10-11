@@ -57,7 +57,7 @@ const SENTINEL = expect.stringMatching(/^__end_/);
 describe('WorldMachineSession', () => {
   it('does not start World Machine until needed', () => {
     const { session: s, record } = session();
-    expect(s.status()).toEqual({ executable: FAKE_WM, session: { state: 'notRunning' } });
+    expect(s.status()).toEqual({ executable: FAKE_WM, session: { state: 'notRunning' }, generation: 0 });
     expect(record.lines()).toEqual([]);
   });
 
@@ -68,6 +68,7 @@ describe('WorldMachineSession', () => {
     expect(s.status()).toEqual({
       executable: FAKE_WM,
       session: { state: 'ready', binding: { kind: 'fresh' }, dirty: false },
+      generation: 1,
       systemInfo: { build: 4067, buildName: 'Dragontail Peak', arch: 'x64-AVX2 (256-bit)' },
     });
   });
@@ -161,6 +162,18 @@ describe('WorldMachineSession', () => {
     const { session: s } = session({ FAKE_WM_CRASH_ON: 'device list' });
     expect((await failure(s.executeOne('device list'))).code).toBe('CRASHED');
     expect(s.status().session).toEqual({ state: 'unhealthy', reason: 'World Machine exited unexpectedly' });
+  });
+
+  it('increases the generation when World Machine is restarted, and not across ordinary commands', async () => {
+    const { session: s } = session({ FAKE_WM_CRASH_ON: 'device list' });
+    await s.ensureRunning();
+    const first = s.status().generation;
+    expect(first).toBeGreaterThan(0);
+    await s.executeOne('system info');
+    expect(s.status().generation).toBe(first);
+    expect((await failure(s.executeOne('device list'))).code).toBe('CRASHED');
+    await s.ensureRunning();
+    expect(s.status().generation).toBe((first ?? 0) + 1);
   });
 
   it('quits World Machine after the idle timeout', async () => {

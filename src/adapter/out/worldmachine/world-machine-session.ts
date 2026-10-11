@@ -67,6 +67,8 @@ export class WorldMachineSession implements WorldMachineSessionPort {
   /** Processes that were sent `build stop`; spec fact 75: such a World Machine may never quit. */
   readonly #stopped = new WeakSet<WorldMachineProcess>();
   #process: WorldMachineProcess | undefined;
+  /** Counts the processes that became current; see SessionStatus.generation. */
+  #generation = 0;
   readonly #quitting = new Set<WorldMachineProcess>();
   #queue: CommandQueue | undefined;
   /** The build events of the current process (spec v2a section 5); replaced with each new process. */
@@ -87,6 +89,7 @@ export class WorldMachineSession implements WorldMachineSessionPort {
     return {
       executable: this.#options.executable,
       session: this.#shutDown ? { state: 'stopping' } : summarize(this.#state),
+      generation: this.#generation,
       ...(this.#systemInfo ? { systemInfo: this.#systemInfo } : {}),
     };
   }
@@ -265,6 +268,7 @@ export class WorldMachineSession implements WorldMachineSessionPort {
       this.#spawning = undefined;
       const current = proc;
       this.#process = proc;
+      this.#generation += 1;
       proc.onExit(() => this.#onExit(current));
       const tracker = new BuildTracker();
       this.#tracker = tracker;

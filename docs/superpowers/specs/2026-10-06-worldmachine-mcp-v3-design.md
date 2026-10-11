@@ -209,6 +209,8 @@ When a step fails with a `WorldMachineError` (`WM_COMMAND_FAILED`, `UNEXPECTED_O
 
 On `TIMEOUT` or `CRASHED` no restore is sent. `rolledBack` is `false`. After a timeout or a crash the snapshot is gone too, since it lived only in memory (fact 59), and the message says so.
 
+The check that World Machine is still the same session compares a process generation (a counter that increases each time a World Machine process becomes current) as well as state and binding, so a restart anywhere during an apply, even a silent one back to the default project, counts as World Machine lost (code `CRASHED`).
+
 Added 2026-10-12: a step that throws something other than a `WorldMachineError` (a bug) also triggers the restore, when World Machine is still the same session. The error is then a plain internal error whose message names the step, the snapshot, the restore outcome, and the original error; the client still sees only the generic internal-error text, and the stack goes to the server log.
 
 ### Diff
