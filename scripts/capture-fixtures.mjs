@@ -76,7 +76,8 @@ function waitFor(match, ms, what) {
 }
 
 function scrub(line) {
-  return line
+  const riverProject = process.env.RIVER_PROJECT;
+  return (riverProject ? line.replaceAll(riverProject, '<RIVER_PROJECT>') : line)
     .replaceAll(work, '<WORK>')
     .replaceAll(process.cwd(), '<REPO>')
     .replaceAll(homedir(), '<HOME>')
@@ -328,6 +329,233 @@ const scenarios = [
           }
         }
       }
+      return sections;
+    },
+  ],
+  // Does a curve on Reach Scaling's Alignment bend the river? Four builds of one graph (Gradient terrain -> River,
+  // Reach Scaling -> River Parameters), each exporting River's height and its Channel Mask: A no curve, B a Perlin
+  // Curve on Alignment, C as B with Planform Type Layout Alignment, D Layout Alignment without a curve. The images
+  // stay in <WORK>, which this scenario prints so they can be inspected.
+  [
+    'river-alignment-visual',
+    async () => {
+      const sections = await run(['project new blank force', 'scene size 16 16', 'scene resolution 513']);
+      const terrain = await freshDevice(sections, 'Gradient');
+      const river = await freshDevice(sections, 'River');
+      const reach = await freshDevice(sections, 'Reach Scaling');
+      const height = await freshDevice(sections, 'File Output');
+      const channel = await freshDevice(sections, 'File Output');
+      sections.push(
+        ...(await run([
+          `wire connect #${terrain.id} #${river.id}.1`,
+          `wire connect #${reach.id} #${river.id}.2`,
+          `wire connect #${river.id}.1 #${height.id}`,
+          `wire connect #${river.id}.4 #${channel.id}`,
+          `project save ${join(work, 'river-visual.tmd')}`,
+        ])),
+      );
+      const variant = async (label, edits) => {
+        sections.push(
+          ...(await run([
+            ...edits,
+            `param set #${height.id}.filename ${join(work, `${label}-height.png`)}`,
+            `param set #${channel.id}.filename ${join(work, `${label}-channel.png`)}`,
+            `param list #${river.id}`,
+            `wire list #${reach.id}`,
+            'build start',
+          ])),
+        );
+        await pollBuild(sections);
+        sections.push(...(await run(['export all'])));
+        sections.push(await wait(2000));
+      };
+      await variant('a-no-curve', []);
+      const curve = await freshDevice(sections, 'Perlin Curve');
+      await variant('b-perlin-curve', [`wire connect #${curve.id} #${reach.id}.1`]);
+      await variant('c-perlin-layout', [`param set "#${river.id}.Planform Type" 1`]);
+      await variant('d-layout-no-curve', [`wire disconnect #${curve.id} #${reach.id}.1`]);
+      console.log(`river-alignment-visual images: ${work}`);
+      return sections;
+    },
+  ],
+  // raw/river-alignment-visual.txt: every build there ended at once and export all found outputs not built. This
+  // grows the graph a step at a time in a blank project, building and exporting after each step.
+  [
+    'river-build-diag',
+    async () => {
+      const sections = await run(['project new blank force', 'scene size 16 16', 'scene resolution 513']);
+      const terrain = await freshDevice(sections, 'Gradient');
+      const output = await freshDevice(sections, 'File Output');
+      const step = async (label, edits) => {
+        sections.push(
+          ...(await run([
+            ...edits,
+            `param set #${output.id}.filename ${join(work, `${label}.png`)}`,
+            `wire list #${output.id}`,
+            'build start',
+          ])),
+        );
+        await pollBuild(sections);
+        sections.push(...(await run(['export all'])));
+        sections.push(await wait(2000));
+      };
+      sections.push(...(await run([`project save ${join(work, 'river-diag.tmd')}`])));
+      await step('1-gradient', [`wire connect #${terrain.id} #${output.id}`]);
+      const river = await freshDevice(sections, 'River');
+      await step('2-river', [
+        `wire disconnect #${terrain.id} #${output.id}`,
+        `wire connect #${terrain.id} #${river.id}.1`,
+        `wire connect #${river.id}.1 #${output.id}`,
+      ]);
+      const reach = await freshDevice(sections, 'Reach Scaling');
+      await step('3-reach', [`wire connect #${reach.id} #${river.id}.2`]);
+      console.log(`river-build-diag images: ${work}`);
+      return sections;
+    },
+  ],
+  // raw/river-build-diag.txt: River does not build on a Gradient in a blank project. The same chain in the default
+  // project, fed by its eroded terrain (Erosion #35 output 1). The default outputs are deleted so that every file is
+  // written in <WORK>. Step 0 exports the terrain without River as a control.
+  [
+    'river-default-project',
+    async () => {
+      const sections = await run([
+        'project new default force',
+        'scene show',
+        'scene resolution 513',
+        'device delete #1',
+        'device delete #308',
+        'device delete #309',
+        'device delete #318',
+      ]);
+      const height = await freshDevice(sections, 'File Output');
+      const channel = await freshDevice(sections, 'File Output');
+      const step = async (label, edits) => {
+        sections.push(
+          ...(await run([
+            ...edits,
+            `param set #${height.id}.filename ${join(work, `${label}-height.png`)}`,
+            `param set #${channel.id}.filename ${join(work, `${label}-channel.png`)}`,
+            `wire list #${height.id}`,
+            `wire list #${channel.id}`,
+            'build start',
+          ])),
+        );
+        await pollBuild(sections);
+        sections.push(...(await run(['export all'])));
+        sections.push(await wait(2000));
+      };
+      sections.push(...(await run([`project save ${join(work, 'river-default.tmd')}`])));
+      await step('0-terrain', [`wire connect #35.1 #${height.id}`, `wire connect #35.2 #${channel.id}`]);
+      const river = await freshDevice(sections, 'River');
+      const reach = await freshDevice(sections, 'Reach Scaling');
+      await step('a-no-curve', [
+        `wire disconnect #35.1 #${height.id}`,
+        `wire disconnect #35.2 #${channel.id}`,
+        `wire connect #35.1 #${river.id}.1`,
+        `wire connect #${reach.id} #${river.id}.2`,
+        `wire connect #${river.id}.1 #${height.id}`,
+        `wire connect #${river.id}.4 #${channel.id}`,
+      ]);
+      const curve = await freshDevice(sections, 'Perlin Curve');
+      await step('b-perlin-curve', [`wire connect #${curve.id} #${reach.id}.1`]);
+      await step('c-perlin-layout', [`param set "#${river.id}.Planform Type" 1`]);
+      console.log(`river-default-project images: ${work}`);
+      return sections;
+    },
+  ],
+  // The graphs of raw/river-default-project.txt step b and raw/river-build-diag.txt step 2, built once and saved, so
+  // they can be opened in the World Machine window to see why River does not build.
+  [
+    'river-failing-graph',
+    async () => {
+      const sections = await run([
+        'project new default force',
+        'scene resolution 513',
+        'device delete #1',
+        'device delete #308',
+        'device delete #309',
+        'device delete #318',
+      ]);
+      const height = await freshDevice(sections, 'File Output');
+      const channel = await freshDevice(sections, 'File Output');
+      const river = await freshDevice(sections, 'River');
+      const reach = await freshDevice(sections, 'Reach Scaling');
+      const curve = await freshDevice(sections, 'Perlin Curve');
+      const full = join(work, 'river-full.tmd');
+      sections.push(
+        ...(await run([
+          `wire connect #35.1 #${river.id}.1`,
+          `wire connect #${reach.id} #${river.id}.2`,
+          `wire connect #${curve.id} #${reach.id}.1`,
+          `wire connect #${river.id}.1 #${height.id}`,
+          `wire connect #${river.id}.4 #${channel.id}`,
+          `param set #${height.id}.filename ${join(work, 'full-height.png')}`,
+          `param set #${channel.id}.filename ${join(work, 'full-channel.png')}`,
+          `wire list #${river.id}`,
+          `wire list #${reach.id}`,
+          'build start',
+        ])),
+      );
+      await pollBuild(sections);
+      sections.push(...(await run([`project save ${full}`])));
+      sections.push(...(await run(['project new blank force', 'scene size 16 16', 'scene resolution 513'])));
+      const terrain = await freshDevice(sections, 'Gradient');
+      const minimalRiver = await freshDevice(sections, 'River');
+      const output = await freshDevice(sections, 'File Output');
+      const minimal = join(work, 'river-minimal.tmd');
+      sections.push(
+        ...(await run([
+          `wire connect #${terrain.id} #${minimalRiver.id}.1`,
+          `wire connect #${minimalRiver.id}.1 #${output.id}`,
+          `param set #${output.id}.filename ${join(work, 'minimal-height.png')}`,
+          `wire list #${minimalRiver.id}`,
+          'build start',
+        ])),
+      );
+      await pollBuild(sections);
+      sections.push(...(await run([`project save ${minimal}`])));
+      console.log(`river-failing-graph projects: ${full} ${minimal}`);
+      return sections;
+    },
+  ],
+  // river-full.tmd of the scenario above, after its River, Reach Scaling, and Perlin Curve were updated in the World
+  // Machine window (the console has no device version command), named by RIVER_PROJECT. Exports B (Perlin Curve on
+  // Alignment) and A (no curve), then adds a second River from the console to see whether it builds. Never saves.
+  [
+    'river-upgraded-visual',
+    async () => {
+      const project = process.env.RIVER_PROJECT;
+      if (!project) throw new Error('Set RIVER_PROJECT to the updated river-full.tmd');
+      const sections = await run([
+        `project open ${project} force`,
+        'device list',
+        'wire list #538',
+        'wire list #539',
+      ]);
+      const step = async (label, edits) => {
+        sections.push(
+          ...(await run([
+            ...edits,
+            `param set #536.filename ${join(work, `${label}-height.png`)}`,
+            `param set #537.filename ${join(work, `${label}-channel.png`)}`,
+            'build start',
+          ])),
+        );
+        await pollBuild(sections);
+        sections.push(...(await run(['export all'])));
+        sections.push(await wait(2000));
+      };
+      await step('b-perlin-curve', []);
+      await step('a-no-curve', ['wire disconnect #540 #539.1']);
+      const river = await freshDevice(sections, 'River');
+      const output = await freshDevice(sections, 'File Output');
+      await step('new-river', [
+        `wire connect #35.1 #${river.id}.1`,
+        `wire connect #${river.id}.1 #${output.id}`,
+        `param set #${output.id}.filename ${join(work, 'new-river-height.png')}`,
+      ]);
+      console.log(`river-upgraded-visual images: ${work}`);
       return sections;
     },
   ],

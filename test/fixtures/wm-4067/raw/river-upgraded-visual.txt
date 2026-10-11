@@ -1,0 +1,171 @@
+>>> project open <RIVER_PROJECT> force
+Opened: <RIVER_PROJECT>
+[Info       ] Open Project from file
+[Info       ] Closing current project
+<<<
+>>> device list
+Devices (18 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Height Output           
+  #537   Height Output           
+  #541   River                   
+  #542   Reach Character         
+  #543   Perlin Curve            
+
+<<<
+>>> wire list #538
+Error: Error: Device not found: '#538'
+<<<
+>>> wire list #539
+Error: Error: Device not found: '#539'
+<<<
+>>> param set #536.filename <WORK>/b-perlin-curve-height.png
+Set #536.filename = <WORK>/b-perlin-curve-height.png
+<<<
+>>> param set #537.filename <WORK>/b-perlin-curve-channel.png
+Set #537.filename = <WORK>/b-perlin-curve-channel.png
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (waited 2000 ms)
+Build started.
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> wire disconnect #540 #539.1
+Error: Error: Source device not found: '#540'
+<<<
+>>> param set #536.filename <WORK>/a-no-curve-height.png
+Set #536.filename = <WORK>/a-no-curve-height.png
+<<<
+>>> param set #537.filename <WORK>/a-no-curve-channel.png
+Set #537.filename = <WORK>/a-no-curve-channel.png
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> export all
+Successfully exported 2 file(s):
+  <WORK>/a-no-curve-height.png
+  <WORK>/a-no-curve-channel.png
+
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> device add River
+Added 'River'
+<<<
+>>> device list
+Devices (19 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Height Output           
+  #537   Height Output           
+  #541   River                   
+  #542   Reach Character         
+  #543   Perlin Curve            
+  #544   River                   
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (20 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Height Output           
+  #537   Height Output           
+  #541   River                   
+  #542   Reach Character         
+  #543   Perlin Curve            
+  #544   River                   
+  #545   Height Output           
+
+<<<
+>>> wire connect #35.1 #544.1
+Connected '#35' [1] -> '#544' [1]
+<<<
+>>> wire connect #544.1 #545
+Connected '#544' [1] -> '#545' [1]
+<<<
+>>> param set #545.filename <WORK>/new-river-height.png
+Set #545.filename = <WORK>/new-river-height.png
+<<<
+>>> param set #536.filename <WORK>/new-river-height.png
+Set #536.filename = <WORK>/new-river-height.png
+<<<
+>>> param set #537.filename <WORK>/new-river-channel.png
+Set #537.filename = <WORK>/new-river-channel.png
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (waited 2000 ms)
+<<<

@@ -1,0 +1,153 @@
+>>> project new blank force
+Created new blank project.
+[Info       ] Closing current project
+<<<
+>>> scene size 16 16
+Set scene size to 16.00 x 16.00 km
+<<<
+>>> scene resolution 513
+Set scene resolution to 513
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (2 total):
+  #1     Gradient                
+  #2     Height Output           
+
+<<<
+>>> project save <WORK>/river-diag.tmd
+Project saved to: <WORK>/river-diag.tmd
+<<<
+>>> wire connect #1 #2
+Connected '#1' [1] -> '#2' [1]
+<<<
+>>> param set #2.filename <WORK>/1-gradient.png
+Set #2.filename = <WORK>/1-gradient.png
+<<<
+>>> wire list #2
+Connections for '#2':
+  Inputs:
+    [1] Primary Input <- 'Gradient' [1]
+    [2] Metadata Input <- (none)
+  Outputs:
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> export all
+Successfully exported 1 file(s):
+  <WORK>/1-gradient.png
+
+<<<
+>>> (waited 2000 ms)
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> device add River
+Added 'River'
+<<<
+>>> device list
+Devices (3 total):
+  #1     Gradient                
+  #2     Height Output           
+  #3     River                   
+
+<<<
+>>> wire disconnect #1 #2
+Disconnected '#1' [1] -> '#2' [1]
+<<<
+>>> wire connect #1 #3.1
+Connected '#1' [1] -> '#3' [1]
+<<<
+>>> wire connect #3.1 #2
+Connected '#3' [1] -> '#2' [1]
+<<<
+>>> param set #2.filename <WORK>/2-river.png
+Set #2.filename = <WORK>/2-river.png
+<<<
+>>> wire list #2
+Connections for '#2':
+  Inputs:
+    [1] Primary Input <- 'River' [1]
+    [2] Metadata Input <- (none)
+  Outputs:
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> device add Reach Scaling
+Added 'Reach Scaling'
+<<<
+>>> device list
+Devices (4 total):
+  #1     Gradient                
+  #2     Height Output           
+  #3     River                   
+  #4     Reach Scaling           
+
+<<<
+>>> wire connect #4 #3.2
+Connected '#4' [1] -> '#3' [2]
+<<<
+>>> param set #2.filename <WORK>/3-reach.png
+Set #2.filename = <WORK>/3-reach.png
+<<<
+>>> wire list #2
+Connections for '#2':
+  Inputs:
+    [1] Primary Input <- 'River' [1]
+    [2] Metadata Input <- (none)
+  Outputs:
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (waited 2000 ms)
+<<<

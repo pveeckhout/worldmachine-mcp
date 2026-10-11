@@ -1,0 +1,336 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene show
+Scene 'Main Extents' (index 0 of 1):
+  Origin (center): 4.00, 4.00 km
+  Size:            12.00 x 12.00 km
+  Lower-left:      -2.00, -2.00 km
+  Upper-right:     10.00, 10.00 km
+  Resolution:      2049
+  Locked:          no
+<<<
+>>> scene resolution 513
+Set scene resolution to 513
+<<<
+>>> device delete #1
+Deleted: #1
+<<<
+>>> device delete #308
+Deleted: #308
+<<<
+>>> device delete #309
+Deleted: #309
+<<<
+>>> device delete #318
+Deleted: #318
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (14 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Height Output           
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (15 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Height Output           
+  #537   Height Output           
+
+<<<
+>>> project save <WORK>/river-default.tmd
+Project saved to: <WORK>/river-default.tmd
+<<<
+>>> wire connect #35.1 #536
+Connected '#35' [1] -> '#536' [1]
+<<<
+>>> wire connect #35.2 #537
+Connected '#35' [2] -> '#537' [1]
+<<<
+>>> param set #536.filename <WORK>/0-terrain-height.png
+Set #536.filename = <WORK>/0-terrain-height.png
+<<<
+>>> param set #537.filename <WORK>/0-terrain-channel.png
+Set #537.filename = <WORK>/0-terrain-channel.png
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Primary Input <- 'Erosion' [1]
+    [2] Metadata Input <- (none)
+  Outputs:
+
+<<<
+>>> wire list #537
+Connections for '#537':
+  Inputs:
+    [1] Primary Input <- 'Erosion' [2]
+    [2] Metadata Input <- (none)
+  Outputs:
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> export all
+Successfully exported 2 file(s):
+  <WORK>/0-terrain-height.png
+  <WORK>/0-terrain-channel.png
+
+<<<
+>>> (waited 2000 ms)
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> device add River
+Added 'River'
+<<<
+>>> device list
+Devices (16 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Height Output           
+  #537   Height Output           
+  #538   River                   
+
+<<<
+>>> device add Reach Scaling
+Added 'Reach Scaling'
+<<<
+>>> device list
+Devices (17 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Height Output           
+  #537   Height Output           
+  #538   River                   
+  #539   Reach Scaling           
+
+<<<
+>>> wire disconnect #35.1 #536
+Disconnected '#35' [1] -> '#536' [1]
+<<<
+>>> wire disconnect #35.2 #537
+Disconnected '#35' [2] -> '#537' [1]
+<<<
+>>> wire connect #35.1 #538.1
+Connected '#35' [1] -> '#538' [1]
+<<<
+>>> wire connect #539 #538.2
+Connected '#539' [1] -> '#538' [2]
+<<<
+>>> wire connect #538.1 #536
+Connected '#538' [1] -> '#536' [1]
+<<<
+>>> wire connect #538.4 #537
+Connected '#538' [4] -> '#537' [1]
+<<<
+>>> param set #536.filename <WORK>/a-no-curve-height.png
+Set #536.filename = <WORK>/a-no-curve-height.png
+<<<
+>>> param set #537.filename <WORK>/a-no-curve-channel.png
+Set #537.filename = <WORK>/a-no-curve-channel.png
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Primary Input <- 'River' [1]
+    [2] Metadata Input <- (none)
+  Outputs:
+
+<<<
+>>> wire list #537
+Connections for '#537':
+  Inputs:
+    [1] Primary Input <- 'River' [4]
+    [2] Metadata Input <- (none)
+  Outputs:
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> device add Perlin Curve
+Added 'Perlin Curve'
+<<<
+>>> device list
+Devices (18 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Height Output           
+  #537   Height Output           
+  #538   River                   
+  #539   Reach Scaling           
+  #540   Perlin Curve            
+
+<<<
+>>> wire connect #540 #539.1
+Connected '#540' [1] -> '#539' [1]
+<<<
+>>> param set #536.filename <WORK>/b-perlin-curve-height.png
+Set #536.filename = <WORK>/b-perlin-curve-height.png
+<<<
+>>> param set #537.filename <WORK>/b-perlin-curve-channel.png
+Set #537.filename = <WORK>/b-perlin-curve-channel.png
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Primary Input <- 'River' [1]
+    [2] Metadata Input <- (none)
+  Outputs:
+
+<<<
+>>> wire list #537
+Connections for '#537':
+  Inputs:
+    [1] Primary Input <- 'River' [4]
+    [2] Metadata Input <- (none)
+  Outputs:
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> param set "#538.Planform Type" 1
+Set #538.Planform Type = 1
+<<<
+>>> param set #536.filename <WORK>/c-perlin-layout-height.png
+Set #536.filename = <WORK>/c-perlin-layout-height.png
+<<<
+>>> param set #537.filename <WORK>/c-perlin-layout-channel.png
+Set #537.filename = <WORK>/c-perlin-layout-channel.png
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Primary Input <- 'River' [1]
+    [2] Metadata Input <- (none)
+  Outputs:
+
+<<<
+>>> wire list #537
+Connections for '#537':
+  Inputs:
+    [1] Primary Input <- 'River' [4]
+    [2] Metadata Input <- (none)
+  Outputs:
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (waited 2000 ms)
+<<<

@@ -1,0 +1,358 @@
+>>> project new blank force
+Created new blank project.
+[Info       ] Closing current project
+<<<
+>>> scene size 16 16
+Set scene size to 16.00 x 16.00 km
+<<<
+>>> scene resolution 513
+Set scene resolution to 513
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> device add River
+Added 'River'
+<<<
+>>> device list
+Devices (2 total):
+  #1     Gradient                
+  #2     River                   
+
+<<<
+>>> device add Reach Scaling
+Added 'Reach Scaling'
+<<<
+>>> device list
+Devices (3 total):
+  #1     Gradient                
+  #2     River                   
+  #3     Reach Scaling           
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (4 total):
+  #1     Gradient                
+  #2     River                   
+  #3     Reach Scaling           
+  #4     Height Output           
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (5 total):
+  #1     Gradient                
+  #2     River                   
+  #3     Reach Scaling           
+  #4     Height Output           
+  #5     Height Output           
+
+<<<
+>>> wire connect #1 #2.1
+Connected '#1' [1] -> '#2' [1]
+<<<
+>>> wire connect #3 #2.2
+Connected '#3' [1] -> '#2' [2]
+<<<
+>>> wire connect #2.1 #4
+Connected '#2' [1] -> '#4' [1]
+<<<
+>>> wire connect #2.4 #5
+Connected '#2' [4] -> '#5' [1]
+<<<
+>>> project save <WORK>/river-visual.tmd
+Project saved to: <WORK>/river-visual.tmd
+<<<
+>>> param set #4.filename <WORK>/a-no-curve-height.png
+Set #4.filename = <WORK>/a-no-curve-height.png
+<<<
+>>> param set #5.filename <WORK>/a-no-curve-channel.png
+Set #5.filename = <WORK>/a-no-curve-channel.png
+<<<
+>>> param list #2
+Parameters for 'River' (River):
+  Sinuosity                 float     0.0
+  Channel Gradient          float     0.0
+  Planform Type             enum      Simple Alignment
+  Reach Heading             int       0
+  Reach Length              float     8 km
+  Reach Elevation Datum     float     800 m
+  Reach Slope               float     0.02
+  Layout Alignment Uses Datum  bool      false
+  Draw Alignment...         action    
+  Channel Type              enum      Curved
+  Trapezoid Aspect          float     0.5
+  Channel Depth from Shields Eqn  bool      false
+  Critical Shear Stress     float     0.04
+  Particle Size             float     0.256
+  Bankfull Depth            float     2 m
+  Floodplain Height         float     21 m
+  Valley Height             float     112 m
+  Bankfull Width            float     10 m
+  Floodplain Width          float     10 m
+  Valley Width              float     500 m
+  Render Valley Wall        bool      true
+  Smooth Valley Profile     bool      true
+  Flatten Meander Belt Area  float     0.0
+  Terrain Bleed Amount      float     0.0
+  Quality                   float     6.0
+
+<<<
+>>> wire list #3
+Connections for '#3':
+  Inputs:
+    [1] Alignment    <- (none)
+    [2] Bankfull Width <- (none)
+    [3] Thalweg Undulation <- (none)
+    [4] Thalweg Curvature <- (none)
+    [5] Left Valley Wall <- (none)
+    [6] Right Valley Wall <- (none)
+  Outputs:
+    [1] River Scaling -> 'River' [2]
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (waited 2000 ms)
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> device add Perlin Curve
+Added 'Perlin Curve'
+<<<
+>>> device list
+Devices (6 total):
+  #1     Gradient                
+  #2     River                   
+  #3     Reach Scaling           
+  #4     Height Output           
+  #5     Height Output           
+  #6     Perlin Curve            
+
+<<<
+>>> wire connect #6 #3.1
+Connected '#6' [1] -> '#3' [1]
+<<<
+>>> param set #4.filename <WORK>/b-perlin-curve-height.png
+Set #4.filename = <WORK>/b-perlin-curve-height.png
+<<<
+>>> param set #5.filename <WORK>/b-perlin-curve-channel.png
+Set #5.filename = <WORK>/b-perlin-curve-channel.png
+<<<
+>>> param list #2
+Parameters for 'River' (River):
+  Sinuosity                 float     0.0
+  Channel Gradient          float     0.0
+  Planform Type             enum      Simple Alignment
+  Reach Heading             int       0
+  Reach Length              float     8 km
+  Reach Elevation Datum     float     800 m
+  Reach Slope               float     0.02
+  Layout Alignment Uses Datum  bool      false
+  Draw Alignment...         action    
+  Channel Type              enum      Curved
+  Trapezoid Aspect          float     0.5
+  Channel Depth from Shields Eqn  bool      false
+  Critical Shear Stress     float     0.04
+  Particle Size             float     0.256
+  Bankfull Depth            float     2 m
+  Floodplain Height         float     21 m
+  Valley Height             float     112 m
+  Bankfull Width            float     10 m
+  Floodplain Width          float     10 m
+  Valley Width              float     500 m
+  Render Valley Wall        bool      true
+  Smooth Valley Profile     bool      true
+  Flatten Meander Belt Area  float     0.0
+  Terrain Bleed Amount      float     0.0
+  Quality                   float     6.0
+
+<<<
+>>> wire list #3
+Connections for '#3':
+  Inputs:
+    [1] Alignment    <- 'Perlin Curve' [1]
+    [2] Bankfull Width <- (none)
+    [3] Thalweg Undulation <- (none)
+    [4] Thalweg Curvature <- (none)
+    [5] Left Valley Wall <- (none)
+    [6] Right Valley Wall <- (none)
+  Outputs:
+    [1] River Scaling -> 'River' [2]
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> param set "#2.Planform Type" 1
+Set #2.Planform Type = 1
+<<<
+>>> param set #4.filename <WORK>/c-perlin-layout-height.png
+Set #4.filename = <WORK>/c-perlin-layout-height.png
+<<<
+>>> param set #5.filename <WORK>/c-perlin-layout-channel.png
+Set #5.filename = <WORK>/c-perlin-layout-channel.png
+<<<
+>>> param list #2
+Parameters for 'River' (River):
+  Sinuosity                 float     0.0
+  Channel Gradient          float     0.0
+  Planform Type             enum      Layout Alignment
+  Reach Heading             int       0
+  Reach Length              float     8 km
+  Reach Elevation Datum     float     800 m
+  Reach Slope               float     0.02
+  Layout Alignment Uses Datum  bool      false
+  Draw Alignment...         action    
+  Channel Type              enum      Curved
+  Trapezoid Aspect          float     0.5
+  Channel Depth from Shields Eqn  bool      false
+  Critical Shear Stress     float     0.04
+  Particle Size             float     0.256
+  Bankfull Depth            float     2 m
+  Floodplain Height         float     21 m
+  Valley Height             float     112 m
+  Bankfull Width            float     10 m
+  Floodplain Width          float     10 m
+  Valley Width              float     500 m
+  Render Valley Wall        bool      true
+  Smooth Valley Profile     bool      true
+  Flatten Meander Belt Area  float     0.0
+  Terrain Bleed Amount      float     0.0
+  Quality                   float     6.0
+
+<<<
+>>> wire list #3
+Connections for '#3':
+  Inputs:
+    [1] Alignment    <- 'Perlin Curve' [1]
+    [2] Bankfull Width <- (none)
+    [3] Thalweg Undulation <- (none)
+    [4] Thalweg Curvature <- (none)
+    [5] Left Valley Wall <- (none)
+    [6] Right Valley Wall <- (none)
+  Outputs:
+    [1] River Scaling -> 'River' [2]
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> wire disconnect #6 #3.1
+Disconnected '#6' [1] -> '#3' [1]
+<<<
+>>> param set #4.filename <WORK>/d-layout-no-curve-height.png
+Set #4.filename = <WORK>/d-layout-no-curve-height.png
+<<<
+>>> param set #5.filename <WORK>/d-layout-no-curve-channel.png
+Set #5.filename = <WORK>/d-layout-no-curve-channel.png
+<<<
+>>> param list #2
+Parameters for 'River' (River):
+  Sinuosity                 float     0.0
+  Channel Gradient          float     0.0
+  Planform Type             enum      Layout Alignment
+  Reach Heading             int       0
+  Reach Length              float     8 km
+  Reach Elevation Datum     float     800 m
+  Reach Slope               float     0.02
+  Layout Alignment Uses Datum  bool      false
+  Draw Alignment...         action    
+  Channel Type              enum      Curved
+  Trapezoid Aspect          float     0.5
+  Channel Depth from Shields Eqn  bool      false
+  Critical Shear Stress     float     0.04
+  Particle Size             float     0.256
+  Bankfull Depth            float     2 m
+  Floodplain Height         float     21 m
+  Valley Height             float     112 m
+  Bankfull Width            float     10 m
+  Floodplain Width          float     10 m
+  Valley Width              float     500 m
+  Render Valley Wall        bool      true
+  Smooth Valley Profile     bool      true
+  Flatten Meander Belt Area  float     0.0
+  Terrain Bleed Amount      float     0.0
+  Quality                   float     6.0
+
+<<<
+>>> wire list #3
+Connections for '#3':
+  Inputs:
+    [1] Alignment    <- (none)
+    [2] Bankfull Width <- (none)
+    [3] Thalweg Undulation <- (none)
+    [4] Thalweg Curvature <- (none)
+    [5] Left Valley Wall <- (none)
+    [6] Right Valley Wall <- (none)
+  Outputs:
+    [1] River Scaling -> 'River' [2]
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (waited 2000 ms)
+<<<
