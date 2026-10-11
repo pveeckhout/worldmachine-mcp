@@ -151,6 +151,33 @@ describe.skipIf(!LIVE)('live World Machine graph edits', () => {
     expect(after?.value).toBe(before?.value);
   }, 120_000);
 
+  it('reads and sets parameters whose names have spaces (raw/river-device.txt)', async () => {
+    const river = await devices.addDevice('River');
+    const read = await reader.getDevice(`#${river.id}`);
+    expect(read.parameters).toHaveLength(25);
+    expect(read.parameters.find((p) => p.name === 'Planform Type')).toEqual({
+      name: 'Planform Type',
+      type: 'enum',
+      value: 'Simple Alignment',
+    });
+    const update = await parameters.updateParameters(`#${river.id}`, {
+      'Planform Type': 1,
+      'Layout Alignment Uses Datum': true,
+      'Bankfull Width': 0.5,
+    });
+    expect(update.parameters.map((item) => [item.name, item.outcome])).toEqual([
+      ['Planform Type', 'applied'],
+      ['Layout Alignment Uses Datum', 'applied'],
+      ['Bankfull Width', 'applied'],
+    ]);
+    expect(update.parameters[0]?.value).toBe('Layout Alignment');
+    expect(update.parameters[1]?.value).toBe('true');
+    const after = (await reader.getDevice(`#${river.id}`)).parameters;
+    for (const item of update.parameters) {
+      expect(after.find((p) => p.name === item.name)?.value).toBe(item.value);
+    }
+  }, 120_000);
+
   it('connects and disconnects idempotently, and rejects a wire onto an occupied input', async () => {
     const first = await wires.connect({ device: `#${grad}` }, { device: `#${combiner}` });
     expect(first.created).toBe(true);
