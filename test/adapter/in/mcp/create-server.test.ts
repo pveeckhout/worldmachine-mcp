@@ -380,6 +380,22 @@ describe('createMcpServer', () => {
     expect(result.structuredContent).toEqual(view);
   });
 
+  it('round-trips an apply_graph view with diffError', async () => {
+    const view = {
+      applied: 2,
+      snapshot: 'apply_graph 3f9a12345678',
+      diff: [],
+      diffError: 'read failed',
+      session: READY_DIRTY,
+    } as const;
+    const client = await connect(deps({ applyGraph: { applyGraph: async () => view } }));
+    const result = await client.callTool({
+      name: 'apply_graph',
+      arguments: { spec: GRAPH_SPEC, plan_id: PLAN_ID },
+    });
+    expect(result.structuredContent).toEqual(view);
+  });
+
   it('reports APPLY_FAILED with its details beside code and message', async () => {
     const details = {
       failedStep: {

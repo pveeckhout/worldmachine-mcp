@@ -93,11 +93,42 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
           }
           await this.#run(step, added);
         } catch (error) {
-          if (!(error instanceof WorldMachineError)) throw error;
+          if (!(error instanceof WorldMachineError)) {
+            throw await this.#internalFailure(
+              error,
+              index,
+              plan.steps.length,
+              step,
+              snapshot,
+              spec,
+              id,
+              start,
+            );
+          }
           throw await this.#failed(error, index, plan.steps.length, step, snapshot, spec, id, start);
         }
       }
-      const diff = await this.#diff(plan.steps, state, added);
+      let diff: DiffEntry[];
+      try {
+        diff = await this.#diff(plan.steps, state, added);
+      } catch (error) {
+        if (!(error instanceof WorldMachineError)) throw error;
+        const lost = error.code === 'TIMEOUT' || error.code === 'CRASHED' || !this.#sameSession(start);
+        if (lost) {
+          throw new WorldMachineError(
+            error.code,
+            `All ${plan.steps.length} steps were applied, but World Machine was stopped before the result could be read (${error.message}); the unsaved changes and snapshot '${snapshot}' are gone with it.`,
+          );
+        }
+        // The apply succeeded: report it, keep the snapshot, and say why the diff is empty.
+        return {
+          applied: plan.steps.length,
+          snapshot,
+          diff: [],
+          diffError: error.message,
+          session: this.#session.status().session,
+        };
+      }
       const kept = command.keepSnapshot || !(await this.#removeSnapshot(snapshot));
       return {
         applied: plan.steps.length,
@@ -213,6 +244,29 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
       `Step ${index + 1} of ${total} (${step.op} '${step.device}') failed: ${error.message}. ${outcome}`,
       undefined,
       details,
+    );
+  }
+
+  /** A step threw something that is not a WorldMachineError: restore when still in the same session, then fail as internal. */
+  async #internalFailure(
+    original: unknown,
+    index: number,
+    total: number,
+    step: PlanStep,
+    snapshot: string,
+    spec: GraphSpec,
+    before: string,
+    start: SessionSummary,
+  ): Promise<Error> {
+    const outcome = !this.#sameSession(start)
+      ? 'World Machine was not the same session any more, so nothing was restored'
+      : (await this.#restore(snapshot, spec, before))
+        ? `the project was restored to snapshot '${snapshot}', which is kept`
+        : `the restore of snapshot '${snapshot}' could not be confirmed`;
+    const detail = original instanceof Error ? (original.stack ?? original.message) : String(original);
+    return new Error(
+      `apply_graph step ${index + 1} of ${total} (${step.op} '${step.device}') failed with an internal error; ${outcome}. Original error: ${detail}`,
+      { cause: original },
     );
   }
 

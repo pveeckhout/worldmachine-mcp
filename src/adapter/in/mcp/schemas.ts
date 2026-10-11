@@ -609,5 +609,6 @@ export const applyGraphViewSchema = z.strictObject({
   applied: z.number().int(),
   snapshot: z.string().nullable(),
   diff: z.array(diffEntrySchema),
+  diffError: z.string().optional(),
   session: sessionSummarySchema,
 }) satisfies z.ZodType<ApplyGraphView>;

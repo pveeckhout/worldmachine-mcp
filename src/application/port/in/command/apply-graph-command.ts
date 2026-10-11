@@ -14,6 +14,8 @@ export type ApplyGraphView = {
   /** The kept snapshot's name; null when it was deleted or none was taken. */
   readonly snapshot: string | null;
   readonly diff: readonly DiffEntry[];
+  /** Set when every step was applied but the result could not be read back; diff is then empty and the snapshot kept. */
+  readonly diffError?: string;
   readonly session: SessionSummary;
 };
 export type FailedStep = {

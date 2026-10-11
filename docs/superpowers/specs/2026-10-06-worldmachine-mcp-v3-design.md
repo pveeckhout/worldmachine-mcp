@@ -209,6 +209,8 @@ When a step fails with a `WorldMachineError` (`WM_COMMAND_FAILED`, `UNEXPECTED_O
 
 On `TIMEOUT` or `CRASHED` no restore is sent. `rolledBack` is `false`. After a timeout or a crash the snapshot is gone too, since it lived only in memory (fact 59), and the message says so.
 
+Added 2026-10-12: a step that throws something other than a `WorldMachineError` (a bug) also triggers the restore, when World Machine is still the same session. The error is then a plain internal error whose message names the step, the snapshot, the restore outcome, and the original error; the client still sees only the generic internal-error text, and the stack goes to the server log.
+
 ### Diff
 
 After success, the referenced devices are read back:
@@ -231,6 +233,8 @@ After success, the referenced devices are read back:
 ```
 
 Parameters appear in the diff only when their read-back value changed; a float set to the value it already had does not appear. `snapshot` is the kept snapshot's name when `keep_snapshot` is true, otherwise `null`.
+
+Added 2026-10-12: if the read-back fails with a `WorldMachineError` while World Machine is still the same healthy session, the apply still succeeded. The result then has `diff: []`, `diffError` (the error's message, without World Machine text), and the snapshot kept. On `TIMEOUT`, `CRASHED`, or a changed session, the call throws an error with the same code saying that all steps were applied but the result could not be read, and that the unsaved changes and snapshot are gone.
 
 ## 7. Ports and files
 
