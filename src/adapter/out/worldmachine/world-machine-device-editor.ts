@@ -133,8 +133,8 @@ export class WorldMachineDeviceEditor implements DeviceEditPort {
     ]);
     const command = requireFrame(responses[0]);
     throwIfFailed(command);
-    // Assumed: no capture shows whether a bypass change counts as an unsaved change; it is marked as enable and disable
-    // are, once World Machine did not reject the command.
+    // raw/bypass-unsaved.txt: World Machine counts a bypass change as unsaved (an unforced `project new` is refused
+    // after it), so it is marked once World Machine did not reject the command, as enable and disable are.
     this.#session.markDirty();
     // raw/p2b-graph-edits.txt l.74-75 (on) and l.94-95 (off).
     requireLine(command, `${bypassed ? 'Set' : 'Removed'} bypass: ${ref}`, 'device bypass');

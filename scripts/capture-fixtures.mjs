@@ -837,6 +837,41 @@ const scenarios = [
     },
   ],
   [
+    // set_device_bypassed assumption: does World Machine count a bypass toggle as an unsaved change? A saved default
+    // project, one `device bypass`, then an unforced `project new default`, which an unsaved project refuses
+    // (raw/v2b-snapshots.txt l.285-286). Then the same after toggling back and saving again. Ends closed.
+    'bypass-unsaved',
+    async () => {
+      const sections = [];
+      try {
+        const file = join(work, 'bypass-unsaved.tmd');
+        const listed = await run([
+          'project new default force',
+          'scene resolution 257',
+          `project save ${file}`,
+          'device list',
+        ]);
+        sections.push(...listed);
+        await pollBuild(sections);
+        const target = devices(listed[3].lines)[1];
+        if (target === undefined) throw new Error('the default project lists fewer than two devices');
+        sections.push(
+          ...(await run([
+            `device bypass #${target.id}`,
+            'project new default',
+            `device bypass #${target.id}`,
+            `project save ${file}`,
+            'project new default',
+            'project close force',
+          ])),
+        );
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
     // Backlog: how long a tiled build keeps writing tile files after its end line, for a build that finishes and one
     // stopped about 8 s in. The user sets the tiled layout in the window (operator trigger 'tiles' in
     // WM_CAPTURE_TRIGGERS); every 250 ms the capture stamps each new Build Event line and each tile file's mtime

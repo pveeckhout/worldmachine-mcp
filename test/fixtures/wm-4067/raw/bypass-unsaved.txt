@@ -1,0 +1,56 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 257
+Set scene resolution to 257
+<<<
+>>> project save <WORK>/bypass-unsaved.tmd
+Project saved to: <WORK>/bypass-unsaved.tmd
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> device bypass #2
+Set bypass: #2
+<<<
+>>> project new default
+Error: Error: Project has unsaved changes. Use 'project save' first or 'project new force'.
+<<<
+>>> device bypass #2
+Removed bypass: #2
+<<<
+>>> project save <WORK>/bypass-unsaved.tmd
+Project saved to: <WORK>/bypass-unsaved.tmd
+<<<
+>>> project new default
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<

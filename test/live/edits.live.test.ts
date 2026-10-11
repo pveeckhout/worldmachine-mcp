@@ -109,6 +109,23 @@ describe.skipIf(!LIVE)('live World Machine graph edits', () => {
     });
   }, 120_000);
 
+  it('sets and removes bypass, never toggling a device already in that state, also on a disabled device', async () => {
+    const ref = `#${gradB}`;
+    expect(await devices.setDeviceBypassed(ref, true)).toMatchObject({ bypassed: true, changed: true });
+    expect((await reader.getDevice(ref)).bypassed).toBe(true);
+    // `device bypass` toggles: a second request for the same state must send nothing and leave it bypassed.
+    expect(await devices.setDeviceBypassed(ref, true)).toMatchObject({ bypassed: true, changed: false });
+    expect((await reader.getDevice(ref)).bypassed).toBe(true);
+    // Fact 29: `device list` hides bypass on a disabled device; `device info` still reports it.
+    await devices.setDeviceEnabled(ref, false);
+    expect(await devices.setDeviceBypassed(ref, false)).toMatchObject({ bypassed: false, changed: true });
+    expect(await devices.setDeviceBypassed(ref, true)).toMatchObject({ bypassed: true, changed: true });
+    expect(await reader.getDevice(ref)).toMatchObject({ enabled: false, bypassed: true });
+    await devices.setDeviceBypassed(ref, false);
+    await devices.setDeviceEnabled(ref, true);
+    expect(await reader.getDevice(ref)).toMatchObject({ enabled: true, bypassed: false });
+  }, 120_000);
+
   it('sets a float and an enum, rejects an out-of-range enum per item, refuses a filename', async () => {
     const update = await parameters.updateParameters(`#${grad}`, { Direction: -1, Tiling: 1 });
     expect(update.device.id).toBe(grad);

@@ -705,7 +705,7 @@ async function handle(line) {
   // Assumed: only devices added with `device add` change; any other reference, including the sample project's own
   // devices, which the fake does not model, prints the not-found error of raw/p2b-graph-edits.txt l.108-115.
   // `device bypass` toggles (raw/p2b-graph-edits.txt l.74-75 and l.94-95); a disabled device can be bypassed.
-  // Assumed: it counts as an unsaved change, as enable and disable do.
+  // raw/bypass-unsaved.txt: it counts as an unsaved change, as enable and disable do.
   const bypassToggle = /^device bypass (.+)$/.exec(command);
   if (bypassToggle) {
     const ref = bypassToggle[1];
