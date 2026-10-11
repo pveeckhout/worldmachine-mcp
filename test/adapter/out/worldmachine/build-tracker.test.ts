@@ -119,7 +119,7 @@ describe('BuildTracker (spec v2a section 5)', () => {
     expect(tracker.snapshot()).toMatchObject({ mode: 'full', startedBy: 'world-machine', state: 'running' });
   });
 
-  it('keeps a window restart running across the owed trailer of the run it replaced (raw/v2-build-long.txt l.56-68)', async () => {
+  it('keeps a window restart running across the trailer of the run it replaced, and ends it on its own trailer (raw/v2-build-long.txt l.56-68, A1)', () => {
     const tracker = new BuildTracker();
     tracker.apply('sleep-prohibited');
     tracker.apply('starting');
@@ -128,10 +128,10 @@ describe('BuildTracker (spec v2a section 5)', () => {
     }
     expect(tracker.snapshot()).toMatchObject({ mode: 'full', startedBy: 'world-machine', state: 'running' });
     tracker.apply('ended');
-    tracker.apply('sleep-allowed');
-    // The capture shows no `Build started.` for either run, so the run ends at the late-line bound (spec section 3).
     expect(tracker.running).toBe(true);
-    await vi.advanceTimersByTimeAsync(LATE_START_MS);
+    // The capture shows no `Build started.` for either run: a window-started run owes none (A1,
+    // raw/v2a-a1-window-builds.txt), so its trailer ends it without waiting for the late-line bound.
+    tracker.apply('sleep-allowed');
     expect(tracker.running).toBe(false);
     expect(tracker.snapshot()).toMatchObject({ mode: 'full', state: 'ended' });
   });

@@ -154,11 +154,11 @@ describe('nextBuildState (spec v2a section 3)', () => {
     expect(isRunning(apply(stopped, 'build-started'))).toBe(false);
   });
 
-  it('keeps a stopped group build from the window waiting for its late line (spec v2b section 5)', () => {
+  it('ends a stopped build from the window on its trailer, owing no late line (A1, raw/v2a-a1-window-builds.txt)', () => {
     const running = apply(NO_BUILD, 'sleep-prohibited', 'starting');
     const stopped = apply(stopRequested(running), 'ended', 'sleep-allowed');
-    expect(isRunning(stopped)).toBe(true);
-    expect(stopped).toMatchObject({ lateStartsOwed: 1, ending: true });
+    expect(isRunning(stopped)).toBe(false);
+    expect(stopped).toMatchObject({ lateStartsOwed: 0, ending: false });
   });
 
   it('changes nothing on a stop request without a running server group run', () => {
@@ -254,6 +254,32 @@ describe('nextBuildState (spec v2a section 3)', () => {
     expect(isRunning(ended)).toBe(false);
   });
 
+  it('ends a window-started full run on its trailer, owing no late line (A1, raw/v2a-a1-window-builds.txt)', () => {
+    // The capture: Prohibiting, Starting, Ended, Allowed, and no `Build started.`, which answers a console start.
+    const ended = apply(NO_BUILD, 'sleep-prohibited', 'starting', 'ended', 'sleep-allowed');
+    expect(ended).toEqual({
+      run: { mode: 'full', startedAt: 1_000, startedBy: 'world-machine', state: 'ended' },
+      pending: undefined,
+      trailerOwed: false,
+      lateStartsOwed: 0,
+      ending: false,
+      groupRun: undefined,
+    });
+  });
+
+  it('ends a server full build started after a window build on its own late line (A1)', () => {
+    const window = apply(NO_BUILD, 'sleep-prohibited', 'starting', 'ended', 'sleep-allowed');
+    const server = apply(
+      { ...window, pending: 'full' },
+      'sleep-prohibited',
+      'starting',
+      'ended',
+      'sleep-allowed',
+    );
+    expect(server).toMatchObject({ lateStartsOwed: 1, ending: true });
+    expect(isRunning(apply(server, 'build-started'))).toBe(false);
+  });
+
   it('promotes a provisional run to full on starting (a full build from the window, A1)', () => {
     const started = apply(NO_BUILD, 'sleep-prohibited', 'starting');
     expect(started.run).toEqual({
@@ -272,7 +298,7 @@ describe('nextBuildState (spec v2a section 3)', () => {
     });
   });
 
-  it('keeps a window restart running across its owed trailer and ends it on a stop (raw/v2-build-long.txt l.56-68)', () => {
+  it('keeps a window restart running across the old trailer and ends it on the trailer of its stop (raw/v2-build-long.txt l.56-68, A1)', () => {
     const first = apply(NO_BUILD, 'sleep-prohibited', 'starting');
     // l.57-60: Ended, Prohibiting, Starting, then the first run's trailer, all in one frame.
     const restarted = apply(first, 'ended', 'sleep-prohibited', 'starting', 'sleep-allowed');
@@ -280,16 +306,15 @@ describe('nextBuildState (spec v2a section 3)', () => {
       run: { mode: 'full', startedAt: 1_001, startedBy: 'world-machine', state: 'running' },
       pending: undefined,
       trailerOwed: false,
-      lateStartsOwed: 1,
+      lateStartsOwed: 0,
       ending: false,
     });
-    // l.62-67: Ended in the stop frame, the trailer in the next one. No `Build started.` follows in the capture, so
-    // the run ends only when the late line is given up (spec section 3).
+    // l.62-67: Ended in the stop frame, the trailer in the next one. A window-started run owes no late line, so the
+    // trailer ends it.
     const stopped = apply(restarted, 'ended');
     expect(isRunning(stopped)).toBe(true);
-    expect(stopped).toMatchObject({ trailerOwed: true, lateStartsOwed: 2, ending: true });
-    expect(apply(stopped, 'sleep-allowed')).toEqual({ ...stopped, trailerOwed: false });
-    expect(isRunning(lateStartMissed(stopped))).toBe(false);
+    expect(stopped).toMatchObject({ trailerOwed: true, lateStartsOwed: 0, ending: true });
+    expect(isRunning(apply(stopped, 'sleep-allowed'))).toBe(false);
   });
 
   it('keeps a running run on a sleep-prohibited that no start explains', () => {

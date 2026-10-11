@@ -92,13 +92,15 @@ export function nextBuildState(state: BuildState, event: BuildEvent, now: number
         groupRun: undefined,
       };
     case 'ended':
-      // A full run's sleep-allowed trailer follows its Ended, possibly after the next run opened. Its outputs can be
-      // exported only after the late `Build started.` (fact 54), so the run keeps running until that line arrives.
-      // A stopped server group build prints no late line (spec v2b fact 72), so it ends on its trailer instead.
+      // A full run's sleep-allowed trailer follows its Ended, possibly after the next run opened. A run the server
+      // started can be exported only after the late `Build started.` (fact 54), the console's answer to its start, so
+      // it keeps running until that line arrives. A run started in the window prints no late line (A1,
+      // raw/v2a-a1-window-builds.txt), nor does a stopped server group build (spec v2b fact 72): both end on their
+      // trailer instead.
       if (run?.state !== 'running' || run.mode !== 'full' || ending) return state;
-      return state.groupRun === 'stop-requested'
-        ? { ...state, trailerOwed: true, ending: true }
-        : { ...state, trailerOwed: true, lateStartsOwed: state.lateStartsOwed + 1, ending: true };
+      return run.startedBy === 'server' && state.groupRun !== 'stop-requested'
+        ? { ...state, trailerOwed: true, lateStartsOwed: state.lateStartsOwed + 1, ending: true }
+        : { ...state, trailerOwed: true, ending: true };
     case 'sleep-prohibited':
       // Fact 48: a tiled build prints no Starting event, so its first line opens the run the server asked for.
       if (pending === 'tiled') {
@@ -125,12 +127,10 @@ export function nextBuildState(state: BuildState, event: BuildEvent, now: number
     case 'sleep-allowed':
       // After a full run's Ended this line is a trailer, and it can follow the opening of the next run
       // (raw/v2-build-long.txt l.57-60), so it is consumed first. It closes a tiled run, and a provisional one (A1).
-      // It also closes a stopped server group run that owes no late line (spec v2b fact 72).
+      // It also closes an ending run that owes no late line: one started in the window (A1), or a stopped server group
+      // run (spec v2b fact 72).
       if (state.trailerOwed) {
-        return state.groupRun === 'stop-requested' &&
-          ending &&
-          state.lateStartsOwed === 0 &&
-          run !== undefined
+        return ending && state.lateStartsOwed === 0 && run !== undefined
           ? {
               ...state,
               run: { ...run, state: 'ended' },
@@ -170,8 +170,8 @@ export function nextBuildState(state: BuildState, event: BuildEvent, now: number
 
 /**
  * Spec v2b fact 72: the server is about to send `build stop`. A running server group run that has not shown its
- * `ended` will print no late line, so it ends on its trailer. Any other run is unchanged: a stopped full build still
- * prints its late `Build started.` (fact 54), and the server cannot tell a window-started group build from a full one.
+ * `ended` will print no late line, so it ends on its trailer. Any other run is unchanged: a stopped server full build
+ * still prints its late `Build started.` (fact 54), and a window-started run owes no late line anyway (A1).
  */
 export function stopRequested(state: BuildState): BuildState {
   return isRunning(state) && state.groupRun === 'started' && !state.ending
