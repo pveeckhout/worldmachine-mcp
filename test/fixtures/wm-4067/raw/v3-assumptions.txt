@@ -1,0 +1,553 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 257
+Set scene resolution to 257
+<<<
+>>> project save <WORK>/v3.tmd
+Project saved to: <WORK>/v3.tmd
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> param list #35
+Parameters for 'Erosion' (Erosion):
+  Amount                    float     60.0
+  featureScale              float     400 m
+  groupBasic                other     
+  Hardness                  float     0.47
+  Capacity                  float     0.56
+  soil0                     float     14 m
+  soilScour                 float     0.1
+  groupAdv                  other     
+  soilDiffuse               float     0.7
+  massB                     float     0.0
+  wallAng                   float     74.0°
+  rockCrystal               float     0.75
+  Uplift                    float     0 m
+  waterMasking              float     16.0
+  groupMask                 other     
+  maskStr                   float     1.0
+  Structure                 float     0.429
+  soilMask                  enum      Presence Mask
+  maskSoil                  bool      true
+  compatibility             bool      false
+
+<<<
+>>> wire list #35
+Connections for '#35':
+  Inputs:
+    [1] Primary Input <- 'Flow Restructure' [1]
+    [2] Water input  <- (none)
+    [3] Bedrock Structure Value <- (none)
+  Outputs:
+    [1] Primary Output -> 'Thermal Weathering' [1]
+    [2] Flow Mask    -> 'Vegetation Layer' [2]
+                     -> 'Vegetation Layer' [2]
+    [3] Wear Mask    -> 'Rock and Soil' [5]
+    [4] Deposition Mask -> 'Rock and Soil' [6]
+    [5] Soil Mask    -> 'Rock and Soil' [2]
+
+<<<
+>>> wire list #305
+Connections for '#305':
+  Inputs:
+    [1] Primary Input <- 'Erosion' [1]
+    [2] Water/Removal Mask <- (none)
+  Outputs:
+    [1] Primary Output -> 'Scene View' [1]
+                          -> 'Height Output' [1]
+                          -> 'Vegetation Layer' [1]
+                          -> 'Ambient Occlusion' [1]
+                          -> 'Rock and Soil' [1]
+    [2] Talus Mask   -> 'Rock and Soil' [3]
+
+<<<
+>>> snapshot create C1
+Created snapshot 'C1'
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (18 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Gradient                
+
+<<<
+>>> param set #35.Amount 0.25
+Set #35.Amount = 0.25
+<<<
+>>> param set #35.maskSoil false
+Set #35.maskSoil = false
+<<<
+>>> param set #35.soilMask 0
+Set #35.soilMask = 0
+<<<
+>>> param get #35.soilMask
+#35.soilMask = Linear depth
+<<<
+>>> wire disconnect #314 #35
+Disconnected '#314' [1] -> '#35' [1]
+<<<
+>>> wire connect #536 #35
+Connected '#536' [1] -> '#35' [1]
+<<<
+>>> device disable #35
+Disabled: #35
+<<<
+>>> device delete #305
+Deleted: #305
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                  [disabled]
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Gradient                
+
+<<<
+>>> param list #35
+Parameters for 'Erosion' (Erosion):
+  Amount                    float     0.25
+  featureScale              float     400 m
+  groupBasic                other     
+  Hardness                  float     0.47
+  Capacity                  float     0.56
+  soil0                     float     14 m
+  soilScour                 float     0.1
+  groupAdv                  other     
+  soilDiffuse               float     0.7
+  massB                     float     0.0
+  wallAng                   float     74.0°
+  rockCrystal               float     0.75
+  Uplift                    float     0 m
+  waterMasking              float     16.0
+  groupMask                 other     
+  maskStr                   float     1.0
+  Structure                 float     0.429
+  soilMask                  enum      Linear depth
+  maskSoil                  bool      false
+  compatibility             bool      false
+
+<<<
+>>> wire list #35
+Connections for '#35':
+  Inputs:
+    [1] Primary Input <- 'Gradient' [1]
+    [2] Water input  <- (none)
+    [3] Bedrock Structure Value <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+    [2] Flow Mask    -> 'Vegetation Layer' [2]
+                     -> 'Vegetation Layer' [2]
+    [3] Wear Mask    -> 'Rock and Soil' [5]
+    [4] Deposition Mask -> 'Rock and Soil' [6]
+    [5] Soil Mask    -> 'Rock and Soil' [2]
+
+<<<
+>>> snapshot restore C1
+Restored snapshot [#0] 'C1'
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> param list #35
+Parameters for 'Erosion' (Erosion):
+  Amount                    float     60.0
+  featureScale              float     400 m
+  groupBasic                other     
+  Hardness                  float     0.47
+  Capacity                  float     0.56
+  soil0                     float     14 m
+  soilScour                 float     0.1
+  groupAdv                  other     
+  soilDiffuse               float     0.7
+  massB                     float     0.0
+  wallAng                   float     74.0°
+  rockCrystal               float     0.75
+  Uplift                    float     0 m
+  waterMasking              float     16.0
+  groupMask                 other     
+  maskStr                   float     1.0
+  Structure                 float     0.429
+  soilMask                  enum      Presence Mask
+  maskSoil                  bool      true
+  compatibility             bool      false
+
+<<<
+>>> wire list #35
+Connections for '#35':
+  Inputs:
+    [1] Primary Input <- 'Flow Restructure' [1]
+    [2] Water input  <- (none)
+    [3] Bedrock Structure Value <- (none)
+  Outputs:
+    [1] Primary Output -> 'Thermal Weathering' [1]
+    [2] Flow Mask    -> 'Vegetation Layer' [2]
+                     -> 'Vegetation Layer' [2]
+    [3] Wear Mask    -> 'Rock and Soil' [5]
+    [4] Deposition Mask -> 'Rock and Soil' [6]
+    [5] Soil Mask    -> 'Rock and Soil' [2]
+
+<<<
+>>> wire list #305
+Connections for '#305':
+  Inputs:
+    [1] Primary Input <- 'Erosion' [1]
+    [2] Water/Removal Mask <- (none)
+  Outputs:
+    [1] Primary Output -> 'Scene View' [1]
+                          -> 'Height Output' [1]
+                          -> 'Vegetation Layer' [1]
+                          -> 'Ambient Occlusion' [1]
+                          -> 'Rock and Soil' [1]
+    [2] Talus Mask   -> 'Rock and Soil' [3]
+
+<<<
+>>> device select #305
+Selected: Thermal Weathering
+<<<
+>>> device info
+Selected device:
+  Name:    Thermal Weathering
+  Type:    Thermal Weathering
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (18 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Gradient                
+
+<<<
+>>> device select #536
+Selected: Gradient
+<<<
+>>> device info
+Selected device:
+  Name:    Gradient
+  Type:    Gradient
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #536
+Parameters for 'Gradient' (Gradient):
+  Direction                 int       0
+  Width                     float     8 km
+  Tiling                    enum      Clamp
+
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> device add Advanced Perlin
+Added 'Advanced Perlin'
+<<<
+>>> device list
+Devices (19 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Gradient                
+  #537   Advanced Perlin         
+
+<<<
+>>> device select #537
+Selected: Advanced Perlin
+<<<
+>>> device info
+Selected device:
+  Name:    Advanced Perlin
+  Type:    Advanced Perlin
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #537
+Parameters for 'Advanced Perlin' (Advanced Perlin):
+  Style                     enum      Basic
+  Scale                     float     8 km
+  Persistence               float     0.5
+  Lacunarity                float     2.051
+  Octaves                   int       (auto)
+  Seed                      int       59547
+  Steepness                 float     0.5
+  Elevation                 float     1312 m
+  Specify Height Range      other     false
+  groupGuide                other     
+  groupMultiscale           other     
+  groupCustom               other     false
+  Minimum                   float     0 m
+  Maximum                   float     1.6 km
+  Multiscale Power          float     0.0
+  Offset                    float     0.5
+  Gain                      float     0.7
+  Multiscale Lead-in        int       0
+  Multiscale Type           enum      Signal Level
+  Shapeguide Power          int       1
+  Distortion Power          float     0.1
+  Persistence Guide         float     0.5
+  customFractal             other     
+
+<<<
+>>> wire list #537
+Connections for '#537':
+  Inputs:
+    [1] Shaping Guide <- (none)
+    [2] Distortion Guide <- (none)
+    [3] Persistence Guide <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> device add Layout Generator
+Added 'Shapes'
+<<<
+>>> device list
+Devices (20 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Gradient                
+  #537   Advanced Perlin         
+  #538   Shapes                  
+
+<<<
+>>> device select #538
+Selected: Shapes
+<<<
+>>> device info
+Selected device:
+  Name:    Shapes
+  Type:    Shapes
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #538
+Parameters for 'Shapes' (Shapes):
+  Quality                   enum      Standard
+  Background Value          float     0 m
+  invert                    bool      false
+  Breakup Enable            other     false
+  Shape Breakup             float     1.0
+  Shape Frequency           float     4.8 km
+  Shape Roughness           int       3
+
+<<<
+>>> wire list #538
+Connections for '#538':
+  Inputs:
+    [1] Terrain Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+    [2] Shape Mask   -> (none)
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (21 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Gradient                
+  #537   Advanced Perlin         
+  #538   Shapes                  
+  #539   Height Output           
+
+<<<
+>>> device select #539
+Selected: Height Output
+<<<
+>>> device info
+Selected device:
+  Name:    Height Output
+  Type:    Height Output
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #539
+Parameters for 'Height Output' (Height Output):
+  filename                  filename  <project>_<name>_<res>.png
+  format                    enum      PNG (16bit)
+  exportAlways              bool      false
+  tiled                     bool      true
+  writeButton               action    
+
+<<<
+>>> wire list #539
+Connections for '#539':
+  Inputs:
+    [1] Primary Input <- (none)
+    [2] Metadata Input <- (none)
+  Outputs:
+
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
