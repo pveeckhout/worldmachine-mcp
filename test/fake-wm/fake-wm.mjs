@@ -83,6 +83,11 @@ let selected;
 let project = 'sample';
 // Devices added with `device add`, listed after the project's own devices.
 let added = [];
+// Wires between added devices, by id: { from, fromPort, to, toPort }. Assumed: wires of the sample project's own
+// devices are not modelled; `wire list Erosion` answers from its fixture.
+let wires = [];
+// `param set` commands handled so far, for FAKE_WM_PARAM_SET_ERROR_AT.
+let paramSets = 0;
 // First new id: #1 in a blank project (raw/p2b-graph-edits.txt); #536 in the sample project, whose highest id is
 // #373 (spec fact 30: three adds gave #536, #537, #538).
 // Assumed: ids after those continue by one; `project open` of any file (which the fake answers with the sample
@@ -248,6 +253,7 @@ const switchTo = (next) => {
   dirty = false;
   startupUnsaved = false;
   added = [];
+  wires = [];
   nextId = firstFreeId(next);
   built = false;
   savedPath = undefined;
@@ -258,7 +264,55 @@ const switchTo = (next) => {
 // Spec fact 30: the name is the type, without de-duplication (two `device add Gradient` give two devices named
 // 'Gradient'; `device add Erosion` gives 'Erosion', raw/p2b-kind-markers.txt). Captured exception,
 // raw/v6b-param-set.txt l.13-14: `device add File Output` names the device 'Height Output'.
-const DEFAULT_NAMES = { 'File Output': 'Height Output' };
+// raw/v3-assumptions.txt l.435-472 (spec fact 79): Layout Generator is named and typed 'Shapes'.
+const DEFAULT_NAMES = { 'File Output': 'Height Output', 'Layout Generator': 'Shapes' };
+// Ports and parameters of added devices (plan v3 decision D19). raw/p2a-edge-cases.txt l.38-42 and l.59-63: a
+// Gradient has no inputs, one output, and Direction, Width, and Tiling. raw/p2b-graph-edits.txt l.25-31: a Combiner
+// has two inputs named 'Primary Input' and one output. Assumed: the Combiner's parameters (not captured), and for
+// every other type one input named 'Primary Input' and no parameters. Every device has one output.
+const SHAPES = {
+  Gradient: {
+    inputs: [],
+    parameters: [
+      ['Direction', 'int', '0'],
+      ['Width', 'float', '8 km'],
+      ['Tiling', 'enum', 'Clamp'],
+    ],
+  },
+  Combiner: {
+    inputs: ['Primary Input', 'Primary Input'],
+    parameters: [
+      ['Method', 'enum', 'Average'],
+      ['Strength', 'float', '0.5'],
+      ['Clamp', 'bool', 'true'],
+    ],
+  },
+};
+const OTHER_SHAPE = { inputs: ['Primary Input'], parameters: [] };
+// Assumed: World Machine shows a bool as true or false. Any other value is kept as sent, so the fake shows no display
+// units for a float (fact 18) and no label for an enum index.
+const shownValue = (type, text) =>
+  type === 'bool' ? String(['true', '1', 'yes', 'on'].includes(text.toLowerCase())) : text;
+// raw/p2a-edge-cases.txt l.59-64: the header names the device and its type; rows pad the name to 26 and the type to 10.
+const paramList = (device) =>
+  `Parameters for '${device.name}' (${device.type}):\n${device.parameters
+    .map((parameter) => `  ${parameter.name.padEnd(26)}${parameter.type.padEnd(10)}${parameter.value}\n`)
+    .join('')}\n`;
+// raw/p2b-graph-edits.txt l.25-32: the header echoes the reference and port names are padded to 12; a further target
+// of one output continues on its own line. Ends show current names (fact 34).
+const nameOfId = (id) => findAdded(`#${id}`)?.name ?? `#${id}`;
+const wireList = (ref, device) => {
+  const inputs = device.inputs.map((name, index) => {
+    const wire = wires.find((candidate) => candidate.to === device.id && candidate.toPort === index + 1);
+    const source = wire === undefined ? '(none)' : `'${nameOfId(wire.from)}' [${wire.fromPort}]`;
+    return `    [${index + 1}] ${name.padEnd(12)} <- ${source}\n`;
+  });
+  const targets = wires.filter((wire) => wire.from === device.id);
+  const [first, ...more] = targets.map((wire) => `'${nameOfId(wire.to)}' [${wire.toPort}]`);
+  // raw/v3-assumptions.txt l.82-86: further targets of 'Primary Output' continue 26 spaces in.
+  const continued = more.map((target) => `${' '.repeat(26)}-> ${target}\n`).join('');
+  return `Connections for '${ref}':\n  Inputs:\n${inputs.join('')}  Outputs:\n    [1] ${'Primary Output'.padEnd(12)} -> ${first ?? '(none)'}\n${continued}\n`;
+};
 // raw/device-list-sample.txt: two spaces, "#<id>" padded to 7, the name padded to 24. A device whose name differs
 // from its type adds " (<type>)" (raw/v4-quoting.txt l.16-18), a disabled one " [disabled]" after that
 // (raw/p2b-graph-edits.txt l.48-51, raw/p2b-kind-markers.txt l.97). Spec fact 32: the kind appears when the name
@@ -296,10 +350,20 @@ const minuteStamp = () => {
   const two = (value) => String(value).padStart(2, '0');
   return `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())} ${two(now.getHours())}:${two(now.getMinutes())}`;
 };
-// What a snapshot holds of the fake's graph (fact 60). Assumed: a restore also clears the selection.
-const graphState = () => ({ added: added.map((device) => ({ ...device })), disabled: [...sampleDisabled] });
+// What a snapshot holds of the fake's graph (fact 60). Spec v3 assumption C1 (fact 78 once captured): parameter values
+// and wires too. Assumed: a restore also clears the selection.
+const copyDevice = (device) => ({
+  ...device,
+  parameters: device.parameters.map((parameter) => ({ ...parameter })),
+});
+const graphState = () => ({
+  added: added.map(copyDevice),
+  wires: wires.map((wire) => ({ ...wire })),
+  disabled: [...sampleDisabled],
+});
 const restoreGraphState = (state) => {
-  added = state.added.map((device) => ({ ...device }));
+  added = state.added.map(copyDevice);
+  wires = state.wires.map((wire) => ({ ...wire }));
   sampleDisabled = new Set(state.disabled);
   selected = undefined;
 };
@@ -516,10 +580,29 @@ async function handle(line) {
       if (selected === undefined) return void process.stderr.write(NO_DEVICE_SELECTED);
       target = `${selected.name}.${target}`;
     }
+    paramSets++;
+    if (Number(env.FAKE_WM_PARAM_SET_ERROR_AT) === paramSets) {
+      // Assumed text: no capture shows World Machine rejecting a value of a settable type this way.
+      return void process.stderr.write(`Error: Error: Invalid value for '${target}'\n`);
+    }
     dirty = true;
     if (target === '#1.exportAlways' && project === 'sample') outputExportAlways = value === 'true';
-    out(`Set ${target} = ${value.replace(/^"(.*)"$/, '$1')}\n`);
+    const shown = value.replace(/^"(.*)"$/, '$1');
+    const dot = target.indexOf('.');
+    const parameter = findAdded(target.slice(0, dot))?.parameters.find(
+      (p) => p.name === target.slice(dot + 1),
+    );
+    if (parameter !== undefined) parameter.value = shownValue(parameter.type, shown);
+    out(`Set ${target} = ${shown}\n`);
     return;
+  }
+  if (command.startsWith('param get ')) {
+    // raw/v2-build-isolate.txt l.17-42: `<reference> = <value>`. Other references fall through to the handlers below.
+    const target = command.slice('param get '.length);
+    const dot = target.indexOf('.');
+    const device = dot === -1 ? undefined : findAdded(target.slice(0, dot));
+    const parameter = device?.parameters.find((p) => p.name === target.slice(dot + 1));
+    if (parameter !== undefined) return void out(`${target} = ${parameter.value}\n`);
   }
   if (command.startsWith('device add ')) {
     // World Machine rejects an unknown type (raw/p2c-edits.txt l.17-18, spec fact 32). The fake has no list of
@@ -528,7 +611,19 @@ async function handle(line) {
     const name = DEFAULT_NAMES[type] ?? type;
     // Assumed: the type `device info` and `device list` show for `File Output` is 'Height Output', as the
     // `param list` header of raw/v6b-param-set.txt l.39 shows; no capture shows its `device info`.
-    const device = { id: nextId++, name, type: name, enabled: true };
+    const shape = SHAPES[type] ?? OTHER_SHAPE;
+    const device = {
+      id: nextId++,
+      name,
+      type: name,
+      enabled: true,
+      inputs: shape.inputs,
+      parameters: shape.parameters.map(([parameter, kind, value]) => ({
+        name: parameter,
+        type: kind,
+        value,
+      })),
+    };
     added.push(device);
     dirty = true;
     out(`Added '${device.name}'\n`);
@@ -563,6 +658,8 @@ async function handle(line) {
     dirty = true;
     if (verb === 'delete') {
       added = added.filter((other) => other !== device);
+      // Fact 34: deleting a device removes its wires.
+      wires = wires.filter((wire) => wire.from !== device.id && wire.to !== device.id);
       // Assumed: deleting the selected device clears the selection.
       if (selected === device) selected = undefined;
       return void out(`Deleted: ${ref}\n`);
@@ -582,16 +679,60 @@ async function handle(line) {
     out(`Renamed '${ref}' to '${name}'\n`);
     return;
   }
-  for (const [prefix, file] of [
-    ['param list ', 'param-list-erosion.txt'],
-    ['wire list ', 'wire-list-erosion.txt'],
-  ]) {
-    if (command.startsWith(prefix)) {
-      const ref = command.slice(prefix.length);
-      if (!isErosion(ref)) return void notFound(ref);
-      out(fixture(file));
-      return;
+  if (command.startsWith('param list ') || command.startsWith('wire list ')) {
+    const wire = command.startsWith('wire list ');
+    const ref = command.slice((wire ? 'wire list ' : 'param list ').length);
+    if (isErosion(ref)) return void out(fixture(wire ? 'wire-list-erosion.txt' : 'param-list-erosion.txt'));
+    const device = findAdded(ref);
+    if (device === undefined) return void notFound(ref);
+    return void out(wire ? wireList(ref, device) : paramList(device));
+  }
+  const wireEdit = /^wire (connect|disconnect) (\S+) (\S+)$/.exec(command);
+  if (wireEdit) {
+    const [, verb, sourceArg, destinationArg] = wireEdit;
+    const end = (arg) => {
+      const [ref, port] = arg.split('.');
+      return { ref, port: port === undefined ? 1 : Number(port) };
+    };
+    const from = end(sourceArg);
+    const to = end(destinationArg);
+    const source = findAdded(from.ref);
+    const destination = findAdded(to.ref);
+    if (source === undefined) return void notFound(from.ref);
+    if (destination === undefined) return void notFound(to.ref);
+    // raw/p2c-edits.txt l.126-127 (fact 34).
+    if (to.port < 1 || to.port > destination.inputs.length) {
+      return void process.stderr.write(`Error: Error: Input port not found on '${to.ref}'\n`);
     }
+    // Assumed text, modelled on the input's: every fake device has one output.
+    if (from.port !== 1)
+      return void process.stderr.write(`Error: Error: Output port not found on '${from.ref}'\n`);
+    // raw/p2b-graph-edits.txt l.22-23 and l.117-118, raw/p2c-edits.txt l.108-109: references without their port.
+    const ends = `'${from.ref}' [${from.port}] -> '${to.ref}' [${to.port}]`;
+    const index = wires.findIndex(
+      (wire) =>
+        wire.from === source.id &&
+        wire.fromPort === from.port &&
+        wire.to === destination.id &&
+        wire.toPort === to.port,
+    );
+    if (verb === 'disconnect') {
+      // Fact 26: confirmed whether or not the wire existed. Assumed: only a removed wire is an unsaved change.
+      if (index !== -1) {
+        wires.splice(index, 1);
+        dirty = true;
+      }
+      return void out(`Disconnected ${ends}\n`);
+    }
+    // raw/p2c-edits.txt l.105-106 (fact 34). Assumed: a reference with a port is echoed with it.
+    if (wires.some((wire) => wire.to === destination.id && wire.toPort === to.port)) {
+      return void process.stderr.write(
+        `Error: Error: Input '${destinationArg}' is already connected. Disconnect first.\n`,
+      );
+    }
+    wires.push({ from: source.id, fromPort: from.port, to: destination.id, toPort: to.port });
+    dirty = true;
+    return void out(`Connected ${ends}\n`);
   }
   if (command === 'build preview') {
     // Fact 42, raw/v2-build-export.txt l.22-23.
@@ -715,6 +856,10 @@ async function handle(line) {
       return void out(`Deleted snapshot [#${index}] '${snapshot.name}'\n`);
     }
     // Fact 60: the graph goes back to the snapshot, later snapshots are kept, and the restore is an unsaved change.
+    if (env.FAKE_WM_RESTORE_ERROR === '1') {
+      // Assumed text: no capture shows a failing restore.
+      return void process.stderr.write(`Error: Error: Could not restore snapshot '${snapshot.name}'\n`);
+    }
     restoreGraphState(snapshot.state);
     dirty = true;
     return void out(`Restored snapshot [#${index}] '${snapshot.name}'\n`);

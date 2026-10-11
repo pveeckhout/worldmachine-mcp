@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { FsPathPolicy } from '../../src/adapter/out/fs/path-policy.js';
+import { WorldMachineGraphReader } from '../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
 import { WorldMachineProcess } from '../../src/adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineSession } from '../../src/adapter/out/worldmachine/world-machine-session.js';
 import { captureLogger, FAKE_WM, fakeEnv, waitUntil } from '../support/fake-wm.js';
@@ -861,6 +862,108 @@ describe('fake World Machine builds and exports (spec v2a facts 42-50)', () => {
       '<sleep-prohibited>',
       '<sleep-allowed>',
       '<tiled-started>',
+    ]);
+  });
+});
+
+describe('fake World Machine: parameters and wires of added devices (spec v3 section 8)', () => {
+  it("reads an added device's parameters and ports through the graph reader", async () => {
+    const s = session();
+    await s.execute(['project new blank force', 'device add Gradient', 'device add Combiner']);
+    const reader = new WorldMachineGraphReader(s);
+    expect(await reader.getDevice('#1')).toEqual({
+      id: 1,
+      name: 'Gradient',
+      type: 'Gradient',
+      enabled: true,
+      bypassed: false,
+      parameters: [
+        { name: 'Direction', type: 'int', value: '0' },
+        { name: 'Width', type: 'float', value: '8 km' },
+        { name: 'Tiling', type: 'enum', value: 'Clamp' },
+      ],
+      inputs: [],
+      outputs: [{ port: 1, name: 'Primary Output', targets: [] }],
+    });
+    expect((await reader.getDevice('#2')).inputs).toEqual([
+      { port: 1, name: 'Primary Input' },
+      { port: 2, name: 'Primary Input' },
+    ]);
+  });
+
+  it('connects, refuses an occupied input and a missing port, disconnects, and drops wires with a device', async () => {
+    const s = session();
+    await s.execute([
+      'project new blank force',
+      'device add Gradient',
+      'device add Gradient',
+      'device add Combiner',
+    ]);
+    expect(
+      await outputs(s, [
+        'wire connect #1 #3.2',
+        'wire connect #2 #3.2',
+        'wire connect #1 #3.3',
+        'wire disconnect #2 #3',
+      ]),
+    ).toEqual([
+      ["Connected '#1' [1] -> '#3' [2]"],
+      ["Error: Error: Input '#3.2' is already connected. Disconnect first."],
+      ["Error: Error: Input port not found on '#3'"],
+      ["Disconnected '#2' [1] -> '#3' [1]"],
+    ]);
+    const reader = new WorldMachineGraphReader(s);
+    expect((await reader.getDevice('#3')).inputs[1]?.source).toEqual({ device: 'Gradient', port: 1 });
+    expect((await reader.getDevice('#1')).outputs[0]?.targets).toEqual([{ device: 'Combiner', port: 2 }]);
+    await s.execute(['device delete #1']);
+    expect((await reader.getDevice('#3')).inputs[1]?.source).toBeUndefined();
+  });
+
+  it('keeps set values, and a snapshot restore brings back values and wires (assumption C1)', async () => {
+    const s = session();
+    await s.execute([
+      'project new blank force',
+      'device add Gradient',
+      'device add Combiner',
+      'wire connect #1 #2',
+      'param set #1.Width 0.5',
+      'param set #2.Clamp no',
+      'snapshot create S',
+    ]);
+    expect(await outputs(s, ['param get #1.Width', 'param get #2.Clamp'])).toEqual([
+      ['#1.Width = 0.5'],
+      ['#2.Clamp = false'],
+    ]);
+    await s.execute([
+      'param set #1.Width 0.9',
+      'wire disconnect #1 #2',
+      'device delete #2',
+      'snapshot restore S',
+    ]);
+    const reader = new WorldMachineGraphReader(s);
+    expect((await reader.getDevice('#1')).parameters[1]).toEqual({
+      name: 'Width',
+      type: 'float',
+      value: '0.5',
+    });
+    expect((await reader.getDevice('#2')).inputs[0]?.source).toEqual({ device: 'Gradient', port: 1 });
+  });
+
+  it('fails the n-th param set and every restore on request', async () => {
+    const s = session({ FAKE_WM_PARAM_SET_ERROR_AT: '2', FAKE_WM_RESTORE_ERROR: '1' });
+    await s.execute(['project new blank force', 'device add Gradient', 'snapshot create S']);
+    expect(
+      await outputs(s, [
+        'param set #1.Direction 1',
+        'param set #1.Direction 2',
+        'param get #1.Direction',
+        'snapshot restore S',
+      ]),
+    ).toEqual([
+      ['Set #1.Direction = 1'],
+      ["Error: Error: Invalid value for '#1.Direction'"],
+      ['#1.Direction = 1'],
+      ["Error: Error: Could not restore snapshot 'S'"],
     ]);
   });
 });
