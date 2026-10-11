@@ -1,5 +1,6 @@
 import { McpServer, type ServerContext } from '@modelcontextprotocol/server';
 import type { AddDeviceCommandPort } from '../../../application/port/in/command/add-device-command.js';
+import type { ApplyGraphCommandPort } from '../../../application/port/in/command/apply-graph-command.js';
 import type { BuildProjectCommandPort } from '../../../application/port/in/command/build-project-command.js';
 import type {
   ConfigureSceneCommand,
@@ -32,6 +33,7 @@ import type { ListDevicesQueryPort } from '../../../application/port/in/query/li
 import type { ListExportsQueryPort } from '../../../application/port/in/query/list-exports-query.js';
 import type { ListGroupsQueryPort } from '../../../application/port/in/query/list-groups-query.js';
 import type { ListSnapshotsQueryPort } from '../../../application/port/in/query/list-snapshots-query.js';
+import type { PlanGraphQueryPort } from '../../../application/port/in/query/plan-graph-query.js';
 import { WorldMachineError } from '../../../domain/errors.js';
 import type { WireEndpoint } from '../../../domain/graph-edit.js';
 import type { SessionSummary } from '../../../domain/session.js';
@@ -39,6 +41,8 @@ import type { Logger } from '../../../logger.js';
 import {
   addDeviceInputSchema,
   addDeviceViewSchema,
+  applyGraphInputSchema,
+  applyGraphViewSchema,
   buildProjectInputSchema,
   buildProjectViewSchema,
   buildStatusViewSchema,
@@ -63,6 +67,8 @@ import {
   noInputSchema,
   openProjectInputSchema,
   organizeDevicesViewSchema,
+  planGraphInputSchema,
+  planGraphViewSchema,
   projectCommandViewSchema,
   projectViewSchema,
   renameDeviceInputSchema,
@@ -116,6 +122,8 @@ export type McpDependencies = {
   readonly organizeDevices: OrganizeDevicesCommandPort;
   readonly listGroups: ListGroupsQueryPort;
   readonly setGroupEnabled: SetGroupEnabledCommandPort;
+  readonly planGraph: PlanGraphQueryPort;
+  readonly applyGraph: ApplyGraphCommandPort;
   readonly currentSession: () => SessionSummary;
   readonly logger: Logger;
 };
@@ -575,6 +583,35 @@ export function createMcpServer(deps: McpDependencies): McpServer {
     },
     ({ group, enabled }) =>
       respond(deps, 'set_group_enabled', () => deps.setGroupEnabled.setGroupEnabled({ group, enabled })),
+  );
+
+  server.registerTool(
+    'plan_graph',
+    {
+      title: 'Plan graph',
+      description:
+        'Plan the changes that bring the devices a graph spec names to the state it gives, without changing anything. The spec is { version: 1, devices: [{ name, type, enabled?, parameters?, inputs? }], remove?: [names or #<id>] }. A device the spec names is managed: it is added when no device has its name (compared regardless of case), and otherwise only the fields its entry gives are changed. Devices the spec does not name are never changed, except that their wires to removed devices go with them; deleting needs the remove list. inputs maps an input port number to a source, "<device>" or "<device>.<port>" (output port 1 when omitted), or to null for no wire; ports not listed are left alone. Returns planId, the ordered steps, conflicts (apply_graph refuses a plan with any), and the managed devices left unchanged. Float and enum parameters are always planned (comparable: false), since World Machine shows floats in display units and enums as labels while it takes internal values and indexes. Show the plan to the user before calling apply_graph.',
+      inputSchema: planGraphInputSchema,
+      outputSchema: planGraphViewSchema,
+      annotations: READ_ONLY,
+    },
+    ({ spec }) => respond(deps, 'plan_graph', () => deps.planGraph.planGraph({ spec })),
+  );
+
+  server.registerTool(
+    'apply_graph',
+    {
+      title: 'Apply graph',
+      description:
+        "Apply a graph spec planned with plan_graph: pass the same spec and its planId as plan_id. Plan first and show the plan to the user. The plan is made again inside this call; if the project or the spec changed since plan_graph, or the plan has conflicts, nothing is changed. The steps run under a snapshot named 'apply_graph <first 12 characters of planId>', taken before the first step; if a step fails, the project is restored to it and the result is APPLY_FAILED with the failed step, the number of completed steps, whether the rollback was confirmed (rolledBack), and the snapshot, which is kept for inspection. After success the snapshot is deleted unless keep_snapshot is true. A float parameter is always set because its current value cannot be compared. undo does not revert an apply in one step; the snapshot does. Refused while a build runs.",
+      inputSchema: applyGraphInputSchema,
+      outputSchema: applyGraphViewSchema,
+      annotations: DESTRUCTIVE,
+    },
+    ({ spec, plan_id, keep_snapshot }) =>
+      respond(deps, 'apply_graph', () =>
+        deps.applyGraph.applyGraph({ spec, planId: plan_id, keepSnapshot: keep_snapshot ?? false }),
+      ),
   );
 
   return server;

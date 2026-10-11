@@ -18,6 +18,7 @@ import { WorldMachineSession } from './adapter/out/worldmachine/world-machine-se
 import { WorldMachineSnapshotEditor } from './adapter/out/worldmachine/world-machine-snapshot-editor.js';
 import { WorldMachineWireEditor } from './adapter/out/worldmachine/world-machine-wire-editor.js';
 import { AddDeviceService } from './application/service/add-device-service.js';
+import { ApplyGraphService } from './application/service/apply-graph-service.js';
 import { BuildProjectService } from './application/service/build-project-service.js';
 import { ConfigureSceneService } from './application/service/configure-scene-service.js';
 import { ConnectDevicesService } from './application/service/connect-devices-service.js';
@@ -38,6 +39,7 @@ import { ListGroupsService } from './application/service/list-groups-service.js'
 import { ListSnapshotsService } from './application/service/list-snapshots-service.js';
 import { OpenProjectService } from './application/service/open-project-service.js';
 import { OrganizeDevicesService } from './application/service/organize-devices-service.js';
+import { PlanGraphService } from './application/service/plan-graph-service.js';
 import { RedoService } from './application/service/redo-service.js';
 import { RenameDeviceService } from './application/service/rename-device-service.js';
 import { RestoreSnapshotService } from './application/service/restore-snapshot-service.js';
@@ -120,6 +122,8 @@ const handle = serveStdio(() =>
     organizeDevices: new OrganizeDevicesService(session, devices),
     listGroups: new ListGroupsService(session, groups),
     setGroupEnabled: new SetGroupEnabledService(session, groups),
+    planGraph: new PlanGraphService(session, reader),
+    applyGraph: new ApplyGraphService(session, reader, devices, wires, parameters, snapshots),
     currentSession: () => session.status().session,
   }),
 );

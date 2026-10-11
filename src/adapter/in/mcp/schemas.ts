@@ -1,5 +1,6 @@
 import * as z from 'zod/v4';
 import type { AddDeviceView } from '../../../application/port/in/command/add-device-command.js';
+import type { ApplyGraphView } from '../../../application/port/in/command/apply-graph-command.js';
 import type { BuildProjectView } from '../../../application/port/in/command/build-project-command.js';
 import type { ConfigureSceneView } from '../../../application/port/in/command/configure-scene-command.js';
 import type { ConnectDevicesView } from '../../../application/port/in/command/connect-devices-command.js';
@@ -25,6 +26,7 @@ import type { DeviceListView } from '../../../application/port/in/query/list-dev
 import type { ListExportsView } from '../../../application/port/in/query/list-exports-query.js';
 import type { GroupListView } from '../../../application/port/in/query/list-groups-query.js';
 import type { SnapshotListView } from '../../../application/port/in/query/list-snapshots-query.js';
+import type { PlanGraphView } from '../../../application/port/in/query/plan-graph-query.js';
 import type {
   DeviceDetail,
   DeviceSummary,
@@ -33,6 +35,9 @@ import type {
   Parameter,
   PortLink,
 } from '../../../domain/device.js';
+import type { DiffEntry } from '../../../domain/graph-diff.js';
+import type { PlanStep } from '../../../domain/graph-plan.js';
+import type { RawGraphSpec } from '../../../domain/graph-spec.js';
 import type { Group } from '../../../domain/group.js';
 import type { CheckedExportTarget } from '../../../domain/output-template.js';
 import type { ProjectOverview } from '../../../domain/project.js';
@@ -464,3 +469,132 @@ export const setGroupEnabledViewSchema = z.strictObject({
   enabled: z.boolean(),
   session: sessionSummarySchema,
 }) satisfies z.ZodType<SetGroupEnabledView>;
+
+// Spec v3 section 4. The schema admits the structure only; validateGraphSpec refuses everything else with REFUSED,
+// so a rule broken is a tool result, not a protocol error (plan decision D6).
+const graphDeviceSchema = z.object({
+  name: z
+    .string()
+    .describe(
+      'The managed device; its name is its identity, compared regardless of case, at most 23 characters',
+    ),
+  type: z.string().describe('The exact World Machine device type, as add_device takes it'),
+  enabled: z.boolean().optional(),
+  parameters: z
+    .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+    .optional()
+    .describe('Parameter name to value, in the forms update_device_parameters takes'),
+  inputs: z
+    .record(z.string(), z.string().nullable())
+    .optional()
+    .describe('Input port number to its source, "<device>" or "<device>.<output port>", or null for no wire'),
+});
+
+export const graphSpecSchema = z.object({
+  version: z.number().describe('Must be 1'),
+  devices: z.array(graphDeviceSchema),
+  remove: z.array(z.string()).optional().describe('Device names or #<id> to delete; absence never deletes'),
+}) satisfies z.ZodType<RawGraphSpec>;
+
+export const planGraphInputSchema = z.object({ spec: graphSpecSchema });
+
+export const applyGraphInputSchema = z.object({
+  spec: graphSpecSchema,
+  plan_id: z.string().describe('The planId plan_graph returned for this spec'),
+  keep_snapshot: z
+    .boolean()
+    .optional()
+    .describe('Keep the apply snapshot after a successful apply (default false)'),
+});
+
+const stepSourceSchema = z.strictObject({
+  device: z.string(),
+  id: z.number().int().optional(),
+  port: z.number().int(),
+});
+
+const planStepSchema = z.discriminatedUnion('op', [
+  z.strictObject({
+    op: z.literal('disconnect'),
+    device: z.string(),
+    id: z.number().int(),
+    port: z.number().int(),
+    from: z.string(),
+    source: z.strictObject({ device: z.string(), id: z.number().int(), port: z.number().int() }),
+  }),
+  z.strictObject({
+    op: z.literal('remove'),
+    device: z.string(),
+    id: z.number().int(),
+    wiresRemoved: z.array(z.string()),
+  }),
+  z.strictObject({ op: z.literal('add'), device: z.string(), type: z.string() }),
+  z.strictObject({
+    op: z.literal('set-enabled'),
+    device: z.string(),
+    id: z.number().int().optional(),
+    from: z.boolean().optional(),
+    to: z.boolean(),
+  }),
+  z.strictObject({
+    op: z.literal('set-parameter'),
+    device: z.string(),
+    id: z.number().int().optional(),
+    name: z.string(),
+    from: z.string().optional(),
+    to: z.string(),
+    comparable: z.boolean(),
+  }),
+  z.strictObject({
+    op: z.literal('connect'),
+    device: z.string(),
+    id: z.number().int().optional(),
+    port: z.number().int(),
+    from: z.string(),
+    source: stepSourceSchema,
+  }),
+]) satisfies z.ZodType<PlanStep>;
+
+export const planGraphViewSchema = z.strictObject({
+  planId: z.string(),
+  conflicts: z.array(z.strictObject({ entry: z.string(), reason: z.string() })),
+  steps: z.array(planStepSchema),
+  unchanged: z.array(z.string()),
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<PlanGraphView>;
+
+const changeOf = <T extends z.ZodType>(value: T) => z.strictObject({ before: value, after: value });
+
+const diffEntrySchema = z.discriminatedUnion('change', [
+  z.strictObject({
+    device: z.string(),
+    change: z.literal('added'),
+    after: z.strictObject({
+      id: z.number().int(),
+      type: z.string(),
+      enabled: z.boolean(),
+      parameters: z.record(z.string(), z.string()),
+      inputs: z.record(z.string(), z.string()),
+    }),
+  }),
+  z.strictObject({
+    device: z.string(),
+    change: z.literal('removed'),
+    before: z.strictObject({ id: z.number().int(), type: z.string() }),
+  }),
+  z.strictObject({
+    device: z.string(),
+    change: z.literal('changed'),
+    id: z.number().int(),
+    enabled: changeOf(z.boolean()).optional(),
+    parameters: z.record(z.string(), changeOf(z.string())).optional(),
+    inputs: z.record(z.string(), changeOf(z.string().nullable())).optional(),
+  }),
+]) satisfies z.ZodType<DiffEntry>;
+
+export const applyGraphViewSchema = z.strictObject({
+  applied: z.number().int(),
+  snapshot: z.string().nullable(),
+  diff: z.array(diffEntrySchema),
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<ApplyGraphView>;

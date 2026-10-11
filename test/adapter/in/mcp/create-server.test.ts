@@ -29,6 +29,8 @@ const WIRE = {
 // raw/v2b-snapshots.txt l.31 and raw/v2b-groups.txt l.18.
 const SNAPSHOT = { index: 0, name: 'A', created: '2026-10-06 11:09' };
 const TERRAIN = { index: 0, name: 'Create your Terrain', deviceCount: 6 };
+const PLAN_ID = '3f9a12345678'.padEnd(64, '0');
+const GRAPH_SPEC = { version: 1, devices: [{ name: 'Base', type: 'Advanced Perlin' }] };
 
 const SCENE: Scene = {
   name: 'Scene 1',
@@ -168,6 +170,10 @@ function deps(overrides: Partial<McpDependencies> = {}): McpDependencies {
     setGroupEnabled: {
       setGroupEnabled: async (c) => ({ ...TERRAIN, enabled: c.enabled, session: READY_DIRTY }),
     },
+    planGraph: {
+      planGraph: async () => ({ planId: PLAN_ID, conflicts: [], steps: [], unchanged: [], session: READY }),
+    },
+    applyGraph: { applyGraph: async () => ({ applied: 0, snapshot: null, diff: [], session: READY }) },
     currentSession: () => READY,
     logger: silentLogger(),
     ...overrides,
@@ -195,10 +201,11 @@ async function connect(dependencies: McpDependencies): Promise<Client> {
 }
 
 describe('createMcpServer', () => {
-  it('registers all thirty tools as closed-world, the nine read tools as read-only', async () => {
+  it('registers all thirty-two tools as closed-world, the ten read tools as read-only', async () => {
     const { tools } = await (await connect(deps())).listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       'add_device',
+      'apply_graph',
       'build_project',
       'configure_scene',
       'connect_devices',
@@ -219,6 +226,7 @@ describe('createMcpServer', () => {
       'list_snapshots',
       'open_project',
       'organize_devices',
+      'plan_graph',
       'redo',
       'rename_device',
       'restore_snapshot',
@@ -239,6 +247,7 @@ describe('createMcpServer', () => {
       'list_exports',
       'list_groups',
       'list_snapshots',
+      'plan_graph',
     ];
     for (const tool of tools) {
       if (readTools.includes(tool.name)) {
@@ -252,6 +261,149 @@ describe('createMcpServer', () => {
       }
       expect(tool.outputSchema).toBeDefined();
     }
+  });
+
+  it('marks apply_graph destructive and not idempotent, and plan_graph read-only', async () => {
+    const { tools } = await (await connect(deps())).listTools();
+    const annotations = (name: string) => tools.find((tool) => tool.name === name)?.annotations;
+    expect(annotations('apply_graph')).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+    });
+    expect(annotations('plan_graph')).toMatchObject({ readOnlyHint: true });
+    const description = tools.find((tool) => tool.name === 'apply_graph')?.description ?? '';
+    expect(description).toContain('show the plan to the user');
+    expect(description).toContain('float parameter is always set');
+    expect(description).toContain('undo does not revert');
+  });
+
+  it('passes plan_id and keep_snapshot to apply_graph, keep_snapshot false by default', async () => {
+    const commands: unknown[] = [];
+    const client = await connect(
+      deps({
+        applyGraph: {
+          applyGraph: async (command) => {
+            commands.push(command);
+            return { applied: 0, snapshot: null, diff: [], session: READY };
+          },
+        },
+      }),
+    );
+    await client.callTool({ name: 'apply_graph', arguments: { spec: GRAPH_SPEC, plan_id: PLAN_ID } });
+    await client.callTool({
+      name: 'apply_graph',
+      arguments: { spec: GRAPH_SPEC, plan_id: PLAN_ID, keep_snapshot: true },
+    });
+    expect(commands).toEqual([
+      { spec: GRAPH_SPEC, planId: PLAN_ID, keepSnapshot: false },
+      { spec: GRAPH_SPEC, planId: PLAN_ID, keepSnapshot: true },
+    ]);
+  });
+
+  it('returns a plan with every step kind as structured content', async () => {
+    const view = {
+      planId: PLAN_ID,
+      conflicts: [{ entry: 'Eroded', reason: "#20 has no parameter 'Steps'" }],
+      steps: [
+        {
+          op: 'disconnect',
+          device: 'Eroded',
+          id: 20,
+          port: 1,
+          from: 'Old.1',
+          source: { device: 'Old', id: 12, port: 1 },
+        },
+        { op: 'remove', device: 'Old', id: 12, wiresRemoved: ['Old.1 -> Eroded.1'] },
+        { op: 'add', device: 'Base', type: 'Advanced Perlin' },
+        { op: 'set-enabled', device: 'Eroded', id: 20, from: true, to: false },
+        { op: 'set-parameter', device: 'Base', name: 'scale', to: '0.4', comparable: false },
+        {
+          op: 'connect',
+          device: 'Eroded',
+          id: 20,
+          port: 1,
+          from: 'Base.1',
+          source: { device: 'Base', port: 1 },
+        },
+      ],
+      unchanged: ['Shape'],
+      session: READY,
+    } as const;
+    const client = await connect(deps({ planGraph: { planGraph: async () => view } }));
+    const result = await client.callTool({ name: 'plan_graph', arguments: { spec: GRAPH_SPEC } });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toEqual(view);
+  });
+
+  it('returns an apply diff with every change kind as structured content', async () => {
+    const view = {
+      applied: 5,
+      snapshot: null,
+      diff: [
+        {
+          device: 'Base',
+          change: 'added',
+          after: {
+            id: 536,
+            type: 'Advanced Perlin',
+            enabled: true,
+            parameters: { scale: '4 km' },
+            inputs: { '1': 'Shape.1' },
+          },
+        },
+        { device: 'Old', change: 'removed', before: { id: 12, type: 'Perlin Noise' } },
+        {
+          device: 'Eroded',
+          change: 'changed',
+          id: 20,
+          parameters: { steps: { before: '4', after: '6' } },
+          inputs: { '1': { before: 'Old.1', after: 'Base.1' } },
+        },
+      ],
+      session: READY_DIRTY,
+    } as const;
+    const client = await connect(deps({ applyGraph: { applyGraph: async () => view } }));
+    const result = await client.callTool({
+      name: 'apply_graph',
+      arguments: { spec: GRAPH_SPEC, plan_id: PLAN_ID },
+    });
+    expect(result.structuredContent).toEqual(view);
+  });
+
+  it('reports APPLY_FAILED with its details beside code and message', async () => {
+    const details = {
+      failedStep: {
+        index: 2,
+        step: { op: 'set-parameter', device: 'Base', name: 'nope', to: '1', comparable: false },
+        code: 'REFUSED',
+        message: "Nothing was set on #536 'Base'",
+      },
+      completedSteps: 2,
+      rolledBack: true,
+      snapshot: 'apply_graph 3f9a12345678',
+    };
+    const client = await connect(
+      deps({
+        applyGraph: {
+          applyGraph: async () => {
+            throw new WorldMachineError('APPLY_FAILED', 'Step 3 of 4 failed', undefined, details);
+          },
+        },
+      }),
+    );
+    const result = await client.callTool({
+      name: 'apply_graph',
+      arguments: { spec: GRAPH_SPEC, plan_id: PLAN_ID },
+    });
+    expect(result.isError).toBe(true);
+    const content = result.content as { type: string; text: string }[];
+    expect(JSON.parse(content[0]?.text ?? '')).toEqual({
+      code: 'APPLY_FAILED',
+      message: 'Step 3 of 4 failed',
+      ...details,
+      session: READY,
+    });
   });
 
   it('marks save_project as destructive and the other commands as not destructive', async () => {
