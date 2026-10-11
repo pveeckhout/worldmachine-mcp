@@ -4,6 +4,7 @@ import { WorldMachineError, worldMachineText } from '../../domain/errors.js';
 import { type DiffEntry, graphDiff } from '../../domain/graph-diff.js';
 import { type GraphState, type PlanStep, planGraph, planId } from '../../domain/graph-plan.js';
 import { type GraphSpec, validateGraphSpec } from '../../domain/graph-spec.js';
+import type { SessionSummary } from '../../domain/session.js';
 import type {
   ApplyFailureDetails,
   ApplyGraphCommand,
@@ -79,13 +80,21 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
         );
       }
       await this.#snapshots.create(snapshot);
+      const start = this.#session.status().session;
       const added = new Map<string, number>();
       for (const [index, step] of plan.steps.entries()) {
         try {
+          // A World Machine that exited between steps restarts silently on the next command, on another project.
+          if (!this.#sameSession(start)) {
+            throw new WorldMachineError(
+              'CRASHED',
+              'World Machine exited before this step; the remaining steps were not sent',
+            );
+          }
           await this.#run(step, added);
         } catch (error) {
           if (!(error instanceof WorldMachineError)) throw error;
-          throw await this.#failed(error, index, plan.steps.length, step, snapshot, spec, id);
+          throw await this.#failed(error, index, plan.steps.length, step, snapshot, spec, id, start);
         }
       }
       const diff = await this.#diff(plan.steps, state, added);
@@ -160,12 +169,13 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
     snapshot: string,
     spec: GraphSpec,
     before: string,
+    start: SessionSummary,
   ): Promise<WorldMachineError> {
     const text =
       error.worldMachineMessage === undefined
         ? undefined
         : worldMachineText(error.worldMachineMessage.split('\n'));
-    const lost = error.code === 'TIMEOUT' || error.code === 'CRASHED';
+    const lost = error.code === 'TIMEOUT' || error.code === 'CRASHED' || !this.#sameSession(start);
     const rolledBack = lost ? false : await this.#restore(snapshot, spec, before);
     const details: ApplyFailureDetails = {
       failedStep: {
@@ -180,10 +190,10 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
       snapshot,
     };
     const outcome =
-      error.code === 'CRASHED'
+      error.code === 'CRASHED' || (lost && error.code !== 'TIMEOUT')
         ? `World Machine crashed, so nothing was restored, and snapshot '${snapshot}' is gone with it: a snapshot lives only in memory until a save (fact 59).`
         : error.code === 'TIMEOUT'
-          ? `World Machine did not answer in time, so nothing was restored; restore snapshot '${snapshot}' with restore_snapshot or in the World Machine window.`
+          ? `World Machine did not answer in time and was stopped, so nothing was restored, and snapshot '${snapshot}' is gone with it: a snapshot lives only in memory until a save (fact 59).`
           : rolledBack
             ? `The project was restored to snapshot '${snapshot}', which is kept for inspection; remove it with delete_snapshot.`
             : `The restore of snapshot '${snapshot}' could not be confirmed; restore it with restore_snapshot or in the World Machine window.`;
@@ -193,6 +203,16 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
       undefined,
       details,
     );
+  }
+
+  /** True while the session is the ready one the apply started in: same state and same project binding. */
+  #sameSession(start: SessionSummary): boolean {
+    const now = this.#session.status().session;
+    if (now.state !== 'ready') return false;
+    const a = now.binding;
+    const b = start.binding;
+    if (a === undefined || b === undefined) return a === b;
+    return a.kind === b.kind && (a.kind === 'fresh' || (b.kind === 'opened' && a.path === b.path));
   }
 
   /** D14: true only when the restore succeeded and the read-back gives the plan's own fingerprint. */

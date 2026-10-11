@@ -319,4 +319,18 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
     expect(view.snapshot).toBe(snapshotOf(plan.planId));
     expect((await w.snapshots.list()).map((snapshot) => snapshot.name)).toEqual([snapshotOf(plan.planId)]);
   });
+
+  it('reports a timeout as a stopped World Machine without a restore', async () => {
+    const w = wired({ FAKE_WM_HANG_ON: 'wire connect #536.1 #537.1' });
+    const plan = await w.plan.planGraph({ spec: SPEC });
+    const error = await failure(w.apply.applyGraph({ spec: SPEC, planId: plan.planId, keepSnapshot: false }));
+    expect(error.code).toBe('APPLY_FAILED');
+    expect(error.details).toMatchObject({
+      failedStep: { index: 3, code: 'TIMEOUT' },
+      completedSteps: 3,
+      rolledBack: false,
+    });
+    expect(error.message).toContain('gone');
+    expect(w.record.lines().filter((line) => line.startsWith('snapshot restore'))).toEqual([]);
+  }, 15_000);
 });
