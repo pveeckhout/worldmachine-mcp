@@ -217,6 +217,23 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
     expect(error).toMatchObject({ code: 'REFUSED', message: expect.stringContaining("type 'Combiner'") });
   });
 
+  it('rolls back an add that World Machine resolved to another type (spec fact 81)', async () => {
+    const w = wired();
+    const spec: RawGraphSpec = { version: 1, devices: [{ name: 'Lake', type: 'Water' }] };
+    const plan = await w.plan.planGraph({ spec });
+    const before = (await w.reader.listDevices()).map((device) => device.id);
+    const error = await failure(w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false }));
+    expect(error.code).toBe('APPLY_FAILED');
+    expect(error.details).toMatchObject({
+      failedStep: { index: 0, step: { op: 'add', device: 'Lake', type: 'Water' }, code: 'WM_COMMAND_FAILED' },
+      completedSteps: 0,
+      rolledBack: true,
+    });
+    expect(error.message).toContain("'Coast Erosion'");
+    expect(w.record.lines().filter((line) => line.startsWith('device rename'))).toEqual([]);
+    expect((await w.reader.listDevices()).map((device) => device.id)).toEqual(before);
+  });
+
   it('rolls back a failing step and keeps the snapshot', async () => {
     const w = wired({ FAKE_WM_PARAM_SET_ERROR_AT: '1' });
     const plan = await w.plan.planGraph({ spec: SPEC });

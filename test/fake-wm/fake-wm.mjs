@@ -265,7 +265,12 @@ const switchTo = (next) => {
 // 'Gradient'; `device add Erosion` gives 'Erosion', raw/p2b-kind-markers.txt). Captured exception,
 // raw/v6b-param-set.txt l.13-14: `device add File Output` names the device 'Height Output'.
 // raw/v3-assumptions.txt l.435-472 (spec fact 79): Layout Generator is named and typed 'Shapes'.
-const DEFAULT_NAMES = { 'File Output': 'Height Output', 'Layout Generator': 'Shapes' };
+// raw/v3-rename-types.txt (spec fact 81): `device add Water` accepts the word and adds a Coast Erosion.
+const DEFAULT_NAMES = {
+  'File Output': 'Height Output',
+  'Layout Generator': 'Shapes',
+  Water: 'Coast Erosion',
+};
 // Ports and parameters of added devices (plan v3 decision D19). raw/p2a-edge-cases.txt l.38-42 and l.59-63: a
 // Gradient has no inputs, one output, and Direction, Width, and Tiling. raw/p2b-graph-edits.txt l.25-31: a Combiner
 // has two inputs named 'Primary Input' and one output. Assumed: the Combiner's parameters (not captured), and for

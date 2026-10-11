@@ -38,10 +38,11 @@ describe('ApplyGraphService with a World Machine that exits between steps', () =
       },
     };
     const devices = {
-      addDevice: async () => {
+      // Listed as `Ramp (<type>)`: the spec name and the requested type, so neither a rename nor the type check runs.
+      addDevice: async (type: string) => {
         calls.push('add');
         summary = { state: 'unhealthy', reason: 'x' };
-        return { id: 536, name: 'Ramp', enabled: true };
+        return { id: 536, name: 'Ramp', kind: type, enabled: true };
       },
     };
     const stub = <T>(value: unknown): T => value as T;

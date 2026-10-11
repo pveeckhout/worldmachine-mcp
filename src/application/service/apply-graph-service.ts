@@ -2,7 +2,7 @@ import type { DeviceDetail } from '../../domain/device.js';
 import { foldCase } from '../../domain/device-name.js';
 import { WorldMachineError, worldMachineText } from '../../domain/errors.js';
 import { type DiffEntry, graphDiff } from '../../domain/graph-diff.js';
-import { type GraphState, type PlanStep, planGraph, planId } from '../../domain/graph-plan.js';
+import { type GraphState, listedType, type PlanStep, planGraph, planId } from '../../domain/graph-plan.js';
 import { type GraphSpec, validateGraphSpec } from '../../domain/graph-spec.js';
 import type { SessionSummary } from '../../domain/session.js';
 import type {
@@ -129,6 +129,17 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
       case 'add': {
         const row = await this.#devices.addDevice(step.type);
         added.set(foldCase(step.device), row.id);
+        // Spec fact 81: `device add` also accepts aliases and loose words and adds whatever type they pick. The list
+        // row shows the type as its kind, or as the name when the two are equal; the planner compares types the same
+        // exact way (fact 79's mapping), so a mismatch fails the step and the apply rolls back.
+        const actual = row.kind ?? row.name;
+        const wanted = listedType(step.type);
+        if (actual !== wanted) {
+          throw new WorldMachineError(
+            'WM_COMMAND_FAILED',
+            `device add '${step.type}' made a '${actual}', not a '${wanted}': World Machine also accepts aliases, so give the exact type name`,
+          );
+        }
         // Section 5: renamed only when the default name differs (facts 30, 40).
         if (row.name !== step.device) await this.#devices.renameDevice(`#${row.id}`, step.device);
         return;
