@@ -1,0 +1,1488 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> device add Reach Scaling
+Added 'Reach Scaling'
+<<<
+>>> device list
+Devices (18 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Reach Scaling           
+
+<<<
+>>> param list #536
+Parameters for 'Reach Scaling' (Reach Scaling):
+  Meander Scaled to         enum      Bankfull Width (Wavelength)
+  Meander Belt Width        float     800 m
+  Meander Wavelength        float     10.9
+  Meander Radius            float     2.34
+  Channel Scaled to         enum      Use meander scaling
+  Valley Scaled to          enum      Use meander scaling
+  Valley Wall Amplitude     float     400 m
+
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Alignment    <- (none)
+    [2] Bankfull Width <- (none)
+    [3] Thalweg Undulation <- (none)
+    [4] Thalweg Curvature <- (none)
+    [5] Left Valley Wall <- (none)
+    [6] Right Valley Wall <- (none)
+  Outputs:
+    [1] River Parameters -> (none)
+
+<<<
+>>> device add Perlin Curve
+Added 'Perlin Curve'
+<<<
+>>> device list
+Devices (19 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Reach Scaling           
+  #537   Perlin Curve            
+
+<<<
+>>> param list #537
+Parameters for 'Perlin Curve' (Perlin Curve):
+  Octaves                   int       1
+  Lead-in Frequency         float     1.0
+  Lacunarity                float     2.15
+  Persistence               float     0.5
+  Phase Offset              float     0.0
+
+<<<
+>>> wire list #537
+Connections for '#537':
+  Inputs:
+  Outputs:
+    [1] Parameter Output -> (none)
+
+<<<
+>>> wire connect #537.1 #536.1
+Connected '#537' [1] -> '#536' [1]
+<<<
+>>> wire disconnect #537.1 #536.1
+Disconnected '#537' [1] -> '#536' [1]
+<<<
+>>> wire connect #537.1 #536.2
+Connected '#537' [1] -> '#536' [2]
+<<<
+>>> wire disconnect #537.1 #536.2
+Disconnected '#537' [1] -> '#536' [2]
+<<<
+>>> wire connect #537.1 #536.3
+Connected '#537' [1] -> '#536' [3]
+<<<
+>>> wire disconnect #537.1 #536.3
+Disconnected '#537' [1] -> '#536' [3]
+<<<
+>>> wire connect #537.1 #536.4
+Connected '#537' [1] -> '#536' [4]
+<<<
+>>> wire disconnect #537.1 #536.4
+Disconnected '#537' [1] -> '#536' [4]
+<<<
+>>> wire connect #537.1 #536.5
+Connected '#537' [1] -> '#536' [5]
+<<<
+>>> wire disconnect #537.1 #536.5
+Disconnected '#537' [1] -> '#536' [5]
+<<<
+>>> wire connect #537.1 #536.6
+Connected '#537' [1] -> '#536' [6]
+<<<
+>>> (printed between batches)
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> wire disconnect #537.1 #536.6
+Disconnected '#537' [1] -> '#536' [6]
+<<<
+>>> device add Sinusoidal Curve
+Added 'Sinusoidal Curve'
+<<<
+>>> device list
+Devices (20 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Reach Scaling           
+  #537   Perlin Curve            
+  #538   Sinusoidal Curve        
+
+<<<
+>>> param list #538
+Parameters for 'Sinusoidal Curve' (Sinusoidal Curve):
+  Number of Sinusoids       int       1
+  Frequency sin1            float     1.0
+  Amplitude sin1            float     1.0
+  Phase sin1                float     0.0
+  Frequency sin2            float     1.0
+  Amplitude sin2            float     1.0
+  Phase sin2                float     0.0
+  Frequency sin3            float     1.0
+  Amplitude sin3            float     1.0
+  Phase sin3                float     0.0
+  Frequency sin4            float     1.0
+  Amplitude sin4            float     1.0
+  Phase sin4                float     0.0
+
+<<<
+>>> wire list #538
+Connections for '#538':
+  Inputs:
+  Outputs:
+    [1] Parameter Output -> (none)
+
+<<<
+>>> wire connect #538.1 #536.1
+Connected '#538' [1] -> '#536' [1]
+<<<
+>>> wire disconnect #538.1 #536.1
+Disconnected '#538' [1] -> '#536' [1]
+<<<
+>>> wire connect #538.1 #536.2
+Connected '#538' [1] -> '#536' [2]
+<<<
+>>> wire disconnect #538.1 #536.2
+Disconnected '#538' [1] -> '#536' [2]
+<<<
+>>> wire connect #538.1 #536.3
+Connected '#538' [1] -> '#536' [3]
+<<<
+>>> wire disconnect #538.1 #536.3
+Disconnected '#538' [1] -> '#536' [3]
+<<<
+>>> wire connect #538.1 #536.4
+Connected '#538' [1] -> '#536' [4]
+<<<
+>>> wire disconnect #538.1 #536.4
+Disconnected '#538' [1] -> '#536' [4]
+<<<
+>>> wire connect #538.1 #536.5
+Connected '#538' [1] -> '#536' [5]
+<<<
+>>> wire disconnect #538.1 #536.5
+Disconnected '#538' [1] -> '#536' [5]
+<<<
+>>> wire connect #538.1 #536.6
+Connected '#538' [1] -> '#536' [6]
+<<<
+>>> wire disconnect #538.1 #536.6
+Disconnected '#538' [1] -> '#536' [6]
+<<<
+>>> device add Cnoidal Curve
+Added 'Cnoidal Curve'
+<<<
+>>> device list
+Devices (21 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Reach Scaling           
+  #537   Perlin Curve            
+  #538   Sinusoidal Curve        
+  #539   Cnoidal Curve           
+
+<<<
+>>> param list #539
+Parameters for 'Cnoidal Curve' (Cnoidal Curve):
+  Frequency sin1            float     1.0
+  Amplitude sin1            float     1.0
+  Phase sin1                float     0.0
+  Wave shape (m)            float     0.9
+
+<<<
+>>> wire list #539
+Connections for '#539':
+  Inputs:
+  Outputs:
+    [1] Parameter Output -> (none)
+
+<<<
+>>> wire connect #539.1 #536.1
+Connected '#539' [1] -> '#536' [1]
+<<<
+>>> wire disconnect #539.1 #536.1
+Disconnected '#539' [1] -> '#536' [1]
+<<<
+>>> wire connect #539.1 #536.2
+Connected '#539' [1] -> '#536' [2]
+<<<
+>>> wire disconnect #539.1 #536.2
+Disconnected '#539' [1] -> '#536' [2]
+<<<
+>>> wire connect #539.1 #536.3
+Connected '#539' [1] -> '#536' [3]
+<<<
+>>> wire disconnect #539.1 #536.3
+Disconnected '#539' [1] -> '#536' [3]
+<<<
+>>> wire connect #539.1 #536.4
+Connected '#539' [1] -> '#536' [4]
+<<<
+>>> wire disconnect #539.1 #536.4
+Disconnected '#539' [1] -> '#536' [4]
+<<<
+>>> wire connect #539.1 #536.5
+Connected '#539' [1] -> '#536' [5]
+<<<
+>>> wire disconnect #539.1 #536.5
+Disconnected '#539' [1] -> '#536' [5]
+<<<
+>>> wire connect #539.1 #536.6
+Connected '#539' [1] -> '#536' [6]
+<<<
+>>> wire disconnect #539.1 #536.6
+Disconnected '#539' [1] -> '#536' [6]
+<<<
+>>> device add Curve Chooser
+Added 'Curve Chooser'
+<<<
+>>> device list
+Devices (22 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Reach Scaling           
+  #537   Perlin Curve            
+  #538   Sinusoidal Curve        
+  #539   Cnoidal Curve           
+  #540   Curve Chooser           
+
+<<<
+>>> (printed between batches)
+[Warning    ] applyResultsDelta() called but no matching world found in history!
+<<<
+>>> param list #540
+Parameters for 'Curve Chooser' (Curve Chooser):
+  Contrast                  float     0.0
+
+<<<
+>>> wire list #540
+Connections for '#540':
+  Inputs:
+    [1] Parameter Input <- (none)
+    [2] Parameter Input <- (none)
+    [3] Parameter Input <- (none)
+  Outputs:
+    [1] Parameter Output -> (none)
+
+<<<
+>>> (printed between batches)
+[Warning    ] applyResultsDelta() called but no matching world found in history!
+<<<
+>>> wire connect #540.1 #536.1
+Connected '#540' [1] -> '#536' [1]
+<<<
+>>> wire disconnect #540.1 #536.1
+Disconnected '#540' [1] -> '#536' [1]
+<<<
+>>> wire connect #540.1 #536.2
+Connected '#540' [1] -> '#536' [2]
+<<<
+>>> wire disconnect #540.1 #536.2
+Disconnected '#540' [1] -> '#536' [2]
+<<<
+>>> wire connect #540.1 #536.3
+Connected '#540' [1] -> '#536' [3]
+<<<
+>>> wire disconnect #540.1 #536.3
+Disconnected '#540' [1] -> '#536' [3]
+<<<
+>>> wire connect #540.1 #536.4
+Connected '#540' [1] -> '#536' [4]
+<<<
+>>> wire disconnect #540.1 #536.4
+Disconnected '#540' [1] -> '#536' [4]
+<<<
+>>> wire connect #540.1 #536.5
+Connected '#540' [1] -> '#536' [5]
+<<<
+>>> wire disconnect #540.1 #536.5
+Disconnected '#540' [1] -> '#536' [5]
+<<<
+>>> wire connect #540.1 #536.6
+Connected '#540' [1] -> '#536' [6]
+<<<
+>>> wire disconnect #540.1 #536.6
+Disconnected '#540' [1] -> '#536' [6]
+<<<
+>>> device add Curve Combiner
+Added 'Curve Combiner'
+<<<
+>>> device list
+Devices (23 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Reach Scaling           
+  #537   Perlin Curve            
+  #538   Sinusoidal Curve        
+  #539   Cnoidal Curve           
+  #540   Curve Chooser           
+  #541   Curve Combiner          
+
+<<<
+>>> param list #541
+Parameters for 'Curve Combiner' (Curve Combiner):
+  How to Combine            enum      Add
+  Strength                  float     1.0
+
+<<<
+>>> wire list #541
+Connections for '#541':
+  Inputs:
+    [1] Parameter Input <- (none)
+    [2] Parameter Input <- (none)
+  Outputs:
+    [1] Parameter Output -> (none)
+
+<<<
+>>> wire connect #541.1 #536.1
+Connected '#541' [1] -> '#536' [1]
+<<<
+>>> wire disconnect #541.1 #536.1
+Disconnected '#541' [1] -> '#536' [1]
+<<<
+>>> wire connect #541.1 #536.2
+Connected '#541' [1] -> '#536' [2]
+<<<
+>>> wire disconnect #541.1 #536.2
+Disconnected '#541' [1] -> '#536' [2]
+<<<
+>>> wire connect #541.1 #536.3
+Connected '#541' [1] -> '#536' [3]
+<<<
+>>> wire disconnect #541.1 #536.3
+Disconnected '#541' [1] -> '#536' [3]
+<<<
+>>> wire connect #541.1 #536.4
+Connected '#541' [1] -> '#536' [4]
+<<<
+>>> wire disconnect #541.1 #536.4
+Disconnected '#541' [1] -> '#536' [4]
+<<<
+>>> wire connect #541.1 #536.5
+Connected '#541' [1] -> '#536' [5]
+<<<
+>>> wire disconnect #541.1 #536.5
+Disconnected '#541' [1] -> '#536' [5]
+<<<
+>>> wire connect #541.1 #536.6
+Connected '#541' [1] -> '#536' [6]
+<<<
+>>> wire disconnect #541.1 #536.6
+Disconnected '#541' [1] -> '#536' [6]
+<<<
+>>> device add Adjust Curve
+Added 'Adjust Curve'
+<<<
+>>> device list
+Devices (24 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Reach Scaling           
+  #537   Perlin Curve            
+  #538   Sinusoidal Curve        
+  #539   Cnoidal Curve           
+  #540   Curve Chooser           
+  #541   Curve Combiner          
+  #542   Adjust Curve            
+
+<<<
+>>> param list #542
+Parameters for 'Adjust Curve' (Adjust Curve):
+  Scale Frequency           float     1.0
+  Offset Phase              float     0.0
+  Scale Amplitude           float     1.0
+  Offset Amplitude          float     0.0
+  Invert curve              bool      false
+
+<<<
+>>> wire list #542
+Connections for '#542':
+  Inputs:
+    [1] Parameter Input <- (none)
+  Outputs:
+    [1] Parameter Output -> (none)
+
+<<<
+>>> wire connect #542.1 #536.1
+Connected '#542' [1] -> '#536' [1]
+<<<
+>>> wire disconnect #542.1 #536.1
+Disconnected '#542' [1] -> '#536' [1]
+<<<
+>>> wire connect #542.1 #536.2
+Connected '#542' [1] -> '#536' [2]
+<<<
+>>> wire disconnect #542.1 #536.2
+Disconnected '#542' [1] -> '#536' [2]
+<<<
+>>> wire connect #542.1 #536.3
+Connected '#542' [1] -> '#536' [3]
+<<<
+>>> wire disconnect #542.1 #536.3
+Disconnected '#542' [1] -> '#536' [3]
+<<<
+>>> wire connect #542.1 #536.4
+Connected '#542' [1] -> '#536' [4]
+<<<
+>>> wire disconnect #542.1 #536.4
+Disconnected '#542' [1] -> '#536' [4]
+<<<
+>>> wire connect #542.1 #536.5
+Connected '#542' [1] -> '#536' [5]
+<<<
+>>> wire disconnect #542.1 #536.5
+Disconnected '#542' [1] -> '#536' [5]
+<<<
+>>> wire connect #542.1 #536.6
+Connected '#542' [1] -> '#536' [6]
+<<<
+>>> wire disconnect #542.1 #536.6
+Disconnected '#542' [1] -> '#536' [6]
+<<<
+>>> device add Shapes
+Added 'Shapes'
+<<<
+>>> device list
+Devices (25 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Reach Scaling           
+  #537   Perlin Curve            
+  #538   Sinusoidal Curve        
+  #539   Cnoidal Curve           
+  #540   Curve Chooser           
+  #541   Curve Combiner          
+  #542   Adjust Curve            
+  #543   Shapes                  
+
+<<<
+>>> param list #543
+Parameters for 'Shapes' (Shapes):
+  Quality                   enum      Standard
+  Background Value          float     0 m
+  invert                    bool      false
+  Breakup Enable            other     false
+  Shape Breakup             float     1.0
+  Shape Frequency           float     4.8 km
+  Shape Roughness           int       3
+
+<<<
+>>> wire list #543
+Connections for '#543':
+  Inputs:
+    [1] Terrain Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+    [2] Shape Mask   -> (none)
+
+<<<
+>>> wire connect #543.1 #536.1
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #543.1 #536.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #543.1 #536.3
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #543.1 #536.4
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #543.1 #536.5
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #543.1 #536.6
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #543.2 #536.1
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #543.2 #536.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #543.2 #536.3
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #543.2 #536.4
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #543.2 #536.5
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #543.2 #536.6
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> device add Layout Generator
+Added 'Shapes'
+<<<
+>>> device list
+Devices (26 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Reach Scaling           
+  #537   Perlin Curve            
+  #538   Sinusoidal Curve        
+  #539   Cnoidal Curve           
+  #540   Curve Chooser           
+  #541   Curve Combiner          
+  #542   Adjust Curve            
+  #543   Shapes                  
+  #544   Shapes                  
+
+<<<
+>>> param list #544
+Parameters for 'Shapes' (Shapes):
+  Quality                   enum      Standard
+  Background Value          float     0 m
+  invert                    bool      false
+  Breakup Enable            other     false
+  Shape Breakup             float     1.0
+  Shape Frequency           float     4.8 km
+  Shape Roughness           int       3
+
+<<<
+>>> wire list #544
+Connections for '#544':
+  Inputs:
+    [1] Terrain Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+    [2] Shape Mask   -> (none)
+
+<<<
+>>> wire connect #544.1 #536.1
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #544.1 #536.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #544.1 #536.3
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #544.1 #536.4
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #544.1 #536.5
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #544.1 #536.6
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #544.2 #536.1
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #544.2 #536.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #544.2 #536.3
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #544.2 #536.4
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #544.2 #536.5
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #544.2 #536.6
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> device add Router
+Added 'Router'
+<<<
+>>> device list
+Devices (27 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Reach Scaling           
+  #537   Perlin Curve            
+  #538   Sinusoidal Curve        
+  #539   Cnoidal Curve           
+  #540   Curve Chooser           
+  #541   Curve Combiner          
+  #542   Adjust Curve            
+  #543   Shapes                  
+  #544   Shapes                  
+  #545   Router                  
+
+<<<
+>>> param list #545
+Parameters for 'Router' (Router):
+  Number of Outputs         int       2
+  Output Choice             int       0
+
+<<<
+>>> wire list #545
+Connections for '#545':
+  Inputs:
+    [1] Primary Input <- (none)
+  Outputs:
+    [1] Default      -> (none)
+    [2] Default      -> (none)
+
+<<<
+>>> wire connect #545.1 #536.1
+Connected '#545' [1] -> '#536' [1]
+<<<
+>>> wire disconnect #545.1 #536.1
+Disconnected '#545' [1] -> '#536' [1]
+<<<
+>>> wire connect #545.1 #536.2
+Connected '#545' [1] -> '#536' [2]
+<<<
+>>> wire disconnect #545.1 #536.2
+Disconnected '#545' [1] -> '#536' [2]
+<<<
+>>> wire connect #545.1 #536.3
+Connected '#545' [1] -> '#536' [3]
+<<<
+>>> wire disconnect #545.1 #536.3
+Disconnected '#545' [1] -> '#536' [3]
+<<<
+>>> wire connect #545.1 #536.4
+Connected '#545' [1] -> '#536' [4]
+<<<
+>>> wire disconnect #545.1 #536.4
+Disconnected '#545' [1] -> '#536' [4]
+<<<
+>>> wire connect #545.1 #536.5
+Connected '#545' [1] -> '#536' [5]
+<<<
+>>> wire disconnect #545.1 #536.5
+Disconnected '#545' [1] -> '#536' [5]
+<<<
+>>> wire connect #545.1 #536.6
+Connected '#545' [1] -> '#536' [6]
+<<<
+>>> wire disconnect #545.1 #536.6
+Disconnected '#545' [1] -> '#536' [6]
+<<<
+>>> wire connect #545.2 #536.1
+Connected '#545' [2] -> '#536' [1]
+<<<
+>>> wire disconnect #545.2 #536.1
+Disconnected '#545' [2] -> '#536' [1]
+<<<
+>>> wire connect #545.2 #536.2
+Connected '#545' [2] -> '#536' [2]
+<<<
+>>> wire disconnect #545.2 #536.2
+Disconnected '#545' [2] -> '#536' [2]
+<<<
+>>> wire connect #545.2 #536.3
+Connected '#545' [2] -> '#536' [3]
+<<<
+>>> wire disconnect #545.2 #536.3
+Disconnected '#545' [2] -> '#536' [3]
+<<<
+>>> wire connect #545.2 #536.4
+Connected '#545' [2] -> '#536' [4]
+<<<
+>>> wire disconnect #545.2 #536.4
+Disconnected '#545' [2] -> '#536' [4]
+<<<
+>>> wire connect #545.2 #536.5
+Connected '#545' [2] -> '#536' [5]
+<<<
+>>> wire disconnect #545.2 #536.5
+Disconnected '#545' [2] -> '#536' [5]
+<<<
+>>> wire connect #545.2 #536.6
+Connected '#545' [2] -> '#536' [6]
+<<<
+>>> wire disconnect #545.2 #536.6
+Disconnected '#545' [2] -> '#536' [6]
+<<<
+>>> device add Route Chooser
+Added 'Route Chooser'
+<<<
+>>> device list
+Devices (28 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Reach Scaling           
+  #537   Perlin Curve            
+  #538   Sinusoidal Curve        
+  #539   Cnoidal Curve           
+  #540   Curve Chooser           
+  #541   Curve Combiner          
+  #542   Adjust Curve            
+  #543   Shapes                  
+  #544   Shapes                  
+  #545   Router                  
+  #546   Route Chooser           
+
+<<<
+>>> param list #546
+Parameters for 'Route Chooser' (Route Chooser):
+  Number of Inputs          int       2
+  Input Choice              int       0
+
+<<<
+>>> wire list #546
+Connections for '#546':
+  Inputs:
+    [1] Choice Input <- (none)
+    [2] Choice Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> wire connect #546.1 #536.1
+Connected '#546' [1] -> '#536' [1]
+<<<
+>>> wire disconnect #546.1 #536.1
+Disconnected '#546' [1] -> '#536' [1]
+<<<
+>>> wire connect #546.1 #536.2
+Connected '#546' [1] -> '#536' [2]
+<<<
+>>> wire disconnect #546.1 #536.2
+Disconnected '#546' [1] -> '#536' [2]
+<<<
+>>> wire connect #546.1 #536.3
+Connected '#546' [1] -> '#536' [3]
+<<<
+>>> wire disconnect #546.1 #536.3
+Disconnected '#546' [1] -> '#536' [3]
+<<<
+>>> wire connect #546.1 #536.4
+Connected '#546' [1] -> '#536' [4]
+<<<
+>>> wire disconnect #546.1 #536.4
+Disconnected '#546' [1] -> '#536' [4]
+<<<
+>>> wire connect #546.1 #536.5
+Connected '#546' [1] -> '#536' [5]
+<<<
+>>> wire disconnect #546.1 #536.5
+Disconnected '#546' [1] -> '#536' [5]
+<<<
+>>> wire connect #546.1 #536.6
+Connected '#546' [1] -> '#536' [6]
+<<<
+>>> wire disconnect #546.1 #536.6
+Disconnected '#546' [1] -> '#536' [6]
+<<<
+>>> device add Coordinate Generator
+Added 'Coordinate Generator'
+<<<
+>>> device list
+Devices (29 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Reach Scaling           
+  #537   Perlin Curve            
+  #538   Sinusoidal Curve        
+  #539   Cnoidal Curve           
+  #540   Curve Chooser           
+  #541   Curve Combiner          
+  #542   Adjust Curve            
+  #543   Shapes                  
+  #544   Shapes                  
+  #545   Router                  
+  #546   Route Chooser           
+  #547   Coordinate Generator    
+
+<<<
+>>> param list #547
+Parameters for 'Coordinate Generator' (Coordinate Generator):
+  X Value                   float     0.0
+  Y Value                   float     0.0
+
+<<<
+>>> wire list #547
+Connections for '#547':
+  Inputs:
+  Outputs:
+    [1] Transform Output -> (none)
+
+<<<
+>>> wire connect #547.1 #536.1
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #547.1 #536.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #547.1 #536.3
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #547.1 #536.4
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #547.1 #536.5
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #547.1 #536.6
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> device add Distortion Generator
+Added 'Distortion Generator'
+<<<
+>>> device list
+Devices (30 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Reach Scaling           
+  #537   Perlin Curve            
+  #538   Sinusoidal Curve        
+  #539   Cnoidal Curve           
+  #540   Curve Chooser           
+  #541   Curve Combiner          
+  #542   Adjust Curve            
+  #543   Shapes                  
+  #544   Shapes                  
+  #545   Router                  
+  #546   Route Chooser           
+  #547   Coordinate Generator    
+  #548   Distortion Generator    
+
+<<<
+>>> param list #548
+Parameters for 'Distortion Generator' (Distortion Generator):
+  Distortion Type           enum      Angle and Power
+  Distortion Distance       float     0 m
+
+<<<
+>>> wire list #548
+Connections for '#548':
+  Inputs:
+    [1] Angle        <- (none)
+    [2] Distance     <- (none)
+  Outputs:
+    [1] Distortion Output -> (none)
+
+<<<
+>>> wire connect #548.1 #536.1
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #548.1 #536.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #548.1 #536.3
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #548.1 #536.4
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #548.1 #536.5
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #548.1 #536.6
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> device add Construct Parameter
+Added 'Construct Range'
+<<<
+>>> device list
+Devices (31 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Reach Scaling           
+  #537   Perlin Curve            
+  #538   Sinusoidal Curve        
+  #539   Cnoidal Curve           
+  #540   Curve Chooser           
+  #541   Curve Combiner          
+  #542   Adjust Curve            
+  #543   Shapes                  
+  #544   Shapes                  
+  #545   Router                  
+  #546   Route Chooser           
+  #547   Coordinate Generator    
+  #548   Distortion Generator    
+  #549   Construct Range          (Construct Parameter)
+
+<<<
+>>> param list #549
+Parameters for 'Construct Range' (Construct Parameter):
+  type                      enum      Range
+  groupRange                other     
+  minval                    float     0.0
+  maxval                    float     1.0
+  low                       float     0.25
+  high                      float     0.75
+  groupColor                other     
+  colorFrom                 enum      RGB
+  groupRGB                  other     
+  groupHSL                  other     
+  r                         float     0.0
+  g                         float     0.0
+  b                         float     0.0
+  h                         float     0.0
+  s                         float     0.0
+  l                         float     0.0
+
+<<<
+>>> wire list #549
+Connections for '#549':
+  Inputs:
+  Outputs:
+    [1] Parameter Output -> (none)
+
+<<<
+>>> wire connect #549.1 #536.1
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #549.1 #536.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #549.1 #536.3
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #549.1 #536.4
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #549.1 #536.5
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #549.1 #536.6
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> device add Scalar Generator
+Added 'Scalar Generator'
+<<<
+>>> device list
+Devices (32 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Reach Scaling           
+  #537   Perlin Curve            
+  #538   Sinusoidal Curve        
+  #539   Cnoidal Curve           
+  #540   Curve Chooser           
+  #541   Curve Combiner          
+  #542   Adjust Curve            
+  #543   Shapes                  
+  #544   Shapes                  
+  #545   Router                  
+  #546   Route Chooser           
+  #547   Coordinate Generator    
+  #548   Distortion Generator    
+  #549   Construct Range          (Construct Parameter)
+  #550   Scalar Generator        
+
+<<<
+>>> param list #550
+Parameters for 'Scalar Generator' (Scalar Generator):
+  Value                     float     0.0
+
+<<<
+>>> wire list #550
+Connections for '#550':
+  Inputs:
+  Outputs:
+    [1] Parameter Output -> (none)
+
+<<<
+>>> wire connect #550.1 #536.1
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #550.1 #536.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #550.1 #536.3
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #550.1 #536.4
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #550.1 #536.5
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #550.1 #536.6
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> device add River
+Added 'River'
+<<<
+>>> device list
+Devices (33 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Reach Scaling           
+  #537   Perlin Curve            
+  #538   Sinusoidal Curve        
+  #539   Cnoidal Curve           
+  #540   Curve Chooser           
+  #541   Curve Combiner          
+  #542   Adjust Curve            
+  #543   Shapes                  
+  #544   Shapes                  
+  #545   Router                  
+  #546   Route Chooser           
+  #547   Coordinate Generator    
+  #548   Distortion Generator    
+  #549   Construct Range          (Construct Parameter)
+  #550   Scalar Generator        
+  #551   River                   
+
+<<<
+>>> param list #551
+Parameters for 'River' (River):
+  Sinuosity                 float     0.0
+  Channel Gradient          float     0.0
+  Planform Type             enum      Simple Alignment
+  Reach Heading             int       0
+  Reach Length              float     8 km
+  Reach Elevation Datum     float     800 m
+  Reach Slope               float     0.02
+  Layout Alignment Uses Datum  bool      false
+  Draw Alignment...         action    
+  Channel Type              enum      Curved
+  Trapezoid Aspect          float     0.5
+  Channel Depth from Shields Eqn  bool      false
+  Critical Shear Stress     float     0.04
+  Particle Size             float     0.256
+  Bankfull Depth            float     2 m
+  Floodplain Height         float     21 m
+  Valley Height             float     112 m
+  Bankfull Width            float     10 m
+  Floodplain Width          float     10 m
+  Valley Width              float     500 m
+  Render Valley Wall        bool      true
+  Smooth Valley Profile     bool      true
+  Flatten Meander Belt Area  float     0.0
+  Terrain Bleed Amount      float     0.0
+  Quality                   float     6.0
+
+<<<
+>>> wire list #551
+Connections for '#551':
+  Inputs:
+    [1] Terrain Input <- (none)
+    [2] River Parameters <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+    [2] Water        -> (none)
+    [3] Valley Mask  -> (none)
+    [4] Channel Mask -> (none)
+    [5] Meanderbelt Mask -> (none)
+    [6] GCS Covariance -> (none)
+
+<<<
+>>> wire connect #551.1 #536.1
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.1 #536.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.1 #536.3
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.1 #536.4
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.1 #536.5
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.1 #536.6
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.2 #536.1
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.2 #536.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.2 #536.3
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.2 #536.4
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.2 #536.5
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.2 #536.6
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.3 #536.1
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.3 #536.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.3 #536.3
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.3 #536.4
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.3 #536.5
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.3 #536.6
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.4 #536.1
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.4 #536.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.4 #536.3
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.4 #536.4
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.4 #536.5
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.4 #536.6
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.5 #536.1
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.5 #536.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.5 #536.3
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.5 #536.4
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.5 #536.5
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.5 #536.6
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.6 #536.1
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.6 #536.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.6 #536.3
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.6 #536.4
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.6 #536.5
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #551.6 #536.6
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (34 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Reach Scaling           
+  #537   Perlin Curve            
+  #538   Sinusoidal Curve        
+  #539   Cnoidal Curve           
+  #540   Curve Chooser           
+  #541   Curve Combiner          
+  #542   Adjust Curve            
+  #543   Shapes                  
+  #544   Shapes                  
+  #545   Router                  
+  #546   Route Chooser           
+  #547   Coordinate Generator    
+  #548   Distortion Generator    
+  #549   Construct Range          (Construct Parameter)
+  #550   Scalar Generator        
+  #551   River                   
+  #552   Gradient                
+
+<<<
+>>> param list #552
+Parameters for 'Gradient' (Gradient):
+  Direction                 int       0
+  Width                     float     8 km
+  Tiling                    enum      Clamp
+
+<<<
+>>> wire list #552
+Connections for '#552':
+  Inputs:
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> wire connect #552.1 #536.1
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #552.1 #536.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #552.1 #536.3
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #552.1 #536.4
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #552.1 #536.5
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire connect #552.1 #536.6
+Error: Error: Failed to create connection (incompatible types?)
+<<<

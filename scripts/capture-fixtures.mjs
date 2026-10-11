@@ -284,6 +284,53 @@ const scenarios = [
       return sections;
     },
   ],
+  // What feeds Reach Scaling's six inputs (Alignment first): every output of each candidate, picked by name from
+  // raw/v3-rename-types.txt, is wired to every input; a wire that connects is removed again so the next can try.
+  [
+    'reach-scaling-inputs',
+    async () => {
+      const sections = await run(['project new default force']);
+      const reach = await freshDevice(sections, 'Reach Scaling');
+      const ports = await run([`param list #${reach.id}`, `wire list #${reach.id}`]);
+      sections.push(...ports);
+      const inputs = ports[1].lines.filter((line) => /^\s{4}\[\d+\] .* <- /.test(line)).length;
+      const candidates = [
+        'Perlin Curve',
+        'Sinusoidal Curve',
+        'Cnoidal Curve',
+        'Curve Chooser',
+        'Curve Combiner',
+        'Adjust Curve',
+        'Shapes',
+        'Layout Generator',
+        'Router',
+        'Route Chooser',
+        'Coordinate Generator',
+        'Distortion Generator',
+        'Construct Parameter',
+        'Scalar Generator',
+        'River',
+        'Gradient',
+      ];
+      for (const type of candidates) {
+        const candidate = await freshDevice(sections, type);
+        const listed = await run([`param list #${candidate.id}`, `wire list #${candidate.id}`]);
+        sections.push(...listed);
+        const outputs = listed[1].lines.filter((line) => /^\s{4}\[\d+\] .* -> /.test(line)).length;
+        for (let output = 1; output <= outputs; output++) {
+          for (let input = 1; input <= inputs; input++) {
+            const wire = `#${candidate.id}.${output} #${reach.id}.${input}`;
+            const [connect] = await run([`wire connect ${wire}`]);
+            sections.push(connect);
+            if (!connect.lines.some((line) => line.startsWith('Error'))) {
+              sections.push(...(await run([`wire disconnect ${wire}`])));
+            }
+          }
+        }
+      }
+      return sections;
+    },
+  ],
   [
     'v5-read-formats',
     () =>
