@@ -69,7 +69,8 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
     devices: [
       { name: 'Ramp', type: 'Gradient', parameters: { Direction: 1, Width: 0.5 } },
       { name: 'Ramp B', type: 'Gradient' },
-      { name: 'Mix', type: 'Combiner', inputs: { '1': 'Ramp', '2': 'Ramp B' } },
+      // Spec fact 80: World Machine ignores a rename of a Combiner, so it keeps its default name.
+      { name: 'Combiner', type: 'Combiner', inputs: { '1': 'Ramp', '2': 'Ramp B' } },
     ],
   };
 
@@ -82,9 +83,9 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
     expect(view.diff.map((entry) => [entry.device, entry.change])).toEqual([
       ['Ramp', 'added'],
       ['Ramp B', 'added'],
-      ['Mix', 'added'],
+      ['Combiner', 'added'],
     ]);
-    expect(await names()).toEqual(expect.arrayContaining(['Ramp', 'Ramp B', 'Mix']));
+    expect(await names()).toEqual(expect.arrayContaining(['Ramp', 'Ramp B', 'Combiner']));
   }, 120_000);
 
   it('plans only the float step for the same spec again', async () => {
@@ -97,14 +98,14 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
   it('rewires a device and removes one', async () => {
     const view = await planAndApply({
       version: 1,
-      devices: [{ name: 'Mix', type: 'Combiner', inputs: { '1': 'Ramp B', '2': null } }],
+      devices: [{ name: 'Combiner', type: 'Combiner', inputs: { '1': 'Ramp B', '2': null } }],
       remove: ['Ramp'],
     });
     expect(view.diff).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ device: 'Ramp', change: 'removed' }),
         expect.objectContaining({
-          device: 'Mix',
+          device: 'Combiner',
           change: 'changed',
           inputs: { '1': { before: 'Ramp.1', after: 'Ramp B.1' }, '2': { before: 'Ramp B.1', after: null } },
         }),
