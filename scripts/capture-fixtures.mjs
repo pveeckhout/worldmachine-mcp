@@ -837,6 +837,24 @@ const scenarios = [
     },
   ],
   [
+    // v2a A2 and A4, v2b B2, B4, B7, B8, interactive (operator creates the trigger files in WM_CAPTURE_TRIGGERS when
+    // the user reports each window step done). A4: a full build whose File Input names a missing file. B4/B7/B8: groups
+    // the user creates in the window (a one-device 'Solo', two named 'Twin', 10 or more in all). B2: `device organize`
+    // and `project undo` while the user watches the layout. A2: `build stop` during a tiled build with a large layout
+    // the user sets in the window. Default project at 1025 in <WORK>. A real `build stop` may keep World Machine from
+    // quitting (fact 75).
+    'window-assumptions',
+    async () => {
+      const sections = [];
+      try {
+        await windowAssumptions(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
     // v2a A1 and R12, interactive: what World Machine prints for builds started from its window (a full and a tiled
     // build), and the trailer order when a window-started full build is stopped from the console and a console tiled
     // build follows at once. The user starts each window build when the log shows its STEP line; the operator creates
@@ -1408,6 +1426,97 @@ async function v2bAssumptions(sections) {
   sections.push(await waitForLine(/^Building \d+ device\(s\) in group /, 60_000));
   sections.push(await wait(2000));
   sections.push(...(await run(['build status', 'project close force'])));
+}
+
+async function windowAssumptions(sections) {
+  const file = join(work, 'window-assumptions.tmd');
+  const listed = await run([
+    'project new default force',
+    'scene resolution 1025',
+    `project save ${file}`,
+    'device list',
+  ]);
+  sections.push(...listed);
+  await pollBuild(sections);
+  const known = new Set(devices(listed[3].lines).map((device) => device.id));
+  const addNew = async (type) => {
+    const added = await run([`device add ${type}`, 'device list']);
+    sections.push(...added);
+    const fresh = devices(added[1].lines).filter((device) => !known.has(device.id));
+    for (const device of fresh) known.add(device.id);
+    if (fresh[0] === undefined) throw new Error(`device add ${type} added no device`);
+    return fresh[0].id;
+  };
+
+  // A4: a full build with a device that cannot build (a File Input whose file does not exist).
+  const input = await addNew('File Input');
+  const output = await addNew('File Output');
+  const inputParams = await run([`param list #${input}`]);
+  sections.push(...inputParams);
+  const filename = params(inputParams[0].lines).find((parameter) => parameter.type === 'filename');
+  if (filename === undefined) throw new Error('File Input lists no filename parameter');
+  sections.push(
+    ...(await run([
+      `param set #${input}.${filename.name} ${join(work, 'missing-input.png')}`,
+      `wire connect #${input} #${output}`,
+      'build start',
+    ])),
+  );
+  sections.push(await waitForLine(/Build Ended/, 120_000));
+  sections.push(await wait(12_000));
+  sections.push(
+    ...(await run(['build status', 'export all', `device delete #${output}`, `device delete #${input}`])),
+  );
+  sections.push(await wait(3000));
+
+  // B4, B7, B8: groups made in the window.
+  askUser(
+    sections,
+    "STEP 1: in the window, make a group named 'Solo' with exactly one device, two groups both named 'Twin' (if the window allows it), and more groups until there are 10 or more in all",
+  );
+  await waitForTrigger(sections, 'groups');
+  sections.push(
+    ...(await run([
+      'group list',
+      'group list Solo',
+      'group list Twin',
+      'group disable Solo',
+      'group enable Solo',
+      'group disable Twin',
+      'group list',
+    ])),
+  );
+
+  // B2: organize, then undo, while the user watches the layout.
+  askUser(sections, 'STEP 2: drag a few devices out of place in the window, then report');
+  await waitForTrigger(sections, 'messy');
+  sections.push(...(await run(['device organize'])));
+  askUser(sections, 'STEP 3: report whether the layout changed to the organized one');
+  await waitForTrigger(sections, 'organized');
+  sections.push(...(await run(['project undo'])));
+  askUser(sections, 'STEP 4: report whether your earlier layout came back after the undo');
+  await waitForTrigger(sections, 'undone');
+
+  // A2: stop a tiled build with a large layout.
+  askUser(
+    sections,
+    'STEP 5: in the tiled build settings, set a large layout (8 x 8 tiles or more), then report',
+  );
+  await waitForTrigger(sections, 'tiles');
+  sections.push(...(await run([`project save ${file}`])));
+  const since = Date.now();
+  sections.push(...(await run(['build start tiled'])));
+  sections.push(await wait(8000));
+  sections.push({ command: '(tiles written before the stop)', lines: newFiles(work, 3, since).map(scrub) });
+  sections.push(...(await run(['build stop'])));
+  sections.push(await wait(20_000));
+  sections.push({
+    command: '(tiles written by 20 s after the stop)',
+    lines: newFiles(work, 3, since).map(scrub),
+  });
+  sections.push(...(await run(['build status'])));
+  askUser(sections, 'DONE: the capture closes the project now');
+  sections.push(...(await run(['project close force'])));
 }
 
 // Shows the user what to do in the World Machine window, in the log and in the capture.

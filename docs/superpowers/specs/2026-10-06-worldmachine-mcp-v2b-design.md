@@ -42,13 +42,13 @@ Facts 68-72 were captured on 2026-10-06 against build 4067 with scenario `v2b-as
 ### Assumed (not verified)
 
 - B1. Snapshot names longer than 40 characters are accepted up to the server's limit of 64. Resolved: fact 68.
-- B2. `project undo` after `device organize` restores the previous layout (fact 62: the console shows no layout).
+- B2. `project undo` after `device organize` restores the previous layout (fact 62: the console shows no layout). Settled 2026-10-12 (`raw/window-assumptions.txt`): `device organize` changed the layout in the window and one `project undo` brought the user's earlier layout back fully (observed by the user at the window; the console prints `Devices organized by processing order.` and `Undo performed.`).
 - B3. A snapshot restore keeps the project's scenes and world settings as they were in the snapshot, like the graph; only the graph was checked. Resolved: fact 69 (the scene resolution).
-- B4. Two groups can share a name (the window may allow it); a name reference then resolves to one of them or fails. The server resolves names itself and refuses a name that matches several groups.
+- B4. Two groups can share a name (the window may allow it); a name reference then resolves to one of them or fails. The server resolves names itself and refuses a name that matches several groups. Settled 2026-10-12 (`raw/window-assumptions.txt`): the window accepts a second group named `Twin`. `group list Twin` lists both (`[#6]`, `[#7]`), and `group disable Twin` answers `Error: Error: Multiple groups match 'Twin':` with both rows and `Use #index to specify which one.`, the snapshot form (fact 58). The server refuses such a name before sending anything, as designed.
 - B5. A group build writes the files of an output device with `exportAlways` set, as a full build might (v2a fact 55); the v2a check for full builds is applied to group builds too. Resolved: fact 71.
 - B6. A stopped group build prints its own late line (the fake assumes it); if it does not, the run ends at the 10 s bound of v2a fact 54. Resolved: fact 72. It prints none, so a stopped group run the server started ends on its trailer; a group build started in the window still ends at the 10 s bound when stopped, since the server cannot tell it from a full build.
-- B7. The singular row form `(1 device)` was not captured; the parser accepts `device` and `devices`.
-- B8. Rows of `group list` with 10 or more entries were not captured; the parser accepts one or more spaces after `[#<index>]` in case World Machine aligns the column. For `snapshot list`, resolved: fact 70.
+- B7. The singular row form `(1 device)` was not captured; the parser accepts `device` and `devices`. Settled 2026-10-12 (`raw/window-assumptions.txt`): a one-device group lists as `(1 devices)`; World Machine has no singular form. The parser accepts it (`group-list.test.ts`).
+- B8. Rows of `group list` with 10 or more entries were not captured; the parser accepts one or more spaces after `[#<index>]` in case World Machine aligns the column. For `snapshot list`, resolved: fact 70. Settled 2026-10-12 (`raw/window-assumptions.txt`): with 11 groups, the row `[#10] 11 Group` has one space after the index, so the name column shifts one character instead of staying aligned; the parser reads it (`group-list.test.ts`).
 
 ## 3. MCP tools
 

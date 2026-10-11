@@ -1,0 +1,946 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 1025
+Set scene resolution to 1025
+<<<
+>>> project save <WORK>/window-assumptions.tmd
+Project saved to: <WORK>/window-assumptions.tmd
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> build status
+No build running.
+<<<
+>>> device add File Input
+Added 'File Input'
+<<<
+>>> device list
+Devices (18 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   File Input              
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (19 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   File Input              
+  #537   Height Output           
+
+<<<
+>>> param list #536
+Parameters for 'File Input' (File Input):
+  groupFile                 other     
+  dataType                  enum      Heightfield
+  filename                  filename  
+  refresh                   action    
+  autoRefresh               bool      false
+  flipY                     bool      false
+  fileZScale                bool      true
+  placementType             enum      Worldspace
+  groupPlaceW               other     
+  width                     float     12 km
+  height                    float     12 km
+  aspectType                enum      Contain
+  cmdFit                    action    
+  groupElevation            other     
+  elevationType             enum      Natural file elevations
+  elevationRange            range     0.0 - 2650.0
+  groupFootprint            other     
+  footprintType             enum      Empty
+  alphaSmoothing            float     0.4
+  groupSampling             other     
+  rescaleType               enum      (World Default)
+  rescaleTweak              float     0.5
+
+<<<
+>>> param set #536.filename <WORK>/missing-input.png
+Set #536.filename = <WORK>/missing-input.png
+<<<
+>>> wire connect #536 #537
+Connected '#536' [1] -> '#537' [1]
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited for /Build Ended/: seen after 0 s)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (waited 12000 ms)
+Build started.
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> device delete #537
+Deleted: #537
+<<<
+>>> device delete #536
+Deleted: #536
+<<<
+>>> (waited 3000 ms)
+<<<
+>>> (asked the user: STEP 1: in the window, make a group named 'Solo' with exactly one device, two groups both named 'Twin' (if the window allows it), and more groups until there are 10 or more in all)
+<<<
+>>> (trigger groups after 170 s)
+<<<
+>>> group list
+Groups (11 total):
+  [#0] Create your Terrain      (6 devices)
+  [#1] Export Basics            (4 devices)
+  [#2] Texture & View           (5 devices)
+  [#3] Welcome to World Machine! (0 devices)
+  [#4] Material Maps            (2 devices)
+  [#5] Solo                     (1 devices)
+  [#6] Twin                     (0 devices)
+  [#7] Twin                     (0 devices)
+  [#8] 9 Group                  (0 devices)
+  [#9] 10 Group                 (0 devices)
+  [#10] 11 Group                 (0 devices)
+
+<<<
+>>> group list Solo
+Groups (11 total):
+  [#5] Solo                     (1 devices)
+
+<<<
+>>> group list Twin
+Groups (11 total):
+  [#6] Twin                     (0 devices)
+  [#7] Twin                     (0 devices)
+
+<<<
+>>> group disable Solo
+Disabled 1 device(s) in group 'Solo'
+<<<
+>>> group enable Solo
+Enabled 1 device(s) in group 'Solo'
+<<<
+>>> group disable Twin
+Error: Error: Multiple groups match 'Twin':
+  [#6] 'Twin'
+  [#7] 'Twin'
+Use #index to specify which one.
+<<<
+>>> group list
+Groups (11 total):
+  [#0] Create your Terrain      (6 devices)
+  [#1] Export Basics            (4 devices)
+  [#2] Texture & View           (5 devices)
+  [#3] Welcome to World Machine! (0 devices)
+  [#4] Material Maps            (2 devices)
+  [#5] Solo                     (1 devices)
+  [#6] Twin                     (0 devices)
+  [#7] Twin                     (0 devices)
+  [#8] 9 Group                  (0 devices)
+  [#9] 10 Group                 (0 devices)
+  [#10] 11 Group                 (0 devices)
+
+<<<
+>>> (asked the user: STEP 2: drag a few devices out of place in the window, then report)
+<<<
+>>> (trigger messy after 53 s)
+<<<
+>>> device organize
+Devices organized by processing order.
+<<<
+>>> (asked the user: STEP 3: report whether the layout changed to the organized one)
+<<<
+>>> (trigger organized after 38 s)
+<<<
+>>> project undo
+Undo performed.
+<<<
+>>> (asked the user: STEP 4: report whether your earlier layout came back after the undo)
+<<<
+>>> (trigger undone after 27 s)
+<<<
+>>> (asked the user: STEP 5: in the tiled build settings, set a large layout (8 x 8 tiles or more), then report)
+<<<
+>>> (trigger tiles after 117 s)
+<<<
+>>> project save <WORK>/window-assumptions.tmd
+Project saved to: <WORK>/window-assumptions.tmd
+<<<
+>>> build start tiled
+[Build Event] Prohibiting system sleep
+<<<
+>>> (waited 8000 ms)
+<<<
+>>> (tiles written before the stop)
+<WORK>/window-assumptions Colormap only 256_x00_y00.png
+<WORK>/window-assumptions Colormap only 256_x01_y00.png
+<WORK>/window-assumptions Colormap only 256_x02_y00.png
+<WORK>/window-assumptions Colormap only 256_x03_y00.png
+<WORK>/window-assumptions Colormap only 256_x04_y00.png
+<WORK>/window-assumptions Colormap only 256_x05_y00.png
+<WORK>/window-assumptions Colormap only 256_x06_y00.png
+<WORK>/window-assumptions Colormap only 256_x07_y00.png
+<WORK>/window-assumptions Colormap only 256_x08_y00.png
+<WORK>/window-assumptions Colormap only 256_x09_y00.png
+<WORK>/window-assumptions Colormap only 256_x10_y00.png
+<WORK>/window-assumptions Colormap only 256_x11_y00.png
+<WORK>/window-assumptions Colormap only 256_x12_y00.png
+<WORK>/window-assumptions Colormap only 256_x13_y00.png
+<WORK>/window-assumptions Colormap only 256_x14_y00.png
+<WORK>/window-assumptions Colormap only 256_x15_y00.png
+<WORK>/window-assumptions Colormap only 256_x16_y00.png
+<WORK>/window-assumptions Colormap only 256_x17_y00.png
+<WORK>/window-assumptions Colormap only 256_x18_y00.png
+<WORK>/window-assumptions Colormap only 256_x19_y00.png
+<WORK>/window-assumptions Colormap only 256_x20_y00.png
+<WORK>/window-assumptions Colormap only 256_x21_y00.png
+<WORK>/window-assumptions Colormap only 256_x22_y00.png
+<WORK>/window-assumptions Colormap only 256_x23_y00.png
+<WORK>/window-assumptions Colormap only 256_x24_y00.png
+<WORK>/window-assumptions Colormap only 256_x25_y00.png
+<WORK>/window-assumptions Colormap only 256_x26_y00.png
+<WORK>/window-assumptions Colormap only 256_x27_y00.png
+<WORK>/window-assumptions Colormap only 256_x28_y00.png
+<WORK>/window-assumptions Colormap only 256_x29_y00.png
+<WORK>/window-assumptions Colormap only 256_x30_y00.png
+<WORK>/window-assumptions Colormap only 256_x31_y00.png
+<WORK>/window-assumptions Colormap only 256_x32_y00.png
+<WORK>/window-assumptions Colormap only 256_x33_y00.png
+<WORK>/window-assumptions Colormap only 256_x34_y00.png
+<WORK>/window-assumptions Colormap only 256_x35_y00.png
+<WORK>/window-assumptions Colormap only 256_x36_y00.png
+<WORK>/window-assumptions Colormap only 256_x37_y00.png
+<WORK>/window-assumptions Colormap only 256_x38_y00.png
+<WORK>/window-assumptions Colormap only 256_x39_y00.png
+<WORK>/window-assumptions Colormap only 256_x40_y00.png
+<WORK>/window-assumptions Colormap only 256_x41_y00.png
+<WORK>/window-assumptions Colormap only 256_x42_y00.png
+<WORK>/window-assumptions Height Output-256_x00_y00.png
+<WORK>/window-assumptions Height Output-256_x01_y00.png
+<WORK>/window-assumptions Height Output-256_x02_y00.png
+<WORK>/window-assumptions Height Output-256_x03_y00.png
+<WORK>/window-assumptions Height Output-256_x04_y00.png
+<WORK>/window-assumptions Height Output-256_x05_y00.png
+<WORK>/window-assumptions Height Output-256_x06_y00.png
+<WORK>/window-assumptions Height Output-256_x07_y00.png
+<WORK>/window-assumptions Height Output-256_x08_y00.png
+<WORK>/window-assumptions Height Output-256_x09_y00.png
+<WORK>/window-assumptions Height Output-256_x10_y00.png
+<WORK>/window-assumptions Height Output-256_x11_y00.png
+<WORK>/window-assumptions Height Output-256_x12_y00.png
+<WORK>/window-assumptions Height Output-256_x13_y00.png
+<WORK>/window-assumptions Height Output-256_x14_y00.png
+<WORK>/window-assumptions Height Output-256_x15_y00.png
+<WORK>/window-assumptions Height Output-256_x16_y00.png
+<WORK>/window-assumptions Height Output-256_x17_y00.png
+<WORK>/window-assumptions Height Output-256_x18_y00.png
+<WORK>/window-assumptions Height Output-256_x19_y00.png
+<WORK>/window-assumptions Height Output-256_x20_y00.png
+<WORK>/window-assumptions Height Output-256_x21_y00.png
+<WORK>/window-assumptions Height Output-256_x22_y00.png
+<WORK>/window-assumptions Height Output-256_x23_y00.png
+<WORK>/window-assumptions Height Output-256_x24_y00.png
+<WORK>/window-assumptions Height Output-256_x25_y00.png
+<WORK>/window-assumptions Height Output-256_x26_y00.png
+<WORK>/window-assumptions Height Output-256_x27_y00.png
+<WORK>/window-assumptions Height Output-256_x28_y00.png
+<WORK>/window-assumptions Height Output-256_x29_y00.png
+<WORK>/window-assumptions Height Output-256_x30_y00.png
+<WORK>/window-assumptions Height Output-256_x31_y00.png
+<WORK>/window-assumptions Height Output-256_x32_y00.png
+<WORK>/window-assumptions Height Output-256_x33_y00.png
+<WORK>/window-assumptions Height Output-256_x34_y00.png
+<WORK>/window-assumptions Height Output-256_x35_y00.png
+<WORK>/window-assumptions Height Output-256_x36_y00.png
+<WORK>/window-assumptions Height Output-256_x37_y00.png
+<WORK>/window-assumptions Height Output-256_x38_y00.png
+<WORK>/window-assumptions Height Output-256_x39_y00.png
+<WORK>/window-assumptions Height Output-256_x40_y00.png
+<WORK>/window-assumptions Height Output-256_x41_y00.png
+<WORK>/window-assumptions Height Output-256_x42_y00.png
+<WORK>/window-assumptions Material Output 256_x00_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x00_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x00_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x00_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x01_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x01_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x01_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x01_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x02_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x02_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x02_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x02_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x03_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x03_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x03_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x03_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x04_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x04_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x04_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x04_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x05_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x05_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x05_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x05_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x06_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x06_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x06_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x06_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x07_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x07_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x07_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x07_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x08_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x08_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x08_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x08_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x09_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x09_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x09_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x09_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x10_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x10_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x10_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x10_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x11_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x11_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x11_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x11_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x12_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x12_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x12_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x12_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x13_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x13_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x13_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x13_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x14_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x14_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x14_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x14_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x15_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x15_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x15_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x15_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x16_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x16_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x16_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x16_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x17_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x17_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x17_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x17_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x18_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x18_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x18_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x18_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x19_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x19_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x19_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x19_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x20_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x20_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x20_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x20_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x21_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x21_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x21_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x21_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x22_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x22_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x22_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x22_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x23_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x23_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x23_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x23_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x24_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x24_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x24_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x24_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x25_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x25_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x25_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x25_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x26_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x26_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x26_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x26_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x27_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x27_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x27_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x27_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x28_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x28_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x28_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x28_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x29_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x29_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x29_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x29_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x30_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x30_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x30_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x30_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x31_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x31_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x31_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x31_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x32_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x32_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x32_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x32_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x33_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x33_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x33_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x33_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x34_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x34_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x34_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x34_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x35_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x35_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x35_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x35_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x36_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x36_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x36_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x36_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x37_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x37_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x37_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x37_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x38_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x38_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x38_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x38_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x39_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x39_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x39_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x39_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x40_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x40_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x40_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x40_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x41_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x41_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x41_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x41_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x42_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x42_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x42_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x42_y00_roughness.png
+<WORK>/window-assumptions Splatmap 256_x00_y00.png
+<WORK>/window-assumptions Splatmap 256_x01_y00.png
+<WORK>/window-assumptions Splatmap 256_x02_y00.png
+<WORK>/window-assumptions Splatmap 256_x03_y00.png
+<WORK>/window-assumptions Splatmap 256_x04_y00.png
+<WORK>/window-assumptions Splatmap 256_x05_y00.png
+<WORK>/window-assumptions Splatmap 256_x06_y00.png
+<WORK>/window-assumptions Splatmap 256_x07_y00.png
+<WORK>/window-assumptions Splatmap 256_x08_y00.png
+<WORK>/window-assumptions Splatmap 256_x09_y00.png
+<WORK>/window-assumptions Splatmap 256_x10_y00.png
+<WORK>/window-assumptions Splatmap 256_x11_y00.png
+<WORK>/window-assumptions Splatmap 256_x12_y00.png
+<WORK>/window-assumptions Splatmap 256_x13_y00.png
+<WORK>/window-assumptions Splatmap 256_x14_y00.png
+<WORK>/window-assumptions Splatmap 256_x15_y00.png
+<WORK>/window-assumptions Splatmap 256_x16_y00.png
+<WORK>/window-assumptions Splatmap 256_x17_y00.png
+<WORK>/window-assumptions Splatmap 256_x18_y00.png
+<WORK>/window-assumptions Splatmap 256_x19_y00.png
+<WORK>/window-assumptions Splatmap 256_x20_y00.png
+<WORK>/window-assumptions Splatmap 256_x21_y00.png
+<WORK>/window-assumptions Splatmap 256_x22_y00.png
+<WORK>/window-assumptions Splatmap 256_x23_y00.png
+<WORK>/window-assumptions Splatmap 256_x24_y00.png
+<WORK>/window-assumptions Splatmap 256_x25_y00.png
+<WORK>/window-assumptions Splatmap 256_x26_y00.png
+<WORK>/window-assumptions Splatmap 256_x27_y00.png
+<WORK>/window-assumptions Splatmap 256_x28_y00.png
+<WORK>/window-assumptions Splatmap 256_x29_y00.png
+<WORK>/window-assumptions Splatmap 256_x30_y00.png
+<WORK>/window-assumptions Splatmap 256_x31_y00.png
+<WORK>/window-assumptions Splatmap 256_x32_y00.png
+<WORK>/window-assumptions Splatmap 256_x33_y00.png
+<WORK>/window-assumptions Splatmap 256_x34_y00.png
+<WORK>/window-assumptions Splatmap 256_x35_y00.png
+<WORK>/window-assumptions Splatmap 256_x36_y00.png
+<WORK>/window-assumptions Splatmap 256_x37_y00.png
+<WORK>/window-assumptions Splatmap 256_x38_y00.png
+<WORK>/window-assumptions Splatmap 256_x39_y00.png
+<WORK>/window-assumptions Splatmap 256_x40_y00.png
+<WORK>/window-assumptions Splatmap 256_x41_y00.png
+<<<
+>>> build stop
+Stop requested.
+[Build Event] System allowed to sleep again
+<<<
+>>> (waited 20000 ms)
+<<<
+>>> (tiles written by 20 s after the stop)
+<WORK>/window-assumptions Colormap only 256_x00_y00.png
+<WORK>/window-assumptions Colormap only 256_x01_y00.png
+<WORK>/window-assumptions Colormap only 256_x02_y00.png
+<WORK>/window-assumptions Colormap only 256_x03_y00.png
+<WORK>/window-assumptions Colormap only 256_x04_y00.png
+<WORK>/window-assumptions Colormap only 256_x05_y00.png
+<WORK>/window-assumptions Colormap only 256_x06_y00.png
+<WORK>/window-assumptions Colormap only 256_x07_y00.png
+<WORK>/window-assumptions Colormap only 256_x08_y00.png
+<WORK>/window-assumptions Colormap only 256_x09_y00.png
+<WORK>/window-assumptions Colormap only 256_x10_y00.png
+<WORK>/window-assumptions Colormap only 256_x11_y00.png
+<WORK>/window-assumptions Colormap only 256_x12_y00.png
+<WORK>/window-assumptions Colormap only 256_x13_y00.png
+<WORK>/window-assumptions Colormap only 256_x14_y00.png
+<WORK>/window-assumptions Colormap only 256_x15_y00.png
+<WORK>/window-assumptions Colormap only 256_x16_y00.png
+<WORK>/window-assumptions Colormap only 256_x17_y00.png
+<WORK>/window-assumptions Colormap only 256_x18_y00.png
+<WORK>/window-assumptions Colormap only 256_x19_y00.png
+<WORK>/window-assumptions Colormap only 256_x20_y00.png
+<WORK>/window-assumptions Colormap only 256_x21_y00.png
+<WORK>/window-assumptions Colormap only 256_x22_y00.png
+<WORK>/window-assumptions Colormap only 256_x23_y00.png
+<WORK>/window-assumptions Colormap only 256_x24_y00.png
+<WORK>/window-assumptions Colormap only 256_x25_y00.png
+<WORK>/window-assumptions Colormap only 256_x26_y00.png
+<WORK>/window-assumptions Colormap only 256_x27_y00.png
+<WORK>/window-assumptions Colormap only 256_x28_y00.png
+<WORK>/window-assumptions Colormap only 256_x29_y00.png
+<WORK>/window-assumptions Colormap only 256_x30_y00.png
+<WORK>/window-assumptions Colormap only 256_x31_y00.png
+<WORK>/window-assumptions Colormap only 256_x32_y00.png
+<WORK>/window-assumptions Colormap only 256_x33_y00.png
+<WORK>/window-assumptions Colormap only 256_x34_y00.png
+<WORK>/window-assumptions Colormap only 256_x35_y00.png
+<WORK>/window-assumptions Colormap only 256_x36_y00.png
+<WORK>/window-assumptions Colormap only 256_x37_y00.png
+<WORK>/window-assumptions Colormap only 256_x38_y00.png
+<WORK>/window-assumptions Colormap only 256_x39_y00.png
+<WORK>/window-assumptions Colormap only 256_x40_y00.png
+<WORK>/window-assumptions Colormap only 256_x41_y00.png
+<WORK>/window-assumptions Colormap only 256_x42_y00.png
+<WORK>/window-assumptions Colormap only 256_x43_y00.png
+<WORK>/window-assumptions Colormap only 256_x44_y00.png
+<WORK>/window-assumptions Colormap only 256_x45_y00.png
+<WORK>/window-assumptions Colormap only 256_x46_y00.png
+<WORK>/window-assumptions Colormap only 256_x47_y00.png
+<WORK>/window-assumptions Colormap only 256_x48_y00.png
+<WORK>/window-assumptions Colormap only 256_x49_y00.png
+<WORK>/window-assumptions Colormap only 256_x50_y00.png
+<WORK>/window-assumptions Colormap only 256_x51_y00.png
+<WORK>/window-assumptions Colormap only 256_x52_y00.png
+<WORK>/window-assumptions Colormap only 256_x53_y00.png
+<WORK>/window-assumptions Colormap only 256_x54_y00.png
+<WORK>/window-assumptions Height Output-256_x00_y00.png
+<WORK>/window-assumptions Height Output-256_x01_y00.png
+<WORK>/window-assumptions Height Output-256_x02_y00.png
+<WORK>/window-assumptions Height Output-256_x03_y00.png
+<WORK>/window-assumptions Height Output-256_x04_y00.png
+<WORK>/window-assumptions Height Output-256_x05_y00.png
+<WORK>/window-assumptions Height Output-256_x06_y00.png
+<WORK>/window-assumptions Height Output-256_x07_y00.png
+<WORK>/window-assumptions Height Output-256_x08_y00.png
+<WORK>/window-assumptions Height Output-256_x09_y00.png
+<WORK>/window-assumptions Height Output-256_x10_y00.png
+<WORK>/window-assumptions Height Output-256_x11_y00.png
+<WORK>/window-assumptions Height Output-256_x12_y00.png
+<WORK>/window-assumptions Height Output-256_x13_y00.png
+<WORK>/window-assumptions Height Output-256_x14_y00.png
+<WORK>/window-assumptions Height Output-256_x15_y00.png
+<WORK>/window-assumptions Height Output-256_x16_y00.png
+<WORK>/window-assumptions Height Output-256_x17_y00.png
+<WORK>/window-assumptions Height Output-256_x18_y00.png
+<WORK>/window-assumptions Height Output-256_x19_y00.png
+<WORK>/window-assumptions Height Output-256_x20_y00.png
+<WORK>/window-assumptions Height Output-256_x21_y00.png
+<WORK>/window-assumptions Height Output-256_x22_y00.png
+<WORK>/window-assumptions Height Output-256_x23_y00.png
+<WORK>/window-assumptions Height Output-256_x24_y00.png
+<WORK>/window-assumptions Height Output-256_x25_y00.png
+<WORK>/window-assumptions Height Output-256_x26_y00.png
+<WORK>/window-assumptions Height Output-256_x27_y00.png
+<WORK>/window-assumptions Height Output-256_x28_y00.png
+<WORK>/window-assumptions Height Output-256_x29_y00.png
+<WORK>/window-assumptions Height Output-256_x30_y00.png
+<WORK>/window-assumptions Height Output-256_x31_y00.png
+<WORK>/window-assumptions Height Output-256_x32_y00.png
+<WORK>/window-assumptions Height Output-256_x33_y00.png
+<WORK>/window-assumptions Height Output-256_x34_y00.png
+<WORK>/window-assumptions Height Output-256_x35_y00.png
+<WORK>/window-assumptions Height Output-256_x36_y00.png
+<WORK>/window-assumptions Height Output-256_x37_y00.png
+<WORK>/window-assumptions Height Output-256_x38_y00.png
+<WORK>/window-assumptions Height Output-256_x39_y00.png
+<WORK>/window-assumptions Height Output-256_x40_y00.png
+<WORK>/window-assumptions Height Output-256_x41_y00.png
+<WORK>/window-assumptions Height Output-256_x42_y00.png
+<WORK>/window-assumptions Height Output-256_x43_y00.png
+<WORK>/window-assumptions Height Output-256_x44_y00.png
+<WORK>/window-assumptions Height Output-256_x45_y00.png
+<WORK>/window-assumptions Height Output-256_x46_y00.png
+<WORK>/window-assumptions Height Output-256_x47_y00.png
+<WORK>/window-assumptions Height Output-256_x48_y00.png
+<WORK>/window-assumptions Height Output-256_x49_y00.png
+<WORK>/window-assumptions Height Output-256_x50_y00.png
+<WORK>/window-assumptions Height Output-256_x51_y00.png
+<WORK>/window-assumptions Height Output-256_x52_y00.png
+<WORK>/window-assumptions Height Output-256_x53_y00.png
+<WORK>/window-assumptions Height Output-256_x54_y00.png
+<WORK>/window-assumptions Material Output 256_x00_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x00_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x00_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x00_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x01_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x01_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x01_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x01_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x02_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x02_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x02_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x02_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x03_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x03_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x03_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x03_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x04_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x04_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x04_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x04_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x05_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x05_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x05_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x05_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x06_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x06_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x06_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x06_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x07_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x07_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x07_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x07_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x08_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x08_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x08_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x08_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x09_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x09_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x09_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x09_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x10_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x10_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x10_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x10_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x11_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x11_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x11_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x11_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x12_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x12_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x12_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x12_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x13_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x13_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x13_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x13_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x14_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x14_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x14_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x14_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x15_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x15_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x15_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x15_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x16_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x16_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x16_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x16_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x17_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x17_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x17_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x17_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x18_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x18_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x18_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x18_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x19_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x19_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x19_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x19_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x20_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x20_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x20_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x20_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x21_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x21_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x21_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x21_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x22_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x22_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x22_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x22_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x23_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x23_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x23_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x23_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x24_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x24_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x24_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x24_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x25_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x25_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x25_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x25_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x26_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x26_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x26_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x26_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x27_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x27_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x27_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x27_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x28_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x28_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x28_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x28_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x29_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x29_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x29_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x29_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x30_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x30_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x30_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x30_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x31_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x31_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x31_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x31_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x32_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x32_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x32_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x32_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x33_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x33_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x33_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x33_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x34_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x34_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x34_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x34_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x35_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x35_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x35_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x35_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x36_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x36_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x36_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x36_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x37_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x37_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x37_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x37_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x38_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x38_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x38_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x38_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x39_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x39_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x39_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x39_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x40_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x40_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x40_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x40_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x41_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x41_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x41_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x41_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x42_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x42_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x42_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x42_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x43_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x43_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x43_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x43_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x44_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x44_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x44_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x44_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x45_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x45_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x45_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x45_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x46_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x46_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x46_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x46_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x47_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x47_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x47_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x47_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x48_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x48_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x48_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x48_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x49_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x49_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x49_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x49_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x50_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x50_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x50_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x50_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x51_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x51_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x51_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x51_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x52_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x52_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x52_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x52_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x53_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x53_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x53_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x53_y00_roughness.png
+<WORK>/window-assumptions Material Output 256_x54_y00_diffuse.png
+<WORK>/window-assumptions Material Output 256_x54_y00_disp.png
+<WORK>/window-assumptions Material Output 256_x54_y00_mask.png
+<WORK>/window-assumptions Material Output 256_x54_y00_roughness.png
+<WORK>/window-assumptions Splatmap 256_x00_y00.png
+<WORK>/window-assumptions Splatmap 256_x01_y00.png
+<WORK>/window-assumptions Splatmap 256_x02_y00.png
+<WORK>/window-assumptions Splatmap 256_x03_y00.png
+<WORK>/window-assumptions Splatmap 256_x04_y00.png
+<WORK>/window-assumptions Splatmap 256_x05_y00.png
+<WORK>/window-assumptions Splatmap 256_x06_y00.png
+<WORK>/window-assumptions Splatmap 256_x07_y00.png
+<WORK>/window-assumptions Splatmap 256_x08_y00.png
+<WORK>/window-assumptions Splatmap 256_x09_y00.png
+<WORK>/window-assumptions Splatmap 256_x10_y00.png
+<WORK>/window-assumptions Splatmap 256_x11_y00.png
+<WORK>/window-assumptions Splatmap 256_x12_y00.png
+<WORK>/window-assumptions Splatmap 256_x13_y00.png
+<WORK>/window-assumptions Splatmap 256_x14_y00.png
+<WORK>/window-assumptions Splatmap 256_x15_y00.png
+<WORK>/window-assumptions Splatmap 256_x16_y00.png
+<WORK>/window-assumptions Splatmap 256_x17_y00.png
+<WORK>/window-assumptions Splatmap 256_x18_y00.png
+<WORK>/window-assumptions Splatmap 256_x19_y00.png
+<WORK>/window-assumptions Splatmap 256_x20_y00.png
+<WORK>/window-assumptions Splatmap 256_x21_y00.png
+<WORK>/window-assumptions Splatmap 256_x22_y00.png
+<WORK>/window-assumptions Splatmap 256_x23_y00.png
+<WORK>/window-assumptions Splatmap 256_x24_y00.png
+<WORK>/window-assumptions Splatmap 256_x25_y00.png
+<WORK>/window-assumptions Splatmap 256_x26_y00.png
+<WORK>/window-assumptions Splatmap 256_x27_y00.png
+<WORK>/window-assumptions Splatmap 256_x28_y00.png
+<WORK>/window-assumptions Splatmap 256_x29_y00.png
+<WORK>/window-assumptions Splatmap 256_x30_y00.png
+<WORK>/window-assumptions Splatmap 256_x31_y00.png
+<WORK>/window-assumptions Splatmap 256_x32_y00.png
+<WORK>/window-assumptions Splatmap 256_x33_y00.png
+<WORK>/window-assumptions Splatmap 256_x34_y00.png
+<WORK>/window-assumptions Splatmap 256_x35_y00.png
+<WORK>/window-assumptions Splatmap 256_x36_y00.png
+<WORK>/window-assumptions Splatmap 256_x37_y00.png
+<WORK>/window-assumptions Splatmap 256_x38_y00.png
+<WORK>/window-assumptions Splatmap 256_x39_y00.png
+<WORK>/window-assumptions Splatmap 256_x40_y00.png
+<WORK>/window-assumptions Splatmap 256_x41_y00.png
+<WORK>/window-assumptions Splatmap 256_x42_y00.png
+<WORK>/window-assumptions Splatmap 256_x43_y00.png
+<WORK>/window-assumptions Splatmap 256_x44_y00.png
+<WORK>/window-assumptions Splatmap 256_x45_y00.png
+<WORK>/window-assumptions Splatmap 256_x46_y00.png
+<WORK>/window-assumptions Splatmap 256_x47_y00.png
+<WORK>/window-assumptions Splatmap 256_x48_y00.png
+<WORK>/window-assumptions Splatmap 256_x49_y00.png
+<WORK>/window-assumptions Splatmap 256_x50_y00.png
+<WORK>/window-assumptions Splatmap 256_x51_y00.png
+<WORK>/window-assumptions Splatmap 256_x52_y00.png
+<WORK>/window-assumptions Splatmap 256_x53_y00.png
+<WORK>/window-assumptions Splatmap 256_x54_y00.png
+<<<
+>>> build status
+No build running.
+<<<
+>>> (asked the user: DONE: the capture closes the project now)
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<

@@ -92,4 +92,16 @@ describe('parseGroupList', () => {
   ])('fails on %s', (_label, output, filtered) => {
     expect(codeOf(() => parseGroupList(output, filtered))).toBe('UNEXPECTED_OUTPUT');
   });
+  it('reads the captured singular row, a 10th index, and two groups of one name (v2b B4, B7, B8; raw/window-assumptions.txt)', () => {
+    const groups = parseGroupList(rawFrame('window-assumptions.txt', 'group list'));
+    expect(groups).toHaveLength(11);
+    // B7: World Machine prints `(1 devices)`; B8: one space after `[#10]`, so the name column shifts.
+    expect(groups[5]).toEqual({ index: 5, name: 'Solo', deviceCount: 1 });
+    expect(groups[10]).toEqual({ index: 10, name: '11 Group', deviceCount: 0 });
+    // B4: the window allows two groups of one name; a filtered list shows both.
+    expect(parseGroupList(rawFrame('window-assumptions.txt', 'group list Twin'), true)).toEqual([
+      { index: 6, name: 'Twin', deviceCount: 0 },
+      { index: 7, name: 'Twin', deviceCount: 0 },
+    ]);
+  });
 });
