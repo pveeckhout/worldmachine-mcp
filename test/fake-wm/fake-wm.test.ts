@@ -1076,3 +1076,18 @@ describe('fake World Machine: param set values on added devices (backlog item 49
     ]);
   });
 });
+
+describe('fake World Machine: device ids after a snapshot restore', () => {
+  it('reuses the ids freed by a restore, as World Machine does (raw/v3-assumptions.txt l.311-336)', async () => {
+    const s = session();
+    await s.execute([
+      'project new blank force',
+      'device add Gradient',
+      'snapshot create S',
+      'device add Combiner',
+    ]);
+    await s.execute(['snapshot restore S', 'device add Gradient']);
+    const reader = new WorldMachineGraphReader(s);
+    expect((await reader.listDevices()).map((device) => device.id)).toEqual([1, 2]);
+  });
+});

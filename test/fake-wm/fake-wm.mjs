@@ -405,9 +405,13 @@ const graphState = () => ({
   added: added.map(copyDevice),
   wires: wires.map((wire) => ({ ...wire })),
   disabled: [...sampleDisabled],
+  // raw/v3-assumptions.txt l.311-336: after a restore, World Machine gives the next new device the id the snapshot's
+  // next device would have had, so ids freed by the restore are reused.
+  nextId,
 });
 const restoreGraphState = (state) => {
   added = state.added.map(copyDevice);
+  nextId = state.nextId;
   wires = state.wires.map((wire) => ({ ...wire }));
   sampleDisabled = new Set(state.disabled);
   selected = undefined;
