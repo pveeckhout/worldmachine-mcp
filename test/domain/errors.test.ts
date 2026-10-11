@@ -40,3 +40,12 @@ describe('worldMachineText (spec section 8)', () => {
     expect(worldMachineText(['[Info       ] starting', '[Warning    ] device not open'])).toBeUndefined();
   });
 });
+
+describe('APPLY_FAILED (spec v3 section 7)', () => {
+  it('is a valid error code and carries details', () => {
+    const error = new WorldMachineError('APPLY_FAILED', 'step 3 failed', undefined, { rolledBack: true });
+    expect(error.code).toBe('APPLY_FAILED');
+    expect(error.details).toEqual({ rolledBack: true });
+    expect(new WorldMachineError('TIMEOUT', 'late').details).toBeUndefined();
+  });
+});

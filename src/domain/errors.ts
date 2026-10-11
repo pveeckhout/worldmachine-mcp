@@ -6,17 +6,26 @@ export type ErrorCode =
   | 'TIMEOUT'
   | 'CRASHED'
   | 'UNEXPECTED_OUTPUT'
-  | 'SHUTTING_DOWN';
+  | 'SHUTTING_DOWN'
+  | 'APPLY_FAILED';
 
 export class WorldMachineError extends Error {
   readonly code: ErrorCode;
   readonly worldMachineMessage: string | undefined;
+  /** Fields a failure result carries beside code and message (plan v3 decision D17), such as APPLY_FAILED's. */
+  readonly details: Readonly<Record<string, unknown>> | undefined;
 
-  constructor(code: ErrorCode, message: string, worldMachineMessage?: string) {
+  constructor(
+    code: ErrorCode,
+    message: string,
+    worldMachineMessage?: string,
+    details?: Readonly<Record<string, unknown>>,
+  ) {
     super(message);
     this.name = 'WorldMachineError';
     this.code = code;
     this.worldMachineMessage = worldMachineMessage;
+    this.details = details;
   }
 }
 
