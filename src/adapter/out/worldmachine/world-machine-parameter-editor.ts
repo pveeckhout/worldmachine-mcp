@@ -62,8 +62,10 @@ export class WorldMachineParameterEditor implements ParameterEditPort {
           parameter,
           reference,
           text: text.text,
-          set: buildCommand(['param', 'set', reference], text.text),
-          get: buildCommand(['param', 'get', reference]),
+          // raw/river-device.txt l.76-104: `param set` splits an unquoted reference at its first space and reads a
+          // quoted one whole; `param get` reads the rest of the line and prints the reference without quotes.
+          set: buildCommand(['param', 'set', /\s/.test(name) ? { quoted: reference } : reference], text.text),
+          get: buildCommand(['param', 'get'], reference),
         });
       } catch (error) {
         if (!(error instanceof WorldMachineError)) throw error;

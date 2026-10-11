@@ -46,6 +46,24 @@ describe('buildCommand', () => {
     refused(() => buildCommand(words));
   });
 
+  it('wraps a quoted word in double quotes (raw/river-device.txt: param set "#536.Planform Type" 1)', () => {
+    expect(buildCommand(['param', 'set', { quoted: '#536.Planform Type' }], '1')).toBe(
+      'param set "#536.Planform Type" 1',
+    );
+  });
+
+  it.each([
+    ['double quote', '#1.a"b'],
+    ['single quote', "#1.a'b"],
+    ['backslash', '#1.a\\b'],
+    ['newline', '#1.a\nproject close force'],
+    ['blank value', '  '],
+    ['padded value', ' #1.a b'],
+    ['sentinel prefix', '__end_abc_0'],
+  ])('refuses a quoted word with a %s', (_label, quoted) => {
+    refused(() => buildCommand(['param', 'set', { quoted }], '1'));
+  });
+
   it('appends suffix words after the tail', () => {
     expect(buildCommand(['project', 'open'], '/p/a b.tmd', ['force'])).toBe('project open /p/a b.tmd force');
   });

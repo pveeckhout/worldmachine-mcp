@@ -3,7 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { FsPathPolicy } from '../../src/adapter/out/fs/path-policy.js';
+import { parseParamList } from '../../src/adapter/out/worldmachine/parsers/param-list.js';
 import { WorldMachineGraphReader } from '../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
+import { WorldMachineParameterEditor } from '../../src/adapter/out/worldmachine/world-machine-parameter-editor.js';
 import { WorldMachineProcess } from '../../src/adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineSession } from '../../src/adapter/out/worldmachine/world-machine-session.js';
 import { captureLogger, FAKE_WM, fakeEnv, waitUntil } from '../support/fake-wm.js';
@@ -1073,6 +1075,47 @@ describe('fake World Machine: param set values on added devices (backlog item 49
       ['#1.Tiling = Mirrored Repeat'],
       ['Set #1.Tiling = clamp'],
       ['#1.Tiling = Clamp'],
+    ]);
+  });
+});
+
+describe('fake World Machine: parameter names with spaces (raw/river-device.txt)', () => {
+  it('sets a spaced name only through a quoted reference and lists names longer than their column', async () => {
+    const s = session();
+    await s.execute(['project new blank force', 'device add River']);
+    expect(
+      await outputs(s, [
+        'param set #1.Planform Type 1',
+        'param set "#1.Planform Type" 1',
+        'param get #1.Planform Type',
+        'param set "#1.Planform Type" 2',
+      ]),
+    ).toEqual([
+      ["Error: Error: Parameter 'Planform' not found on device '#1'."],
+      ['Set #1.Planform Type = 1'],
+      ['#1.Planform Type = Layout Alignment'],
+      ['Error: Error: Enum index out of range (0-1): 2'],
+    ]);
+    const [listed] = await s.execute(['param list #1']);
+    expect(parseParamList(listed?.output ?? [])).toContainEqual({
+      name: 'Layout Alignment Uses Datum',
+      type: 'bool',
+      value: 'false',
+    });
+  });
+
+  it('lets the parameter editor set spaced names', async () => {
+    const s = session();
+    await s.execute(['project new blank force', 'device add River']);
+    const update = await new WorldMachineParameterEditor(s).updateParameters('#1', {
+      'Planform Type': '1',
+      'Layout Alignment Uses Datum': true,
+      Sinuosity: 0.4,
+    });
+    expect(update.parameters.map((item) => [item.name, item.outcome, item.value])).toEqual([
+      ['Planform Type', 'applied', 'Layout Alignment'],
+      ['Layout Alignment Uses Datum', 'applied', 'true'],
+      ['Sinuosity', 'applied', '0.4'],
     ]);
   });
 });

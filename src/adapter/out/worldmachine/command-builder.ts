@@ -27,24 +27,47 @@ function assertSafe(value: string): void {
 }
 
 /**
- * Builds one World Machine console line. `words` are single tokens; `tail` is the final argument and may
- * contain spaces (spec section 2, fact 11). World Machine accepts a quoted device name (fact 18, V4), but this
- * builder never emits quotes: a device anywhere but the tail is referenced as `#<id>`. A space anywhere but the
- * tail, any quote or backslash, and a tail ending in the word `force` on a command that takes a force flag are
- * refused (spec section 9: ambiguous tokens are refused).
+ * A word with spaces that World Machine must read whole, emitted in double quotes. Used only where nothing else
+ * works: `param set` splits an unquoted reference at its first space, and reads a quoted one whole
+ * (raw/river-device.txt l.94-104).
  */
-export function buildCommand(
-  words: readonly string[],
-  tail?: string,
-  suffix: readonly string[] = [],
-): string {
-  for (const word of [...words, ...suffix]) {
+export interface QuotedWord {
+  readonly quoted: string;
+}
+
+function wordText(word: string | QuotedWord): string {
+  if (typeof word === 'string') {
     assertSafe(word);
     if (word === '' || /[\s"'\\]/.test(word)) {
       throw new WorldMachineError('REFUSED', `"${word}" must be a single word without spaces`);
     }
+    return word;
   }
-  if (tail === undefined) return [...words, ...suffix].join(' ');
+  assertSafe(word.quoted);
+  if (/["'\\]/.test(word.quoted)) {
+    throw new WorldMachineError('REFUSED', 'Quotes and backslashes are not supported in arguments');
+  }
+  if (word.quoted.trim() === '' || word.quoted !== word.quoted.trim()) {
+    throw new WorldMachineError('REFUSED', 'A quoted argument must not be blank or start or end with spaces');
+  }
+  return `"${word.quoted}"`;
+}
+
+/**
+ * Builds one World Machine console line. `words` are single tokens; `tail` is the final argument and may
+ * contain spaces (spec section 2, fact 11). World Machine accepts a quoted device name (fact 18, V4), but this
+ * builder emits quotes only for a `QuotedWord`: a device anywhere but the tail is referenced as `#<id>`. A space in a
+ * plain word, any quote or backslash, and a tail ending in the word `force` on a command that takes a force flag are
+ * refused (spec section 9: ambiguous tokens are refused).
+ */
+export function buildCommand(
+  words: readonly (string | QuotedWord)[],
+  tail?: string,
+  suffix: readonly string[] = [],
+): string {
+  const head = words.map(wordText);
+  for (const word of suffix) wordText(word);
+  if (tail === undefined) return [...head, ...suffix].join(' ');
   assertSafe(tail);
   if (/["'\\]/.test(tail)) {
     throw new WorldMachineError(
@@ -58,13 +81,13 @@ export function buildCommand(
       'The final argument must not be blank or start or end with spaces',
     );
   }
-  if (FORCE_FLAG_COMMANDS.has(words.join(' ')) && ENDS_IN_FORCE.test(tail)) {
+  if (FORCE_FLAG_COMMANDS.has(head.join(' ')) && ENDS_IN_FORCE.test(tail)) {
     throw new WorldMachineError(
       'REFUSED',
       'The final argument must not end with the word force, which World Machine reads as a flag',
     );
   }
-  return [...words, tail, ...suffix].join(' ');
+  return [...head, tail, ...suffix].join(' ');
 }
 
 export function sentinel(batchId: string, index: number): string {

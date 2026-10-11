@@ -220,4 +220,38 @@ describe('WorldMachineParameterEditor', () => {
     });
     expect(unlisted.batches).toEqual([['device list']]);
   });
+
+  it('quotes the reference of a parameter whose name has a space when setting it, not when reading it', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: ['Devices (1 total):', '  #536   River                   '] }],
+      // raw/river-device.txt l.31-56 (rows abridged).
+      'param list #536': [
+        {
+          output: [
+            "Parameters for 'River' (River):",
+            '  Sinuosity                 float     0.0',
+            '  Planform Type             enum      Simple Alignment',
+            '  Bankfull Width            float     10 m',
+          ],
+        },
+      ],
+      // raw/river-device.txt: an unquoted reference is split at the first space; a quoted one is set whole, and
+      // `param get` reads the rest of the line and prints the reference without quotes.
+      'param set "#536.Planform Type" 1': [{ output: ['Set #536.Planform Type = 1'] }],
+      'param get #536.Planform Type': [{ output: ['#536.Planform Type = Layout Alignment'] }],
+      'param set "#536.Bankfull Width" 25': [{ output: ['Set #536.Bankfull Width = 25'] }],
+      'param get #536.Bankfull Width': [{ output: ['#536.Bankfull Width = 25 m'] }],
+    });
+    const update = await editor(s).updateParameters('River', { 'Planform Type': '1', 'Bankfull Width': 25 });
+    expect(update.parameters.map((item) => [item.name, item.outcome, item.value])).toEqual([
+      ['Planform Type', 'applied', 'Layout Alignment'],
+      ['Bankfull Width', 'applied', '25 m'],
+    ]);
+    expect(s.batches.at(-1)).toEqual([
+      'param set "#536.Planform Type" 1',
+      'param get #536.Planform Type',
+      'param set "#536.Bankfull Width" 25',
+      'param get #536.Bankfull Width',
+    ]);
+  });
 });

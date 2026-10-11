@@ -2,7 +2,9 @@ import type { Parameter } from '../../../../domain/device.js';
 import { unexpectedOutput } from './unexpected.js';
 
 const HEADER = /^Parameters for '.*' \(.*\):$/;
-const ROW = /^\s{2}(\S+)\s+(\S+)(?:\s+(.*?))?\s*$/;
+// A name may have single spaces; at least two spaces end it, even when it overflows its column (raw/river-device.txt
+// l.39: `Layout Alignment Uses Datum  bool`). The type is one word; the value is the rest of the line.
+const ROW = /^\s{2}(\S(?:.*?\S)?)\s{2,}(\S+)(?:\s+(.*?))?\s*$/;
 
 export function parseParamList(output: readonly string[]): Parameter[] {
   const [header, ...rows] = output;

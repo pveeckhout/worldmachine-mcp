@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseParamList } from '../../../../../src/adapter/out/worldmachine/parsers/param-list.js';
-import { codeOf, fixtureLines } from './fixture.js';
+import { codeOf, fixtureLines, rawFrame } from './fixture.js';
 
 describe('parseParamList', () => {
   it('reads every row, keeping units and empty values as raw text', () => {
@@ -31,6 +31,31 @@ describe('parseParamList', () => {
         '  filename                  filename  <project> <name>-<res>.png',
       ]),
     ).toEqual([{ name: 'filename', type: 'filename', value: '<project> <name>-<res>.png' }]);
+  });
+
+  it('reads names with spaces, including names longer than their column', () => {
+    const params = parseParamList(rawFrame('river-device.txt', 'param list #536'));
+    expect(params).toHaveLength(25);
+    expect(params.find((p) => p.name === 'Planform Type')).toEqual({
+      name: 'Planform Type',
+      type: 'enum',
+      value: 'Simple Alignment',
+    });
+    expect(params.find((p) => p.name === 'Layout Alignment Uses Datum')).toEqual({
+      name: 'Layout Alignment Uses Datum',
+      type: 'bool',
+      value: 'false',
+    });
+    expect(params.find((p) => p.name === 'Bankfull Width')).toEqual({
+      name: 'Bankfull Width',
+      type: 'float',
+      value: '10 m',
+    });
+    expect(params.find((p) => p.name === 'Draw Alignment...')).toEqual({
+      name: 'Draw Alignment...',
+      type: 'action',
+      value: '',
+    });
   });
 
   it('reads a device without parameters', () => {

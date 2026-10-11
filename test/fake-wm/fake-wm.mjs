@@ -293,6 +293,17 @@ const SHAPES = {
       ['Clamp', 'bool', 'true'],
     ],
   },
+  // raw/river-device.txt l.31-70 (some parameters): names with spaces, one longer than its column, and an enum whose
+  // range is 0-1 (l.94-130).
+  River: {
+    inputs: ['Terrain Input', 'River Parameters'],
+    parameters: [
+      ['Sinuosity', 'float', '0.0'],
+      ['Planform Type', 'enum', 'Simple Alignment', ['Simple Alignment', 'Layout Alignment']],
+      ['Layout Alignment Uses Datum', 'bool', 'false'],
+      ['Bankfull Width', 'float', '10 m'],
+    ],
+  },
 };
 const OTHER_SHAPE = { inputs: ['Primary Input'], parameters: [] };
 // Backlog item 49: World Machine's checks on a value for a parameter of an added device. raw/v6b-param-set.txt
@@ -336,10 +347,11 @@ const shownValue = (parameter, text) => {
   }
   return text;
 };
-// raw/p2a-edge-cases.txt l.59-64: the header names the device and its type; rows pad the name to 26 and the type to 10.
+// raw/p2a-edge-cases.txt l.59-64: the header names the device and its type; rows pad the name to 24 and the type to 8,
+// each followed by two spaces, which keep a longer name apart from its type (raw/river-device.txt l.39).
 const paramList = (device) =>
   `Parameters for '${device.name}' (${device.type}):\n${device.parameters
-    .map((parameter) => `  ${parameter.name.padEnd(26)}${parameter.type.padEnd(10)}${parameter.value}\n`)
+    .map((parameter) => `  ${parameter.name.padEnd(24)}  ${parameter.type.padEnd(8)}  ${parameter.value}\n`)
     .join('')}\n`;
 // raw/p2b-graph-edits.txt l.25-32: the header echoes the reference and port names are padded to 12; a further target
 // of one output continues on its own line. Ends show current names (fact 34).
