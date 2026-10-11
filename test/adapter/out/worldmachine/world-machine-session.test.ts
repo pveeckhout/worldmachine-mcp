@@ -419,6 +419,18 @@ describe('WorldMachineSession', () => {
     expect((await starting).code).toBe('WM_COMMAND_FAILED');
   });
 
+  it('shutdown applies its own budget to an idle stop that is already quitting a hung World Machine', async () => {
+    // Backlog item 82: the idle stop quits without a budget (10 s grace, 2 s SIGTERM); a budgeted shutdown must not
+    // wait that out.
+    const { session: s, record } = session({ FAKE_WM_QUIT_DELAY_MS: '20000' }, { idleTimeoutMs: 150 });
+    await s.ensureRunning();
+    await waitUntil(() => record.lines().includes('system quit force'));
+    const started = Date.now();
+    await s.shutdown({ drainMs: 100, graceMs: 200, termMs: 200 });
+    expect(Date.now() - started).toBeLessThan(1_000);
+    expect(record.pids().some(isAlive)).toBe(false);
+  });
+
   it('shutdown during setup applies its budget without waiting for the setup command', async () => {
     const { session: s, record } = session({
       FAKE_WM_DELAY_ON: 'system info',

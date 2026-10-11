@@ -212,15 +212,7 @@ export class WorldMachineSession implements WorldMachineSessionPort {
       await starting;
       return;
     }
-    let timer: NodeJS.Timeout | undefined;
-    const expired = new Promise<'expired'>((resolve) => {
-      timer = setTimeout(() => resolve('expired'), budget.drainMs + budget.graceMs + budget.termMs);
-    });
-    try {
-      if ((await Promise.race([starting.then(() => 'done' as const), expired])) === 'done') return;
-    } finally {
-      clearTimeout(timer);
-    }
+    if (await settlesWithin(starting, budget.drainMs + budget.graceMs + budget.termMs)) return;
     const procs = new Set(this.#quitting);
     if (this.#spawning) procs.add(this.#spawning);
     await Promise.all([...procs].map((proc) => proc.terminate()));
@@ -388,7 +380,7 @@ export class WorldMachineSession implements WorldMachineSessionPort {
     this.#reset();
     const previous = this.#stopping;
     const current = (async () => {
-      await previous;
+      await (budget ? this.#awaitStopWithin(previous, budget, proc) : previous);
       const reason = new WorldMachineError('SHUTTING_DOWN', SHUTTING_DOWN_MESSAGE);
       const drained = queue?.drain(reason);
       await (budget ? withinMs(drained, budget.drainMs) : drained);
@@ -410,6 +402,23 @@ export class WorldMachineSession implements WorldMachineSessionPort {
       if (this.#stopping === current) this.#stopping = undefined;
     });
     return current;
+  }
+
+  /**
+   * An earlier stop (an idle stop quits with the long sequence) may still be quitting its process; a stop with a budget
+   * waits for it at most that budget in total, then SIGKILLs the processes still quitting, except `own`, which this
+   * stop quits itself (spec section 9, as `#awaitStartWithin` does for a pending start).
+   */
+  async #awaitStopWithin(
+    previous: Promise<void> | undefined,
+    budget: ShutdownBudget,
+    own: WorldMachineProcess | undefined,
+  ): Promise<void> {
+    if (!previous) return;
+    if (await settlesWithin(previous, budget.drainMs + budget.graceMs + budget.termMs)) return;
+    const procs = [...this.#quitting].filter((proc) => proc !== own);
+    await Promise.all(procs.map((proc) => proc.terminate()));
+    await previous;
   }
 
   #onExit(proc: WorldMachineProcess): void {
@@ -507,6 +516,19 @@ function recoveryDialogError(): WorldMachineError {
 /** The path of an opened project, or undefined for a fresh one. */
 function openedPath(binding: ProjectBinding): string | undefined {
   return binding.kind === 'opened' ? binding.path : undefined;
+}
+
+/** true when `promise` settles within `ms`; false when the time runs out first. */
+async function settlesWithin(promise: Promise<unknown>, ms: number): Promise<boolean> {
+  let timer: NodeJS.Timeout | undefined;
+  const expired = new Promise<false>((resolve) => {
+    timer = setTimeout(() => resolve(false), ms);
+  });
+  try {
+    return await Promise.race([promise.then(() => true), expired]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /** Resolves when the promise settles or after `ms`, whichever comes first. */
