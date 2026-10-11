@@ -1,0 +1,553 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 257
+Set scene resolution to 257
+<<<
+>>> project save <WORK>/p11/p11.tmd
+Project saved to: <WORK>/p11/p11.tmd
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Build started\.$/: seen after 1 s)
+Build started.
+<<<
+>>> param set #1.filename p11-baseline-<res>.png
+Set #1.filename = p11-baseline-<res>.png
+<<<
+>>> param get #1.filename
+#1.filename = p11-baseline-<res>.png
+<<<
+>>> export list
+Configured exports:
+  'Height Output       ' -> p11-baseline-<res>.png
+  'Material Output     ' -> <project> <name> <res>.png
+  'Colormap only       ' -> <project> <name> <res>.png
+  'Splatmap            ' -> <project> <name> <res>.png
+
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Build started\.$/: seen after 1 s)
+Build started.
+<<<
+>>> export all
+Successfully exported 4 file(s):
+  <WORK>/p11/p11-baseline-257.png
+  <WORK>/p11/p11 Material Output 257.png
+  <WORK>/p11/p11 Colormap only 257.png
+  <WORK>/p11/p11 Splatmap 257.png
+
+<<<
+>>> (waited 1500 ms)
+<<<
+>>> (output files written for filename p11-baseline-<res>.png)
+<WORK>/p11/p11 Colormap only 257.png
+<WORK>/p11/p11 Material Output 257_diffuse.png
+<WORK>/p11/p11 Material Output 257_disp.png
+<WORK>/p11/p11 Material Output 257_mask.png
+<WORK>/p11/p11 Material Output 257_roughness.png
+<WORK>/p11/p11 Splatmap 257.png
+<WORK>/p11/p11-baseline-257.png
+<<<
+>>> param set #1.filename ~/wm-p11-tilde-<res>.png
+Set #1.filename = ~/wm-p11-tilde-<res>.png
+<<<
+>>> param get #1.filename
+#1.filename = ~/wm-p11-tilde-<res>.png
+<<<
+>>> export list
+Configured exports:
+  'Height Output       ' -> ~/wm-p11-tilde-<res>.png
+  'Material Output     ' -> <project> <name> <res>.png
+  'Colormap only       ' -> <project> <name> <res>.png
+  'Splatmap            ' -> <project> <name> <res>.png
+
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Build started\.$/: seen after 1 s)
+Build started.
+<<<
+>>> export all
+Successfully exported 3 file(s):
+  <WORK>/p11/p11 Material Output 257.png
+  <WORK>/p11/p11 Colormap only 257.png
+  <WORK>/p11/p11 Splatmap 257.png
+
+Failed to export 1 file(s):
+  Height Output (<WORK>/p11/~/wm-p11-tilde-257.png)
+
+<<<
+>>> (waited 1500 ms)
+<<<
+>>> (output files written for filename ~/wm-p11-tilde-<res>.png)
+<WORK>/p11/p11 Colormap only 257.png
+<WORK>/p11/p11 Material Output 257_diffuse.png
+<WORK>/p11/p11 Material Output 257_disp.png
+<WORK>/p11/p11 Material Output 257_mask.png
+<WORK>/p11/p11 Material Output 257_roughness.png
+<WORK>/p11/p11 Splatmap 257.png
+<<<
+>>> param set #1.filename a\wm-p11-backslash-<res>.png
+Set #1.filename = awm-p11-backslash-<res>.png
+<<<
+>>> param get #1.filename
+#1.filename = awm-p11-backslash-<res>.png
+<<<
+>>> export list
+Configured exports:
+  'Height Output       ' -> awm-p11-backslash-<res>.png
+  'Material Output     ' -> <project> <name> <res>.png
+  'Colormap only       ' -> <project> <name> <res>.png
+  'Splatmap            ' -> <project> <name> <res>.png
+
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Build started\.$/: seen after 1 s)
+Build started.
+<<<
+>>> export all
+Successfully exported 4 file(s):
+  <WORK>/p11/awm-p11-backslash-257.png
+  <WORK>/p11/p11 Material Output 257.png
+  <WORK>/p11/p11 Colormap only 257.png
+  <WORK>/p11/p11 Splatmap 257.png
+
+<<<
+>>> (waited 1500 ms)
+<<<
+>>> (output files written for filename a\wm-p11-backslash-<res>.png)
+<WORK>/p11/awm-p11-backslash-257.png
+<WORK>/p11/p11 Colormap only 257.png
+<WORK>/p11/p11 Material Output 257_diffuse.png
+<WORK>/p11/p11 Material Output 257_disp.png
+<WORK>/p11/p11 Material Output 257_mask.png
+<WORK>/p11/p11 Material Output 257_roughness.png
+<WORK>/p11/p11 Splatmap 257.png
+<<<
+>>> param set #1.filename x\..\wm-p11-backslash-dotdot-<res>.png
+Set #1.filename = x..wm-p11-backslash-dotdot-<res>.png
+<<<
+>>> param get #1.filename
+#1.filename = x..wm-p11-backslash-dotdot-<res>.png
+<<<
+>>> export list
+Configured exports:
+  'Height Output       ' -> x..wm-p11-backslash-dotdot-<res>.png
+  'Material Output     ' -> <project> <name> <res>.png
+  'Colormap only       ' -> <project> <name> <res>.png
+  'Splatmap            ' -> <project> <name> <res>.png
+
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Build started\.$/: seen after 1 s)
+Build started.
+<<<
+>>> export all
+Successfully exported 4 file(s):
+  <WORK>/p11/x..wm-p11-backslash-dotdot-257.png
+  <WORK>/p11/p11 Material Output 257.png
+  <WORK>/p11/p11 Colormap only 257.png
+  <WORK>/p11/p11 Splatmap 257.png
+
+<<<
+>>> (waited 1500 ms)
+<<<
+>>> (output files written for filename x\..\wm-p11-backslash-dotdot-<res>.png)
+<WORK>/p11/p11 Colormap only 257.png
+<WORK>/p11/p11 Material Output 257_diffuse.png
+<WORK>/p11/p11 Material Output 257_disp.png
+<WORK>/p11/p11 Material Output 257_mask.png
+<WORK>/p11/p11 Material Output 257_roughness.png
+<WORK>/p11/p11 Splatmap 257.png
+<WORK>/p11/x..wm-p11-backslash-dotdot-257.png
+<<<
+>>> param set #1.filename x\..\..\wm-p11-backslash-escape-<res>.png
+Set #1.filename = x....wm-p11-backslash-escape-<res>.png
+<<<
+>>> param get #1.filename
+#1.filename = x....wm-p11-backslash-escape-<res>.png
+<<<
+>>> export list
+Configured exports:
+  'Height Output       ' -> x....wm-p11-backslash-escape-<res>.png
+  'Material Output     ' -> <project> <name> <res>.png
+  'Colormap only       ' -> <project> <name> <res>.png
+  'Splatmap            ' -> <project> <name> <res>.png
+
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Build started\.$/: seen after 1 s)
+Build started.
+<<<
+>>> export all
+Successfully exported 4 file(s):
+  <WORK>/p11/x....wm-p11-backslash-escape-257.png
+  <WORK>/p11/p11 Material Output 257.png
+  <WORK>/p11/p11 Colormap only 257.png
+  <WORK>/p11/p11 Splatmap 257.png
+
+<<<
+>>> (waited 1500 ms)
+<<<
+>>> (output files written for filename x\..\..\wm-p11-backslash-escape-<res>.png)
+<WORK>/p11/p11 Colormap only 257.png
+<WORK>/p11/p11 Material Output 257_diffuse.png
+<WORK>/p11/p11 Material Output 257_disp.png
+<WORK>/p11/p11 Material Output 257_mask.png
+<WORK>/p11/p11 Material Output 257_roughness.png
+<WORK>/p11/p11 Splatmap 257.png
+<WORK>/p11/x....wm-p11-backslash-escape-257.png
+<<<
+>>> param set #1.filename $HOME/wm-p11-env-<res>.png
+Set #1.filename = $HOME/wm-p11-env-<res>.png
+<<<
+>>> param get #1.filename
+#1.filename = $HOME/wm-p11-env-<res>.png
+<<<
+>>> export list
+Configured exports:
+  'Height Output       ' -> $HOME/wm-p11-env-<res>.png
+  'Material Output     ' -> <project> <name> <res>.png
+  'Colormap only       ' -> <project> <name> <res>.png
+  'Splatmap            ' -> <project> <name> <res>.png
+
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Build started\.$/: seen after 1 s)
+Build started.
+<<<
+>>> export all
+Successfully exported 3 file(s):
+  <WORK>/p11/p11 Material Output 257.png
+  <WORK>/p11/p11 Colormap only 257.png
+  <WORK>/p11/p11 Splatmap 257.png
+
+Failed to export 1 file(s):
+  Height Output (<WORK>/p11/$HOME/wm-p11-env-257.png)
+
+<<<
+>>> (waited 1500 ms)
+<<<
+>>> (output files written for filename $HOME/wm-p11-env-<res>.png)
+<WORK>/p11/p11 Colormap only 257.png
+<WORK>/p11/p11 Material Output 257_diffuse.png
+<WORK>/p11/p11 Material Output 257_disp.png
+<WORK>/p11/p11 Material Output 257_mask.png
+<WORK>/p11/p11 Material Output 257_roughness.png
+<WORK>/p11/p11 Splatmap 257.png
+<<<
+>>> param set #1.filename %HOME%/wm-p11-percent-<res>.png
+Set #1.filename = %HOME%/wm-p11-percent-<res>.png
+<<<
+>>> param get #1.filename
+#1.filename = %HOME%/wm-p11-percent-<res>.png
+<<<
+>>> export list
+Configured exports:
+  'Height Output       ' -> %HOME%/wm-p11-percent-<res>.png
+  'Material Output     ' -> <project> <name> <res>.png
+  'Colormap only       ' -> <project> <name> <res>.png
+  'Splatmap            ' -> <project> <name> <res>.png
+
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Build started\.$/: seen after 1 s)
+Build started.
+<<<
+>>> export all
+Successfully exported 3 file(s):
+  <WORK>/p11/p11 Material Output 257.png
+  <WORK>/p11/p11 Colormap only 257.png
+  <WORK>/p11/p11 Splatmap 257.png
+
+Failed to export 1 file(s):
+  Height Output (<WORK>/p11/%HOME%/wm-p11-percent-257.png)
+
+<<<
+>>> (waited 1500 ms)
+<<<
+>>> (output files written for filename %HOME%/wm-p11-percent-<res>.png)
+<WORK>/p11/p11 Colormap only 257.png
+<WORK>/p11/p11 Material Output 257_diffuse.png
+<WORK>/p11/p11 Material Output 257_disp.png
+<WORK>/p11/p11 Material Output 257_mask.png
+<WORK>/p11/p11 Material Output 257_roughness.png
+<WORK>/p11/p11 Splatmap 257.png
+<<<
+>>> param set #1.filename a//wm-p11-double-slash-<res>.png
+Set #1.filename = a//wm-p11-double-slash-<res>.png
+<<<
+>>> param get #1.filename
+#1.filename = a//wm-p11-double-slash-<res>.png
+<<<
+>>> export list
+Configured exports:
+  'Height Output       ' -> a//wm-p11-double-slash-<res>.png
+  'Material Output     ' -> <project> <name> <res>.png
+  'Colormap only       ' -> <project> <name> <res>.png
+  'Splatmap            ' -> <project> <name> <res>.png
+
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Build started\.$/: seen after 1 s)
+Build started.
+<<<
+>>> export all
+Successfully exported 4 file(s):
+  <WORK>/p11/a//wm-p11-double-slash-257.png
+  <WORK>/p11/p11 Material Output 257.png
+  <WORK>/p11/p11 Colormap only 257.png
+  <WORK>/p11/p11 Splatmap 257.png
+
+<<<
+>>> (waited 1500 ms)
+<<<
+>>> (output files written for filename a//wm-p11-double-slash-<res>.png)
+<WORK>/p11/a/wm-p11-double-slash-257.png
+<WORK>/p11/p11 Colormap only 257.png
+<WORK>/p11/p11 Material Output 257_diffuse.png
+<WORK>/p11/p11 Material Output 257_disp.png
+<WORK>/p11/p11 Material Output 257_mask.png
+<WORK>/p11/p11 Material Output 257_roughness.png
+<WORK>/p11/p11 Splatmap 257.png
+<<<
+>>> param set #1.filename a\\wm-p11-dbl-backslash-<res>.png
+Set #1.filename = a\wm-p11-dbl-backslash-<res>.png
+<<<
+>>> param get #1.filename
+#1.filename = a\wm-p11-dbl-backslash-<res>.png
+<<<
+>>> export list
+Configured exports:
+  'Height Output       ' -> a\wm-p11-dbl-backslash-<res>.png
+  'Material Output     ' -> <project> <name> <res>.png
+  'Colormap only       ' -> <project> <name> <res>.png
+  'Splatmap            ' -> <project> <name> <res>.png
+
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Build started\.$/: seen after 1 s)
+Build started.
+<<<
+>>> export all
+Successfully exported 3 file(s):
+  <WORK>/p11/p11 Material Output 257.png
+  <WORK>/p11/p11 Colormap only 257.png
+  <WORK>/p11/p11 Splatmap 257.png
+
+Failed to export 1 file(s):
+  Height Output (<WORK>/p11/a\wm-p11-dbl-backslash-257.png)
+
+<<<
+>>> (waited 1500 ms)
+<<<
+>>> (output files written for filename a\\wm-p11-dbl-backslash-<res>.png)
+<WORK>/p11/p11 Colormap only 257.png
+<WORK>/p11/p11 Material Output 257_diffuse.png
+<WORK>/p11/p11 Material Output 257_disp.png
+<WORK>/p11/p11 Material Output 257_mask.png
+<WORK>/p11/p11 Material Output 257_roughness.png
+<WORK>/p11/p11 Splatmap 257.png
+<<<
+>>> param set #1.filename x\\..\\..\\wm-p11-dbl-escape-<res>.png
+Set #1.filename = x\..\..\wm-p11-dbl-escape-<res>.png
+<<<
+>>> param get #1.filename
+#1.filename = x\..\..\wm-p11-dbl-escape-<res>.png
+<<<
+>>> export list
+Configured exports:
+  'Height Output       ' -> x\..\..\wm-p11-dbl-escape-<res>.png
+  'Material Output     ' -> <project> <name> <res>.png
+  'Colormap only       ' -> <project> <name> <res>.png
+  'Splatmap            ' -> <project> <name> <res>.png
+
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Build started\.$/: seen after 1 s)
+Build started.
+<<<
+>>> export all
+Successfully exported 3 file(s):
+  <WORK>/p11/p11 Material Output 257.png
+  <WORK>/p11/p11 Colormap only 257.png
+  <WORK>/p11/p11 Splatmap 257.png
+
+Failed to export 1 file(s):
+  Height Output (<WORK>/p11/x\..\..\wm-p11-dbl-escape-257.png)
+
+<<<
+>>> (waited 1500 ms)
+<<<
+>>> (output files written for filename x\\..\\..\\wm-p11-dbl-escape-<res>.png)
+<WORK>/p11/p11 Colormap only 257.png
+<WORK>/p11/p11 Material Output 257_diffuse.png
+<WORK>/p11/p11 Material Output 257_disp.png
+<WORK>/p11/p11 Material Output 257_mask.png
+<WORK>/p11/p11 Material Output 257_roughness.png
+<WORK>/p11/p11 Splatmap 257.png
+<<<
+>>> param set #1.filename <WORK>/p11/a/wm-p11-absolute-<res>.png
+Set #1.filename = <WORK>/p11/a/wm-p11-absolute-<res>.png
+<<<
+>>> param get #1.filename
+#1.filename = <WORK>/p11/a/wm-p11-absolute-<res>.png
+<<<
+>>> export list
+Configured exports:
+  'Height Output       ' -> <WORK>/p11/a/wm-p11-absolute-<res>.png
+  'Material Output     ' -> <project> <name> <res>.png
+  'Colormap only       ' -> <project> <name> <res>.png
+  'Splatmap            ' -> <project> <name> <res>.png
+
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> (batch took 0 s)
+<<<
+>>> (waited for /^Build started\.$/: seen after 1 s)
+Build started.
+<<<
+>>> export all
+Successfully exported 4 file(s):
+  <WORK>/p11/a/wm-p11-absolute-257.png
+  <WORK>/p11/p11 Material Output 257.png
+  <WORK>/p11/p11 Colormap only 257.png
+  <WORK>/p11/p11 Splatmap 257.png
+
+<<<
+>>> (waited 1500 ms)
+<<<
+>>> (output files written for filename <WORK>/p11/a/wm-p11-absolute-<res>.png)
+<WORK>/p11/a/wm-p11-absolute-257.png
+<WORK>/p11/p11 Colormap only 257.png
+<WORK>/p11/p11 Material Output 257_diffuse.png
+<WORK>/p11/p11 Material Output 257_disp.png
+<WORK>/p11/p11 Material Output 257_mask.png
+<WORK>/p11/p11 Material Output 257_roughness.png
+<WORK>/p11/p11 Splatmap 257.png
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<

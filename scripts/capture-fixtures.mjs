@@ -2,9 +2,17 @@
 // Records raw World Machine CLI transcripts for parser fixtures and for spec items V1-V8.
 // Needs a licensed local World Machine. Usage: WORLD_MACHINE_BIN=/path/to/wm npm run capture-fixtures
 import { spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 
 const bin = process.env.WORLD_MACHINE_BIN;
@@ -798,6 +806,23 @@ const scenarios = [
     },
   ],
   [
+    // Backlog P11-4: does World Machine read `~`, a backslash, `..` after a backslash, environment variables, a doubled
+    // slash, or an absolute path in an output file name template the way the server's expansion does
+    // (src/domain/output-template.ts)? Sets File Output #1's filename directly, exports, and records where files land,
+    // including the parent of <WORK> and <HOME>. Probe files found outside <WORK> are deleted after they are recorded.
+    // Default project at 257 in <WORK>/p11. Ends closed.
+    'p11-4-template-paths',
+    async () => {
+      const sections = [];
+      try {
+        await p114TemplatePaths(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
     // Which device types ignore `device rename` (fact 80 found it for Combiner). Candidate type names come from the file
     // named by WM_RENAME_CANDIDATES, one per line; names World Machine rejects are only counted. Default project. Ends
     // closed.
@@ -1334,6 +1359,67 @@ async function v2bAssumptions(sections) {
   sections.push(await waitForLine(/^Building \d+ device\(s\) in group /, 60_000));
   sections.push(await wait(2000));
   sections.push(...(await run(['build status', 'project close force'])));
+}
+
+async function p114TemplatePaths(sections) {
+  const dir = join(work, 'p11');
+  // Folders a backslash would name if World Machine read it as a separator.
+  mkdirSync(join(dir, 'a'), { recursive: true });
+  mkdirSync(join(dir, 'x'), { recursive: true });
+  const file = join(dir, 'p11.tmd');
+  sections.push(
+    ...(await run(['project new default force', 'scene resolution 257', `project save ${file}`])),
+  );
+  await pollBuild(sections);
+  await timed(sections, ['build start']);
+  sections.push(await waitForLine(/^Build started\.$/, 60_000));
+  const parent = dirname(work);
+  const mask = (path) => scrub(path).replaceAll(parent, '<TMP>');
+  const probeFiles = (since) =>
+    [
+      ...newFiles(work, 4, since),
+      ...newFiles(parent, 1, since),
+      ...newFiles(homedir(), 4, since),
+      ...newFiles(process.cwd(), 2, since),
+    ].filter((path, index, all) => all.indexOf(path) === index);
+  const templates = [
+    'p11-baseline-<res>.png',
+    '~/wm-p11-tilde-<res>.png',
+    'a\\wm-p11-backslash-<res>.png',
+    'x\\..\\wm-p11-backslash-dotdot-<res>.png',
+    'x\\..\\..\\wm-p11-backslash-escape-<res>.png',
+    '$HOME/wm-p11-env-<res>.png',
+    '%HOME%/wm-p11-percent-<res>.png',
+    'a//wm-p11-double-slash-<res>.png',
+    // A doubled backslash, in case the console reads `\\` as one literal backslash (a single one is stripped).
+    'a\\\\wm-p11-dbl-backslash-<res>.png',
+    'x\\\\..\\\\..\\\\wm-p11-dbl-escape-<res>.png',
+    `${join(dir, 'a')}/wm-p11-absolute-<res>.png`,
+  ];
+  for (const template of templates) {
+    sections.push(
+      ...(await run([`param set #1.filename ${template}`, 'param get #1.filename', 'export list'])),
+    );
+    const since = Date.now();
+    let exported = await run(['export all']);
+    if (exported[0].lines.some((line) => /not built/i.test(line))) {
+      sections.push(...exported);
+      await timed(sections, ['build start']);
+      sections.push(await waitForLine(/^Build started\.$/, 60_000));
+      exported = await run(['export all']);
+    }
+    sections.push(...exported);
+    sections.push(await wait(1500));
+    const found = probeFiles(since);
+    sections.push({ command: `(output files written for filename ${template})`, lines: found.map(mask) });
+    for (const path of found) {
+      if (!path.startsWith(work) && /wm-p11-/.test(path)) {
+        unlinkSync(path);
+        sections.push({ command: '(removed probe file outside <WORK>)', lines: [mask(path)] });
+      }
+    }
+  }
+  sections.push(...(await run(['project close force'])));
 }
 
 async function v3RenameTypes(sections) {
