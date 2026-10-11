@@ -37,6 +37,7 @@ describe('stdio server', () => {
     const { tools } = await client.listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       'add_device',
+      'apply_graph',
       'build_project',
       'configure_scene',
       'connect_devices',
@@ -57,6 +58,7 @@ describe('stdio server', () => {
       'list_snapshots',
       'open_project',
       'organize_devices',
+      'plan_graph',
       'redo',
       'rename_device',
       'restore_snapshot',
