@@ -103,6 +103,15 @@ describe('graphDiff (spec v3 section 6)', () => {
     ]);
   });
 
+  it('reports bypass on a changed device only when it changed', () => {
+    const before = detail(20, 'Eroded', 'Erosion', { bypassed: true });
+    const after = detail(20, 'Eroded', 'Erosion', { enabled: false, bypassed: true });
+    const steps: PlanStep[] = [{ op: 'set-enabled', device: 'Eroded', id: 20, from: true, to: false }];
+    expect(graphDiff(steps, { before: [before], after: [after], addedIds: new Map() })).toEqual([
+      { device: 'Eroded', change: 'changed', id: 20, enabled: { before: true, after: false } },
+    ]);
+  });
+
   it('leaves out a device whose read-back shows no change, such as a float set to its value', () => {
     const eroded = detail(20, 'Eroded', 'Erosion', {
       parameters: [{ name: 'scale', type: 'float', value: '4 km' }],

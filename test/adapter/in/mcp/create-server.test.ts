@@ -332,6 +332,20 @@ describe('createMcpServer', () => {
     ]);
   });
 
+  it('refuses a plan view whose set-bypassed step carries a field the schema does not know', async () => {
+    const view = {
+      planId: PLAN_ID,
+      conflicts: [],
+      steps: [{ op: 'set-bypassed', device: 'Base', to: true, toggle: true }],
+      unchanged: [],
+      session: READY,
+    };
+    const client = await connect(deps({ planGraph: { planGraph: async () => view as never } }));
+    const result = await client.callTool({ name: 'plan_graph', arguments: { spec: GRAPH_SPEC } });
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
+  });
+
   it('returns a plan with every step kind as structured content', async () => {
     const view = {
       planId: PLAN_ID,
