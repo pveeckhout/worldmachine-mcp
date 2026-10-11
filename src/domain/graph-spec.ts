@@ -1,4 +1,4 @@
-import { deviceNameProblem, foldCase } from './device-name.js';
+import { deviceNameProblem, foldCase, idOfReference } from './device-name.js';
 import { WorldMachineError } from './errors.js';
 import type { ParameterValue } from './graph-edit.js';
 import { decimalText } from './parameter-values.js';
@@ -120,6 +120,10 @@ export function validateGraphSpec(raw: RawGraphSpec): GraphSpec {
   const removed = new Set<string>();
   for (const entry of remove) {
     if (entry === '') refuse('A remove entry must be a device name or #<id>, not empty');
+    if (idOfReference(entry) === undefined) {
+      const problem = deviceNameProblem(entry);
+      if (problem !== undefined) refuse(`Remove entry '${entry}' must not ${problem}`);
+    }
     const key = foldCase(entry);
     if (names.has(key)) refuse(`'${entry}' is in both devices and remove`);
     if (removed.has(key)) refuse(`'${entry}' appears twice in remove`);

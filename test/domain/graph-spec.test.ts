@@ -90,6 +90,9 @@ describe('validateGraphSpec (spec v3 section 4)', () => {
     ['a name in devices and remove', base({ remove: ['base'] }), 'both devices and remove'],
     ['an empty remove entry', base({ remove: [''] }), 'remove'],
     ['a remove entry twice (D3)', base({ remove: ['Old', 'old'] }), 'twice'],
+    ['a 24-character remove entry', base({ remove: ['Twenty-four characters!!'] }), 'longer than'],
+    ['a remove entry with a leading space', base({ remove: [' Old'] }), 'whitespace'],
+    ['a remove entry with a trailing space', base({ remove: ['Old '] }), 'whitespace'],
     ['port 0', base({ devices: [{ ...device('A'), inputs: { '0': null } }] }), 'input port'],
     ['port x', base({ devices: [{ ...device('A'), inputs: { x: null } }] }), 'input port'],
     ['port 1.5', base({ devices: [{ ...device('A'), inputs: { '1.5': null } }] }), 'input port'],
@@ -127,6 +130,10 @@ describe('parseSource (D9)', () => {
     ['My.Device', { device: 'My.Device', port: 1 }],
   ])('reads %j', (text, source) => {
     expect(parseSource(text)).toEqual(source);
+  });
+
+  it('accepts a #<id> remove entry', () => {
+    expect(validateGraphSpec(base({ remove: ['#12'] })).remove).toEqual(['#12']);
   });
 
   it.each(['', '.1', 'Shape.0', 'Shape.01', ' Shape', 'Shape '])('refuses %j', (text) => {

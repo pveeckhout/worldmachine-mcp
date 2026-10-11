@@ -472,7 +472,7 @@ export const setGroupEnabledViewSchema = z.strictObject({
 
 // Spec v3 section 4. The schema admits the structure only; validateGraphSpec refuses everything else with REFUSED,
 // so a rule broken is a tool result, not a protocol error (plan decision D6).
-const graphDeviceSchema = z.object({
+const graphDeviceSchema = z.strictObject({
   name: z
     .string()
     .describe(
@@ -490,7 +490,7 @@ const graphDeviceSchema = z.object({
     .describe('Input port number to its source, "<device>" or "<device>.<output port>", or null for no wire'),
 });
 
-export const graphSpecSchema = z.object({
+export const graphSpecSchema = z.strictObject({
   version: z.number().describe('Must be 1'),
   devices: z.array(graphDeviceSchema),
   remove: z.array(z.string()).optional().describe('Device names or #<id> to delete; absence never deletes'),

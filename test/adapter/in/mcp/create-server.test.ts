@@ -559,6 +559,28 @@ describe('createMcpServer', () => {
     expect(result.isError).toBe(true);
   });
 
+  it('rejects a misspelled spec key through the schema without reaching the port', async () => {
+    let calls = 0;
+    const client = await connect(
+      deps({
+        planGraph: {
+          planGraph: async () => {
+            calls += 1;
+            return { planId: PLAN_ID, conflicts: [], steps: [], unchanged: [], session: READY };
+          },
+        },
+      }),
+    );
+    const result = await client.callTool({
+      name: 'plan_graph',
+      arguments: {
+        spec: { version: 1, devices: [{ name: 'Base', type: 'Gradient', paramters: { octaves: 8 } }] },
+      },
+    });
+    expect(result.isError).toBe(true);
+    expect(calls).toBe(0);
+  });
+
   it('returns WorldMachineError as an error result with code, World Machine text, and session', async () => {
     const failing = deps({
       listDevices: {
