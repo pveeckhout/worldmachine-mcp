@@ -29,6 +29,7 @@ describe('validateGraphSpec (spec v3 section 4)', () => {
             name: 'Base',
             type: 'Advanced Perlin',
             enabled: true,
+            bypassed: true,
             parameters: { octaves: 8, scale: 0.4 },
             inputs: { '4': '#12', '2': null, '1': 'Shape.1', '3': 'My.Device', '5': 'Shape' },
           },
@@ -41,6 +42,7 @@ describe('validateGraphSpec (spec v3 section 4)', () => {
           name: 'Base',
           type: 'Advanced Perlin',
           enabled: true,
+          bypassed: true,
           parameters: [
             { name: 'octaves', value: 8 },
             { name: 'scale', value: 0.4 },
@@ -138,5 +140,18 @@ describe('parseSource (D9)', () => {
 
   it.each(['', '.1', 'Shape.0', 'Shape.01', ' Shape', 'Shape '])('refuses %j', (text) => {
     expect(parseSource(text)).toBeUndefined();
+  });
+
+  it('carries bypassed and leaves it undefined when omitted', () => {
+    const spec = validateGraphSpec({
+      version: 1,
+      devices: [
+        { name: 'A', type: 'Gradient', bypassed: false },
+        { name: 'B', type: 'Gradient' },
+      ],
+    });
+    expect(spec.devices[0]?.bypassed).toBe(false);
+    expect(spec.devices[1]?.bypassed).toBeUndefined();
+    expect('bypassed' in (spec.devices[1] ?? {})).toBe(false);
   });
 });

@@ -185,6 +185,9 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
       case 'set-enabled':
         await this.#devices.setDeviceEnabled(ref(step.device, step.id), step.to);
         return;
+      case 'set-bypassed':
+        await this.#devices.setDeviceBypassed(ref(step.device, step.id), step.to);
+        return;
       case 'set-parameter': {
         const update = await this.#parameters.updateParameters(ref(step.device, step.id), {
           [step.name]: step.to,

@@ -6,6 +6,7 @@ Revision 1 (2026-10-11): facts 78-79 from raw/v3-assumptions.txt; C1 holds, C2 d
 Revision 2 (2026-10-11): plan decisions D1, D6, D7, D8.
 Revision 3 (2026-10-11): facts 80-81 from raw/v3-rename-probe.txt and raw/v3-rename-types.txt (only a Combiner ignores a rename; `device add` also accepts aliases).
 Revision 4 (2026-10-12): section 6 robustness: `diffError` when the result cannot be read after a successful apply, a restore after an internal error, and a process generation in the session check; the plan and diff examples show step ids (D8) and the defined step order.
+Revision 5 (2026-10-12): bypassed in device entries (set-bypassed step after set-enabled; restore reverts bypass, raw/bypass-restore.txt).
 Builds on: [v1 design](2026-10-04-worldmachine-mcp-design.md) (facts 1-41 and 77, the edit tools of section 7, the errors of section 8), [v2a design](2026-10-05-worldmachine-mcp-v2a-design.md) (the build guard), and [v2b design](2026-10-06-worldmachine-mcp-v2b-design.md) (facts 57-61, the snapshot tools)
 
 ## 1. Purpose and scope
@@ -70,7 +71,7 @@ The `apply_graph` description says: plan first and show the plan to the user; a 
 
 - `version` is required and must be `1`.
 - `devices[].name` is the identity of a managed device. `devices[].type` is the exact World Machine type.
-- `enabled`, `parameters`, and `inputs` are optional. What a device entry leaves out is left as it is.
+- `enabled`, `bypassed`, `parameters`, and `inputs` are optional. What a device entry leaves out is left as it is. `bypassed` is a boolean that is set, not toggled (`set_device_bypassed` reads the state first); `device info` reports it even for a disabled device (fact 29).
 - `inputs` maps an input port number (as a string key) to a source, `"<device>"` or `"<device>.<outputPort>"` (port 1 when omitted), or to `null` for no wire. A source is a managed device's name, any device's name, or `#<id>`. An input port the entry does not list is left alone.
 - `remove` lists device names (or `#<id>`) to delete. Deleting is never implied by absence.
 
@@ -123,8 +124,9 @@ Steps run in this order, and within each group in spec order:
 2. `remove`: each `remove` entry that exists, with the wires it takes along (`wiresRemoved`); an entry that matches nothing is listed in `unchanged` as `already absent`;
 3. `add`: each managed device that does not exist, renamed to the spec name when its default name differs;
 4. `set-enabled`: when `enabled` differs from the current state;
-5. `set-parameter`: per parameter, when it differs or cannot be compared (below);
-6. `connect`: each input whose spec source is not its current source.
+5. `set-bypassed`: when `bypassed` differs from the current bypass state, which is compared exactly (a second plan of the same spec plans nothing for it). A device the plan adds starts not bypassed, so it gets this step only when `bypassed` is `true`, as `set-enabled` is planned for an added device only when `enabled` is `false`. `snapshot restore` reverts bypass (raw/bypass-restore.txt), so a failed apply restores it;
+6. `set-parameter`: per parameter, when it differs or cannot be compared (below);
+7. `connect`: each input whose spec source is not its current source.
 
 Disconnecting before connecting is required: an occupied input refuses a connect (fact 34).
 
@@ -226,10 +228,11 @@ After success, the referenced devices are read back:
   "snapshot": null,
   "diff": [
     { "device": "Base", "change": "added",
-      "after": { "id": 536, "type": "Advanced Perlin", "enabled": true,
+      "after": { "id": 536, "type": "Advanced Perlin", "enabled": true, "bypassed": false,
                  "parameters": { "scale": "4 km" }, "inputs": { "1": "Shape.1" } } },
     { "device": "Old Noise", "change": "removed", "before": { "id": 12, "type": "Perlin Noise" } },
     { "device": "Eroded", "change": "changed", "id": 20,
+      "bypassed": { "before": false, "after": true },
       "parameters": { "steps": { "before": "4", "after": "6" } },
       "inputs": { "1": { "before": "Old.1", "after": "Base.1" } } }
   ],
@@ -237,7 +240,7 @@ After success, the referenced devices are read back:
 }
 ```
 
-Parameters appear in the diff only when their read-back value changed; a float set to the value it already had does not appear. `snapshot` is the kept snapshot's name when `keep_snapshot` is true, otherwise `null`.
+A `changed` entry carries `enabled` and `bypassed` as `{ before, after }` only when the read-back value changed. Parameters appear in the diff only when their read-back value changed; a float set to the value it already had does not appear. `snapshot` is the kept snapshot's name when `keep_snapshot` is true, otherwise `null`.
 
 Added 2026-10-12: if the read-back fails with a `WorldMachineError` while World Machine is still the same healthy session, the apply still succeeded. The result then has `diff: []`, `diffError` (the error's message, without World Machine text), and the snapshot kept. On `TIMEOUT`, `CRASHED`, or a changed session, the call throws an error with the same code saying that all steps were applied but the result could not be read, and that the unsaved changes and snapshot are gone.
 

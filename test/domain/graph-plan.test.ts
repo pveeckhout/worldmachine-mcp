@@ -86,7 +86,7 @@ describe('planGraph (spec v3 section 5)', () => {
     });
   });
 
-  it('orders steps: disconnect, remove, add, set-enabled, set-parameter, connect', () => {
+  it('orders steps: disconnect, remove, add, set-enabled, set-bypassed, set-parameter, connect', () => {
     const plan = planGraph(
       spec(
         [
@@ -94,10 +94,11 @@ describe('planGraph (spec v3 section 5)', () => {
             name: 'Eroded',
             type: 'Erosion',
             enabled: false,
+            bypassed: true,
             parameters: { steps: 6 },
             inputs: { '1': 'Base' },
           },
-          { name: 'Base', type: 'Gradient' },
+          { name: 'Base', type: 'Gradient', bypassed: true },
         ],
         ['Old'],
       ),
@@ -116,6 +117,8 @@ describe('planGraph (spec v3 section 5)', () => {
       { op: 'remove', device: 'Old', id: 12, wiresRemoved: [] },
       { op: 'add', device: 'Base', type: 'Gradient' },
       { op: 'set-enabled', device: 'Eroded', id: 20, from: true, to: false },
+      { op: 'set-bypassed', device: 'Eroded', id: 20, from: false, to: true },
+      { op: 'set-bypassed', device: 'Base', to: true },
       { op: 'set-parameter', device: 'Eroded', id: 20, name: 'steps', from: '4', to: '6', comparable: true },
       {
         op: 'connect',
@@ -126,6 +129,48 @@ describe('planGraph (spec v3 section 5)', () => {
         source: { device: 'Base', port: 1 },
       },
     ]);
+  });
+
+  it('plans set-bypassed for an existing device whose bypass differs, with id, from, and to', () => {
+    const plan = planGraph(spec([{ name: 'Eroded', type: 'Erosion', bypassed: true }]), PROJECT);
+    expect(plan).toEqual({
+      conflicts: [],
+      steps: [{ op: 'set-bypassed', device: 'Eroded', id: 20, from: false, to: true }],
+      unchanged: [],
+    });
+  });
+
+  it('plans nothing for an equal or omitted bypassed, and lists the device as unchanged', () => {
+    const equal = planGraph(spec([{ name: 'Eroded', type: 'Erosion', bypassed: false }]), PROJECT);
+    expect(equal).toEqual({ conflicts: [], steps: [], unchanged: ['Eroded'] });
+    const omitted = planGraph(spec([{ name: 'Eroded', type: 'Erosion' }]), PROJECT);
+    expect(omitted).toEqual({ conflicts: [], steps: [], unchanged: ['Eroded'] });
+  });
+
+  it('plans set-bypassed for an added device only when bypassed is true, after set-enabled and before parameters', () => {
+    const plan = planGraph(
+      spec([
+        { name: 'On', type: 'Gradient', bypassed: true, enabled: false, parameters: { Width: 1 } },
+        { name: 'Off', type: 'Gradient', bypassed: false },
+      ]),
+      state([]),
+    );
+    expect(plan.steps).toEqual([
+      { op: 'add', device: 'On', type: 'Gradient' },
+      { op: 'add', device: 'Off', type: 'Gradient' },
+      { op: 'set-enabled', device: 'On', to: false },
+      { op: 'set-bypassed', device: 'On', to: true },
+      { op: 'set-parameter', device: 'On', name: 'Width', to: '1', comparable: false },
+    ]);
+  });
+
+  it('plans no set-bypassed once the project holds the bypass the spec gives', () => {
+    const bypassed = detail(20, 'Eroded', 'Erosion', { ...ERODED, bypassed: true });
+    const plan = planGraph(
+      spec([{ name: 'Eroded', type: 'Erosion', bypassed: true }]),
+      state([OLD, bypassed]),
+    );
+    expect(plan).toEqual({ conflicts: [], steps: [], unchanged: ['Eroded'] });
   });
 
   it('matches names regardless of case and plans no rename (Review Focus 3, D11)', () => {

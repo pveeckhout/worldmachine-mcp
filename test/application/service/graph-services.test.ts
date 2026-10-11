@@ -75,7 +75,8 @@ const SPEC: RawGraphSpec = {
     { name: 'Mix', type: 'Combiner', inputs: { '1': 'Ramp' } },
   ],
 };
-const CHANGES = /^(device (add|delete|rename|enable|disable)|param set|wire (connect|disconnect)|snapshot)/;
+const CHANGES =
+  /^(device (add|delete|rename|enable|disable|bypass)|param set|wire (connect|disconnect)|snapshot)/;
 
 describe('PlanGraphService (spec v3 sections 3 and 5)', () => {
   it('plans a spec against the project with read commands only', async () => {
@@ -147,12 +148,26 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
         {
           device: 'Ramp',
           change: 'added',
-          after: { id: 536, type: 'Gradient', enabled: true, parameters: { Width: '0.5' }, inputs: {} },
+          after: {
+            id: 536,
+            type: 'Gradient',
+            enabled: true,
+            bypassed: false,
+            parameters: { Width: '0.5' },
+            inputs: {},
+          },
         },
         {
           device: 'Mix',
           change: 'added',
-          after: { id: 537, type: 'Combiner', enabled: true, parameters: {}, inputs: { '1': 'Ramp.1' } },
+          after: {
+            id: 537,
+            type: 'Combiner',
+            enabled: true,
+            bypassed: false,
+            parameters: {},
+            inputs: { '1': 'Ramp.1' },
+          },
         },
       ],
       session: expect.objectContaining({ dirty: true }),
@@ -171,6 +186,42 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
       },
     ]);
     expect(again.unchanged).toEqual(['Mix']);
+  });
+
+  it('adds a bypassed device, shows it bypassed in the diff, and a second plan has no set-bypassed', async () => {
+    const w = wired();
+    const spec: RawGraphSpec = { version: 1, devices: [{ name: 'Ramp', type: 'Gradient', bypassed: true }] };
+    const plan = await w.plan.planGraph({ spec });
+    expect(plan.steps).toEqual([
+      { op: 'add', device: 'Ramp', type: 'Gradient' },
+      { op: 'set-bypassed', device: 'Ramp', to: true },
+    ]);
+    const view = await w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
+    expect(view.diff).toEqual([
+      {
+        device: 'Ramp',
+        change: 'added',
+        after: { id: 536, type: 'Gradient', enabled: true, bypassed: true, parameters: {}, inputs: {} },
+      },
+    ]);
+    const again = await w.plan.planGraph({ spec });
+    expect(again.steps).toEqual([]);
+    expect(again.unchanged).toEqual(['Ramp']);
+  });
+
+  it('rolls back a set-bypassed on an existing device when a later step fails', async () => {
+    const w = wired({ FAKE_WM_PARAM_SET_ERROR_AT: '1' });
+    await w.devices.addDevice('Gradient', 'Ramp');
+    const spec: RawGraphSpec = {
+      version: 1,
+      devices: [{ name: 'Ramp', type: 'Gradient', bypassed: true, parameters: { Width: 0.5 } }],
+    };
+    const plan = await w.plan.planGraph({ spec });
+    expect(plan.steps.map((step) => step.op)).toEqual(['set-bypassed', 'set-parameter']);
+    const error = await failure(w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false }));
+    expect(error.code).toBe('APPLY_FAILED');
+    expect(error.details).toMatchObject({ completedSteps: 1, rolledBack: true });
+    expect((await w.reader.getDevice('#536')).bypassed).toBe(false);
   });
 
   it('rewires and removes, and reports removed, added, and changed devices', async () => {
@@ -195,7 +246,7 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
       {
         device: 'Base',
         change: 'added',
-        after: { id: 538, type: 'Gradient', enabled: true, parameters: {}, inputs: {} },
+        after: { id: 538, type: 'Gradient', enabled: true, bypassed: false, parameters: {}, inputs: {} },
       },
     ]);
   });

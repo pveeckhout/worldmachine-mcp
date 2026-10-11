@@ -40,6 +40,13 @@ export type PlanStep =
       readonly to: boolean;
     }
   | {
+      readonly op: 'set-bypassed';
+      readonly device: string;
+      readonly id?: number;
+      readonly from?: boolean;
+      readonly to: boolean;
+    }
+  | {
       readonly op: 'set-parameter';
       readonly device: string;
       readonly id?: number;
@@ -247,6 +254,7 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
   const disconnects: PlanStep[] = [];
   const adds: PlanStep[] = [];
   const enables: PlanStep[] = [];
+  const bypasses: PlanStep[] = [];
   const parameters: PlanStep[] = [];
   const connects: PlanStep[] = [];
   const connect = (device: string, id: number | undefined, port: number, source: StepSource): PlanStep => ({
@@ -264,6 +272,9 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
       adds.push({ op: 'add', device: device.name, type: device.type });
       // D10: a new device starts enabled.
       if (device.enabled === false) enables.push({ op: 'set-enabled', device: device.name, to: false });
+      // Revision 5: a new device starts not bypassed; `device info` reports `Bypass:` (get_device is reliable even
+      // for a disabled device, fact 29).
+      if (device.bypassed === true) bypasses.push({ op: 'set-bypassed', device: device.name, to: true });
       for (const { name, value } of device.parameters) {
         parameters.push({
           op: 'set-parameter',
@@ -288,6 +299,15 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
         id,
         from: existing.enabled,
         to: device.enabled,
+      });
+    }
+    if (device.bypassed !== undefined && device.bypassed !== existing.bypassed) {
+      bypasses.push({
+        op: 'set-bypassed',
+        device: device.name,
+        id,
+        from: existing.bypassed,
+        to: device.bypassed,
       });
     }
     for (const { name, value } of device.parameters) {
@@ -381,7 +401,7 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
     return { op: 'remove', device: name, id, wiresRemoved };
   });
 
-  const steps = [...disconnects, ...removes, ...adds, ...enables, ...parameters, ...connects];
+  const steps = [...disconnects, ...removes, ...adds, ...enables, ...bypasses, ...parameters, ...connects];
   const touched = new Set(steps.map((step) => foldCase(step.device)));
   // D13.
   const unchanged = [

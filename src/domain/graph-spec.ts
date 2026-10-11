@@ -8,6 +8,8 @@ export type RawGraphDevice = {
   readonly name: string;
   readonly type: string;
   readonly enabled?: boolean;
+  /** Omitted: bypass is left as it is. `device info` reports `Bypass: yes|no` (v3 spec revision 5). */
+  readonly bypassed?: boolean;
   readonly parameters?: Readonly<Record<string, ParameterValue>>;
   readonly inputs?: Readonly<Record<string, string | null>>;
 };
@@ -27,6 +29,7 @@ export type GraphDevice = {
   readonly name: string;
   readonly type: string;
   readonly enabled?: boolean;
+  readonly bypassed?: boolean;
   /** In spec order. */
   readonly parameters: readonly GraphParameter[];
   /** Ascending by port. */
@@ -113,6 +116,7 @@ export function validateGraphSpec(raw: RawGraphSpec): GraphSpec {
       name,
       type: entry.type,
       ...(entry.enabled === undefined ? {} : { enabled: entry.enabled }),
+      ...(entry.bypassed === undefined ? {} : { bypassed: entry.bypassed }),
       parameters: checkParameters(name, entry.parameters ?? {}),
       inputs: checkInputs(name, entry.inputs ?? {}),
     };

@@ -287,6 +287,28 @@ describe('createMcpServer', () => {
     expect(description).toContain('undo does not revert');
   });
 
+  it('accepts bypassed in a graph spec device and describes it on plan_graph', async () => {
+    const specs: unknown[] = [];
+    const client = await connect(
+      deps({
+        planGraph: {
+          planGraph: async (query) => {
+            specs.push(query.spec);
+            return { planId: PLAN_ID, conflicts: [], steps: [], unchanged: [], session: READY };
+          },
+        },
+      }),
+    );
+    const spec = { version: 1, devices: [{ name: 'Base', type: 'Gradient', bypassed: true }] };
+    const result = await client.callTool({ name: 'plan_graph', arguments: { spec } });
+    expect(result.isError).toBeFalsy();
+    expect(specs).toEqual([spec]);
+    const { tools } = await client.listTools();
+    const description = tools.find((tool) => tool.name === 'plan_graph')?.description ?? '';
+    expect(description).toContain('enabled?, bypassed?');
+    expect(description).toContain('bypassed is set, not toggled');
+  });
+
   it('passes plan_id and keep_snapshot to apply_graph, keep_snapshot false by default', async () => {
     const commands: unknown[] = [];
     const client = await connect(
@@ -326,6 +348,8 @@ describe('createMcpServer', () => {
         { op: 'remove', device: 'Old', id: 12, wiresRemoved: ['Old.1 -> Eroded.1'] },
         { op: 'add', device: 'Base', type: 'Advanced Perlin' },
         { op: 'set-enabled', device: 'Eroded', id: 20, from: true, to: false },
+        { op: 'set-bypassed', device: 'Eroded', id: 20, from: false, to: true },
+        { op: 'set-bypassed', device: 'Base', to: true },
         { op: 'set-parameter', device: 'Base', name: 'scale', to: '0.4', comparable: false },
         {
           op: 'connect',
@@ -357,6 +381,7 @@ describe('createMcpServer', () => {
             id: 536,
             type: 'Advanced Perlin',
             enabled: true,
+            bypassed: true,
             parameters: { scale: '4 km' },
             inputs: { '1': 'Shape.1' },
           },
@@ -366,6 +391,7 @@ describe('createMcpServer', () => {
           device: 'Eroded',
           change: 'changed',
           id: 20,
+          bypassed: { before: false, after: true },
           parameters: { steps: { before: '4', after: '6' } },
           inputs: { '1': { before: 'Old.1', after: 'Base.1' } },
         },

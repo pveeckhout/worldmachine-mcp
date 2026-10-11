@@ -35,6 +35,8 @@ const STEPS: PlanStep[] = [
   { op: 'add', device: 'Base', type: 'Advanced Perlin' },
   { op: 'set-parameter', device: 'Base', name: 'scale', to: '0.5', comparable: false },
   { op: 'set-enabled', device: 'Eroded', id: 20, from: true, to: false },
+  { op: 'set-bypassed', device: 'Eroded', id: 20, from: false, to: true },
+  { op: 'set-bypassed', device: 'Base', to: true },
   { op: 'set-parameter', device: 'Eroded', id: 20, name: 'steps', from: '4', to: '6', comparable: true },
   {
     op: 'set-parameter',
@@ -62,10 +64,12 @@ describe('graphDiff (spec v3 section 6)', () => {
     ];
     const after = [
       detail(536, 'Base', 'Advanced Perlin', {
+        bypassed: true,
         parameters: [{ name: 'scale', type: 'float', value: '4 km' }],
       }),
       detail(20, 'Eroded', 'Erosion', {
         enabled: false,
+        bypassed: true,
         parameters: [
           { name: 'steps', type: 'int', value: '6' },
           { name: 'scale', type: 'float', value: '4 km' },
@@ -79,6 +83,7 @@ describe('graphDiff (spec v3 section 6)', () => {
         change: 'changed',
         id: 20,
         enabled: { before: true, after: false },
+        bypassed: { before: false, after: true },
         parameters: { steps: { before: '4', after: '6' } },
         inputs: { '1': { before: 'Old.1', after: 'Base.1' } },
       },
@@ -86,7 +91,14 @@ describe('graphDiff (spec v3 section 6)', () => {
       {
         device: 'Base',
         change: 'added',
-        after: { id: 536, type: 'Advanced Perlin', enabled: true, parameters: { scale: '4 km' }, inputs: {} },
+        after: {
+          id: 536,
+          type: 'Advanced Perlin',
+          enabled: true,
+          bypassed: true,
+          parameters: { scale: '4 km' },
+          inputs: {},
+        },
       },
     ]);
   });

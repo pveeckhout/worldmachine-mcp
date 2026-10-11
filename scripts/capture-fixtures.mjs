@@ -837,6 +837,45 @@ const scenarios = [
     },
   ],
   [
+    // apply_graph bypass rollback: does `snapshot restore` revert a device's bypass (fact 78 shows parameters, wires,
+    // enabled state, and devices, not bypass)? Saved default project, a snapshot, `device bypass`, restore, read back.
+    // Ends closed.
+    'bypass-restore',
+    async () => {
+      const sections = [];
+      try {
+        const file = join(work, 'bypass-restore.tmd');
+        const listed = await run([
+          'project new default force',
+          'scene resolution 257',
+          `project save ${file}`,
+          'device list',
+        ]);
+        sections.push(...listed);
+        await pollBuild(sections);
+        const target = devices(listed[3].lines)[1];
+        if (target === undefined) throw new Error('the default project lists fewer than two devices');
+        sections.push(
+          ...(await run([
+            'snapshot create B',
+            `device bypass #${target.id}`,
+            `device select #${target.id}`,
+            'device info',
+            'device list',
+            'snapshot restore B',
+            `device select #${target.id}`,
+            'device info',
+            'device list',
+            'project close force',
+          ])),
+        );
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
     // set_device_bypassed assumption: does World Machine count a bypass toggle as an unsaved change? A saved default
     // project, one `device bypass`, then an unforced `project new default`, which an unsaved project refuses
     // (raw/v2b-snapshots.txt l.285-286). Then the same after toggling back and saving again. Ends closed.

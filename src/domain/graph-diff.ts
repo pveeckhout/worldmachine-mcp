@@ -8,6 +8,7 @@ export type AddedDevice = {
   readonly id: number;
   readonly type: string;
   readonly enabled: boolean;
+  readonly bypassed: boolean;
   /** The parameters the spec set, as read back (display units). */
   readonly parameters: Readonly<Record<string, string>>;
   /** Wired inputs by port, as `"<device>.<port>"`. */
@@ -26,6 +27,7 @@ export type DiffEntry =
       readonly change: 'changed';
       readonly id: number;
       readonly enabled?: Change<boolean>;
+      readonly bypassed?: Change<boolean>;
       readonly parameters?: Readonly<Record<string, Change<string>>>;
       readonly inputs?: Readonly<Record<string, Change<string | null>>>;
     };
@@ -85,6 +87,7 @@ export function graphDiff(steps: readonly PlanStep[], devices: AppliedDevices): 
           id: after.id,
           type: after.type,
           enabled: after.enabled,
+          bypassed: after.bypassed,
           parameters: Object.fromEntries(
             parameterNames.flatMap((name) => {
               const row = after.parameters.find((parameter) => parameter.name === name);
@@ -107,6 +110,8 @@ export function graphDiff(steps: readonly PlanStep[], devices: AppliedDevices): 
     if (id === undefined || before === undefined || after === undefined) continue;
     const enabled =
       before.enabled === after.enabled ? undefined : { before: before.enabled, after: after.enabled };
+    const bypassed =
+      before.bypassed === after.bypassed ? undefined : { before: before.bypassed, after: after.bypassed };
     const parameters = Object.fromEntries(
       parameterNames.flatMap((name) => {
         const was = before.parameters.find((parameter) => parameter.name === name)?.value;
@@ -128,12 +133,14 @@ export function graphDiff(steps: readonly PlanStep[], devices: AppliedDevices): 
         return was === is ? [] : [[String(port), { before: was, after: is }]];
       }),
     );
-    if (enabled === undefined && !nonEmpty(parameters) && !nonEmpty(inputs)) continue;
+    if (enabled === undefined && bypassed === undefined && !nonEmpty(parameters) && !nonEmpty(inputs))
+      continue;
     entries.push({
       device: first.device,
       change: 'changed',
       id,
       ...(enabled === undefined ? {} : { enabled }),
+      ...(bypassed === undefined ? {} : { bypassed }),
       ...(nonEmpty(parameters) ? { parameters } : {}),
       ...(nonEmpty(inputs) ? { inputs } : {}),
     });

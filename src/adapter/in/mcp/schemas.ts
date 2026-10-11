@@ -493,6 +493,10 @@ const graphDeviceSchema = z.strictObject({
     ),
   type: z.string().describe('The exact World Machine device type, as add_device takes it'),
   enabled: z.boolean().optional(),
+  bypassed: z
+    .boolean()
+    .optional()
+    .describe('true to bypass the device, false to remove its bypass; omitted leaves it as it is'),
   parameters: z
     .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
     .optional()
@@ -550,6 +554,13 @@ const planStepSchema = z.discriminatedUnion('op', [
     to: z.boolean(),
   }),
   z.strictObject({
+    op: z.literal('set-bypassed'),
+    device: z.string(),
+    id: z.number().int().optional(),
+    from: z.boolean().optional(),
+    to: z.boolean(),
+  }),
+  z.strictObject({
     op: z.literal('set-parameter'),
     device: z.string(),
     id: z.number().int().optional(),
@@ -586,6 +597,7 @@ const diffEntrySchema = z.discriminatedUnion('change', [
       id: z.number().int(),
       type: z.string(),
       enabled: z.boolean(),
+      bypassed: z.boolean(),
       parameters: z.record(z.string(), z.string()),
       inputs: z.record(z.string(), z.string()),
     }),
@@ -600,6 +612,7 @@ const diffEntrySchema = z.discriminatedUnion('change', [
     change: z.literal('changed'),
     id: z.number().int(),
     enabled: changeOf(z.boolean()).optional(),
+    bypassed: changeOf(z.boolean()).optional(),
     parameters: z.record(z.string(), changeOf(z.string())).optional(),
     inputs: z.record(z.string(), changeOf(z.string().nullable())).optional(),
   }),
