@@ -13,6 +13,7 @@ import type { OrganizeDevicesView } from '../../../application/port/in/command/o
 import type { ProjectCommandView } from '../../../application/port/in/command/project-command-view.js';
 import type { RenameDeviceView } from '../../../application/port/in/command/rename-device-command.js';
 import type { RestoreSnapshotView } from '../../../application/port/in/command/restore-snapshot-command.js';
+import type { SetDeviceBypassedView } from '../../../application/port/in/command/set-device-bypassed-command.js';
 import type { SetDeviceEnabledView } from '../../../application/port/in/command/set-device-enabled-command.js';
 import type { SetGroupEnabledView } from '../../../application/port/in/command/set-group-enabled-command.js';
 import type { StopBuildView } from '../../../application/port/in/command/stop-build-command.js';
@@ -229,6 +230,11 @@ export const setDeviceEnabledInputSchema = z.object({
   enabled: z.boolean().describe('true to enable the device, false to disable it'),
 });
 
+export const setDeviceBypassedInputSchema = z.object({
+  device: deviceReferenceSchema,
+  bypassed: z.boolean().describe('true to bypass the device, false to remove its bypass'),
+});
+
 export const deleteDeviceInputSchema = z.object({ device: deviceReferenceSchema });
 
 export const updateDeviceParametersInputSchema = z.object({
@@ -284,6 +290,13 @@ export const setDeviceEnabledViewSchema = z.strictObject({
   changed: z.boolean(),
   session: sessionSummarySchema,
 }) satisfies z.ZodType<SetDeviceEnabledView>;
+
+export const setDeviceBypassedViewSchema = z.strictObject({
+  device: deviceRefSchema,
+  bypassed: z.boolean(),
+  changed: z.boolean(),
+  session: sessionSummarySchema,
+}) satisfies z.ZodType<SetDeviceBypassedView>;
 
 export const deleteDeviceViewSchema = z.strictObject({
   deleted: editedDeviceSchema,

@@ -1,7 +1,7 @@
 import type { DeviceEditPort } from '../../../application/port/out/device-edit-port.js';
 import type { DeviceSummary } from '../../../domain/device.js';
 import { WorldMachineError } from '../../../domain/errors.js';
-import type { DeviceEnabledState, RenamedDevice } from '../../../domain/graph-edit.js';
+import type { DeviceBypassState, DeviceEnabledState, RenamedDevice } from '../../../domain/graph-edit.js';
 import { buildCommand } from './command-builder.js';
 import { listAllDevices, lookUpDevice } from './device-lookup.js';
 import { assertReadableDeviceName, matchesListedName } from './device-reference.js';
@@ -9,7 +9,7 @@ import { readBack, requireLine, requireMatch, requireOnlyLine } from './edit-che
 import { parseDeviceInfo } from './parsers/device-info.js';
 import { parseDeviceList } from './parsers/device-list.js';
 import { unexpectedOutput } from './parsers/unexpected.js';
-import { requireFrame, throwIfFailed } from './raw-response.js';
+import { type RawResponse, requireFrame, throwIfFailed } from './raw-response.js';
 import type { WorldMachineSession } from './world-machine-session.js';
 
 /** raw/p2b-graph-edits.txt l.5-6, raw/v6b-param-set.txt l.13-14: World Machine echoes the new device's name. */
@@ -24,6 +24,8 @@ function checkNewName(name: string): void {
   // The tail checks `device rename #<id> <name>` gets once the id is known; the words do not change them.
   buildCommand(['device', 'rename'], name);
 }
+
+type SelectedInfo = ReturnType<typeof parseDeviceInfo>;
 
 export class WorldMachineDeviceEditor implements DeviceEditPort {
   readonly #session: WorldMachineSession;
@@ -131,6 +133,64 @@ export class WorldMachineDeviceEditor implements DeviceEditPort {
       );
     }
     return { device: { id: target.id, name: after.name }, enabled: after.enabled, changed };
+  }
+
+  async setDeviceBypassed(device: string, bypassed: boolean): Promise<DeviceBypassState> {
+    const target = await lookUpDevice(this.#session, device);
+    const ref = `#${target.id}`;
+    const select = buildCommand(['device', 'select', ref]);
+    // `device list` hides bypass on a disabled device (spec fact 29), so `device info` is the authority on the state.
+    const before = await this.#session.execute([select, 'device info']);
+    const current = this.#readSelected(requireFrame(before[0]), requireFrame(before[1]), ref, target.name);
+    // raw/p2b-graph-edits.txt l.74-75 and l.94-95: `device bypass` toggles. Sending it for a device already in the
+    // requested state would flip it the wrong way, so nothing more is sent.
+    if (current.bypassed === bypassed) {
+      return { device: { id: target.id, name: current.name }, bypassed: current.bypassed, changed: false };
+    }
+    const responses = await this.#session.execute([
+      buildCommand(['device', 'bypass', ref]),
+      select,
+      'device info',
+    ]);
+    const command = requireFrame(responses[0]);
+    throwIfFailed(command);
+    // Assumed: no capture shows whether a bypass change counts as an unsaved change; it is marked as enable and disable
+    // are, once World Machine did not reject the command.
+    this.#session.markDirty();
+    // raw/p2b-graph-edits.txt l.74-75 (on) and l.94-95 (off).
+    requireLine(command, `${bypassed ? 'Set' : 'Removed'} bypass: ${ref}`, 'device bypass');
+    const after = readBack(this.#session, () =>
+      this.#readSelected(requireFrame(responses[1]), requireFrame(responses[2]), ref, target.name),
+    );
+    if (after.bypassed !== bypassed) {
+      throw new WorldMachineError(
+        'WM_COMMAND_FAILED',
+        `World Machine still reports ${ref} as ${after.bypassed ? 'bypassed' : 'not bypassed'}`,
+        command.output.join('\n') || undefined,
+      );
+    }
+    return { device: { id: target.id, name: after.name }, bypassed: after.bypassed, changed: true };
+  }
+
+  /** Parses a `device select` and `device info` pair, which must both name the target (listed-name rule, fact 33). */
+  #readSelected(select: RawResponse, info: RawResponse, ref: string, listedName: string): SelectedInfo {
+    throwIfFailed(select);
+    throwIfFailed(info);
+    const selected = requireMatch(select, SELECTED, 'device select')[1] ?? '';
+    const state = parseDeviceInfo(info.output);
+    for (const [verbed, reported] of [
+      ['selected', selected],
+      ['reported', state.name],
+    ] as const) {
+      if (!matchesListedName(reported, listedName)) {
+        throw new WorldMachineError(
+          'UNEXPECTED_OUTPUT',
+          `Expected ${ref} ('${listedName}'), but World Machine ${verbed} '${reported}'`,
+          [...select.output, ...info.output].slice(0, 20).join('\n'),
+        );
+      }
+    }
+    return state;
   }
 
   async deleteDevice(device: string): Promise<DeviceSummary> {

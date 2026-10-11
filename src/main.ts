@@ -44,6 +44,7 @@ import { RedoService } from './application/service/redo-service.js';
 import { RenameDeviceService } from './application/service/rename-device-service.js';
 import { RestoreSnapshotService } from './application/service/restore-snapshot-service.js';
 import { SaveProjectService } from './application/service/save-project-service.js';
+import { SetDeviceBypassedService } from './application/service/set-device-bypassed-service.js';
 import { SetDeviceEnabledService } from './application/service/set-device-enabled-service.js';
 import { SetGroupEnabledService } from './application/service/set-group-enabled-service.js';
 import { StopBuildService } from './application/service/stop-build-service.js';
@@ -105,6 +106,7 @@ const handle = serveStdio(() =>
     addDevice: new AddDeviceService(session, devices),
     renameDevice: new RenameDeviceService(session, devices),
     setDeviceEnabled: new SetDeviceEnabledService(session, devices),
+    setDeviceBypassed: new SetDeviceBypassedService(session, devices),
     deleteDevice: new DeleteDeviceService(session, devices),
     updateDeviceParameters: new UpdateDeviceParametersService(session, parameters),
     connectDevices: new ConnectDevicesService(session, wires),

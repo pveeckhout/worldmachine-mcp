@@ -19,6 +19,7 @@ import type { RedoCommandPort } from '../../../application/port/in/command/redo-
 import type { RenameDeviceCommandPort } from '../../../application/port/in/command/rename-device-command.js';
 import type { RestoreSnapshotCommandPort } from '../../../application/port/in/command/restore-snapshot-command.js';
 import type { SaveProjectCommandPort } from '../../../application/port/in/command/save-project-command.js';
+import type { SetDeviceBypassedCommandPort } from '../../../application/port/in/command/set-device-bypassed-command.js';
 import type { SetDeviceEnabledCommandPort } from '../../../application/port/in/command/set-device-enabled-command.js';
 import type { SetGroupEnabledCommandPort } from '../../../application/port/in/command/set-group-enabled-command.js';
 import type { StopBuildCommandPort } from '../../../application/port/in/command/stop-build-command.js';
@@ -76,6 +77,8 @@ import {
   restoreSnapshotViewSchema,
   saveProjectInputSchema,
   sceneViewSchema,
+  setDeviceBypassedInputSchema,
+  setDeviceBypassedViewSchema,
   setDeviceEnabledInputSchema,
   setDeviceEnabledViewSchema,
   setGroupEnabledInputSchema,
@@ -105,6 +108,7 @@ export type McpDependencies = {
   readonly addDevice: AddDeviceCommandPort;
   readonly renameDevice: RenameDeviceCommandPort;
   readonly setDeviceEnabled: SetDeviceEnabledCommandPort;
+  readonly setDeviceBypassed: SetDeviceBypassedCommandPort;
   readonly deleteDevice: DeleteDeviceCommandPort;
   readonly updateDeviceParameters: UpdateDeviceParametersCommandPort;
   readonly connectDevices: ConnectDevicesCommandPort;
@@ -324,13 +328,29 @@ export function createMcpServer(deps: McpDependencies): McpServer {
     {
       title: 'Enable or disable device',
       description:
-        'Enable or disable a device. World Machine prints the same confirmation whether or not the state changed, so the device is read back: enabled is the state World Machine reports afterwards, and changed tells whether it differs from before. Bypass cannot be set.',
+        'Enable or disable a device. World Machine prints the same confirmation whether or not the state changed, so the device is read back: enabled is the state World Machine reports afterwards, and changed tells whether it differs from before.',
       inputSchema: setDeviceEnabledInputSchema,
       outputSchema: setDeviceEnabledViewSchema,
       annotations: IDEMPOTENT_COMMAND,
     },
     ({ device, enabled }) =>
       respond(deps, 'set_device_enabled', () => deps.setDeviceEnabled.setDeviceEnabled({ device, enabled })),
+  );
+
+  server.registerTool(
+    'set_device_bypassed',
+    {
+      title: 'Bypass or unbypass device',
+      description:
+        'Set (not toggle) the bypass of a device, referenced by name or #<n>: a bypassed device passes its input through unchanged. A disabled device can be bypassed too. list_devices does not show bypass for a disabled device, so get_device is the authority. World Machine only toggles bypass, so the device is read first and nothing is sent when it is already in the requested state: bypassed is the state World Machine reports afterwards, and changed tells whether it differs from before.',
+      inputSchema: setDeviceBypassedInputSchema,
+      outputSchema: setDeviceBypassedViewSchema,
+      annotations: IDEMPOTENT_COMMAND,
+    },
+    ({ device, bypassed }) =>
+      respond(deps, 'set_device_bypassed', () =>
+        deps.setDeviceBypassed.setDeviceBypassed({ device, bypassed }),
+      ),
   );
 
   server.registerTool(

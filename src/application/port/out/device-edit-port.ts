@@ -1,5 +1,5 @@
 import type { DeviceSummary } from '../../../domain/device.js';
-import type { DeviceEnabledState, RenamedDevice } from '../../../domain/graph-edit.js';
+import type { DeviceBypassState, DeviceEnabledState, RenamedDevice } from '../../../domain/graph-edit.js';
 
 /**
  * Device edits (spec section 7). `device` arguments are a device name or `#<id>`; the adapter resolves them against
@@ -12,6 +12,11 @@ export interface DeviceEditPort {
   renameDevice(device: string, name: string): Promise<RenamedDevice>;
   /** Reads the device back; dirty only when its state changed (spec section 7). */
   setDeviceEnabled(device: string, enabled: boolean): Promise<DeviceEnabledState>;
+  /**
+   * Sets (not toggles) bypass: World Machine's `device bypass` toggles, so nothing is sent when the device is already
+   * in the requested state. Dirty only when the state changed.
+   */
+  setDeviceBypassed(device: string, bypassed: boolean): Promise<DeviceBypassState>;
   /** Returns the deleted device's row from before the delete. */
   deleteDevice(device: string): Promise<DeviceSummary>;
   /**

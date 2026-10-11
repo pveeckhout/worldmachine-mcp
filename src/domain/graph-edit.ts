@@ -12,6 +12,13 @@ export type DeviceEnabledState = {
   readonly changed: boolean;
 };
 
+/** `bypassed` is the state World Machine reports after the command; `changed` compares it with the state before. */
+export type DeviceBypassState = {
+  readonly device: DeviceRef;
+  readonly bypassed: boolean;
+  readonly changed: boolean;
+};
+
 /** A parameter value as a tool call gives it; World Machine receives it as text. */
 export type ParameterValue = string | number | boolean;
 

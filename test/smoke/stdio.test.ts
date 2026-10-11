@@ -63,6 +63,7 @@ describe('stdio server', () => {
       'rename_device',
       'restore_snapshot',
       'save_project',
+      'set_device_bypassed',
       'set_device_enabled',
       'set_group_enabled',
       'stop_build',

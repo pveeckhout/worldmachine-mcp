@@ -105,6 +105,14 @@ function deps(overrides: Partial<McpDependencies> = {}): McpDependencies {
         session: READY_DIRTY,
       }),
     },
+    setDeviceBypassed: {
+      setDeviceBypassed: async (c) => ({
+        device: { id: 1, name: 'Gradient' },
+        bypassed: c.bypassed,
+        changed: true,
+        session: READY_DIRTY,
+      }),
+    },
     setDeviceEnabled: {
       setDeviceEnabled: async (c) => ({
         device: { id: 1, name: 'Gradient' },
@@ -201,7 +209,7 @@ async function connect(dependencies: McpDependencies): Promise<Client> {
 }
 
 describe('createMcpServer', () => {
-  it('registers all thirty-two tools as closed-world, the ten read tools as read-only', async () => {
+  it('registers all thirty-three tools as closed-world, the ten read tools as read-only', async () => {
     const { tools } = await (await connect(deps())).listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       'add_device',
@@ -231,6 +239,7 @@ describe('createMcpServer', () => {
       'rename_device',
       'restore_snapshot',
       'save_project',
+      'set_device_bypassed',
       'set_device_enabled',
       'set_group_enabled',
       'stop_build',
@@ -879,6 +888,7 @@ describe('createMcpServer edit tools', () => {
     expect(annotations).toMatchObject({
       add_device: ANNOTATIONS(false, false),
       rename_device: ANNOTATIONS(false, true),
+      set_device_bypassed: ANNOTATIONS(false, true),
       set_device_enabled: ANNOTATIONS(false, true),
       update_device_parameters: ANNOTATIONS(false, true),
       connect_devices: ANNOTATIONS(false, true),
@@ -952,6 +962,7 @@ describe('createMcpServer edit tools', () => {
     ['add_device', { type: 'Gradient' }],
     ['rename_device', { device: '#1', name: 'Grad A' }],
     ['set_device_enabled', { device: '#1', enabled: false }],
+    ['set_device_bypassed', { device: '#1', bypassed: true }],
     ['delete_device', { device: '#1' }],
     ['update_device_parameters', { device: '#1', parameters: { Width: 0.5 } }],
     ['connect_devices', { source: '#1', destination: '#2' }],

@@ -102,7 +102,7 @@ If the working directory is `/` or your home directory and `WORLD_MACHINE_ALLOWE
 | Read | Change |
 |---|---|
 | `get_world_machine_status` | `open_project`, `create_project`, `save_project` |
-| `list_devices` | `add_device`, `rename_device`, `delete_device`, `set_device_enabled` |
+| `list_devices` | `add_device`, `rename_device`, `delete_device`, `set_device_enabled`, `set_device_bypassed` |
 | `get_device` | `update_device_parameters` |
 | `get_scene` | `connect_devices`, `disconnect_devices` |
 | `inspect_project` | `configure_scene`, `undo`, `redo` |
@@ -118,7 +118,7 @@ Editing notes:
 - `add_device` and `rename_device` refuse names that `list_devices` could not show unambiguously: leading or trailing spaces, a trailing `[disabled]` or `[bypassed]`, trailing parenthesised text after two or more spaces, `#<n>`, or more than 23 characters.
 - `update_device_parameters` takes World Machine's internal values, not the displayed units: a width of `0.5` can read back as `4 km`. It takes plain decimal numbers, enum options as their 0-based index, and booleans as `true` or `false` (or `1`, `0`, `yes`, `off`); World Machine itself would also take exponent forms, enum labels, and other boolean words, which the tool refuses so each value is checked before it is sent. Parameter names are case-sensitive. `action`, `other`, and `filename` parameters and `exportAlways` cannot be set; `filename` because World Machine would write build output outside the allowed roots, `exportAlways` because it makes a full build write files. Each item reports the value World Machine reads back.
 - `set_device_enabled` and `disconnect_devices` read the result back, because World Machine prints the same confirmation whether or not anything changed. `connect_devices` leaves an existing wire alone, and refuses when several devices share the source name and the input is already wired from that name.
-- Bypass is reported but cannot be set.
+- `set_device_bypassed` sets bypass rather than toggling it: World Machine's `device bypass` toggles, so the device is read first and nothing is sent when it is already in the requested state. `list_devices` omits bypass for a disabled device; `get_device` reports it.
 - No edit is rolled back automatically; use `undo`. It reverts one step per call: one parameter, one scene setting, or one device edit. `add_device` with a name is two steps (add, then rename), so the first undo reverts the rename and the second removes the device. Undoing a delete restores the device with its wires.
 
 Builds and exports:

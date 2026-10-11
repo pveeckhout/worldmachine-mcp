@@ -11,6 +11,7 @@ import { DeleteDeviceService } from '../../../src/application/service/delete-dev
 import { DisconnectDevicesService } from '../../../src/application/service/disconnect-devices-service.js';
 import { OrganizeDevicesService } from '../../../src/application/service/organize-devices-service.js';
 import { RenameDeviceService } from '../../../src/application/service/rename-device-service.js';
+import { SetDeviceBypassedService } from '../../../src/application/service/set-device-bypassed-service.js';
 import { SetDeviceEnabledService } from '../../../src/application/service/set-device-enabled-service.js';
 import { UpdateDeviceParametersService } from '../../../src/application/service/update-device-parameters-service.js';
 import { WorldMachineError } from '../../../src/domain/errors.js';
@@ -57,6 +58,10 @@ function fakes() {
     setDeviceEnabled: async (device, enabled) => {
       calls.push(`enable:${device}:${enabled}`);
       return { device: { id: 1, name: 'Gradient' }, enabled, changed: true };
+    },
+    setDeviceBypassed: async (device, bypassed) => {
+      calls.push(`bypass:${device}:${bypassed}`);
+      return { device: { id: 1, name: 'Gradient' }, bypassed, changed: true };
     },
     deleteDevice: async (device) => {
       calls.push(`delete:${device}`);
@@ -130,6 +135,21 @@ describe('edit services', () => {
       session: READY_DIRTY,
     });
     expect(f.calls).toEqual(inExclusive('enable:Gradient:false'));
+  });
+
+  it('SetDeviceBypassedService sets the state inside exclusive', async () => {
+    const f = fakes();
+    const view = await new SetDeviceBypassedService(f.session, f.devices).setDeviceBypassed({
+      device: 'Gradient',
+      bypassed: true,
+    });
+    expect(view).toEqual({
+      device: { id: 1, name: 'Gradient' },
+      bypassed: true,
+      changed: true,
+      session: READY_DIRTY,
+    });
+    expect(f.calls).toEqual(inExclusive('bypass:Gradient:true'));
   });
 
   it('DeleteDeviceService deletes inside exclusive and reports the deleted device', async () => {

@@ -252,6 +252,141 @@ const GRADIENT_INFO_DISABLED = [
   '  Bypass:  no',
 ];
 
+const info = (enabled: string, bypass: string) => [
+  'Selected device:',
+  '  Name:    Gradient',
+  '  Type:    Gradient',
+  `  Enabled: ${enabled}`,
+  `  Bypass:  ${bypass}`,
+];
+const ONE_GRADIENT = ['Devices (1 total):', '  #1     Gradient                '];
+
+describe('WorldMachineDeviceEditor.setDeviceBypassed', () => {
+  it('sets bypass, reads it back, and marks the project modified', async () => {
+    const { session, editor: e, record } = editor();
+    await e.addDevice('Gradient');
+    session.bind({ kind: 'fresh' });
+    expect(await e.setDeviceBypassed('Gradient', true)).toEqual({
+      device: { id: 536, name: 'Gradient' },
+      bypassed: true,
+      changed: true,
+    });
+    expect(sent(record).slice(3)).toEqual([
+      'device list',
+      'device select #536',
+      'device info',
+      'device bypass #536',
+      'device select #536',
+      'device info',
+    ]);
+    expect(session.status().session.dirty).toBe(true);
+  });
+
+  it('removes bypass again', async () => {
+    const { session, editor: e } = editor();
+    await e.addDevice('Gradient');
+    await e.setDeviceBypassed('#536', true);
+    session.bind({ kind: 'fresh' });
+    expect(await e.setDeviceBypassed('#536', false)).toMatchObject({ bypassed: false, changed: true });
+    expect(session.status().session.dirty).toBe(true);
+  });
+
+  it('sends no `device bypass` for a device already in the requested state, since the command toggles', async () => {
+    const { session, editor: e, record } = editor();
+    await e.addDevice('Gradient');
+    session.bind({ kind: 'fresh' });
+    expect(await e.setDeviceBypassed('#536', false)).toEqual({
+      device: { id: 536, name: 'Gradient' },
+      bypassed: false,
+      changed: false,
+    });
+    expect(
+      sent(record)
+        .slice(3)
+        .filter((line) => line.startsWith('device bypass')),
+    ).toEqual([]);
+    expect(session.status().session.dirty).toBe(false);
+  });
+
+  it('bypasses a disabled device too', async () => {
+    const { editor: e } = editor();
+    await e.addDevice('Gradient');
+    await e.setDeviceEnabled('#536', false);
+    expect(await e.setDeviceBypassed('#536', true)).toMatchObject({ bypassed: true, changed: true });
+  });
+
+  it('refuses an unknown device with nothing but the device list sent', async () => {
+    const { editor: e, record } = editor();
+    await expect(e.setDeviceBypassed('Nope', true)).rejects.toMatchObject({ code: 'REFUSED' });
+    expect(sent(record)).toEqual(['device list']);
+  });
+
+  it('requires the exact confirmation line, marking dirty because the read-back shows a change', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: ONE_GRADIENT }],
+      'device select #1': [{ output: ['Selected: Gradient'] }, { output: ['Selected: Gradient'] }],
+      'device info': [{ output: info('yes', 'no') }, { output: info('yes', 'yes') }],
+      // Assumed: a reply without the confirmation line; no capture shows one.
+      'device bypass #1': [{ output: [] }],
+    });
+    await expect(new WorldMachineDeviceEditor(s.session).setDeviceBypassed('#1', true)).rejects.toMatchObject(
+      {
+        code: 'UNEXPECTED_OUTPUT',
+      },
+    );
+    expect(s.dirtyMarks()).toBe(1);
+  });
+
+  it('reports a read-back that disagrees with the request as WM_COMMAND_FAILED', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: ONE_GRADIENT }],
+      'device select #1': [{ output: ['Selected: Gradient'] }, { output: ['Selected: Gradient'] }],
+      // Assumed: a bypass without effect; no capture shows one.
+      'device info': [{ output: info('yes', 'no') }, { output: info('yes', 'no') }],
+      // raw/p2b-graph-edits.txt l.74-75.
+      'device bypass #1': [{ output: ['Set bypass: #1'] }],
+    });
+    await expect(new WorldMachineDeviceEditor(s.session).setDeviceBypassed('#1', true)).rejects.toMatchObject(
+      {
+        code: 'WM_COMMAND_FAILED',
+        message: 'World Machine still reports #1 as not bypassed',
+      },
+    );
+  });
+
+  it('reports a selection of another device as UNEXPECTED_OUTPUT before sending the toggle', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: ONE_GRADIENT }],
+      'device select #1': [{ output: ['Selected: Combiner'] }],
+      'device info': [{ output: info('yes', 'no') }],
+    });
+    await expect(new WorldMachineDeviceEditor(s.session).setDeviceBypassed('#1', true)).rejects.toMatchObject(
+      {
+        code: 'UNEXPECTED_OUTPUT',
+      },
+    );
+    expect(s.batches).toEqual([['device list'], ['device select #1', 'device info']]);
+    expect(s.dirtyMarks()).toBe(0);
+  });
+
+  it("reports World Machine's text when `device bypass` fails and leaves dirty alone", async () => {
+    const text = "Error: Error: Device not found: '#1'";
+    const s = scriptedSession({
+      'device list': [{ output: ONE_GRADIENT }],
+      'device select #1': [{ output: ['Selected: Gradient'] }, { output: ['Selected: Gradient'] }],
+      'device info': [{ output: info('yes', 'no') }, { output: info('yes', 'no') }],
+      // raw/p2b-graph-edits.txt l.114-115.
+      'device bypass #1': [{ errors: [text] }],
+    });
+    await expect(new WorldMachineDeviceEditor(s.session).setDeviceBypassed('#1', true)).rejects.toMatchObject(
+      {
+        code: 'WM_COMMAND_FAILED',
+      },
+    );
+    expect(s.dirtyMarks()).toBe(0);
+  });
+});
+
 describe('WorldMachineDeviceEditor.setDeviceEnabled', () => {
   it('disables a device, reads it back, and marks the project modified', async () => {
     const { session, editor: e, record } = editor();

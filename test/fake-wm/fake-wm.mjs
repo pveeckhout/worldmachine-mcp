@@ -361,8 +361,10 @@ const wireList = (ref, device) => {
 // (raw/p2b-graph-edits.txt l.48-51, raw/p2b-kind-markers.txt l.97). Spec fact 32: the kind appears when the name
 // differs from the type and goes away when the device is renamed back (raw/p2c-edits.txt l.36, l.80).
 // Assumed: the comparison is case-sensitive; no capture renames a device to its type in another case.
-const deviceRow = ({ id, name, type, enabled }) =>
-  `  ${`#${id}`.padEnd(7)}${name.slice(0, 23).padEnd(24)}${name === type ? '' : ` (${type})`}${enabled ? '' : ' [disabled]'}`;
+// A bypassed device shows ` [bypassed]` (raw/p2b-graph-edits.txt l.88-91); one that is also disabled shows only
+// ` [disabled]` (spec fact 29).
+const deviceRow = ({ id, name, type, enabled, bypassed }) =>
+  `  ${`#${id}`.padEnd(7)}${name.slice(0, 23).padEnd(24)}${name === type ? '' : ` (${type})`}${enabled ? (bypassed ? ' [bypassed]' : '') : ' [disabled]'}`;
 // The name of a row in that format (names are cut to 23 characters, raw/p2c-edits.txt l.50-69, spec fact 33).
 const nameOfRow = (row) => row.slice(9, 33).trimEnd();
 const splitOnce = (text) => {
@@ -667,6 +669,7 @@ async function handle(line) {
       name,
       type: name,
       enabled: true,
+      bypassed: false,
       inputs: shape.inputs,
       parameters: shape.parameters.map(([parameter, kind, value, options]) => ({
         name: parameter,
@@ -691,16 +694,27 @@ async function handle(line) {
   if (command === 'device info') {
     if (selected === undefined) return void out('No device selected.\n');
     if (selected === SAMPLE_EROSION) return void out(fixture('device-info-erosion.txt'));
-    // raw/p2a-edge-cases.txt l.48-54, raw/p2b-graph-edits.txt l.40-46. Bypass is not modelled.
+    // raw/p2a-edge-cases.txt l.48-54, raw/p2b-graph-edits.txt l.40-46 and l.85 (`Bypass:  yes`).
     out(
       `Selected device:\n  Name:    ${selected.name}\n  Type:    ${selected.type}\n` +
-        `  Enabled: ${selected.enabled ? 'yes' : 'no'}\n  Bypass:  no\n\n`,
+        `  Enabled: ${selected.enabled ? 'yes' : 'no'}\n  Bypass:  ${selected.bypassed ? 'yes' : 'no'}\n\n`,
     );
     return;
   }
   // raw/p2b-graph-edits.txt l.34-35, 57-58, 150-151: the reference is echoed as given.
   // Assumed: only devices added with `device add` change; any other reference, including the sample project's own
   // devices, which the fake does not model, prints the not-found error of raw/p2b-graph-edits.txt l.108-115.
+  // `device bypass` toggles (raw/p2b-graph-edits.txt l.74-75 and l.94-95); a disabled device can be bypassed.
+  // Assumed: it counts as an unsaved change, as enable and disable do.
+  const bypassToggle = /^device bypass (.+)$/.exec(command);
+  if (bypassToggle) {
+    const ref = bypassToggle[1];
+    const device = findAdded(ref);
+    if (device === undefined) return void notFound(ref);
+    device.bypassed = !device.bypassed;
+    dirty = true;
+    return void out(`${device.bypassed ? 'Set' : 'Removed'} bypass: ${ref}\n`);
+  }
   const stateChange = /^device (enable|disable|delete) (.+)$/.exec(command);
   if (stateChange) {
     const [, verb, ref] = stateChange;

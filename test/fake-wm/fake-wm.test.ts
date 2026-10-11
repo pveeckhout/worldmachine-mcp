@@ -149,6 +149,59 @@ describe('fake World Machine', () => {
     ]);
   });
 
+  it('toggles bypass of an added device with the captured confirmations, listing and info included', async () => {
+    // raw/p2b-graph-edits.txt l.74-95: `Set bypass: #1`, `Bypass:  yes`, `[bypassed]`, then `Removed bypass: #1`.
+    expect(
+      await outputs(session(), [
+        'project new blank force',
+        'device add Gradient',
+        'device bypass #1',
+        'device select #1',
+        'device info',
+        'device list',
+        'device bypass #1',
+        'device select #1',
+        'device info',
+      ]),
+    ).toEqual([
+      ['Created new blank project.'],
+      ["Added 'Gradient'"],
+      ['Set bypass: #1'],
+      ['Selected: Gradient'],
+      ['Selected device:', '  Name:    Gradient', '  Type:    Gradient', '  Enabled: yes', '  Bypass:  yes'],
+      ['Devices (1 total):', '  #1     Gradient                 [bypassed]'],
+      ['Removed bypass: #1'],
+      ['Selected: Gradient'],
+      ['Selected device:', '  Name:    Gradient', '  Type:    Gradient', '  Enabled: yes', '  Bypass:  no'],
+    ]);
+  });
+
+  it('lists [disabled] only for a device that is both disabled and bypassed (spec fact 29)', async () => {
+    expect(
+      await outputs(session(), [
+        'project new blank force',
+        'device add Gradient',
+        'device bypass #1',
+        'device disable #1',
+        'device list',
+      ]),
+    ).toEqual([
+      ['Created new blank project.'],
+      ["Added 'Gradient'"],
+      ['Set bypass: #1'],
+      ['Disabled: #1'],
+      ['Devices (1 total):', '  #1     Gradient                 [disabled]'],
+    ]);
+  });
+
+  it('refuses bypass of an unknown device with the captured error', async () => {
+    // raw/p2b-graph-edits.txt l.114-115.
+    expect(await outputs(session(), ['project new blank force', 'device bypass #99'])).toEqual([
+      ['Created new blank project.'],
+      ["Error: Error: Device not found: '#99'"],
+    ]);
+  });
+
   it('selects the sample Erosion by name in another case', async () => {
     expect(await outputs(session(), ['device select erosion', 'device info'])).toEqual([
       ['Selected: Erosion'],
