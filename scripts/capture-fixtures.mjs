@@ -797,6 +797,20 @@ const scenarios = [
       return sections;
     },
   ],
+  [
+    // v3 live failure 2026-10-11: `device rename #<id> Mix` on a new Combiner was confirmed, but `device list` still
+    // showed 'Combiner'. Separates the device type, the name, and a repeated rename. Default project. Ends closed.
+    'v3-rename-probe',
+    async () => {
+      const sections = [];
+      try {
+        await v3RenameProbe(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
   // Diagnostics for the quit crash seen after stopped group builds (World Machine crash reports 2026-10-06 14:46 and
   // 15:13) and for automatic exports. Each ends without closing, so the script's own close and quit end World Machine,
   // as the server does. Run one per World Machine start.
@@ -1305,6 +1319,33 @@ async function v2bAssumptions(sections) {
   sections.push(await waitForLine(/^Building \d+ device\(s\) in group /, 60_000));
   sections.push(await wait(2000));
   sections.push(...(await run(['build status', 'project close force'])));
+}
+
+async function v3RenameProbe(sections) {
+  const listed = await run(['project new default force', 'device list']);
+  sections.push(...listed);
+  const known = new Set(devices(listed[1].lines).map((device) => device.id));
+  // The new device is the one the list after the add shows for the first time.
+  const addNew = async (type) => {
+    const added = await run([`device add ${type}`, 'device list']);
+    sections.push(...added);
+    const fresh = devices(added[1].lines).filter((device) => !known.has(device.id));
+    for (const device of fresh) known.add(device.id);
+    if (fresh[0] === undefined) throw new Error(`device add ${type} added no device`);
+    return fresh[0].id;
+  };
+  const renameAndRead = async (id, name) =>
+    sections.push(
+      ...(await run([`device rename #${id} ${name}`, 'device list', `device select #${id}`, 'device info'])),
+    );
+  const combiner = await addNew('Combiner');
+  await renameAndRead(combiner, 'Mix');
+  await renameAndRead(combiner, 'Blend');
+  const gradient = await addNew('Gradient');
+  await renameAndRead(gradient, 'Mix');
+  const second = await addNew('Combiner');
+  await renameAndRead(second, 'Blend 2');
+  sections.push(...(await run(['project close force'])));
 }
 
 async function v3Assumptions(sections) {

@@ -4,6 +4,7 @@ Date: 2026-10-06
 Status: draft, awaiting review
 Revision 1 (2026-10-11): facts 78-79 from raw/v3-assumptions.txt; C1 holds, C2 does not (type mapping in fact 79).
 Revision 2 (2026-10-11): plan decisions D1, D6, D7, D8
+Revision 3 (2026-10-11): fact 80 from raw/v3-rename-probe.txt (a Combiner cannot be renamed from the console).
 Builds on: [v1 design](2026-10-04-worldmachine-mcp-design.md) (facts 1-41 and 77, the edit tools of section 7, the errors of section 8), [v2a design](2026-10-05-worldmachine-mcp-v2a-design.md) (the build guard), and [v2b design](2026-10-06-worldmachine-mcp-v2b-design.md) (facts 57-61, the snapshot tools)
 
 ## 1. Purpose and scope
@@ -30,6 +31,7 @@ The facts used, facts 78-79 from the v3 capture:
 - Snapshots: `snapshot restore` reverts the graph, including enabled state and added devices (fact 60); a snapshot is kept in the file only after a save (fact 59); a snapshot name may have 64 characters.
 - Fact 78 (C1, raw/v3-assumptions.txt l.90-288): `snapshot restore` reverts parameter values of float, bool, and enum (int was not captured) (float `Amount` 0.25 back to 60.0, bool `maskSoil` false back to true, enum `soilMask` `Linear depth` back to `Presence Mask`), wires on both sides of a device, the enabled state, and removes an added device; a deleted device comes back with its id (#305) and its wires. An enum index 0 on `soilMask` reads back `Linear depth` (l.124-128).
 - Fact 79 (C2, raw/v3-assumptions.txt l.311-548): the `Type:` line of `device info`, and the type in the `param list` header, is the name `device add` gives the new device, not the type string it takes: `Layout Generator` gives `Shapes` and `File Output` gives `Height Output`, while `Gradient` and `Advanced Perlin` give themselves. Type comparison maps `Layout Generator` to `Shapes` and `File Output` to `Height Output`; any other type is compared as given, so an unrecorded exception shows as a type conflict and the apply is refused.
+- Fact 80 (raw/v3-rename-probe.txt): `device rename #<id> <name>` on a Combiner prints `Renamed '#<id>' to '<name>'` but changes nothing: `device list` and `device info` still show `Combiner`, for every name tried and for a second Combiner. A Gradient renamed in the same session takes the name. An `apply_graph` that adds a Combiner under another name therefore fails at the rename (the device editor's read-back reports it) and rolls back; give a Combiner the name `Combiner`. Which other types ignore a rename is not known.
 
 ### Assumptions settled by capture
 
