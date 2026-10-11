@@ -1,5 +1,5 @@
-import type { Parameter } from '../../../domain/device.js';
-import type { ParameterValue } from '../../../domain/graph-edit.js';
+import type { Parameter } from './device.js';
+import type { ParameterValue } from './graph-edit.js';
 
 // The forms this tool sends. World Machine accepts more (spec fact 35, raw/p2c-edits.txt l.182-240): exponent forms
 // (`1e-1`), a leading dot (`.5`), enum labels in any case (`clamp`), and the bool words `no`, `on`, and `TRUE`. They

@@ -2,10 +2,10 @@ import type { ParameterEditPort } from '../../../application/port/out/parameter-
 import type { Parameter } from '../../../domain/device.js';
 import { WorldMachineError, worldMachineText } from '../../../domain/errors.js';
 import type { ParameterOutcome, ParameterUpdate, ParameterValue } from '../../../domain/graph-edit.js';
+import { parameterText } from '../../../domain/parameter-values.js';
 import { buildCommand } from './command-builder.js';
 import { lookUpDevice } from './device-lookup.js';
 import { requireLine } from './edit-checks.js';
-import { parameterText } from './parameter-values.js';
 import { parseParamGet } from './parsers/param-get.js';
 import { parseParamList } from './parsers/param-list.js';
 import { type RawResponse, requireFrame, throwIfFailed } from './raw-response.js';

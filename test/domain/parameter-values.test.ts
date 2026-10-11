@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { decimalText, parameterText } from '../../../../src/adapter/out/worldmachine/parameter-values.js';
-import type { Parameter } from '../../../../src/domain/device.js';
+import type { Parameter } from '../../src/domain/device.js';
+import { decimalText, parameterText } from '../../src/domain/parameter-values.js';
 
 const param = (type: string): Parameter => ({ name: 'p', type, value: '' });
 

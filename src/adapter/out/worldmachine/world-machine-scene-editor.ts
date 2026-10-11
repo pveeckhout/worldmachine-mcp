@@ -1,10 +1,10 @@
 import type { SceneEditPort } from '../../../application/port/out/scene-edit-port.js';
 import { WorldMachineError } from '../../../domain/errors.js';
 import type { SceneChanges } from '../../../domain/graph-edit.js';
+import { decimalText } from '../../../domain/parameter-values.js';
 import type { Scene } from '../../../domain/scene.js';
 import { buildCommand } from './command-builder.js';
 import { requireLine, requireMatch } from './edit-checks.js';
-import { decimalText } from './parameter-values.js';
 import { parseSceneShow } from './parsers/scene.js';
 import { unexpectedOutput } from './parsers/unexpected.js';
 import { type RawResponse, requireFrame, throwIfFailed } from './raw-response.js';

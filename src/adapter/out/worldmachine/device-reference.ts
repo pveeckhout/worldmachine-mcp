@@ -1,20 +1,13 @@
 import type { DeviceSummary } from '../../../domain/device.js';
+import { deviceNameProblem, foldCase, idOfReference } from '../../../domain/device-name.js';
 import { WorldMachineError } from '../../../domain/errors.js';
 
-const ID_REFERENCE = /^#(\d+)$/;
-
-/** The id in a `#<id>` reference, or undefined for anything else. */
-export function idOfReference(reference: string): number | undefined {
-  const match = ID_REFERENCE.exec(reference);
-  return match ? Number(match[1]) : undefined;
-}
-
-/**
- * World Machine matches device names regardless of case (spec fact 31). `toLowerCase()` rather than
- * `toLocaleLowerCase()`: its result does not depend on the server's locale (a Turkish locale maps `I` to a dotless
- * `ı`), and fact 31 was observed on ASCII names only, so a locale-specific mapping would add nothing verified.
- */
-export const foldCase = (name: string): string => name.toLowerCase();
+export {
+  foldCase,
+  idOfReference,
+  LISTED_NAME_LIMIT,
+  matchesListedName,
+} from '../../../domain/device-name.js';
 
 /**
  * Turns a device reference from a tool call into the reference commands use (spec section 9), given the devices of
@@ -51,40 +44,12 @@ export function findListedDevice(devices: readonly DeviceSummary[], reference: s
   return device;
 }
 
-// Name endings that parsers/device-list.ts reads as a state marker or a kind (spec facts 24 and 29).
-const MARKER_SUFFIX = /\s\[(?:disabled|bypassed)\]$/;
-const KIND_SUFFIX = /\s{2,}\([^()]+\)$/;
-const ID_LIKE = /^#\d+$/;
-/** `device list` shows at most the first 23 characters of a name (spec fact 33, raw/p2c-edits.txt l.50-69). */
-export const LISTED_NAME_LIMIT = 23;
-
-/**
- * Whether a name World Machine printed is the device `device list` lists as `listed`. `device list` shows the first
- * 23 characters of a name (spec fact 33) and the parser trims trailing whitespace from them, so a name whose 23rd
- * character is a space lists shorter than 23. Truncating and trimming `printed` the same way gives the listed text at
- * any length, whether or not the command that printed it truncates too (ruling K4').
- */
-export function matchesListedName(printed: string, listed: string): boolean {
-  return printed.slice(0, LISTED_NAME_LIMIT).trimEnd() === listed;
-}
-
 /**
  * Refuses a new device name that `device list` could not show so that it reads back as the same name
  * (backlog, Plan 2c gate; Plan 2c decision D5).
  */
 export function assertReadableDeviceName(name: string): void {
-  const rule =
-    name !== name.trim()
-      ? 'start or end with whitespace'
-      : MARKER_SUFFIX.test(name)
-        ? 'end with [disabled] or [bypassed]'
-        : KIND_SUFFIX.test(name)
-          ? 'end with two spaces and parenthesised text'
-          : ID_LIKE.test(name)
-            ? 'look like a device id (#<n>)'
-            : name.length > LISTED_NAME_LIMIT
-              ? `be longer than ${LISTED_NAME_LIMIT} characters`
-              : undefined;
+  const rule = deviceNameProblem(name);
   if (rule !== undefined) {
     throw new WorldMachineError(
       'REFUSED',
