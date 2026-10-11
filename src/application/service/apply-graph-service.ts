@@ -132,6 +132,10 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
           session: this.#session.status().session,
         };
       }
+      // A restart during the read means the diff may describe another project and the snapshot is gone.
+      if (!this.#sameSession(start)) {
+        throw lostAfterApply('CRASHED', 'World Machine restarted during the result read');
+      }
       const kept = command.keepSnapshot || !(await this.#removeSnapshot(snapshot));
       return {
         applied: plan.steps.length,

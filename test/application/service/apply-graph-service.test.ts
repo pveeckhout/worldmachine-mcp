@@ -80,8 +80,8 @@ describe('ApplyGraphService robustness', () => {
     readonly restoreError?: Error;
     /** Called after the nth add resolved; lets a test bump the generation (a silent restart). */
     readonly afterAdd?: (count: number) => void;
-    /** Called before the nth add; lets a test change the session between steps. */
-    readonly beforeAdd?: (count: number) => void;
+    /** Called inside each diff read, before it returns; lets a test bump the generation during the read. */
+    readonly onDiffRead?: () => void;
   }) => {
     const calls: string[] = [];
     const control = { generation: 1 };
@@ -97,6 +97,7 @@ describe('ApplyGraphService robustness', () => {
     const graph = {
       listDevices: async () => [],
       getDevice: async () => {
+        options.onDiffRead?.();
         if (options.diffError !== undefined) throw options.diffError;
         return {};
       },
@@ -120,7 +121,6 @@ describe('ApplyGraphService robustness', () => {
     const devices = {
       addDevice: async (type: string) => {
         adds += 1;
-        options.beforeAdd?.(adds);
         const row =
           options.addDevice === undefined
             ? { id: 535 + adds, name: adds === 1 ? 'Ramp' : 'Hills', kind: type, enabled: true }
@@ -274,5 +274,37 @@ describe('ApplyGraphService robustness', () => {
     );
     expect((error as Error).message).toContain('nothing was restored');
     expect(result.calls.filter((call) => call.startsWith('restore'))).toEqual([]);
+  });
+
+  it('rejects CRASHED when the generation changed after the last step and the diff read succeeds', async () => {
+    const built: { control?: { generation: number } } = {};
+    const result = build({
+      afterAdd: (count) => {
+        if (count === 2 && built.control) built.control.generation += 1;
+      },
+    });
+    built.control = result.control;
+    const error = (await failure(
+      result.service.applyGraph({ spec: SPEC, planId: result.id, keepSnapshot: false }),
+    )) as WorldMachineError;
+    expect(error.code).toBe('CRASHED');
+    expect(error.message).toContain('were applied');
+    expect(result.calls.filter((call) => call.startsWith('remove'))).toEqual([]);
+  });
+
+  it('rejects CRASHED when the generation changes during the diff read', async () => {
+    const built: { control?: { generation: number } } = {};
+    const result = build({
+      onDiffRead: () => {
+        if (built.control) built.control.generation += 1;
+      },
+    });
+    built.control = result.control;
+    const error = (await failure(
+      result.service.applyGraph({ spec: SPEC, planId: result.id, keepSnapshot: false }),
+    )) as WorldMachineError;
+    expect(error.code).toBe('CRASHED');
+    expect(error.message).toContain('were applied');
+    expect(result.calls.filter((call) => call.startsWith('remove'))).toEqual([]);
   });
 });
