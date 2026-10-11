@@ -782,6 +782,21 @@ const scenarios = [
       return sections;
     },
   ],
+  [
+    // v3 assumptions C1 (a snapshot restore reverts parameter values, wires, a deleted device with its id, and enabled
+    // state) and C2 (the `Type:` line of `device info` is the type string `device add` takes). Default project at 257
+    // in <WORK>. Ends closed (fact 19).
+    'v3-assumptions',
+    async () => {
+      const sections = [];
+      try {
+        await v3Assumptions(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
   // Diagnostics for the quit crash seen after stopped group builds (World Machine crash reports 2026-10-06 14:46 and
   // 15:13) and for automatic exports. Each ends without closing, so the script's own close and quit end World Machine,
   // as the server does. Run one per World Machine start.
@@ -1290,6 +1305,80 @@ async function v2bAssumptions(sections) {
   sections.push(await waitForLine(/^Building \d+ device\(s\) in group /, 60_000));
   sections.push(await wait(2000));
   sections.push(...(await run(['build status', 'project close force'])));
+}
+
+async function v3Assumptions(sections) {
+  const file = join(work, 'v3.tmd');
+  sections.push(
+    ...(await run(['project new default force', 'scene resolution 257', `project save ${file}`])),
+  );
+  await pollBuild(sections);
+  const listed = await run(['device list']);
+  sections.push(...listed);
+  const all = devices(listed[0].lines);
+  const idOf = (name) => {
+    const device = all.find((candidate) => candidate.name === name);
+    if (device === undefined) throw new Error(`the default project has no device '${name}'`);
+    return device.id;
+  };
+  const known = new Set(all.map((device) => device.id));
+  // The new device is the one the list after the add shows for the first time; a failed add yields undefined.
+  const addNew = async (type) => {
+    const added = await run([`device add ${type}`, 'device list']);
+    sections.push(...added);
+    const fresh = devices(added[1].lines).filter((device) => !known.has(device.id));
+    for (const device of fresh) known.add(device.id);
+    return fresh[0];
+  };
+  const erosion = idOf('Erosion');
+  const flow = idOf('Flow Restructure');
+  const thermal = idOf('Thermal Weathering');
+  // C1: the state before, a snapshot, one change of each kind apply_graph makes, the restore, and the state after.
+  sections.push(
+    ...(await run([
+      `param list #${erosion}`,
+      `wire list #${erosion}`,
+      `wire list #${thermal}`,
+      'snapshot create C1',
+    ])),
+  );
+  const gradient = await addNew('Gradient');
+  if (gradient === undefined) throw new Error('device add Gradient added no device');
+  sections.push(
+    ...(await run([
+      `param set #${erosion}.Amount 0.25`,
+      `param set #${erosion}.maskSoil false`,
+      `param set #${erosion}.soilMask 0`,
+      `wire disconnect #${flow} #${erosion}`,
+      `wire connect #${gradient.id} #${erosion}`,
+      `device disable #${erosion}`,
+      `device delete #${thermal}`,
+      'device list',
+      `param list #${erosion}`,
+      `wire list #${erosion}`,
+      'snapshot restore C1',
+      'device list',
+      `param list #${erosion}`,
+      `wire list #${erosion}`,
+      `wire list #${thermal}`,
+      `device select #${thermal}`,
+      'device info',
+    ])),
+  );
+  // C2: the type `device info` reports, for types named after themselves and for two that are not (fact 40).
+  for (const type of ['Gradient', 'Advanced Perlin', 'Layout Generator', 'File Output']) {
+    const device = await addNew(type);
+    if (device === undefined) continue;
+    sections.push(
+      ...(await run([
+        `device select #${device.id}`,
+        'device info',
+        `param list #${device.id}`,
+        `wire list #${device.id}`,
+      ])),
+    );
+  }
+  sections.push(...(await run(['project close force'])));
 }
 
 async function diagnostic(kind) {
