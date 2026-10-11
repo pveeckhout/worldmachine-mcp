@@ -837,6 +837,23 @@ const scenarios = [
     },
   ],
   [
+    // Backlog: how long a tiled build keeps writing tile files after its end line, for a build that finishes and one
+    // stopped about 8 s in. The user sets the tiled layout in the window (operator trigger 'tiles' in
+    // WM_CAPTURE_TRIGGERS); every 250 ms the capture stamps each new Build Event line and each tile file's mtime
+    // relative to `build start tiled`. Default project at 1025 in <WORK>. A real `build stop` may keep World Machine from
+    // quitting (fact 75).
+    'tiled-stop-timing',
+    async () => {
+      const sections = [];
+      try {
+        await tiledStopTiming(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
     // v2a A2 and A4, v2b B2, B4, B7, B8, interactive (operator creates the trigger files in WM_CAPTURE_TRIGGERS when
     // the user reports each window step done). A4: a full build whose File Input names a missing file. B4/B7/B8: groups
     // the user creates in the window (a one-device 'Solo', two named 'Twin', 10 or more in all). B2: `device organize`
@@ -1425,6 +1442,83 @@ async function v2bAssumptions(sections) {
   await timed(sections, ['build stop']);
   sections.push(await waitForLine(/^Building \d+ device\(s\) in group /, 60_000));
   sections.push(await wait(2000));
+  sections.push(...(await run(['build status', 'project close force'])));
+}
+
+// One tiled build with timings: Build Event lines and tile file mtimes in seconds since `build start tiled`, until
+// the end line was seen and no file changed for 30 s, or 180 s pass. With `stopAfterMs`, `build stop` is sent then.
+async function tiledTimeline(sections, label, stopAfterMs) {
+  const began = Date.now();
+  const since = (ms) => ((ms - began) / 1000).toFixed(2);
+  const mtimes = new Map();
+  const events = [];
+  let endAt;
+  let stopAt;
+  let lastChange = began;
+  const record = (line) => {
+    events.push(`+${since(Date.now())} s ${scrub(line)}`);
+    if (endAt === undefined && /System allowed to sleep again/.test(line)) endAt = Date.now();
+  };
+  for (const section of await run(['build start tiled'])) for (const line of section.lines) record(line);
+  while (Date.now() - began < 180_000) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    for (const line of received.slice(consumed)) if (!LICENCE.test(line)) record(line);
+    consumed = received.length;
+    for (const path of newFiles(work, 3, began)) {
+      const mtime = statSync(path).mtimeMs;
+      if (mtimes.get(path) !== mtime) {
+        mtimes.set(path, mtime);
+        lastChange = Date.now();
+      }
+    }
+    if (stopAfterMs !== undefined && stopAt === undefined && Date.now() - began >= stopAfterMs) {
+      stopAt = Date.now();
+      events.push(`+${since(stopAt)} s >>> build stop`);
+      for (const section of await run(['build stop'])) for (const line of section.lines) record(line);
+    }
+    if (endAt !== undefined && Date.now() - lastChange > 30_000) break;
+  }
+  // A tile is complete when the last of its files was written.
+  const tiles = new Map();
+  for (const [path, mtime] of mtimes) {
+    const tile = /_x(\d+)_y(\d+)/.exec(path)?.[0];
+    if (tile !== undefined) tiles.set(tile, Math.max(tiles.get(tile) ?? 0, mtime));
+  }
+  const done = [...tiles.values()].sort((a, b) => a - b);
+  const gaps = done.slice(1).map((time, index) => time - (done[index] ?? time));
+  const afterEnd = endAt === undefined ? [] : done.filter((time) => time > endAt);
+  sections.push({ command: `(events: ${label}, seconds since build start tiled)`, lines: events });
+  sections.push({
+    command: `(files: ${label}, seconds since build start tiled)`,
+    lines: [...mtimes]
+      .sort((a, b) => a[1] - b[1])
+      .map(([path, mtime]) => `+${since(mtime)} s ${scrub(path)}`),
+  });
+  sections.push({
+    command: `(summary: ${label})`,
+    lines: [
+      `files ${mtimes.size}, tiles ${done.length}`,
+      `stop sent ${stopAt === undefined ? 'never' : `+${since(stopAt)} s`}`,
+      `end line ${endAt === undefined ? 'not seen' : `+${since(endAt)} s`}`,
+      `first tile done +${done[0] === undefined ? '-' : since(done[0])} s, last tile done +${done.at(-1) === undefined ? '-' : since(done.at(-1))} s`,
+      `tiles done after the end line ${afterEnd.length}, last one ${afterEnd.length === 0 || endAt === undefined ? '-' : `${((afterEnd.at(-1) - endAt) / 1000).toFixed(2)} s after it`}`,
+      `longest gap between tiles done ${gaps.length === 0 ? '-' : `${(Math.max(...gaps) / 1000).toFixed(2)} s`}`,
+    ],
+  });
+}
+
+async function tiledStopTiming(sections) {
+  const file = join(work, 'tiled-timing.tmd');
+  sections.push(
+    ...(await run(['project new default force', 'scene resolution 1025', `project save ${file}`])),
+  );
+  await pollBuild(sections);
+  askUser(sections, 'STEP 1: in the tiled build settings, set the 8 x 8 tile layout again, then report');
+  await waitForTrigger(sections, 'tiles');
+  sections.push(...(await run([`project save ${file}`])));
+  await tiledTimeline(sections, 'finished tiled build', undefined);
+  await tiledTimeline(sections, 'tiled build stopped at 8 s', 8000);
+  askUser(sections, 'DONE: the capture closes the project now');
   sections.push(...(await run(['build status', 'project close force'])));
 }
 
