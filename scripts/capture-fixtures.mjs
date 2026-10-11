@@ -2,7 +2,7 @@
 // Records raw World Machine CLI transcripts for parser fixtures and for spec items V1-V8.
 // Needs a licensed local World Machine. Usage: WORLD_MACHINE_BIN=/path/to/wm npm run capture-fixtures
 import { spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -798,6 +798,21 @@ const scenarios = [
     },
   ],
   [
+    // Which device types ignore `device rename` (fact 80 found it for Combiner). Candidate type names come from the file
+    // named by WM_RENAME_CANDIDATES, one per line; names World Machine rejects are only counted. Default project. Ends
+    // closed.
+    'v3-rename-types',
+    async () => {
+      const sections = [];
+      try {
+        await v3RenameTypes(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
     // v3 live failure 2026-10-11: `device rename #<id> Mix` on a new Combiner was confirmed, but `device list` still
     // showed 'Combiner'. Separates the device type, the name, and a repeated rename. Default project. Ends closed.
     'v3-rename-probe',
@@ -1319,6 +1334,60 @@ async function v2bAssumptions(sections) {
   sections.push(await waitForLine(/^Building \d+ device\(s\) in group /, 60_000));
   sections.push(await wait(2000));
   sections.push(...(await run(['build status', 'project close force'])));
+}
+
+async function v3RenameTypes(sections) {
+  const file = process.env.WM_RENAME_CANDIDATES;
+  if (!file)
+    throw new Error('Set WM_RENAME_CANDIDATES to a file of candidate device type names, one per line');
+  const candidates = readFileSync(file, 'utf8')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '');
+  // Phase A: which candidates are device types. Only accepted adds are recorded.
+  sections.push(...(await run(['project new default force'])));
+  const types = [];
+  for (let start = 0; start < candidates.length; start += 50) {
+    const chunk = candidates.slice(start, start + 50);
+    const answers = await run(chunk.map((type) => `device add ${type}`));
+    answers.forEach((answer, index) => {
+      if (answer.lines.some((line) => /^Added '/.test(line))) {
+        sections.push(answer);
+        types.push(chunk[index]);
+      }
+    });
+  }
+  sections.push({
+    command: '(phase A)',
+    lines: [`${candidates.length} names tried, ${types.length} accepted by device add`],
+  });
+  // Phase B: each accepted type alone in a fresh default project: add, rename, read back, delete.
+  const listed = await run(['project new default force', 'device list']);
+  sections.push(...listed);
+  const known = new Set(devices(listed[1].lines).map((device) => device.id));
+  const outcomes = [];
+  for (const type of types) {
+    const added = await run([`device add ${type}`, 'device list']);
+    sections.push(...added);
+    const fresh = devices(added[1].lines).find((device) => !known.has(device.id));
+    if (fresh === undefined) {
+      outcomes.push(`${type}: no new device in the list`);
+      continue;
+    }
+    const name = `Probe ${fresh.id}`;
+    const renamed = await run([
+      `device rename #${fresh.id} ${name}`,
+      'device list',
+      `device delete #${fresh.id}`,
+    ]);
+    sections.push(...renamed);
+    const row = devices(renamed[1].lines).find((device) => device.id === fresh.id);
+    outcomes.push(
+      `${type}: default '${fresh.name}', rename ${row?.name === name ? 'applied' : `ignored (list shows '${row?.name}')`}`,
+    );
+  }
+  sections.push({ command: '(summary)', lines: outcomes });
+  sections.push(...(await run(['project close force'])));
 }
 
 async function v3RenameProbe(sections) {
