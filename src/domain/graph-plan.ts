@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { DeviceDetail, DeviceSummary, InputPort, Parameter } from './device.js';
 import { foldCase, idOfReference, listedName } from './device-name.js';
 import type { ParameterValue } from './graph-edit.js';
@@ -392,4 +393,27 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
     ...absent,
   ];
   return { conflicts, steps, unchanged };
+}
+
+/** JSON with object keys sorted at every depth and undefined fields dropped, so equal data gives equal text. */
+export function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const fields = Object.keys(record)
+      .sort()
+      .filter((key) => record[key] !== undefined)
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`);
+    return `{${fields.join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+/**
+ * Spec v3 section 5: SHA-256 hex of the project path, the validated spec, and everything the plan read. Deterministic
+ * and free of I/O, so it stays in the domain although it uses `node:crypto`.
+ */
+export function planId(spec: GraphSpec, state: GraphState): string {
+  const document = { path: state.projectPath, spec, devices: state.devices, details: state.details };
+  return createHash('sha256').update(canonicalJson(document)).digest('hex');
 }

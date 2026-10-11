@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { DeviceDetail, DeviceSummary, PortLink } from '../../src/domain/device.js';
 import {
+  canonicalJson,
   type GraphState,
   listedType,
   matchDevices,
   planGraph,
+  planId,
   referencedDeviceIds,
 } from '../../src/domain/graph-plan.js';
 import { type RawGraphDevice, validateGraphSpec } from '../../src/domain/graph-spec.js';
@@ -381,5 +383,46 @@ describe('matchDevices and referencedDeviceIds', () => {
       ['Old', 'Noise'],
     );
     expect(referencedDeviceIds(graph, rows)).toEqual([3, 4, 5]);
+  });
+});
+
+describe('planId (spec v3 section 5)', () => {
+  const graph = spec([{ name: 'Eroded', type: 'Erosion', parameters: { steps: 6 }, inputs: { '1': 'Old' } }]);
+  const id = planId(graph, PROJECT);
+
+  it('is stable SHA-256 hex for the same spec and state', () => {
+    expect(id).toMatch(/^[0-9a-f]{64}$/);
+    expect(planId(graph, state([OLD, ERODED]))).toBe(id);
+  });
+
+  it('sorts object keys and drops undefined fields', () => {
+    expect(canonicalJson({ b: 1, a: [{ d: 2, c: undefined }] })).toBe('{"a":[{"d":2}],"b":1}');
+  });
+
+  it.each<[string, () => string]>([
+    ['the project path', () => planId(graph, { ...PROJECT, projectPath: '/r/maps/world.tmd' })],
+    [
+      'the spec',
+      () => planId(spec([{ name: 'Eroded', type: 'Erosion', parameters: { steps: 7 } }]), PROJECT),
+    ],
+    [
+      'a listed enabled state',
+      () => planId(graph, { ...PROJECT, devices: [row(12, 'Old', false), row(20, 'Eroded')] }),
+    ],
+    [
+      'a listed device more',
+      () => planId(graph, { ...PROJECT, devices: [...PROJECT.devices, row(99, 'New')] }),
+    ],
+    [
+      'a parameter value',
+      () =>
+        planId(graph, state([OLD, { ...ERODED, parameters: [{ name: 'steps', type: 'int', value: '5' }] }])),
+    ],
+    [
+      'an input source',
+      () => planId(graph, state([OLD, { ...ERODED, inputs: [{ port: 1, name: 'Primary Input' }] }])),
+    ],
+  ])('changes with %s', (_label, other) => {
+    expect(other()).not.toBe(id);
   });
 });
