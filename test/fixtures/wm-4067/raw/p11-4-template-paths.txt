@@ -17,11 +17,12 @@ No build running.
 [Build Event] Prohibiting system sleep
 [Build Event] *** Build Starting ***
 [Build Event] *** Build Ended ***
-[Build Event] System allowed to sleep again
 <<<
 >>> (batch took 0 s)
 <<<
 >>> (waited for /^Build started\.$/: seen after 1 s)
+[Build Event] System allowed to sleep again
+[Info       ] QIODevice::read (QSslSocket): device not open
 Build started.
 <<<
 >>> param set #1.filename p11-baseline-<res>.png
@@ -40,17 +41,16 @@ Configured exports:
 <<<
 >>> export all
 Error: Error: Some output devices are not built. Run 'build' first, then export.
-[Info       ] QIODevice::read (QSslSocket): device not open
 <<<
 >>> build start
 [Build Event] Prohibiting system sleep
 [Build Event] *** Build Starting ***
 [Build Event] *** Build Ended ***
-[Build Event] System allowed to sleep again
 <<<
 >>> (batch took 0 s)
 <<<
 >>> (waited for /^Build started\.$/: seen after 1 s)
+[Build Event] System allowed to sleep again
 Build started.
 <<<
 >>> export all
@@ -93,11 +93,11 @@ Error: Error: Some output devices are not built. Run 'build' first, then export.
 [Build Event] Prohibiting system sleep
 [Build Event] *** Build Starting ***
 [Build Event] *** Build Ended ***
-[Build Event] System allowed to sleep again
 <<<
 >>> (batch took 0 s)
 <<<
 >>> (waited for /^Build started\.$/: seen after 1 s)
+[Build Event] System allowed to sleep again
 Build started.
 <<<
 >>> export all
@@ -141,11 +141,11 @@ Error: Error: Some output devices are not built. Run 'build' first, then export.
 [Build Event] Prohibiting system sleep
 [Build Event] *** Build Starting ***
 [Build Event] *** Build Ended ***
-[Build Event] System allowed to sleep again
 <<<
 >>> (batch took 0 s)
 <<<
 >>> (waited for /^Build started\.$/: seen after 1 s)
+[Build Event] System allowed to sleep again
 Build started.
 <<<
 >>> export all
@@ -188,11 +188,11 @@ Error: Error: Some output devices are not built. Run 'build' first, then export.
 [Build Event] Prohibiting system sleep
 [Build Event] *** Build Starting ***
 [Build Event] *** Build Ended ***
-[Build Event] System allowed to sleep again
 <<<
 >>> (batch took 0 s)
 <<<
 >>> (waited for /^Build started\.$/: seen after 1 s)
+[Build Event] System allowed to sleep again
 Build started.
 <<<
 >>> export all
@@ -235,11 +235,11 @@ Error: Error: Some output devices are not built. Run 'build' first, then export.
 [Build Event] Prohibiting system sleep
 [Build Event] *** Build Starting ***
 [Build Event] *** Build Ended ***
-[Build Event] System allowed to sleep again
 <<<
 >>> (batch took 0 s)
 <<<
 >>> (waited for /^Build started\.$/: seen after 1 s)
+[Build Event] System allowed to sleep again
 Build started.
 <<<
 >>> export all
@@ -282,11 +282,11 @@ Error: Error: Some output devices are not built. Run 'build' first, then export.
 [Build Event] Prohibiting system sleep
 [Build Event] *** Build Starting ***
 [Build Event] *** Build Ended ***
-[Build Event] System allowed to sleep again
 <<<
 >>> (batch took 0 s)
 <<<
 >>> (waited for /^Build started\.$/: seen after 1 s)
+[Build Event] System allowed to sleep again
 Build started.
 <<<
 >>> export all
@@ -330,11 +330,11 @@ Error: Error: Some output devices are not built. Run 'build' first, then export.
 [Build Event] Prohibiting system sleep
 [Build Event] *** Build Starting ***
 [Build Event] *** Build Ended ***
-[Build Event] System allowed to sleep again
 <<<
 >>> (batch took 0 s)
 <<<
 >>> (waited for /^Build started\.$/: seen after 1 s)
+[Build Event] System allowed to sleep again
 Build started.
 <<<
 >>> export all
@@ -378,11 +378,11 @@ Error: Error: Some output devices are not built. Run 'build' first, then export.
 [Build Event] Prohibiting system sleep
 [Build Event] *** Build Starting ***
 [Build Event] *** Build Ended ***
-[Build Event] System allowed to sleep again
 <<<
 >>> (batch took 0 s)
 <<<
 >>> (waited for /^Build started\.$/: seen after 1 s)
+[Build Event] System allowed to sleep again
 Build started.
 <<<
 >>> export all
@@ -425,11 +425,11 @@ Error: Error: Some output devices are not built. Run 'build' first, then export.
 [Build Event] Prohibiting system sleep
 [Build Event] *** Build Starting ***
 [Build Event] *** Build Ended ***
-[Build Event] System allowed to sleep again
 <<<
 >>> (batch took 0 s)
 <<<
 >>> (waited for /^Build started\.$/: seen after 1 s)
+[Build Event] System allowed to sleep again
 Build started.
 <<<
 >>> export all
@@ -473,11 +473,11 @@ Error: Error: Some output devices are not built. Run 'build' first, then export.
 [Build Event] Prohibiting system sleep
 [Build Event] *** Build Starting ***
 [Build Event] *** Build Ended ***
-[Build Event] System allowed to sleep again
 <<<
 >>> (batch took 0 s)
 <<<
 >>> (waited for /^Build started\.$/: seen after 1 s)
+[Build Event] System allowed to sleep again
 Build started.
 <<<
 >>> export all
@@ -521,11 +521,11 @@ Error: Error: Some output devices are not built. Run 'build' first, then export.
 [Build Event] Prohibiting system sleep
 [Build Event] *** Build Starting ***
 [Build Event] *** Build Ended ***
-[Build Event] System allowed to sleep again
 <<<
 >>> (batch took 0 s)
 <<<
 >>> (waited for /^Build started\.$/: seen after 1 s)
+[Build Event] System allowed to sleep again
 Build started.
 <<<
 >>> export all

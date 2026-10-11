@@ -82,11 +82,21 @@ function scrub(line) {
     .replace(/\/tmp\/\.mount_[^/\s]+/g, '<APPDIR>');
 }
 
+// Index of the first received line no section holds yet. run(), wait(), and waitForLine() start from it and move it
+// past what they recorded, so a line World Machine prints on its own between two batches is neither dropped nor
+// attributed to the next batch's first command (backlog item 86).
+let consumed = 0;
+
 async function run(commands, ms = 60_000) {
-  const start = received.length;
+  const from = consumed;
   const id = Math.random().toString(16).slice(2, 10);
+  // A leading marker: World Machine answers it with its unknown-command error, so every line before that answer was
+  // printed between batches, not by this batch's first command.
+  const marker = `Error: Unknown command: '__start_${id}'`;
   const echo = (i) => `Error: Unknown command: '__end_${id}_${i}'`;
-  child.stdin.write(commands.map((command, i) => `${command}\n__end_${id}_${i}\n`).join(''));
+  child.stdin.write(
+    `__start_${id}\n${commands.map((command, i) => `${command}\n__end_${id}_${i}\n`).join('')}`,
+  );
   // World Machine reads only the first new line per stdin read; empty lines flush the rest (spec facts 14-15).
   const nudge = setInterval(() => child.stdin.write('\n'), 100);
   try {
@@ -95,22 +105,36 @@ async function run(commands, ms = 60_000) {
     clearInterval(nudge);
   }
   const sections = commands.map((command) => ({ command, lines: [] }));
-  let index = 0;
-  for (const line of received.slice(start)) {
-    if (line.startsWith(echo(index))) {
-      index++;
+  const unsolicited = [];
+  // -1 until the marker's answer; then the index of the command whose output the line belongs to.
+  let index = -1;
+  for (let at = from; at < received.length; at++) {
+    const line = received[at];
+    if (index === -1) {
+      if (line.startsWith(marker)) index = 0;
+      else if (!LICENCE.test(line)) unsolicited.push(scrub(line));
       continue;
     }
-    if (index < sections.length && !LICENCE.test(line)) sections[index].lines.push(scrub(line));
+    if (line.startsWith(echo(index))) {
+      index++;
+      if (index === commands.length) {
+        consumed = at + 1;
+        break;
+      }
+      continue;
+    }
+    if (!LICENCE.test(line)) sections[index].lines.push(scrub(line));
   }
+  if (unsolicited.length > 0) sections[0].unsolicited = unsolicited;
   return sections;
 }
 
 // Records what World Machine prints on its own while no command is pending (build progress), which run() would drop.
 async function wait(ms) {
-  const start = received.length;
+  const start = consumed;
   await new Promise((resolve) => setTimeout(resolve, ms));
-  const lines = received.slice(start).filter((line) => !LICENCE.test(line));
+  consumed = received.length;
+  const lines = received.slice(start, consumed).filter((line) => !LICENCE.test(line));
   return { command: `(waited ${ms} ms)`, lines: lines.map(scrub) };
 }
 
@@ -158,7 +182,13 @@ function newFiles(root, depth, since) {
 }
 
 function render(sections) {
-  return `${sections.map(({ command, lines }) => [`>>> ${scrub(command)}`, ...lines, '<<<'].join('\n')).join('\n')}\n`;
+  const block = (command, lines) => [`>>> ${scrub(command)}`, ...lines, '<<<'].join('\n');
+  return `${sections
+    .flatMap(({ command, lines, unsolicited }) => [
+      ...(unsolicited ? [block('(printed between batches)', unsolicited)] : []),
+      block(command, lines),
+    ])
+    .join('\n')}\n`;
 }
 
 function devices(lines) {
@@ -1058,12 +1088,13 @@ async function isolatedBuilds(sections) {
 
 // Records lines until one matches `pattern` or `ms` pass; the header says which and how long it took.
 async function waitForLine(pattern, ms) {
-  const start = received.length;
+  const start = consumed;
   const began = Date.now();
   const seen = () => received.slice(start).some((line) => pattern.test(line));
   while (Date.now() - began < ms && !seen()) await new Promise((resolve) => setTimeout(resolve, 250));
   const outcome = seen() ? 'seen' : 'not seen';
-  const lines = received.slice(start).filter((line) => !LICENCE.test(line));
+  consumed = received.length;
+  const lines = received.slice(start, consumed).filter((line) => !LICENCE.test(line));
   return {
     command: `(waited for /${pattern.source}/: ${outcome} after ${Math.round((Date.now() - began) / 1000)} s)`,
     lines: lines.map(scrub),
@@ -1659,6 +1690,8 @@ function check(name, sections) {
 
 try {
   await waitFor((line) => line.includes(READY), 120_000, 'startup');
+  // The start-up log is not part of any batch.
+  consumed = received.length;
   let outDir;
   for (const [name, scenario] of selected) {
     const sections = await scenario();
