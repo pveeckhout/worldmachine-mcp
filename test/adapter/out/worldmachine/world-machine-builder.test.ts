@@ -168,6 +168,19 @@ describe('WorldMachineBuilder (spec v2a section 5)', () => {
     expect(await build.waitForEnd('full', 2_000)).toBe(true);
   });
 
+  it('waits for a build stop answer longer than the command timeout (raw/tiled-stop-timing.txt)', async () => {
+    // World Machine answers `build stop` during a tiled build only after its tiles in flight (10.5 s at 1025);
+    // the command timeout here is 2 s, and the answer comes after 3 s.
+    const { build, session } = builder({
+      FAKE_WM_BUILD_MS: '60000',
+      FAKE_WM_DELAY_ON: 'build stop',
+      FAKE_WM_DELAY_MS: '3000',
+    });
+    await build.start('full');
+    await build.stop();
+    expect(session.status().session.state).toBe('ready');
+  });
+
   it('fails with UNEXPECTED_OUTPUT when build stop is not confirmed', async () => {
     const { build } = builder({ FAKE_WM_SILENT_ON: 'build stop' });
     expect((await failure(build.stop())).code).toBe('UNEXPECTED_OUTPUT');

@@ -46,9 +46,10 @@ export class CommandQueue {
     channel.onExit(() => this.#close(new WorldMachineError('CRASHED', 'World Machine exited unexpectedly')));
   }
 
-  execute(commands: readonly string[]): Promise<readonly RawResponse[]> {
+  /** `timeoutMs` replaces the queue's timeout for this batch, for a command World Machine answers late. */
+  execute(commands: readonly string[], timeoutMs?: number): Promise<readonly RawResponse[]> {
     if (this.#draining) return Promise.reject(this.#draining);
-    const result = this.#tail.then(() => this.#run(commands));
+    const result = this.#tail.then(() => this.#run(commands, timeoutMs ?? this.#timeoutMs));
     this.#tail = result.catch(() => undefined);
     return result;
   }
@@ -64,7 +65,7 @@ export class CommandQueue {
     this.#close(reason);
   }
 
-  #run(commands: readonly string[]): Promise<readonly RawResponse[]> {
+  #run(commands: readonly string[], timeoutMs: number): Promise<readonly RawResponse[]> {
     if (this.#closed) return Promise.reject(this.#closed);
     if (commands.length === 0) return Promise.resolve([]);
     return new Promise((resolve, reject) => {
@@ -72,9 +73,9 @@ export class CommandQueue {
       const timer = setTimeout(
         () =>
           this.#close(
-            new WorldMachineError('TIMEOUT', `World Machine did not answer within ${this.#timeoutMs} ms`),
+            new WorldMachineError('TIMEOUT', `World Machine did not answer within ${timeoutMs} ms`),
           ),
-        this.#timeoutMs,
+        timeoutMs,
       );
       // World Machine reads only the first new line per stdin read; empty lines make it read the rest.
       const nudge = this.#nudgeMs > 0 ? setInterval(() => this.#nudge(), this.#nudgeMs) : undefined;

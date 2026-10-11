@@ -19,6 +19,12 @@ export type BuilderOptions = {
 // raw/v2-build-export.txt l.22-28, raw/v2-build-long.txt l.62-63.
 const PREVIEW_STARTED = 'Preview build started.';
 const STOP_REQUESTED = 'Stop requested.';
+/**
+ * World Machine answers `build stop` during a tiled build only after the tiles in flight are done: 10.5 s after it was
+ * sent at scene resolution 1025 (raw/tiled-stop-timing.txt), longer for larger tiles. The command timeout (default
+ * 15 s) would end World Machine on a late answer, so the stop gets the 10 minutes `build_project` may wait at most.
+ */
+const BUILD_STOP_TIMEOUT_MS = 600_000;
 const IN_PROGRESS = 'Build in progress...';
 const NOT_RUNNING = 'No build running.';
 
@@ -100,7 +106,7 @@ export class WorldMachineBuilder implements BuildPort {
     this.#session.assertAcceptingCalls();
     // Spec v2b fact 72: the stop frame holds the run's Ended and trailer, so the tracker learns of the stop first.
     this.#session.buildTracker()?.stopRequested();
-    const response = await this.#session.executeOne('build stop');
+    const response = await this.#session.executeOne('build stop', BUILD_STOP_TIMEOUT_MS);
     this.#session.noteBuildStopped();
     throwIfFailed(response);
     requireLine(response, STOP_REQUESTED, 'build stop');

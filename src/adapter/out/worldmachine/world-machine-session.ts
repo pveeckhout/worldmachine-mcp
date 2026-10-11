@@ -135,7 +135,8 @@ export class WorldMachineSession implements WorldMachineSessionPort {
     });
   }
 
-  async execute(commands: readonly string[]): Promise<readonly RawResponse[]> {
+  /** `timeoutMs` replaces the command timeout for this batch (see `CommandQueue.execute`). */
+  async execute(commands: readonly string[], timeoutMs?: number): Promise<readonly RawResponse[]> {
     this.assertAcceptingCalls();
     this.#inFlight++;
     this.#clearIdleTimer();
@@ -145,7 +146,7 @@ export class WorldMachineSession implements WorldMachineSessionPort {
       const queue = this.#queue;
       if (!queue) throw new WorldMachineError('CRASHED', 'World Machine is not running');
       try {
-        return await queue.execute(commands);
+        return await queue.execute(commands, timeoutMs);
       } catch (error) {
         if (error instanceof WorldMachineError && error.code === 'TIMEOUT')
           await this.#markUnhealthy(proc, error.message);
@@ -165,8 +166,8 @@ export class WorldMachineSession implements WorldMachineSessionPort {
     }
   }
 
-  async executeOne(command: string): Promise<RawResponse> {
-    return requireFrame((await this.execute([command]))[0]);
+  async executeOne(command: string, timeoutMs?: number): Promise<RawResponse> {
+    return requireFrame((await this.execute([command], timeoutMs))[0]);
   }
 
   /** Records that the open project has unsaved changes (spec section 6). */
