@@ -43,7 +43,7 @@ The facts used, facts 78-79 from the v3 capture:
 | `plan_graph` | query | read-only | `{ spec }`. Validates the spec (section 4), reads the project (section 5), and returns `{ planId, conflicts, steps, unchanged, session }`. Sends only read commands. A plan with conflicts is still returned, so the caller can show them; `apply_graph` refuses it. |
 | `apply_graph` | command | not read-only, destructive, not idempotent | `{ spec, plan_id, keep_snapshot? }`. Validates and plans again inside one exclusive section, refuses when the new `planId` differs from the given one or the plan has conflicts, then applies the steps under a snapshot (section 6). Returns `{ applied, snapshot, diff, session }`. Marks the session unsaved unless the plan is empty. |
 
-The `apply_graph` description says: plan first and show the plan to the user; a float parameter is always set because its current value cannot be compared; on failure the project is restored to the snapshot taken before the first step; `undo` does not revert an apply in one step, the snapshot does.
+The `apply_graph` description says: plan first and show the plan to the user; a float or enum parameter is always set because its current value cannot be compared; on failure the project is restored to the snapshot taken before the first step; `undo` does not revert an apply in one step, the snapshot does.
 
 ## 4. The graph spec
 
@@ -79,8 +79,10 @@ Refused with `REFUSED`, nothing sent:
 - two `devices` entries whose names are equal regardless of case; a name in both `devices` and `remove`;
 - a port number that is not a positive integer; a source string that does not parse;
 - a name that ends in `[disabled]` or `[bypassed]`, or that has two spaces followed by parenthesised text (as `add_device` refuses); an empty name; a `remove` entry listed twice;
-- an enum parameter value given as a label, because `update_device_parameters` takes only an index;
-- a parameter name or value outside the forms `update_device_parameters` accepts, `exportAlways`, or a `filename` parameter (v1 section 9).
+- a `remove` entry that is not a `#<id>` reference and breaks a device name rule (longer than 23 characters, starts or ends with whitespace, ends in a marker or a kind suffix, or has the form `#<n>`), because World Machine keeps 23 characters of a name and `device list` trims names, so such an entry never matches and would be reported as already absent while the device stays;
+- the `exportAlways` parameter, and a number written in exponent form (v1 section 9).
+
+Validation refuses only what needs no device type. A value the listed parameter type refuses (an enum label, a decimal for an int, a `filename` parameter, or an action or other parameter that cannot be set) is a conflict for an existing device (section 5), and fails during apply, with rollback, for a device the plan adds.
 
 ### Ownership
 
@@ -202,7 +204,7 @@ When a step fails with a `WorldMachineError` (`WM_COMMAND_FAILED`, `UNEXPECTED_O
 
 `rolledBack` is `true` only when the restore succeeded and the read-back matches. Otherwise it is `false` and the message tells the user to restore the named snapshot in the World Machine window or with `restore_snapshot`.
 
-On `TIMEOUT` or `CRASHED` no restore is sent. `rolledBack` is `false`. After a crash the snapshot is gone too, since it lived only in memory (fact 59), and the message says so.
+On `TIMEOUT` or `CRASHED` no restore is sent. `rolledBack` is `false`. After a timeout or a crash the snapshot is gone too, since it lived only in memory (fact 59), and the message says so.
 
 ### Diff
 

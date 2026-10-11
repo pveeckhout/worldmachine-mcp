@@ -274,7 +274,7 @@ describe('createMcpServer', () => {
     expect(annotations('plan_graph')).toMatchObject({ readOnlyHint: true });
     const description = tools.find((tool) => tool.name === 'apply_graph')?.description ?? '';
     expect(description).toContain('show the plan to the user');
-    expect(description).toContain('float parameter is always set');
+    expect(description).toContain('Float and enum parameters are always set');
     expect(description).toContain('undo does not revert');
   });
 
