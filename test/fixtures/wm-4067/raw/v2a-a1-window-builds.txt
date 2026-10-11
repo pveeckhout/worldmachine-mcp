@@ -1,0 +1,108 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 1025
+Set scene resolution to 1025
+<<<
+>>> project save <WORK>/window-builds.tmd
+Project saved to: <WORK>/window-builds.tmd
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> build status
+Build in progress...
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> (asked the user: STEP 1: start a full build from the World Machine window and let it finish)
+<<<
+>>> (trigger step1 after 38 s)
+<<<
+>>> (waited 5000 ms)
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Successfully exported 4 file(s):
+  <WORK>/window-builds Height Output-1025.png
+  <WORK>/window-builds Material Output 1025.png
+  <WORK>/window-builds Colormap only 1025.png
+  <WORK>/window-builds Splatmap 1025.png
+
+<<<
+>>> scene resolution 4097
+Set scene resolution to 4097
+<<<
+>>> (asked the user: STEP 2: start a full build from the World Machine window and leave it running)
+<<<
+>>> (trigger step2 after 29 s)
+<<<
+>>> (waited 10000 ms)
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> build status
+No build running.
+<<<
+>>> build stop
+Stop requested.
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 5000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build start tiled
+[Build Event] Prohibiting system sleep
+<<<
+>>> (waited 30000 ms)
+[Build Event] System allowed to sleep again
+Tiled build started.
+<<<
+>>> build status
+No build running.
+<<<
+>>> scene resolution 1025
+Set scene resolution to 1025
+<<<
+>>> (asked the user: STEP 3: start a tiled build from the World Machine window and let it finish)
+<<<
+>>> (trigger step3 after 30 s)
+<<<
+>>> (waited 5000 ms)
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> (asked the user: DONE: the capture closes the project now)
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<

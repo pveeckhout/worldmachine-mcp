@@ -3,6 +3,7 @@
 // Needs a licensed local World Machine. Usage: WORLD_MACHINE_BIN=/path/to/wm npm run capture-fixtures
 import { spawn } from 'node:child_process';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -836,6 +837,23 @@ const scenarios = [
     },
   ],
   [
+    // v2a A1 and R12, interactive: what World Machine prints for builds started from its window (a full and a tiled
+    // build), and the trailer order when a window-started full build is stopped from the console and a console tiled
+    // build follows at once. The user starts each window build when the log shows its STEP line; the operator creates
+    // the step's trigger file in WM_CAPTURE_TRIGGERS when the user reports it done. Default project in <WORK>. A real
+    // `build stop` may keep World Machine from quitting (fact 75).
+    'v2a-a1-window-builds',
+    async () => {
+      const sections = [];
+      try {
+        await windowBuilds(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
     // Backlog P11-4: does World Machine read `~`, a backslash, `..` after a backslash, environment variables, a doubled
     // slash, or an absolute path in an output file name template the way the server's expansion does
     // (src/domain/output-template.ts)? Sets File Output #1's filename directly, exports, and records where files land,
@@ -1390,6 +1408,63 @@ async function v2bAssumptions(sections) {
   sections.push(await waitForLine(/^Building \d+ device\(s\) in group /, 60_000));
   sections.push(await wait(2000));
   sections.push(...(await run(['build status', 'project close force'])));
+}
+
+// Shows the user what to do in the World Machine window, in the log and in the capture.
+function askUser(sections, step) {
+  console.log(`\n=== ${step}\n`);
+  sections.push({ command: `(asked the user: ${step})`, lines: [] });
+}
+
+// Waits until the file `name` exists in WM_CAPTURE_TRIGGERS: the operator creates it once the user reports the window
+// action done, so the capture's timing follows the user, not a guess. Up to 15 minutes.
+async function waitForTrigger(sections, name) {
+  const folder = process.env.WM_CAPTURE_TRIGGERS;
+  if (!folder) throw new Error('Set WM_CAPTURE_TRIGGERS to a folder for the step trigger files');
+  const began = Date.now();
+  while (!existsSync(join(folder, name))) {
+    if (Date.now() - began > 900_000) throw new Error(`no trigger '${name}' within 15 minutes`);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  sections.push({
+    command: `(trigger ${name} after ${Math.round((Date.now() - began) / 1000)} s)`,
+    lines: [],
+  });
+}
+
+async function windowBuilds(sections) {
+  const file = join(work, 'window-builds.tmd');
+  sections.push(
+    ...(await run([
+      'project new default force',
+      'scene resolution 1025',
+      `project save ${file}`,
+      'export all',
+    ])),
+  );
+  await pollBuild(sections);
+  // A1, full build: anything printed while it ran, then whether its outputs became exportable.
+  askUser(sections, 'STEP 1: start a full build from the World Machine window and let it finish');
+  await waitForTrigger(sections, 'step1');
+  sections.push(await wait(5000));
+  sections.push(...(await run(['build status', 'export all'])));
+  // R12: a running window-started full build stopped from the console, then a console tiled build at once.
+  sections.push(...(await run(['scene resolution 4097'])));
+  askUser(sections, 'STEP 2: start a full build from the World Machine window and leave it running');
+  await waitForTrigger(sections, 'step2');
+  sections.push(await wait(10_000));
+  sections.push(...(await run(['build status', 'build stop'])));
+  sections.push(await wait(5000));
+  sections.push(...(await run(['build start tiled'])));
+  sections.push(await wait(30_000));
+  sections.push(...(await run(['build status', 'scene resolution 1025'])));
+  // A1, tiled build.
+  askUser(sections, 'STEP 3: start a tiled build from the World Machine window and let it finish');
+  await waitForTrigger(sections, 'step3');
+  sections.push(await wait(5000));
+  sections.push(...(await run(['build status'])));
+  askUser(sections, 'DONE: the capture closes the project now');
+  sections.push(...(await run(['project close force'])));
 }
 
 async function p114TemplatePaths(sections) {
