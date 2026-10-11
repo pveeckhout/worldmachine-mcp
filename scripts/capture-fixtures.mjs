@@ -1349,6 +1349,16 @@ async function v3Assumptions(sections) {
       `param set #${erosion}.Amount 0.25`,
       `param set #${erosion}.maskSoil false`,
       `param set #${erosion}.soilMask 0`,
+    ])),
+  );
+  // soilMask defaults to 'Presence Mask' and its index is unknown, so 0 may be a no-op. Check it, and set 1 if it was.
+  const soilMaskCheck = await run([`param get #${erosion}.soilMask`]);
+  sections.push(...soilMaskCheck);
+  if (soilMaskCheck[0].lines.some((line) => line.includes('Presence Mask'))) {
+    sections.push(...(await run([`param set #${erosion}.soilMask 1`, `param get #${erosion}.soilMask`])));
+  }
+  sections.push(
+    ...(await run([
       `wire disconnect #${flow} #${erosion}`,
       `wire connect #${gradient.id} #${erosion}`,
       `device disable #${erosion}`,
@@ -1365,10 +1375,18 @@ async function v3Assumptions(sections) {
       'device info',
     ])),
   );
+  // The restore removed the C1 Gradient, so the id set is rebuilt from the list before C2 adds devices.
+  const afterRestore = await run(['device list']);
+  sections.push(...afterRestore);
+  known.clear();
+  for (const device of devices(afterRestore[0].lines)) known.add(device.id);
   // C2: the type `device info` reports, for types named after themselves and for two that are not (fact 40).
   for (const type of ['Gradient', 'Advanced Perlin', 'Layout Generator', 'File Output']) {
     const device = await addNew(type);
-    if (device === undefined) continue;
+    if (device === undefined) {
+      sections.push({ command: `(no new device for ${type})`, lines: [] });
+      continue;
+    }
     sections.push(
       ...(await run([
         `device select #${device.id}`,
