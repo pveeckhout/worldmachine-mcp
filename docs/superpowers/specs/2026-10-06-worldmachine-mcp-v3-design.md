@@ -3,6 +3,7 @@
 Date: 2026-10-06
 Status: draft, awaiting review
 Revision 1 (2026-10-11): facts 78-79 from raw/v3-assumptions.txt; C1 holds, C2 does not (type mapping in fact 79).
+Revision 2 (2026-10-11): plan decisions D1, D6, D7, D8
 Builds on: [v1 design](2026-10-04-worldmachine-mcp-design.md) (facts 1-41 and 77, the edit tools of section 7, the errors of section 8), [v2a design](2026-10-05-worldmachine-mcp-v2a-design.md) (the build guard), and [v2b design](2026-10-06-worldmachine-mcp-v2b-design.md) (facts 57-61, the snapshot tools)
 
 ## 1. Purpose and scope
@@ -20,14 +21,14 @@ World Machine stays the only program that reads or writes `.tmd` files. v3 adds 
 
 ## 2. Facts this design rests on
 
-No new capture yet. The facts used:
+The facts used, facts 78-79 from the v3 capture:
 
 - Device names: `device add <type>` names the device after its type (or a default name such as `Shapes` for `Layout Generator`) without de-duplication (facts 30, 40); names match regardless of case (fact 31); `device rename` accepts a name another device has (fact 32); World Machine keeps 23 characters of a name (facts 33, 77).
 - Wires: an input port has at most one source; a connect to an occupied input fails with `Input '<dst>' is already connected. Disconnect first.`; deleting a device removes its wires (fact 34). `wire disconnect` confirms even when no wire existed, so only `wire list` is evidence (fact 26).
 - Parameters: `param set` takes World Machine's internal value for a `float`, and `param get` returns display units (setting `0.5` on a parameter shown as `8 km` reads back `4 km`); `int` is strict, `bool` accepts several words, `enum` accepts a 0-based index or a label in any case (facts 18, 35). `action` and `other` parameters cannot be set (fact 36).
 - Undo: one step per `param set`, rename, add, delete, or scene setter (facts 28, 37, 39).
 - Snapshots: `snapshot restore` reverts the graph, including enabled state and added devices (fact 60); a snapshot is kept in the file only after a save (fact 59); a snapshot name may have 64 characters.
-- Fact 78 (C1, raw/v3-assumptions.txt l.90-288): `snapshot restore` reverts parameter values of every settable kind (float `Amount` 0.25 back to 60.0, bool `maskSoil` false back to true, enum `soilMask` `Linear depth` back to `Presence Mask`), wires on both sides of a device, the enabled state, and removes an added device; a deleted device comes back with its id (#305) and its wires. An enum index 0 on `soilMask` reads back `Linear depth` (l.124-128).
+- Fact 78 (C1, raw/v3-assumptions.txt l.90-288): `snapshot restore` reverts parameter values of float, bool, and enum (int was not captured) (float `Amount` 0.25 back to 60.0, bool `maskSoil` false back to true, enum `soilMask` `Linear depth` back to `Presence Mask`), wires on both sides of a device, the enabled state, and removes an added device; a deleted device comes back with its id (#305) and its wires. An enum index 0 on `soilMask` reads back `Linear depth` (l.124-128).
 - Fact 79 (C2, raw/v3-assumptions.txt l.311-548): the `Type:` line of `device info`, and the type in the `param list` header, is the name `device add` gives the new device, not the type string it takes: `Layout Generator` gives `Shapes` and `File Output` gives `Height Output`, while `Gradient` and `Advanced Perlin` give themselves. Type comparison maps `Layout Generator` to `Shapes` and `File Output` to `Height Output`; any other type is compared as given, so an unrecorded exception shows as a type conflict and the apply is refused.
 
 ### Assumptions settled by capture
@@ -40,7 +41,7 @@ No new capture yet. The facts used:
 | Tool | Kind | Annotations | Behaviour |
 |---|---|---|---|
 | `plan_graph` | query | read-only | `{ spec }`. Validates the spec (section 4), reads the project (section 5), and returns `{ planId, conflicts, steps, unchanged, session }`. Sends only read commands. A plan with conflicts is still returned, so the caller can show them; `apply_graph` refuses it. |
-| `apply_graph` | command | not read-only, destructive, not idempotent | `{ spec, planId, keepSnapshot? }`. Validates and plans again inside one exclusive section, refuses when the new `planId` differs from the given one or the plan has conflicts, then applies the steps under a snapshot (section 6). Returns `{ applied, snapshot, diff, session }`. Marks the session unsaved unless the plan is empty. |
+| `apply_graph` | command | not read-only, destructive, not idempotent | `{ spec, plan_id, keep_snapshot? }`. Validates and plans again inside one exclusive section, refuses when the new `planId` differs from the given one or the plan has conflicts, then applies the steps under a snapshot (section 6). Returns `{ applied, snapshot, diff, session }`. Marks the session unsaved unless the plan is empty. |
 
 The `apply_graph` description says: plan first and show the plan to the user; a float parameter is always set because its current value cannot be compared; on failure the project is restored to the snapshot taken before the first step; `undo` does not revert an apply in one step, the snapshot does.
 
@@ -77,6 +78,8 @@ Refused with `REFUSED`, nothing sent:
 - a name that is empty, longer than 23 characters, starts or ends with a space, or has the form `#<n>`;
 - two `devices` entries whose names are equal regardless of case; a name in both `devices` and `remove`;
 - a port number that is not a positive integer; a source string that does not parse;
+- a name that ends in `[disabled]` or `[bypassed]`, or that has two spaces followed by parenthesised text (as `add_device` refuses); an empty name; a `remove` entry listed twice;
+- an enum parameter value given as a label, because `update_device_parameters` takes only an index;
 - a parameter name or value outside the forms `update_device_parameters` accepts, `exportAlways`, or a `filename` parameter (v1 section 9).
 
 ### Ownership
@@ -97,12 +100,14 @@ Renaming is out of scope: a name is the identity, so a new name is a new device.
 A conflict makes `apply_graph` refuse. Each names the spec entry and the reason:
 
 - a managed name, or a `remove` name, matches more than one device;
-- a managed device exists with a type other than the spec's;
+- a managed device exists with a type other than the spec's (the comparison goes through fact 79's mapping);
 - an input source does not resolve, matches more than one device, or is a device in `remove`;
 - an input port or output port number the existing device does not have;
-- a parameter name the existing device does not list, or a parameter of type `action` or `other`.
+- a parameter name the existing device does not list, or a parameter of type `action` or `other`;
+- for an existing device, a parameter value its listed type refuses (the same rule as the parameter editor);
+- an input source name that several current devices share (the wire list names devices, not ids).
 
-For a device the plan adds, ports and parameter names are only known after the add. A wrong one fails during apply, which rolls back.
+For a device the plan adds, ports, parameter names, and the types of parameters are only known after the add. A wrong one fails during apply, which rolls back.
 
 ### Steps
 
@@ -123,8 +128,9 @@ Parameter comparison with the current value from `param list`:
 |---|---|---|
 | `int` | integers | different |
 | `bool` | `true/1/yes/on` against `false/0/no/off`, any case | different |
-| `enum` given as a label | labels, regardless of case | different |
-| `enum` given as an index, `float`, any other type | not compared | always, with `comparable: false` |
+| `enum`, `float`, any other type | not compared | always, with `comparable: false` |
+
+An enum is never compared: World Machine reports a label and the spec gives an index. Labels in a spec are refused by validation (section 4).
 
 A spec applied twice in a row therefore plans only its `comparable: false` steps the second time.
 
@@ -174,7 +180,7 @@ sequenceDiagram
       A-->>AI: APPLY_FAILED (failedStep, completedSteps, rolledBack)
     else
       A->>R: read back the referenced devices
-      A->>S: delete snapshot unless keepSnapshot
+      A->>S: delete snapshot unless keep_snapshot
       A-->>AI: applied, diff, snapshot, session
     end
   end
@@ -198,8 +204,6 @@ When a step fails with a `WorldMachineError` (`WM_COMMAND_FAILED`, `UNEXPECTED_O
 
 On `TIMEOUT` or `CRASHED` no restore is sent. `rolledBack` is `false`. After a crash the snapshot is gone too, since it lived only in memory (fact 59), and the message says so.
 
-If C1 fails, step 1 becomes inverse steps run in reverse order: reconnect old sources, re-set old comparable parameter values, restore enabled states, and delete added devices. A float cannot be re-set (its internal value is unknown, fact 18) and a deleted device cannot be recreated with its settings, so a failed apply that had already set a float on an existing device or deleted a device reports `rolledBack: false`.
-
 ### Diff
 
 After success, the referenced devices are read back:
@@ -221,13 +225,14 @@ After success, the referenced devices are read back:
 }
 ```
 
-Parameters appear in the diff only when their read-back value changed; a float set to the value it already had does not appear. `snapshot` is the kept snapshot's name when `keepSnapshot` is true, otherwise `null`.
+Parameters appear in the diff only when their read-back value changed; a float set to the value it already had does not appear. `snapshot` is the kept snapshot's name when `keep_snapshot` is true, otherwise `null`.
 
 ## 7. Ports and files
 
 - `src/application/port/in/query/plan-graph-query.ts` and `src/application/port/in/command/apply-graph-command.ts`, one port each.
 - `src/application/service/plan-graph-service.ts` and `apply-graph-service.ts`; a shared `read-graph-state.ts` helper reads `state` through `ProjectGraphReadPort`.
-- `src/domain/graph-spec.ts` (types and the zod schema used by the MCP adapter), `graph-plan.ts` (`planGraph`, `planId`), and `graph-diff.ts`.
+- The zod schema lives in `src/adapter/in/mcp/schemas.ts` and admits structure only.
+- `src/domain/graph-spec.ts` (types and `validateGraphSpec`, which refuses with `REFUSED`), `graph-plan.ts` (`planGraph`, `planId`), and `graph-diff.ts`.
 - Outbound ports unchanged: `ProjectGraphReadPort`, `DeviceEditPort`, `WireEditPort`, `ParameterEditPort`, `SnapshotPort`.
 - `APPLY_FAILED` is added to the error codes (v1 section 8): "a step of `apply_graph` failed; effect: the apply snapshot was restored when `rolledBack` is true".
 
@@ -236,7 +241,7 @@ Parameters appear in the diff only when their read-back value changed; a float s
 - Domain, pure: every step kind and every conflict kind; the step order; names compared regardless of case; a 23-character name; `planId` stable for the same input and different when any read field changes; a second plan after a simulated apply holds only `comparable: false` steps; parameter comparison per type.
 - Validation: a table of refused specs, one row per rule in section 4.
 - Services against the fake World Machine: plan, apply, plan again; a stale `planId` refused; a failure at step k (a new fake knob that fails the n-th `param set`) restored with `rolledBack: true`; a failing restore giving `rolledBack: false`; a running build refused; an existing apply snapshot name refused; an empty plan takes no snapshot. The fake's `snapshot restore` restores parameters and wires as C1 shows.
-- Captures (first plan task, run by the user): C1 and C2.
+- Captures: C1 and C2, settled as facts 78-79.
 - Live (`WM_LIVE=1`, after the user approves the run), at resolution 257 in a temporary folder: apply a three-device spec to a new project; plan again and see only float steps; apply a spec that rewires a device and removes one; apply a spec whose added device has an unknown parameter and see the rollback.
 
 ## 9. Documentation

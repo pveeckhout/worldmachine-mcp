@@ -110,6 +110,7 @@ If the working directory is `/` or your home directory and `WORLD_MACHINE_ALLOWE
 | `list_exports` | `export_outputs` |
 | `list_snapshots` | `create_snapshot`, `restore_snapshot`, `delete_snapshot` |
 | `list_groups` | `set_group_enabled`, `organize_devices` |
+| `plan_graph` | `apply_graph` |
 
 Editing notes:
 
@@ -142,7 +143,35 @@ Snapshots, layout, and groups:
 - `set_group_enabled` sets every member device's own enabled state: enabling a group also enables members that were disabled one by one. One `undo` reverts the whole group. A group without devices changes nothing. `list_groups` shows each group's device count, not its members.
 - `organize_devices` lays the graph out by processing order in the World Machine window; the console cannot show the layout, so the result cannot be confirmed, and `undo` is expected to revert it, but the console cannot confirm that either.
 
-Declarative graph specifications are planned for v3.
+## Declarative graphs: plan_graph and apply_graph
+
+`plan_graph` and `apply_graph` let the AI assistant describe a graph instead of editing it one command at a time. One spec serves both uses: build a new graph in an empty project, or bring the devices the spec names in an existing project to the state it gives.
+
+```json
+{
+  "version": 1,
+  "devices": [
+    { "name": "Shape", "type": "Layout Generator" },
+    {
+      "name": "Base",
+      "type": "Advanced Perlin",
+      "enabled": true,
+      "parameters": { "octaves": 8, "scale": 0.4 },
+      "inputs": { "1": "Shape.1", "2": null }
+    }
+  ],
+  "remove": ["Old Noise"]
+}
+```
+
+- A device the spec names is managed; devices it does not name are never changed, except that their wires to removed devices go with them. Deleting needs `remove`. Renaming is not part of the spec, because a name is the identity: use `rename_device`.
+- Fields a device entry leaves out are left as they are. An `inputs` value of `null` means no wire; an input port the entry does not list is left alone.
+- Two steps: call `plan_graph`, show the plan to the user, then call `apply_graph` with the same spec and the `plan_id` from the plan (`planId` in the plan result). `apply_graph` plans again and refuses when the project changed since, or when the plan has conflicts. `plan_graph` sends only read commands. A plan with conflicts is still returned so they can be shown.
+- Conflicts include a name that several devices share (a wire source too), a device of another type than the spec's, an unknown port or parameter, and, for an existing device, a value its parameter type refuses. For a device the plan adds, a wrong port or value fails during the apply and is rolled back.
+- Floats and enums are always planned with `comparable: false`, because World Machine shows display units and labels but takes internal values and indexes, so the current value cannot be compared. Spec values for an enum are indexes; labels are refused. Applying the same spec twice therefore plans only these steps the second time.
+- Steps run under the snapshot `apply_graph <12 hex>`. A failed step restores it and returns `APPLY_FAILED` with `rolledBack`, the failed step, and the completed steps. After a crash or timeout nothing is restored and the snapshot is gone, since snapshots live in memory until `save_project`. A successful apply deletes the snapshot unless `keep_snapshot` is true, and returns a diff of the devices it touched.
+- After a rolled-back apply the snapshot is kept. Retrying the same spec gives the same `planId` and is refused while that snapshot exists; remove it with `delete_snapshot`, then retry.
+- A running full, tiled, or group build refuses an apply. `undo` does not revert an apply in one step; the snapshot does.
 
 ## What the MCP can and cannot set up
 
