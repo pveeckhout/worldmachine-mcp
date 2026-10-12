@@ -1,6 +1,12 @@
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parseEnumCatalog } from '../../scripts/enum-catalog.mjs';
+import { ENUM_CATALOG } from '../../src/adapter/out/worldmachine/enum-options.js';
+import { parseParamList } from '../../src/adapter/out/worldmachine/parsers/param-list.js';
 
 const raw = (name: string) =>
   readFileSync(new URL(`../fixtures/wm-4067/raw/${name}`, import.meta.url), 'utf8');
@@ -145,5 +151,80 @@ describe('parseEnumCatalog (enum-options design section 3)', () => {
     ],
   ])('fails on a system info with %s', (_label, info, message) => {
     expect(() => parseEnumCatalog(COMBINER, info)).toThrow(message);
+  });
+});
+
+const script = fileURLToPath(new URL('../../scripts/build-enum-catalog.mjs', import.meta.url));
+const transcriptPath = fileURLToPath(new URL('../fixtures/wm-4067/raw/enum-options.txt', import.meta.url));
+
+describe('scripts/build-enum-catalog.mjs (enum-options design section 3)', () => {
+  it('prints the catalog the transcript and its system info parse to', () => {
+    const result = spawnSync(process.execPath, [script, transcriptPath], { encoding: 'utf8' });
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout)).toStrictEqual(parseEnumCatalog(transcript, systemInfo));
+  });
+
+  it('exits 2 with a usage line when no transcript is given', () => {
+    const result = spawnSync(process.execPath, [script], { encoding: 'utf8' });
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('usage: node scripts/build-enum-catalog.mjs <transcript>');
+  });
+
+  /** Runs the script on a copy of the transcript in a fresh directory, beside `systemInfoText` if given (ruling 1). */
+  function generateBeside(systemInfoText?: string) {
+    const dir = mkdtempSync(join(tmpdir(), 'enum-catalog-'));
+    try {
+      copyFileSync(transcriptPath, join(dir, 'enum-options.txt'));
+      if (systemInfoText !== undefined) writeFileSync(join(dir, 'system-info.txt'), systemInfoText);
+      return spawnSync(process.execPath, [script, join(dir, 'enum-options.txt')], { encoding: 'utf8' });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  it('fails when no system-info.txt lies beside the transcript', () => {
+    const result = generateBeside();
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('system-info.txt');
+  });
+
+  it('fails when the system-info.txt beside the transcript has no readable build', () => {
+    const result = generateBeside(systemInfo.replace('Build 4067', 'Build ????'));
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('expected one Version line, found 0');
+  });
+});
+
+describe('the shipped enum catalog (enum-options design section 3)', () => {
+  it('is exactly what raw/enum-options.txt parses to (parity)', () => {
+    expect(ENUM_CATALOG).toStrictEqual(parseEnumCatalog(transcript, systemInfo));
+  });
+
+  it('holds the 68 types and 111 enum parameters of fact 85', () => {
+    expect(ENUM_CATALOG.build).toBe(4067);
+    expect(Object.keys(ENUM_CATALOG.types)).toHaveLength(68);
+    expect(Object.values(ENUM_CATALOG.types).flatMap((entry) => Object.keys(entry))).toHaveLength(111);
+    expect(ENUM_CATALOG.types.Combiner?.Method).toEqual(COMBINER_METHOD);
+  });
+
+  it("agrees with the adapter's parseParamList on the enum rows of every captured param list", () => {
+    // Guards the regexes copied into scripts/enum-catalog.mjs against drifting from parsers/param-list.ts.
+    // A block's type is the kind of its device list row; `Parameters for '<name>' (<type>)` carries it too.
+    const blocks = transcript
+      .split('>>> param list #')
+      .slice(1)
+      .map((block) => block.split('\n<<<')[0]?.split('\n').slice(1) ?? []);
+    expect(blocks.length).toBeGreaterThan(68);
+    for (const block of blocks) {
+      const output = block.filter((line) => !/^\[[A-Za-z]+\s*\] /.test(line));
+      const type = /^Parameters for '.*' \((.*)\):$/.exec(output[0] ?? '')?.[1];
+      const enumNames = parseParamList(output)
+        .filter((parameter) => parameter.type === 'enum')
+        .map((parameter) => parameter.name);
+      if (type === undefined || enumNames.length === 0) continue;
+      expect(Object.keys(ENUM_CATALOG.types[type] ?? {})).toEqual(enumNames);
+    }
   });
 });

@@ -1,0 +1,379 @@
+{
+  "build": 4067,
+  "types": {
+    "Add Noise": {
+      "Noise Type": ["Normal noise", "Additive noise"]
+    },
+    "Advanced Perlin": {
+      "Style": [
+        "Basic",
+        "Ridged",
+        "Billowy",
+        "Smooth Ridged",
+        "Smooth Billowy",
+        "Sharp Ridged",
+        "Flat Middle",
+        "Terraced",
+        "Stephen's Choice 1"
+      ],
+      "Multiscale Type": ["Signal Level", "Elevation", "Bi-Signal Level", "Bi-Elevation", "Classical"]
+    },
+    "VDM Features": {
+      "type": ["Elevation", "XY displacement", "Relative area", "Relative XY area", "Twist", "Anisotropy"]
+    },
+    "Bake Lighting": {
+      "Illumination Model": ["Direct Lighting", "Raytraced Lighting"],
+      "Included Lighting": ["Shadows", "Indirect Lighting Only", "(Shadows + Indirect + Direct)"]
+    },
+    "VDM Detail Sifter": {
+      "channels": ["Full (XYZ)", "Plan (XY)", "Elevation (Z)"]
+    },
+    "Bitmap Output": {
+      "File Format": [
+        "BMP  (8bits/channel)",
+        "TIFF (16bits/channel)",
+        "PNG  (16bits/channel)",
+        "TIFF (8bits/channel)",
+        "PNG  (8bits/channel)",
+        "JPEG (8bits/channel)",
+        "OpenEXR (16bits/channel)"
+      ]
+    },
+    "Blur": {
+      "Blur type": ["Approximate (very fast)", "Precise (slow with large blurs)", "Directional Blur"]
+    },
+    "VDM Repair Surface": {
+      "pinMode": ["Per-axis", "Both axes"]
+    },
+    "Channel Combiner": {
+      "Channel Type": ["Red / Green / Blue", "Hue / Saturation / Brightness ("]
+    },
+    "Channel Splitter": {
+      "Channel Type": ["Red / Green / Blue", "Hue / Saturation / Brightness ("]
+    },
+    "Chooser": {
+      "Method": ["Alpha Blend", "Height Matching", "Pre-multiplied (Specialty)", "Add (DEPRECATED)"],
+      "Mix order": ["High values choose A", "High values choose B"]
+    },
+    "Coast Erosion": {
+      "Simulation Type": ["Simple (fast)"],
+      "Transition Zone": ["Smooth", "Cliffs"]
+    },
+    "Colorizer": {
+      "Method": ["Use gradient", "Use global colortable", "Use imported colors"]
+    },
+    "Combiner": {
+      "Method": [
+        "Average",
+        "Add",
+        "Subtract",
+        "Multiply",
+        "Max",
+        "Min",
+        "Power",
+        "Root",
+        "Detail",
+        "Differences",
+        "Screen"
+      ]
+    },
+    "Compare maps": {
+      "comparison": ["A < B", "A > B", "A = B"],
+      "falloffPos": ["External", "Internal", "Centered"],
+      "falloffCurve": ["Linear", "Exponential"]
+    },
+    "Composite Type": {
+      "Pack/Unpack": ["Pack to Composite Type", "Unpack from Composite Type"],
+      "Type": []
+    },
+    "Construct Parameter": {
+      "type": ["Range", "Color"],
+      "colorFrom": ["RGB", "HSV"]
+    },
+    "Control Device": {
+      "spatialMethod": ["Worldspace", "Localspace", "Inherited (Default)"]
+    },
+    "Create Normals": {
+      "Encoding Type": ["OpenGL convention (Green +Y)", "DirectX convention (Green -Y)"]
+    },
+    "Create Water": {
+      "Drain to:": ["Map borders and existing water", "Existing water only"],
+      "Headwater Locations": ["Automatic", "Specified"],
+      "Channel Model": ["Do not carve channels", "Simple channels (single pixel)", "Full channels"]
+    },
+    "Crop & Transform": {
+      "resType": ["Original Or Smaller", "Expandable"],
+      "outside": ["Blank", "Edge values", "Repeat Interior", "Mirror Interior"]
+    },
+    "Crystallize": {
+      "Cell Shape": ["Square", "Hexagon"]
+    },
+    "Curve Combiner": {
+      "How to Combine": ["Add", "Subtract", "Multiply", "Average", "Modulate (Phase)"]
+    },
+    "Dissolve": {
+      "Probability Type": ["Random (White Noise)"]
+    },
+    "Distortion Generator": {
+      "Distortion Type": ["Angle and Power", "XY Vector"]
+    },
+    "Expander": {
+      "Action": ["Max", "Min", "Reshape like Max", "Reshape like Min"],
+      "Filter type": ["Square (fast)", "Circular (slow)", "Hybrid (fast)"]
+    },
+    "File Input": {
+      "dataType": ["Heightfield", "RGB Bitmap"],
+      "placementType": ["Worldspace", "Localspace"],
+      "aspectType": ["Fill (any aspect)", "Contain"],
+      "elevationType": ["Natural file elevations", "Normalize to fill range", "Specify range"],
+      "footprintType": ["Empty", "Use edge values", "Repeat tiled", "Repeat mirrored"],
+      "rescaleType": [
+        "(World Default)",
+        "Nearest Neighbor",
+        "Bilinear",
+        "Bicubic Soft",
+        "Bicubic Tunable",
+        "Fractal",
+        "Set-Preserving"
+      ]
+    },
+    "Flow Restructure": {
+      "Drain to:": ["Map borders and drainage input", "Drainage input", "Map borders along drainage mask"],
+      "Operation": ["Restructure", "Synthesize (experimental!)"]
+    },
+    "VDM Noise": {
+      "dirType": ["Along normal", "XY cylindrical"],
+      "dampType": ["Z Component", "Feature itself"],
+      "noiseType": ["Perlin", "Voronoi"],
+      "perlinType": ["Standard", "Ridged", "Billowy"],
+      "voronoiType": [
+        "Ridges (F1)",
+        "Ridges (F2)",
+        "Ridges (F3)",
+        "Rounded (F1)",
+        "Rounded (F2)",
+        "Rounded (F3)",
+        "Crackle (F2-F1)",
+        "Crackle (F3-F1)",
+        "Crackle (F3-F2)"
+      ]
+    },
+    "Gamma": {
+      "operation": [
+        "Apply sRGB gamma",
+        "Remove sRGB gamma",
+        "Apply arbitrary gamma",
+        "Remove arbitrary gamma"
+      ]
+    },
+    "Gradient": {
+      "Tiling": ["Clamp", "Mirrored Repeat", "Discontinuous Repeat"]
+    },
+    "Height Output": {
+      "format": [
+        "8bit RAW",
+        "16bit RAW",
+        "32bit Float RAW",
+        "Terragen",
+        "Leveller",
+        "BT",
+        "PGM",
+        "Windows BMP (8bit)",
+        "TGA (8bit)",
+        "TIFF (16bit)",
+        "PNG (8bit)",
+        "PNG (16bit)",
+        "HFZ",
+        "OpenEXR (32bit)",
+        "OpenEXR (32bit RGB)"
+      ]
+    },
+    "Height Slices": {
+      "Clipping Behavior": ["Clip to zero", "Clip to border", "Coverage Masks"]
+    },
+    "Instance Scattering": {
+      "Scattering Type": ["Jittered Grid"],
+      "Compositing Type": ["Replace", "Add", "Most Different", "Maximum", "Minimum"]
+    },
+    "Instance Tiling": {
+      "Distribution": ["Solo Instance", "Solo Clamped Edges", "Repeat Tiled", "Repeat Mirrored"]
+    },
+    "Select by ID": {
+      "mode": ["Equals", "Range"]
+    },
+    "Levels": {
+      "midType": ["Gamma", "Contrast"]
+    },
+    "Library Input": {
+      "Rescaling Type": [
+        "(World Default)",
+        "Nearest Neighbor",
+        "Bilinear",
+        "Bicubic Soft",
+        "Bicubic Tunable",
+        "Fractal",
+        "Set-Preserving"
+      ]
+    },
+    "Material": {
+      "src": ["Create New", "Import"],
+      "srcProj": ["(None Defined)"],
+      "diffType": ["(No conversion)", "sRGB", "Linear"],
+      "normalType": ["OpenGL convention (Green +Y)", "DirectX convention (Green -Y)"]
+    },
+    "Material Output": {
+      "format": [
+        "PNG  (8bits/channel)",
+        "PNG  (16bits/channel)",
+        "TIFF (8bits/channel)",
+        "TIFF (16bits/channel)",
+        "JPEG (8bits/channel)",
+        "OpenEXR (16bits/channel)"
+      ],
+      "normalType": ["OpenGL convention (Green +Y)", "DirectX convention (Green -Y)"]
+    },
+    "VDM to HF+Cliff": {
+      "type": ["HF + Cliff Mesh", "Heightfield only"],
+      "hilo": ["Bottom surface", "Top surface"],
+      "maskSpaceIn": ["VDM space", "World space"],
+      "maskSpace": ["VDM space", "World space"]
+    },
+    "Meshify": {
+      "opt": ["Uniform Grid", "Optimized (Delaunay TIN)"],
+      "volume": ["Top Surface", "Enclosed Volume"],
+      "geoType": ["Triangles", "Quads", "4-Tri"],
+      "normType": ["Tangent Space", "Object Space"]
+    },
+    "Mesh Output": {
+      "Mesh Type": ["Regular Mesh Triangulation", "Simple Mesh Reduction"],
+      "Coordinate System": ["Z is up (X = east, Y = north)", "Y is up (X = east, Z = south)"],
+      "Units": [
+        "Export using WM units",
+        "Export normalized",
+        "Export using kilometers",
+        "Export using meters"
+      ],
+      "File Format": ["Wavefront Object (OBJ)"]
+    },
+    "Overlay View": {
+      "Mask Colors": ["Replace with Mask", "Blend colors with Mask"]
+    },
+    "Parameter Arithmetic": {
+      "Operation": ["Add to value", "Subtract from value", "Multiply with value"],
+      "Clipping": ["Rollover", "Clip"]
+    },
+    "Radial Grad": {
+      "Type": ["Spherical", "Gaussian", "Diamond", "Square", "Cone"]
+    },
+    "Ramp": {
+      "Type of Ramp": ["Repeat", "Mirror"]
+    },
+    "Reach Scaling": {
+      "Meander Scaled to": [
+        "Total Reach Length (Frequency)",
+        "Per-km Length (Frequency)",
+        "Bankfull Width (Wavelength)"
+      ],
+      "Channel Scaled to": [
+        "Use meander scaling",
+        "Total Reach Length (Frequency)",
+        "Per-km Length (Frequency)"
+      ],
+      "Valley Scaled to": [
+        "Use meander scaling",
+        "Total Reach Length (Frequency)",
+        "Per-km Length (Frequency)"
+      ]
+    },
+    "Report Extents": {
+      "mode": ["Active Render Extent", "Last Build"]
+    },
+    "Report Placement": {
+      "spatialMethod": ["Worldspace", "Localspace", "Inherited (Default)"]
+    },
+    "Clamp": {
+      "Type": ["Rescale", "Clip", "Expand"]
+    },
+    "River": {
+      "Planform Type": ["Simple Alignment", "Layout Alignment"],
+      "Channel Type": ["Curved", "Trapezoidal"]
+    },
+    "Scalar Clamp": {
+      "Type": ["Rescale", "Clip"]
+    },
+    "Scalar Combiner": {
+      "Operation": ["Add together", "Subtract B from A", "Multiply"]
+    },
+    "Scene Object": {
+      "normalType": ["Tangent Space", "Object Space"]
+    },
+    "Scene Output": {
+      "type": ["Binary glTF (.glb)"]
+    },
+    "Scene View": {
+      "Interpret Water Input as:": ["Water depth", "Water elevation"]
+    },
+    "Select Color": {
+      "Selection Type": ["Select color", "Select hue", "Select saturation", "Select luminance"]
+    },
+    "Select Convexity": {
+      "Selection Type": ["Full Range", "Exposed Areas", "Recessed Areas", "Smooth Areas"],
+      "Convexity Type": [
+        "Total Convexity",
+        "Across Surface (Plan)",
+        "Down Surface (Profile)",
+        "Tangent Curvature"
+      ]
+    },
+    "Select Height": {
+      "Falloff type": ["Linear", "Exponential", "Smoothstep"]
+    },
+    "Shapes": {
+      "Quality": ["Fast", "Standard", "Smooth", "Ultra-smooth"]
+    },
+    "Simple Displacement": {
+      "Edge Handling": ["Repeat edge values", "Mirror interior values"]
+    },
+    "VDM Primitive": {
+      "type": ["Sphere", "Cube", "Superellipsoid", "Cliff"],
+      "pinchProfile": ["Linear", "Smooth", "Shelf"]
+    },
+    "Terrace": {
+      "Terrace Method": ["Simple", "Sharp", "Smooth"]
+    },
+    "Texture Weightmap": {
+      "Priority Behavior": [
+        "Equal priority",
+        "Favor top inputs",
+        "Favor bottom inputs",
+        "Favor variety",
+        "Favor best match"
+      ]
+    },
+    "Thermal Weathering": {
+      "Style": ["Classic", "Two-phase"]
+    },
+    "Type Filter": {
+      "type": []
+    },
+    "Voronoi": {
+      "Style": [
+        "F1",
+        "F2",
+        "F3",
+        "F4",
+        "F2 - F1",
+        "F3 - F2",
+        "F3 - F1",
+        "F4 - F3",
+        "F4 - F2",
+        "F4 - F1",
+        "Cellular F1",
+        "Cellular F2",
+        "Cellular F3",
+        "Cellular F4"
+      ],
+      "Distance Function": ["Euclidean", "Manhattan", "Alternate #1", "Alternate #2"]
+    }
+  }
+}
