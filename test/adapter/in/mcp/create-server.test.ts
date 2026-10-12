@@ -339,6 +339,9 @@ describe('createMcpServer', () => {
   it.each([
     ['get_device', 'lists its options in index order'],
     ['get_device', 'enumOptionsNote'],
+    ['get_device', 'describes devices as device add creates them'],
+    ['update_device_parameters', 'a row without options has its reason in enumOptionsNote'],
+    ['update_device_parameters', 'finding an index by setting values makes unsaved changes'],
     ['update_device_parameters', "the 0-based index of their label in get_device's options"],
     ['plan_graph', 'the 0-based index of its label in the options get_device lists'],
   ])('names enum options in the %s description: %s', async (name, text) => {
