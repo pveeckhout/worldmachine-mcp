@@ -29,7 +29,8 @@ mkdirSync(spaced);
 const READY = 'Startup: Completed. Transferring control into event loop.';
 const LICENCE = /licen[cs]e/i;
 const DEVICE_ROW = /^\s*#(\d+)\s+(.*?)(?:\s{2,}\(([^()]+)\))?\s*$/;
-const PARAM_ROW = /^\s{2}(\S+)\s+(\S+)(?:\s+(.*?))?\s*$/;
+// As src/adapter/out/worldmachine/parsers/param-list.ts: a name may have single spaces (raw/river-device.txt).
+const PARAM_ROW = /^\s{2}(\S(?:.*?\S)?)\s{2,}(\S+)(?:\s+(.*?))?\s*$/;
 
 const child = spawn('/bin/sh', ['-c', 'exec "$0" --cli 2>&1', bin], { stdio: ['pipe', 'pipe', 'ignore'] });
 const received = [];
@@ -556,6 +557,185 @@ const scenarios = [
         `param set #${output.id}.filename ${join(work, 'new-river-height.png')}`,
       ]);
       console.log(`river-upgraded-visual images: ${work}`);
+      return sections;
+    },
+  ],
+  // The project of river-upgraded-visual after a river was drawn on River #541 in the window, named by RIVER_PROJECT.
+  // Exports the drawn river as saved, without the Perlin Curve on Reach Character's Alignment, and with River's Valley
+  // Width tripled through the console, to see what the console can tune on a drawn river. Never saves.
+  [
+    'river-drawn',
+    async () => {
+      const project = process.env.RIVER_PROJECT;
+      if (!project) throw new Error('Set RIVER_PROJECT to the river-full.tmd with a drawn river');
+      const sections = await run([
+        `project open ${project} force`,
+        'device list',
+        'param list #541',
+        'param list #542',
+        'param list #543',
+        'wire list #541',
+        'wire list #542',
+      ]);
+      const step = async (label, edits) => {
+        sections.push(
+          ...(await run([
+            ...edits,
+            `param set #536.filename ${join(work, `${label}-height.png`)}`,
+            `param set #537.filename ${join(work, `${label}-channel.png`)}`,
+            'build start',
+          ])),
+        );
+        await pollBuild(sections);
+        let [exported] = await run(['export all']);
+        sections.push(exported);
+        // raw/river-upgraded-visual.txt l.51-55: a build can report its start after the export that found it unbuilt.
+        if (exported.lines.some((line) => line.includes('not built'))) {
+          sections.push(...(await run(['build start'])));
+          await pollBuild(sections);
+          [exported] = await run(['export all']);
+          sections.push(exported);
+        }
+        sections.push(await wait(2000));
+      };
+      await step('drawn', []);
+      await step('no-curve', ['wire disconnect #543 #542.1']);
+      const valley = sections[2].lines
+        .map((line) => PARAM_ROW.exec(line))
+        .find((match) => match?.[1] === 'Valley Width');
+      const metres = Number.parseFloat(valley?.[3] ?? '');
+      if (valley && Number.isFinite(metres)) {
+        await step('wide-valley', [
+          `param set "#541.Valley Width" ${metres * 3}`,
+          'param get #541.Valley Width',
+        ]);
+      }
+      console.log(`river-drawn images: ${work}`);
+      return sections;
+    },
+  ],
+  // Rivers without drawing: does Erosion's Water input steer where its flow carves? The default project's Erosion #35
+  // exports its height (port 1) and Flow Mask (port 2): twice unchanged (the run-to-run noise), with one Radial Grad
+  // spot on Water input (a spring), and with a Gradient there (rain heavier on one side). Then Create Water's ports.
+  [
+    'erosion-water-input',
+    async () => {
+      const sections = await run([
+        'project new default force',
+        'scene resolution 513',
+        'device delete #1',
+        'device delete #308',
+        'device delete #309',
+        'device delete #318',
+        'param list #35',
+        'wire list #35',
+      ]);
+      const height = await freshDevice(sections, 'File Output');
+      const flow = await freshDevice(sections, 'File Output');
+      sections.push(
+        ...(await run([
+          `wire connect #35.1 #${height.id}`,
+          `wire connect #35.2 #${flow.id}`,
+          `project save ${join(work, 'erosion-water.tmd')}`,
+        ])),
+      );
+      const step = async (label, edits) => {
+        sections.push(
+          ...(await run([
+            ...edits,
+            `param set #${height.id}.filename ${join(work, `${label}-height.png`)}`,
+            `param set #${flow.id}.filename ${join(work, `${label}-flow.png`)}`,
+            'wire list #35',
+            'build start',
+          ])),
+        );
+        await pollBuild(sections);
+        let [exported] = await run(['export all']);
+        sections.push(exported);
+        // raw/river-upgraded-visual.txt l.51-55: a build can report its start after the export that found it unbuilt.
+        if (exported.lines.some((line) => line.includes('not built'))) {
+          sections.push(...(await run(['build start'])));
+          await pollBuild(sections);
+          [exported] = await run(['export all']);
+          sections.push(exported);
+        }
+        sections.push(await wait(2000));
+      };
+      await step('baseline-1', []);
+      await step('baseline-2', []);
+      const spring = await freshDevice(sections, 'Radial Grad');
+      sections.push(...(await run([`param list #${spring.id}`])));
+      await step('spring', [`wire connect #${spring.id} #35.2`]);
+      const rain = await freshDevice(sections, 'Gradient');
+      await step('rain-gradient', [`wire disconnect #${spring.id} #35.2`, `wire connect #${rain.id} #35.2`]);
+      const water = await freshDevice(sections, 'Create Water');
+      sections.push(...(await run([`param list #${water.id}`, `wire list #${water.id}`])));
+      console.log(`erosion-water-input images: ${work}`);
+      return sections;
+    },
+  ],
+  // Create Water (raw/erosion-water-input.txt: Terrain, Existing Water, and Precipitation Map in; Terrain, Water
+  // System, Tributary Mask, and Lake Mask out) on the default project's Thermal Weathering #305. Exports Terrain,
+  // Tributary Mask, and Lake Mask (a File Output refuses Water System): with defaults, with a Gradient as
+  // Precipitation Map, and with Channel Head Area 0.3. The project is saved after wiring, so a Create Water that does
+  // not build can be updated in the window.
+  [
+    'create-water',
+    async () => {
+      const sections = await run([
+        'project new default force',
+        'scene resolution 513',
+        'device delete #1',
+        'device delete #308',
+        'device delete #309',
+        'device delete #318',
+      ]);
+      const water = await freshDevice(sections, 'Create Water');
+      const terrain = await freshDevice(sections, 'File Output');
+      const system = await freshDevice(sections, 'File Output');
+      const lakes = await freshDevice(sections, 'File Output');
+      const saved = join(work, 'create-water.tmd');
+      sections.push(
+        ...(await run([
+          `wire connect #305.1 #${water.id}.1`,
+          `wire connect #${water.id}.1 #${terrain.id}`,
+          `wire connect #${water.id}.3 #${system.id}`,
+          `wire connect #${water.id}.4 #${lakes.id}`,
+          `wire list #${water.id}`,
+          `project save ${saved}`,
+        ])),
+      );
+      const step = async (label, edits) => {
+        sections.push(
+          ...(await run([
+            ...edits,
+            `param set #${terrain.id}.filename ${join(work, `${label}-terrain.png`)}`,
+            `param set #${system.id}.filename ${join(work, `${label}-tributaries.png`)}`,
+            `param set #${lakes.id}.filename ${join(work, `${label}-lakes.png`)}`,
+            `wire list #${water.id}`,
+            'build start',
+          ])),
+        );
+        await pollBuild(sections);
+        let [exported] = await run(['export all']);
+        sections.push(exported);
+        // raw/river-upgraded-visual.txt l.51-55: a build can report its start after the export that found it unbuilt.
+        if (exported.lines.some((line) => line.includes('not built'))) {
+          sections.push(...(await run(['build start'])));
+          await pollBuild(sections);
+          [exported] = await run(['export all']);
+          sections.push(exported);
+        }
+        sections.push(await wait(2000));
+      };
+      await step('defaults', []);
+      const rain = await freshDevice(sections, 'Gradient');
+      await step('rain-gradient', [`wire connect #${rain.id} #${water.id}.3`]);
+      await step('dense', [
+        `param set "#${water.id}.Channel Head Area" 0.3`,
+        `param get #${water.id}.Channel Head Area`,
+      ]);
+      console.log(`create-water images and project: ${work}`);
       return sections;
     },
   ],

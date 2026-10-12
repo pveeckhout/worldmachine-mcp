@@ -1,0 +1,422 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 513
+Set scene resolution to 513
+<<<
+>>> device delete #1
+Deleted: #1
+<<<
+>>> device delete #308
+Deleted: #308
+<<<
+>>> device delete #309
+Deleted: #309
+<<<
+>>> device delete #318
+Deleted: #318
+<<<
+>>> param list #35
+Parameters for 'Erosion' (Erosion):
+  Amount                    float     60.0
+  featureScale              float     400 m
+  groupBasic                other     
+  Hardness                  float     0.47
+  Capacity                  float     0.56
+  soil0                     float     14 m
+  soilScour                 float     0.1
+  groupAdv                  other     
+  soilDiffuse               float     0.7
+  massB                     float     0.0
+  wallAng                   float     74.0°
+  rockCrystal               float     0.75
+  Uplift                    float     0 m
+  waterMasking              float     16.0
+  groupMask                 other     
+  maskStr                   float     1.0
+  Structure                 float     0.429
+  soilMask                  enum      Presence Mask
+  maskSoil                  bool      true
+  compatibility             bool      false
+
+<<<
+>>> wire list #35
+Connections for '#35':
+  Inputs:
+    [1] Primary Input <- 'Flow Restructure' [1]
+    [2] Water input  <- (none)
+    [3] Bedrock Structure Value <- (none)
+  Outputs:
+    [1] Primary Output -> 'Thermal Weathering' [1]
+    [2] Flow Mask    -> 'Vegetation Layer' [2]
+                     -> 'Vegetation Layer' [2]
+    [3] Wear Mask    -> 'Rock and Soil' [5]
+    [4] Deposition Mask -> 'Rock and Soil' [6]
+    [5] Soil Mask    -> 'Rock and Soil' [2]
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (14 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Height Output           
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (15 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Height Output           
+  #537   Height Output           
+
+<<<
+>>> wire connect #35.1 #536
+Connected '#35' [1] -> '#536' [1]
+<<<
+>>> wire connect #35.2 #537
+Connected '#35' [2] -> '#537' [1]
+<<<
+>>> project save <WORK>/erosion-water.tmd
+Project saved to: <WORK>/erosion-water.tmd
+<<<
+>>> param set #536.filename <WORK>/baseline-1-height.png
+Set #536.filename = <WORK>/baseline-1-height.png
+<<<
+>>> param set #537.filename <WORK>/baseline-1-flow.png
+Set #537.filename = <WORK>/baseline-1-flow.png
+<<<
+>>> wire list #35
+Connections for '#35':
+  Inputs:
+    [1] Primary Input <- 'Flow Restructure' [1]
+    [2] Water input  <- (none)
+    [3] Bedrock Structure Value <- (none)
+  Outputs:
+    [1] Primary Output -> 'Thermal Weathering' [1]
+                          -> 'Height Output' [1]
+    [2] Flow Mask    -> 'Vegetation Layer' [2]
+                     -> 'Vegetation Layer' [2]
+                     -> 'Height Output' [1]
+    [3] Wear Mask    -> 'Rock and Soil' [5]
+    [4] Deposition Mask -> 'Rock and Soil' [6]
+    [5] Soil Mask    -> 'Rock and Soil' [2]
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> export all
+Successfully exported 2 file(s):
+  <WORK>/baseline-1-height.png
+  <WORK>/baseline-1-flow.png
+
+<<<
+>>> (waited 2000 ms)
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> param set #536.filename <WORK>/baseline-2-height.png
+Set #536.filename = <WORK>/baseline-2-height.png
+<<<
+>>> param set #537.filename <WORK>/baseline-2-flow.png
+Set #537.filename = <WORK>/baseline-2-flow.png
+<<<
+>>> wire list #35
+Connections for '#35':
+  Inputs:
+    [1] Primary Input <- 'Flow Restructure' [1]
+    [2] Water input  <- (none)
+    [3] Bedrock Structure Value <- (none)
+  Outputs:
+    [1] Primary Output -> 'Thermal Weathering' [1]
+                          -> 'Height Output' [1]
+    [2] Flow Mask    -> 'Vegetation Layer' [2]
+                     -> 'Vegetation Layer' [2]
+                     -> 'Height Output' [1]
+    [3] Wear Mask    -> 'Rock and Soil' [5]
+    [4] Deposition Mask -> 'Rock and Soil' [6]
+    [5] Soil Mask    -> 'Rock and Soil' [2]
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> export all
+Successfully exported 2 file(s):
+  <WORK>/baseline-2-height.png
+  <WORK>/baseline-2-flow.png
+
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> device add Radial Grad
+Added 'Radial Grad'
+<<<
+>>> device list
+Devices (16 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Height Output           
+  #537   Height Output           
+  #538   Radial Grad             
+
+<<<
+>>> param list #538
+Parameters for 'Radial Grad' (Radial Grad):
+  Radius                    float     8 km
+  Type                      enum      Gaussian
+
+<<<
+>>> wire connect #538 #35.2
+Connected '#538' [1] -> '#35' [2]
+<<<
+>>> param set #536.filename <WORK>/spring-height.png
+Set #536.filename = <WORK>/spring-height.png
+<<<
+>>> param set #537.filename <WORK>/spring-flow.png
+Set #537.filename = <WORK>/spring-flow.png
+<<<
+>>> wire list #35
+Connections for '#35':
+  Inputs:
+    [1] Primary Input <- 'Flow Restructure' [1]
+    [2] Water input  <- 'Radial Grad' [1]
+    [3] Bedrock Structure Value <- (none)
+  Outputs:
+    [1] Primary Output -> 'Thermal Weathering' [1]
+                          -> 'Height Output' [1]
+    [2] Flow Mask    -> 'Vegetation Layer' [2]
+                     -> 'Vegetation Layer' [2]
+                     -> 'Height Output' [1]
+    [3] Wear Mask    -> 'Rock and Soil' [5]
+    [4] Deposition Mask -> 'Rock and Soil' [6]
+    [5] Soil Mask    -> 'Rock and Soil' [2]
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (waited 2000 ms)
+Build started.
+Build started.
+[Warning    ] provideNewBuildResults() called but no matching world found in history!
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (17 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Height Output           
+  #537   Height Output           
+  #538   Radial Grad             
+  #539   Gradient                
+
+<<<
+>>> wire disconnect #538 #35.2
+Disconnected '#538' [1] -> '#35' [2]
+<<<
+>>> wire connect #539 #35.2
+Connected '#539' [1] -> '#35' [2]
+<<<
+>>> param set #536.filename <WORK>/rain-gradient-height.png
+Set #536.filename = <WORK>/rain-gradient-height.png
+<<<
+>>> param set #537.filename <WORK>/rain-gradient-flow.png
+Set #537.filename = <WORK>/rain-gradient-flow.png
+<<<
+>>> wire list #35
+Connections for '#35':
+  Inputs:
+    [1] Primary Input <- 'Flow Restructure' [1]
+    [2] Water input  <- 'Gradient' [1]
+    [3] Bedrock Structure Value <- (none)
+  Outputs:
+    [1] Primary Output -> 'Thermal Weathering' [1]
+                          -> 'Height Output' [1]
+    [2] Flow Mask    -> 'Vegetation Layer' [2]
+                     -> 'Vegetation Layer' [2]
+                     -> 'Height Output' [1]
+    [3] Wear Mask    -> 'Rock and Soil' [5]
+    [4] Deposition Mask -> 'Rock and Soil' [6]
+    [5] Soil Mask    -> 'Rock and Soil' [2]
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (waited 2000 ms)
+Build started.
+Build started.
+[Warning    ] provideNewBuildResults() called but no matching world found in history!
+<<<
+>>> device add Create Water
+Added 'Create Water'
+<<<
+>>> device list
+Devices (18 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Height Output           
+  #537   Height Output           
+  #538   Radial Grad             
+  #539   Gradient                
+  #540   Create Water            
+
+<<<
+>>> param list #540
+Parameters for 'Create Water' (Create Water):
+  Drain to:                 enum      Map borders and existing water
+  Headwater Locations       enum      Automatic
+  Channel Head Area         float     1.0
+  Channel Model             enum      Full channels
+  Minimum Water Depth       float     1.05 m
+  Discharge Scalar          float     1.0
+  Flow Speed                float     0.75
+  Pin current headwaters    action    
+  Edit headwater locations...  action    
+
+<<<
+>>> wire list #540
+Connections for '#540':
+  Inputs:
+    [1] Terrain      <- (none)
+    [2] Existing Water <- (none)
+    [3] Precipitation Map <- (none)
+  Outputs:
+    [1] Terrain      -> (none)
+    [2] Water System -> (none)
+    [3] Tributary Mask -> (none)
+    [4] Lake Mask    -> (none)
+
+<<<

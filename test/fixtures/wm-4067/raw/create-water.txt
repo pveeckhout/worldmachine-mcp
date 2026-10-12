@@ -1,0 +1,301 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 513
+Set scene resolution to 513
+<<<
+>>> device delete #1
+Deleted: #1
+<<<
+>>> device delete #308
+Deleted: #308
+<<<
+>>> device delete #309
+Deleted: #309
+<<<
+>>> device delete #318
+Deleted: #318
+<<<
+>>> device add Create Water
+Added 'Create Water'
+<<<
+>>> device list
+Devices (14 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Create Water            
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (15 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Create Water            
+  #537   Height Output           
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (16 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Create Water            
+  #537   Height Output           
+  #538   Height Output           
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (17 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Create Water            
+  #537   Height Output           
+  #538   Height Output           
+  #539   Height Output           
+
+<<<
+>>> wire connect #305.1 #536.1
+Connected '#305' [1] -> '#536' [1]
+<<<
+>>> wire connect #536.1 #537
+Connected '#536' [1] -> '#537' [1]
+<<<
+>>> wire connect #536.3 #538
+Connected '#536' [3] -> '#538' [1]
+<<<
+>>> wire connect #536.4 #539
+Connected '#536' [4] -> '#539' [1]
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Terrain      <- 'Thermal Weathering' [1]
+    [2] Existing Water <- (none)
+    [3] Precipitation Map <- (none)
+  Outputs:
+    [1] Terrain      -> 'Height Output' [1]
+    [2] Water System -> (none)
+    [3] Tributary Mask -> 'Height Output' [1]
+    [4] Lake Mask    -> 'Height Output' [1]
+
+<<<
+>>> project save <WORK>/create-water.tmd
+Project saved to: <WORK>/create-water.tmd
+<<<
+>>> param set #537.filename <WORK>/defaults-terrain.png
+Set #537.filename = <WORK>/defaults-terrain.png
+<<<
+>>> param set #538.filename <WORK>/defaults-tributaries.png
+Set #538.filename = <WORK>/defaults-tributaries.png
+<<<
+>>> param set #539.filename <WORK>/defaults-lakes.png
+Set #539.filename = <WORK>/defaults-lakes.png
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Terrain      <- 'Thermal Weathering' [1]
+    [2] Existing Water <- (none)
+    [3] Precipitation Map <- (none)
+  Outputs:
+    [1] Terrain      -> 'Height Output' [1]
+    [2] Water System -> (none)
+    [3] Tributary Mask -> 'Height Output' [1]
+    [4] Lake Mask    -> 'Height Output' [1]
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+[Info       ] QIODevice::read (QSslSocket): device not open
+Build started.
+Successfully exported 3 file(s):
+  <WORK>/defaults-terrain.png
+  <WORK>/defaults-tributaries.png
+  <WORK>/defaults-lakes.png
+
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (18 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Create Water            
+  #537   Height Output           
+  #538   Height Output           
+  #539   Height Output           
+  #540   Gradient                
+
+<<<
+>>> wire connect #540 #536.3
+Connected '#540' [1] -> '#536' [3]
+<<<
+>>> param set #537.filename <WORK>/rain-gradient-terrain.png
+Set #537.filename = <WORK>/rain-gradient-terrain.png
+<<<
+>>> param set #538.filename <WORK>/rain-gradient-tributaries.png
+Set #538.filename = <WORK>/rain-gradient-tributaries.png
+<<<
+>>> param set #539.filename <WORK>/rain-gradient-lakes.png
+Set #539.filename = <WORK>/rain-gradient-lakes.png
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Terrain      <- 'Thermal Weathering' [1]
+    [2] Existing Water <- (none)
+    [3] Precipitation Map <- 'Gradient' [1]
+  Outputs:
+    [1] Terrain      -> 'Height Output' [1]
+    [2] Water System -> (none)
+    [3] Tributary Mask -> 'Height Output' [1]
+    [4] Lake Mask    -> 'Height Output' [1]
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Build started.
+Successfully exported 3 file(s):
+  <WORK>/rain-gradient-terrain.png
+  <WORK>/rain-gradient-tributaries.png
+  <WORK>/rain-gradient-lakes.png
+
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> param set "#536.Channel Head Area" 0.3
+Set #536.Channel Head Area = 0.3
+<<<
+>>> param get #536.Channel Head Area
+#536.Channel Head Area = 0.3
+<<<
+>>> param set #537.filename <WORK>/dense-terrain.png
+Set #537.filename = <WORK>/dense-terrain.png
+<<<
+>>> param set #538.filename <WORK>/dense-tributaries.png
+Set #538.filename = <WORK>/dense-tributaries.png
+<<<
+>>> param set #539.filename <WORK>/dense-lakes.png
+Set #539.filename = <WORK>/dense-lakes.png
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Terrain      <- 'Thermal Weathering' [1]
+    [2] Existing Water <- (none)
+    [3] Precipitation Map <- 'Gradient' [1]
+  Outputs:
+    [1] Terrain      -> 'Height Output' [1]
+    [2] Water System -> (none)
+    [3] Tributary Mask -> 'Height Output' [1]
+    [4] Lake Mask    -> 'Height Output' [1]
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Build started.
+Successfully exported 3 file(s):
+  <WORK>/dense-terrain.png
+  <WORK>/dense-tributaries.png
+  <WORK>/dense-lakes.png
+
+<<<
+>>> (waited 2000 ms)
+<<<

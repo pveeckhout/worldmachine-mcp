@@ -1,0 +1,149 @@
+>>> project open <RIVER_PROJECT> force
+Opened: <RIVER_PROJECT>
+[Info       ] Open Project from file
+[Info       ] Closing current project
+<<<
+>>> device list
+Devices (18 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Height Output           
+  #537   Height Output           
+  #541   River                   
+  #542   Reach Character         
+  #543   Perlin Curve            
+
+<<<
+>>> param list #541
+Parameters for 'River' (River):
+
+<<<
+>>> param list #542
+Parameters for 'Reach Character' (Reach Character):
+  Meander Scaled to         enum      Bankfull Width (Wavelength)
+  Meander Belt Width        float     800 m
+  Meander Wavelength        float     10.9
+  Meander Radius            float     2.34
+  Valley Exaggeration       float     0.062
+  Prevent randomization     bool      false
+
+<<<
+>>> param list #543
+Parameters for 'Perlin Curve' (Perlin Curve):
+  Octaves                   int       1
+  Lead-in Frequency         float     1.0
+  Lacunarity                float     2.15
+  Persistence               float     0.5
+  Phase Offset              float     0.0
+  Random Seed               int       38884
+  Amplitude                 float     1.0
+
+<<<
+>>> wire list #541
+Connections for '#541':
+  Inputs:
+    [1] Terrain Input <- 'Thermal Weathering' [1]
+    [2] River Parameters <- 'Reach Character' [1]
+  Outputs:
+    [1] Primary Output -> 'Scene View' [1]
+                          -> 'Height Output' [1]
+    [2] Water        -> (none)
+    [3] Valley Mask  -> (none)
+    [4] Channel Mask -> 'Height Output' [1]
+    [5] Meanderbelt Mask -> (none)
+    [6] GCS Covariance -> (none)
+
+<<<
+>>> wire list #542
+Connections for '#542':
+  Inputs:
+    [1] Alignment    <- 'Perlin Curve' [1]
+    [2] Bankfull Width <- (none)
+    [3] Thalweg Undulation <- (none)
+    [4] Thalweg Curvature <- (none)
+    [5] Left Valley Wall <- (none)
+    [6] Right Valley Wall <- (none)
+  Outputs:
+    [1] River Character -> 'River' [2]
+
+<<<
+>>> param set #536.filename <WORK>/drawn-height.png
+Set #536.filename = <WORK>/drawn-height.png
+<<<
+>>> param set #537.filename <WORK>/drawn-channel.png
+Set #537.filename = <WORK>/drawn-channel.png
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> export all
+Successfully exported 2 file(s):
+  <WORK>/drawn-height.png
+  <WORK>/drawn-channel.png
+
+<<<
+>>> (waited 2000 ms)
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> wire disconnect #543 #542.1
+Disconnected '#543' [1] -> '#542' [1]
+<<<
+>>> param set #536.filename <WORK>/no-curve-height.png
+Set #536.filename = <WORK>/no-curve-height.png
+<<<
+>>> param set #537.filename <WORK>/no-curve-channel.png
+Set #537.filename = <WORK>/no-curve-channel.png
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (waited 2000 ms)
+Build started.
+Build started.
+[Warning    ] provideNewBuildResults() called but no matching world found in history!
+<<<
