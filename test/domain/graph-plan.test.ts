@@ -8,6 +8,7 @@ import {
   planGraph,
   planId,
   referencedDeviceIds,
+  sharedSourceIds,
 } from '../../src/domain/graph-plan.js';
 import { type RawGraphDevice, validateGraphSpec } from '../../src/domain/graph-spec.js';
 
@@ -428,6 +429,48 @@ describe('matchDevices and referencedDeviceIds', () => {
       ['Old', 'Noise'],
     );
     expect(referencedDeviceIds(graph, rows)).toEqual([3, 4, 5]);
+  });
+
+  it('notes an entry with id by #<id>, and an id no device has not at all (revision 6)', () => {
+    const rows = [row(4, 'Combiner'), row(5, 'Combiner'), row(6, 'Base')];
+    const graph = spec([
+      { name: 'hills mix', id: 5, type: 'Combiner', inputs: { '1': 'Base' } },
+      { name: 'ghost', id: 9, type: 'Combiner' },
+    ]);
+    expect(referencedDeviceIds(graph, rows)).toEqual([5, 6]);
+  });
+
+  it('resolves a source to a managed entry before any listed name, so a label never reads a namesake (sections 4-5)', () => {
+    // #6 is an unrelated device whose listed name equals the label of the entry bound to #5.
+    const rows = [row(5, 'Combiner'), row(6, 'hills mix'), row(7, 'Erosion')];
+    const graph = spec([
+      { name: 'hills mix', id: 5, type: 'Combiner' },
+      { name: 'Erosion', type: 'Erosion', inputs: { '1': 'HILLS MIX' } },
+    ]);
+    expect(referencedDeviceIds(graph, rows)).toEqual([5, 7]);
+  });
+
+  it('names the unread devices that share the name of a read input source, once each (revision 6)', () => {
+    const rows = [
+      row(1, 'Combiner'),
+      row(2, 'Combiner'),
+      row(3, 'Combiner'),
+      row(7, 'Erosion'),
+      row(8, 'Base'),
+    ];
+    const read = [
+      detail(7, 'Erosion', 'Erosion', {
+        inputs: [
+          { port: 1, name: 'Primary Input', source: { device: 'Combiner', port: 1 } },
+          { port: 2, name: 'Water input', source: { device: 'Combiner', port: 1 } },
+        ],
+      }),
+      detail(2, 'Combiner', 'Combiner', {
+        inputs: [{ port: 1, name: 'Primary Input', source: { device: 'Base', port: 1 } }],
+      }),
+    ];
+    expect(sharedSourceIds(rows, read)).toEqual([1, 3]);
+    expect(sharedSourceIds(rows, read.slice(1))).toEqual([]);
   });
 });
 

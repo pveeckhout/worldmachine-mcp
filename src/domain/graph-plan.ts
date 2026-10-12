@@ -4,6 +4,7 @@ import { foldCase, idOfReference, listedName } from './device-name.js';
 import type { ParameterValue } from './graph-edit.js';
 import type { GraphDevice, GraphSource, GraphSpec } from './graph-spec.js';
 import { decimalText, parameterText } from './parameter-values.js';
+import { sourceCandidates } from './wire-source.js';
 
 /** What `planGraph` reads: the device list and `get_device` of every device `referencedDeviceIds` names. */
 export type GraphState = {
@@ -82,7 +83,8 @@ export function matchDevices(devices: readonly DeviceSummary[], reference: strin
 
 /**
  * Spec v3 section 5: the existing devices whose details the plan needs, each named by exactly one listed device:
- * managed devices, `remove` entries, then input sources. Ambiguous names are conflicts and need no read.
+ * managed devices (by id when the entry gives one), `remove` entries, then input sources. Ambiguous names are
+ * conflicts and need no read.
  */
 export function referencedDeviceIds(spec: GraphSpec, devices: readonly DeviceSummary[]): number[] {
   const ids = new Set<number>();
@@ -91,10 +93,40 @@ export function referencedDeviceIds(spec: GraphSpec, devices: readonly DeviceSum
     const only = matches[0];
     if (matches.length === 1 && only !== undefined) ids.add(only.id);
   };
-  for (const device of spec.devices) note(device.name);
+  // Revision 6: an entry with id names its device by id; its name is a label.
+  const managedReference = (device: GraphDevice): string =>
+    device.id === undefined ? device.name : `#${device.id}`;
+  for (const device of spec.devices) note(managedReference(device));
   for (const entry of spec.remove) note(entry);
+  // Spec section 4's lookup order: a source naming a managed entry (name or label, regardless of case) is that entry's
+  // device, so a listed device that happens to have a label's name is never read for it. A `#<id>` source never equals
+  // an entry name: validation refuses names of that form.
+  const byEntry = new Map(spec.devices.map((device) => [foldCase(device.name), managedReference(device)]));
   for (const device of spec.devices) {
-    for (const input of device.inputs) if (input.source !== null) note(input.source.device);
+    for (const input of device.inputs) {
+      if (input.source !== null) note(byEntry.get(foldCase(input.source.device)) ?? input.source.device);
+    }
+  }
+  return [...ids];
+}
+
+/**
+ * Spec v3 section 5 (revision 6), the second read phase: the listed devices not yet read that share their listed name
+ * with the current source of an input of a device read so far, when several devices have that name, so
+ * `resolveWireSource` holds every candidate's outputs. Empty when every such name is unique.
+ */
+export function sharedSourceIds(
+  devices: readonly DeviceSummary[],
+  details: readonly DeviceDetail[],
+): number[] {
+  const read = new Set(details.map((detail) => detail.id));
+  const ids = new Set<number>();
+  for (const detail of details) {
+    for (const input of detail.inputs) {
+      const candidates = sourceCandidates(input, devices);
+      if (candidates.length < 2) continue;
+      for (const candidate of candidates) if (!read.has(candidate.id)) ids.add(candidate.id);
+    }
   }
   return [...ids];
 }
