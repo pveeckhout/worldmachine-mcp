@@ -214,6 +214,45 @@ describe.skipIf(!LIVE)('live World Machine graph edits', () => {
     }
   }, 120_000);
 
+  it('sets lengths in m through the scale probe, and one undo per parameter restores each (float-units section 6)', async () => {
+    const constant = await devices.addDevice('Constant');
+    const readValue = async (id: number, name: string) =>
+      (await reader.getDevice(`#${id}`)).parameters.find((p) => p.name === name)?.value;
+    const widthBefore = await readValue(grad, 'Width');
+    const heightBefore = await readValue(constant.id, 'Height');
+    // raw/float-scale-default.txt l.60-73 and l.101-114 (facts 87 and 89): 8 km and 2625 m per unit.
+    const width = await parameters.updateParameters(`#${grad}`, { Width: '500 m' });
+    expect(width.parameters).toEqual([
+      {
+        name: 'Width',
+        type: 'float',
+        requested: '0.0625',
+        outcome: 'applied',
+        value: '500 m',
+        given: '500 m',
+        scale: '8 km',
+      },
+    ]);
+    const height = await parameters.updateParameters(`#${constant.id}`, { Height: '656.25 m' });
+    expect(height.parameters).toEqual([
+      {
+        name: 'Height',
+        type: 'float',
+        requested: '0.25',
+        outcome: 'applied',
+        value: '656.2 m',
+        given: '656.25 m',
+        scale: '2625 m',
+      },
+    ]);
+    // Fact 90: the probes left no undo step, so each undo reverts one call's set, the last first.
+    await writer.undo();
+    expect(await readValue(constant.id, 'Height')).toBe(heightBefore);
+    expect(await readValue(grad, 'Width')).toBe('500 m');
+    await writer.undo();
+    expect(await readValue(grad, 'Width')).toBe(widthBefore);
+  }, 120_000);
+
   it('connects and disconnects idempotently, and rejects a wire onto an occupied input', async () => {
     const first = await wires.connect({ device: `#${grad}` }, { device: `#${combiner}` });
     expect(first.created).toBe(true);
