@@ -1140,6 +1140,36 @@ describe('createMcpServer edit tools', () => {
     expect(result.isError).toBe(true);
   });
 
+  it('admits given and scale in update_device_parameters items (float-units design section 5)', async () => {
+    const client = await connect(
+      deps({
+        updateDeviceParameters: {
+          updateDeviceParameters: async () => ({
+            device: { id: 1, name: 'Gradient' },
+            parameters: [
+              {
+                name: 'Width',
+                type: 'float',
+                requested: '0.0625',
+                outcome: 'applied',
+                value: '500 m',
+                given: '500 m',
+                scale: '8 km',
+              },
+            ],
+            session: READY_DIRTY,
+          }),
+        },
+      }),
+    );
+    const result = await client.callTool({
+      name: 'update_device_parameters',
+      arguments: { device: '#1', parameters: { Width: '500 m' } },
+    });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toMatchObject({ parameters: [{ given: '500 m', scale: '8 km' }] });
+  });
+
   it.each([
     ['configure_scene', { resolution: 1.5 }],
     ['configure_scene', { size_km: { width: 0, height: 4 } }],

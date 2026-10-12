@@ -32,6 +32,10 @@ export type ParameterOutcome = {
   readonly value: string;
   /** World Machine's `Error:` text for a rejected item, without log or licence lines (spec section 8). */
   readonly worldMachineMessage?: string;
+  /** Float-units design section 5: the length as the client gave it (`500 m`); only when its scale was read. */
+  readonly given?: string;
+  /** Float-units design section 5: what `param get` read with the parameter at 1 (`8 km`), the scale `given` used. */
+  readonly scale?: string;
 };
 
 export type ParameterUpdate = {

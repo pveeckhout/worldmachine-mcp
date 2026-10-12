@@ -319,6 +319,8 @@ export const updateDeviceParametersViewSchema = z.strictObject({
       outcome: z.enum(['applied', 'rejected']),
       value: z.string(),
       worldMachineMessage: z.string().optional(),
+      given: z.string().optional(),
+      scale: z.string().optional(),
     }),
   ),
   session: sessionSummarySchema,
