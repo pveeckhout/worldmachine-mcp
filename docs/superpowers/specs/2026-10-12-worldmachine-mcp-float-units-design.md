@@ -31,6 +31,7 @@ Out of scope: units in graph specs (`plan_graph`, `apply_graph`; `plan_graph` is
 - A unit is accepted only on a `float` whose current value in `param list` ends in ` m` or ` km` (or `m`/`km` directly after the number). Otherwise the item is a validation problem and the whole call is refused before anything is sent, as today:
   - a unit on a float whose value shows no `m` or `km` (`1.0`, `30.0°`, `0.0km2`): `a unit is accepted only on a float that shows m or km`;
   - a unit on another type: that type's existing problem text;
+  - a length whose metres are not a finite JavaScript number, or are not zero while the length given is not zero (a decimal of more than about 308 digits, or below about 1e-300 m): `the length is out of range`;
   - any other unit (`ft`, `%`, `km2`): `expected a plain decimal number in World Machine's internal units, or a length in m or km such as "500 m"`.
 
 ## 4. Apply
@@ -44,7 +45,7 @@ When at least one does, the scale probe runs first, for each unit item in call o
 3. `project undo`, which must print `Undo performed.`;
 4. `param get <ref>`, which must equal, as text, the value `param list` showed for that parameter before the probe.
 
-Then each unit item's internal value is `<metres given> / <scale in metres>`, written as plain decimal text (no exponent) of at most 12 significant digits, trailing zeros dropped. A value that rounds to zero at that precision is sent as `0`. Today's batch follows unchanged: per item `param set` and `param get`.
+Then each unit item's internal value is `<metres given> / <scale in metres>`, written as plain decimal text (no exponent) of at most 12 significant digits, trailing zeros dropped. A value that rounds to zero at that precision is sent as `0`. The division and the rounding use JavaScript numbers, so a value exactly halfway between two 12-digit results may round either way. A converted value that is not finite, or is zero for a length that is not zero, makes that item `rejected` with `worldMachineMessage` `the length is out of range at a scale of '<scale>'`; its scale probe has already been undone, and nothing more is sent for it. Today's batch follows unchanged: per item `param set` and `param get`.
 
 Failures:
 
