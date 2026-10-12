@@ -100,11 +100,31 @@ describe('parseEnumCatalog (enum-options design section 3)', () => {
       /#559: not in the device list/,
     ],
     [
+      'a refused param set (l.1574 replaced)',
+      () => COMBINER.replace('Set #559.Method = 1', 'Error: refused'),
+      /type 'Combiner', parameter 'Method': param set to index 1 not confirmed/,
+    ],
+    [
+      'a device add that shows no new device (l.1545 dropped after a list that had it)',
+      () => `${excerpt(1526, 1547)}\n${excerpt(1523, 1636, [1545])}`,
+      /device add Combiner: no new device in the device list/,
+    ],
+    [
+      'a param list that names another device than the added one',
+      () =>
+        `${excerpt(1526, 1547, [1545])}\n${COMBINER.replace('>>> param list #559', '>>> param list #373')}`,
+      /device add Combiner: param list #373 does not name a new device/,
+    ],
+    [
       'a type the capture stopped on',
       () => `${COMBINER}\n>>> (type Combiner stopped)\nboom\n<<<`,
       /the capture did not complete/,
     ],
-    ['a type captured twice', () => `${COMBINER}\n${COMBINER}`, /type 'Combiner' captured twice/],
+    [
+      'a type captured twice',
+      () => `${COMBINER}\n${COMBINER.replaceAll('#559', '#560')}`,
+      /type 'Combiner' captured twice/,
+    ],
   ])('fails on %s', (_label, input, message) => {
     expect(() => parseEnumCatalog(input(), systemInfo)).toThrow(message);
   });

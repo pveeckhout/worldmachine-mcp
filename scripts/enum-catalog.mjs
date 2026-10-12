@@ -19,6 +19,7 @@ const PARAM_LIST = /^param list #(\d+)$/;
 const PROBE = /^param set "#(\d+)\.(.+)" 9999$/;
 const SET = /^param set "#(\d+)\.(.+)" (\d+)$/;
 const GET = /^param get #(\d+)\.(.+)$/;
+const ADD = /^device add (.+)$/;
 // The scenario records a failing type or delete as its own section and goes on (capture-fixtures.mjs enumOptions).
 const STOPPED = /^\((type .* stopped|scenario stopped|delete .* failed)\)$/;
 
@@ -61,6 +62,8 @@ export function parseEnumCatalog(transcript, systemInfo) {
   let listed = new Map();
   let device;
   let pending;
+  // The `device add` whose device has to show up in the next `device list` and `param list` (spec section 3).
+  let adding;
   const noGet = () => new Error(`#${device.id}.${pending.name}: no param get after index ${pending.index}`);
   const finish = () => {
     if (device === undefined) return;
@@ -81,18 +84,36 @@ export function parseEnumCatalog(transcript, systemInfo) {
   };
   for (const { command, lines } of transcriptSections(transcript)) {
     if (STOPPED.test(command)) throw new Error(`the capture did not complete: ${command}`);
+    const add = ADD.exec(command);
+    if (add) {
+      if (adding !== undefined) throw new Error(`device add ${adding.word}: no param list of its device`);
+      adding = { word: add[1], before: listed, added: undefined };
+      continue;
+    }
     if (command === 'device list') {
+      const before = listed;
       listed = new Map(
         lines.flatMap((line) => {
           const match = DEVICE_ROW.exec(line);
           return match ? [[match[1], match[3] ?? match[2]]] : [];
         }),
       );
+      if (adding !== undefined) {
+        adding.added = [...listed.keys()].filter((id) => !before.has(id));
+        if (adding.added.length === 0)
+          throw new Error(`device add ${adding.word}: no new device in the device list`);
+      }
       continue;
     }
     const list = PARAM_LIST.exec(command);
     if (list) {
       finish();
+      if (adding !== undefined) {
+        if (!adding.added?.includes(list[1])) {
+          throw new Error(`device add ${adding.word}: ${command} does not name a new device`);
+        }
+        adding = undefined;
+      }
       const type = listed.get(list[1]);
       if (type === undefined) throw new Error(`#${list[1]}: not in the device list before its param list`);
       if (!PARAM_HEADER.test(lines[0] ?? '')) throw new Error(`${command}: unreadable header`);
@@ -119,6 +140,12 @@ export function parseEnumCatalog(transcript, systemInfo) {
     } else if (set !== null) {
       if (pending !== undefined) throw noGet();
       const index = Number(set[3]);
+      // A refused set leaves the value unchanged, so its `param get` would record the previous label (l.1569).
+      if (lines.length !== 1 || lines[0].trimEnd() !== `Set #${target[1]}.${target[2]} = ${index}`) {
+        throw new Error(
+          `type '${device.type}', parameter '${target[2]}': param set to index ${index} not confirmed: ${lines.join(' ')}`,
+        );
+      }
       if (index !== enumProbe.labels.length) {
         throw new Error(`${command}: expected index ${enumProbe.labels.length}`);
       }
@@ -138,5 +165,6 @@ export function parseEnumCatalog(transcript, systemInfo) {
     }
   }
   finish();
+  if (adding !== undefined) throw new Error(`device add ${adding.word}: no param list of its device`);
   return { build: buildOfSystemInfo(systemInfo), types };
 }
