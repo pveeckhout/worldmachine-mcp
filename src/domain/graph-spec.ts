@@ -6,6 +6,8 @@ import { decimalText } from './parameter-values.js';
 /** A device entry as the MCP adapter's schema admits it; `validateGraphSpec` checks the rules (plan decision D6). */
 export type RawGraphDevice = {
   readonly name: string;
+  /** Revision 6: the id of an existing device the entry manages; `name` is then a label local to the spec. */
+  readonly id?: number;
   readonly type: string;
   readonly enabled?: boolean;
   /** Omitted: bypass is left as it is. `device info` reports `Bypass: yes|no` (v3 spec revision 5). */
@@ -27,6 +29,8 @@ export type GraphParameter = { readonly name: string; readonly value: ParameterV
 
 export type GraphDevice = {
   readonly name: string;
+  /** Revision 6: present only when the spec gave it; a positive integer. */
+  readonly id?: number;
   readonly type: string;
   readonly enabled?: boolean;
   readonly bypassed?: boolean;
@@ -69,6 +73,13 @@ function checkName(name: string): string {
   return name;
 }
 
+/** Revision 6: an id is a positive integer, as `list_devices` shows it after the `#`. */
+function checkId(device: string, id: number): number {
+  if (!Number.isSafeInteger(id) || id < 1)
+    refuse(`'${device}': id must be a positive whole number, not ${id}`);
+  return id;
+}
+
 function checkParameters(
   device: string,
   parameters: Readonly<Record<string, ParameterValue>>,
@@ -107,13 +118,21 @@ export function validateGraphSpec(raw: RawGraphSpec): GraphSpec {
     refuse(`devices and remove hold ${entries} entries; at most ${MAX_GRAPH_ENTRIES} are allowed`);
   }
   const names = new Map<string, string>();
+  const ids = new Map<number, string>();
   const devices = raw.devices.map((entry): GraphDevice => {
     const name = checkName(entry.name);
     const earlier = names.get(foldCase(name));
     if (earlier !== undefined) refuse(`Device names '${earlier}' and '${name}' are equal regardless of case`);
     names.set(foldCase(name), name);
+    const id = entry.id === undefined ? undefined : checkId(name, entry.id);
+    if (id !== undefined) {
+      const owner = ids.get(id);
+      if (owner !== undefined) refuse(`'${owner}' and '${name}' both give id ${id}`);
+      ids.set(id, name);
+    }
     return {
       name,
+      ...(id === undefined ? {} : { id }),
       type: entry.type,
       ...(entry.enabled === undefined ? {} : { enabled: entry.enabled }),
       ...(entry.bypassed === undefined ? {} : { bypassed: entry.bypassed }),
@@ -130,6 +149,9 @@ export function validateGraphSpec(raw: RawGraphSpec): GraphSpec {
     }
     const key = foldCase(entry);
     if (names.has(key)) refuse(`'${entry}' is in both devices and remove`);
+    const removedId = idOfReference(entry);
+    const owner = removedId === undefined ? undefined : ids.get(removedId);
+    if (owner !== undefined) refuse(`'${entry}' in remove is the id of '${owner}'`);
     if (removed.has(key)) refuse(`'${entry}' appears twice in remove`);
     removed.add(key);
   }

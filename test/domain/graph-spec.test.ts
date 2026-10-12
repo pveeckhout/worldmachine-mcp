@@ -118,6 +118,30 @@ describe('validateGraphSpec (spec v3 section 4)', () => {
       'plain decimal',
     ],
     ['NaN', base({ devices: [{ ...device('A'), parameters: { scale: Number.NaN } }] }), 'plain decimal'],
+    ['id 0 (revision 6)', base({ devices: [{ ...device('A'), id: 0 }] }), 'positive whole number'],
+    ['a negative id', base({ devices: [{ ...device('A'), id: -3 }] }), 'positive whole number'],
+    ['a fractional id', base({ devices: [{ ...device('A'), id: 1.5 }] }), 'positive whole number'],
+    [
+      'two entries with one id',
+      base({
+        devices: [
+          { ...device('A'), id: 5 },
+          { ...device('B'), id: 5 },
+        ],
+      }),
+      "'A' and 'B' both give id 5",
+    ],
+    [
+      'an id in remove',
+      base({ devices: [{ ...device('A'), id: 5 }], remove: ['#5'] }),
+      "'#5' in remove is the id of 'A'",
+    ],
+    [
+      'an id in remove with a leading zero (Review Focus 5)',
+      base({ devices: [{ ...device('A'), id: 536 }], remove: ['#0536'] }),
+      "'#0536' in remove is the id of 'A'",
+    ],
+    ['a label of the form #<n>', base({ devices: [{ ...device('#3'), id: 3 }] }), 'device id'],
   ])('refuses %s', (_label, raw, fragment) => {
     expect(refusal(raw)).toContain(fragment);
   });
@@ -153,5 +177,21 @@ describe('parseSource (D9)', () => {
     expect(spec.devices[0]?.bypassed).toBe(false);
     expect(spec.devices[1]?.bypassed).toBeUndefined();
     expect('bypassed' in (spec.devices[1] ?? {})).toBe(false);
+  });
+
+  it('carries an id and leaves it out when omitted (revision 6)', () => {
+    const spec = validateGraphSpec({
+      version: 1,
+      devices: [{ name: 'hills mix', id: 536, type: 'Combiner' }, device('B')],
+      remove: ['#537'],
+    });
+    expect(spec.devices[0]).toEqual({
+      name: 'hills mix',
+      id: 536,
+      type: 'Combiner',
+      parameters: [],
+      inputs: [],
+    });
+    expect('id' in (spec.devices[1] ?? {})).toBe(false);
   });
 });
