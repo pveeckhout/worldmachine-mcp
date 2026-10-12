@@ -1,0 +1,119 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene show
+Scene 'Main Extents' (index 0 of 1):
+  Origin (center): 4.00, 4.00 km
+  Size:            12.00 x 12.00 km
+  Lower-left:      -2.00, -2.00 km
+  Upper-right:     10.00, 10.00 km
+  Resolution:      2049
+  Locked:          no
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (18 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Gradient                
+
+<<<
+>>> param get #536.Width
+#536.Width = 8 km
+<<<
+>>> param set "#536.Width" 1
+Set #536.Width = 1
+<<<
+>>> param get #536.Width
+#536.Width = 8 km
+<<<
+>>> param set "#536.Width" 0.25
+Set #536.Width = 0.25
+<<<
+>>> param get #536.Width
+#536.Width = 2 km
+<<<
+>>> device add Constant
+Added 'Constant'
+<<<
+>>> device list
+Devices (19 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Gradient                
+  #537   Constant                
+
+<<<
+>>> param get #537.Height
+#537.Height = 0 m
+<<<
+>>> param set "#537.Height" 1
+Set #537.Height = 1
+<<<
+>>> param get #537.Height
+#537.Height = 2625 m
+<<<
+>>> param set "#537.Height" 0.25
+Set #537.Height = 0.25
+<<<
+>>> param get #537.Height
+#537.Height = 656.2 m
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<

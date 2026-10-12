@@ -1817,6 +1817,104 @@ const scenarios = [
       return sections;
     },
   ],
+  [
+    // Backlog item 101: the scale between a float's internal value and its display unit. Every unit float of every
+    // type of ENUM_TYPES read as added, at 1, and at 0.25, then re-read after the scene size changes to 12 and 4 km
+    // and set to 1 again. Devices stay in one blank project. Ends closed.
+    'float-scale',
+    async () => {
+      const sections = [];
+      try {
+        await floatScale(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
+    // Unit input, approach A: a probe set of 1, read, then `project undo` must restore the previous value exactly
+    // and remove only the probe's step. Per parameter: set 0.25 (the known previous value), probe, undo, read, then
+    // undo once more, which must revert the 0.25 set. Default project. Ends closed.
+    'float-scale-undo',
+    async () => {
+      const sections = [];
+      try {
+        const listed = await run(['project new default force', 'device list']);
+        sections.push(...listed);
+        const known = new Set(devices(listed[1].lines).map((device) => device.id));
+        for (const [type, name] of [
+          ['Gradient', 'Width'],
+          ['Constant', 'Height'],
+        ]) {
+          const added = await run([`device add ${type}`, 'device list']);
+          sections.push(...added);
+          const id = devices(added[1].lines).find((device) => !known.has(device.id))?.id;
+          if (id === undefined) {
+            sections.push({ command: `(type ${type} stopped)`, lines: ['no new device in the list'] });
+            continue;
+          }
+          known.add(id);
+          sections.push(
+            ...(await run([
+              `param get #${id}.${name}`,
+              `param set "#${id}.${name}" 0.25`,
+              `param get #${id}.${name}`,
+              `param set "#${id}.${name}" 1`,
+              `param get #${id}.${name}`,
+              'project undo',
+              `param get #${id}.${name}`,
+              'project undo',
+              `param get #${id}.${name}`,
+            ])),
+          );
+        }
+        sections.push(...(await run(['project close force'])));
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
+    // float-scale in the default project: one parameter of each scale (Gradient Width, 8 km per unit in a blank
+    // project; Constant Height, 3000 m), to see whether the scales are the project's. Ends closed.
+    'float-scale-default',
+    async () => {
+      const sections = [];
+      try {
+        const listed = await run(['project new default force', 'scene show', 'device list']);
+        sections.push(...listed);
+        const known = new Set(devices(listed[2].lines).map((device) => device.id));
+        for (const [type, name] of [
+          ['Gradient', 'Width'],
+          ['Constant', 'Height'],
+        ]) {
+          const added = await run([`device add ${type}`, 'device list']);
+          sections.push(...added);
+          const id = devices(added[1].lines).find((device) => !known.has(device.id))?.id;
+          if (id === undefined) {
+            sections.push({ command: `(type ${type} stopped)`, lines: ['no new device in the list'] });
+            continue;
+          }
+          known.add(id);
+          sections.push(
+            ...(await run([
+              `param get #${id}.${name}`,
+              `param set "#${id}.${name}" 1`,
+              `param get #${id}.${name}`,
+              `param set "#${id}.${name}" 0.25`,
+              `param get #${id}.${name}`,
+            ])),
+          );
+        }
+        sections.push(...(await run(['project close force'])));
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
   // Diagnostics for the quit crash seen after stopped group builds (World Machine crash reports 2026-10-06 14:46 and
   // 15:13) and for automatic exports. Each ends without closing, so the script's own close and quit end World Machine,
   // as the server does. Run one per World Machine start.
@@ -2822,6 +2920,63 @@ const ENUM_TYPES = [
 ];
 
 const ENUM_RANGE = /^Error: Error: Enum index out of range \(0-(\d+)\): 9999$/;
+
+// A float row whose value carries a unit (`8 km`, `30.0°`, `0.0km2`); plain floats read `1.0`.
+const UNIT_FLOAT = /^\s{2}(\S(?:.*?\S)??)\s{2,}float\s+(.*?[A-Za-z°].*?)\s*$/;
+
+async function floatScale(sections) {
+  sections.push(...(await run(['project new blank force', 'scene show'])));
+  const probed = [];
+  const outcomes = [];
+  for (const type of ENUM_TYPES) {
+    try {
+      // A blank project: the added device is the one with the highest id.
+      const id = (await freshDevice(sections, type))?.id;
+      if (id === undefined) {
+        outcomes.push(`${type}: no new device in the list`);
+        continue;
+      }
+      const listed = await run([`param list #${id}`]);
+      sections.push(...listed);
+      const names = listed[0].lines.flatMap((line) => {
+        const match = UNIT_FLOAT.exec(line);
+        return match ? [match[1]] : [];
+      });
+      if (names.length === 0) {
+        sections.push(...(await run([`device delete #${id}`])));
+        continue;
+      }
+      for (const name of names) {
+        // The value as added, then 1 and 0.25: the ratio shows the scale and whether it has an offset.
+        sections.push(
+          ...(await run([
+            `param get #${id}.${name}`,
+            `param set "#${id}.${name}" 1`,
+            `param get #${id}.${name}`,
+            `param set "#${id}.${name}" 0.25`,
+            `param get #${id}.${name}`,
+            `param set "#${id}.${name}" 1`,
+          ])),
+        );
+        probed.push(`#${id}.${name}`);
+      }
+      outcomes.push(`${type}: ${names.join(', ')}`);
+    } catch (error) {
+      sections.push({ command: `(type ${type} stopped)`, lines: [scrub(error.message)] });
+      outcomes.push(`${type}: stopped`);
+    }
+  }
+  // Every probed value is now 1. Re-read after each scene size change: a display that follows the scene shows a
+  // scale tied to the extent; then set 1 again at the last size to see whether a new set follows it too.
+  for (const size of ['12 12', '4 4']) {
+    sections.push(
+      ...(await run([`scene size ${size}`, 'scene show', ...probed.map((ref) => `param get ${ref}`)])),
+    );
+  }
+  sections.push(...(await run(probed.flatMap((ref) => [`param set "${ref}" 1`, `param get ${ref}`]))));
+  sections.push({ command: '(summary)', lines: outcomes });
+  sections.push(...(await run(['project close force'])));
+}
 
 async function enumOptions(sections) {
   const listed = await run(['project new default force', 'device list']);
