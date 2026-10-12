@@ -1802,6 +1802,21 @@ const scenarios = [
       return sections;
     },
   ],
+  [
+    // Every enum parameter's options of every device type, for a generated catalog. Each type of ENUM_TYPES alone in a
+    // new project: add, read its type (fact 79) and parameters, then per enum the current label, the range error, and
+    // each index set and read back. A failing type is recorded and the next one runs. Ends closed.
+    'enum-options',
+    async () => {
+      const sections = [];
+      try {
+        await enumOptions(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
   // Diagnostics for the quit crash seen after stopped group builds (World Machine crash reports 2026-10-06 14:46 and
   // 15:13) and for automatic exports. Each ends without closing, so the script's own close and quit end World Machine,
   // as the server does. Run one per World Machine start.
@@ -2677,6 +2692,192 @@ async function v3RenameProbe(sections) {
   await renameAndRead(gradient, 'Mix');
   const second = await addNew('Combiner');
   await renameAndRead(second, 'Blend 2');
+  sections.push(...(await run(['project close force'])));
+}
+
+// The 118 device types `device add` accepted in raw/v3-rename-types.txt (phase A, l.1-620: 205 accepted words, 118
+// distinct 'Added' names). One word per resulting device: the word equal to the added name where one was accepted,
+// otherwise the first accepted word that made it (Anisotropy makes 'VDM Features', Balance 'VDM Detail Sifter', Border
+// 'VDM Repair Surface', Brightness 'Bias/Gain', Fractal 'VDM Noise', Integer 'Select by ID', Mesh 'VDM to HF+Cliff',
+// Sphere 'VDM Primitive').
+const ENUM_TYPES = [
+  'Add Noise',
+  'Adjust Color',
+  'Adjust Curve',
+  'Advanced Perlin',
+  'Ambient Occlusion',
+  'Anisotropy',
+  'Automation Variable',
+  'Bake Lighting',
+  'Balance',
+  'Basic Noise',
+  'Bitmap Output',
+  'Blur',
+  'Border',
+  'Brightness',
+  'Channel Combiner',
+  'Channel Splitter',
+  'Checkpoint',
+  'Chooser',
+  'Cnoidal Curve',
+  'Coast Erosion',
+  'Code',
+  'Color',
+  'Colorizer',
+  'Combiner',
+  'Compare maps',
+  'Composite Type',
+  'Constant',
+  'Construct Range',
+  'Control Device',
+  'Coordinate Generator',
+  'Create Normals',
+  'Create Water',
+  'Crop & Transform',
+  'Crystallize',
+  'Curve Chooser',
+  'Curve Combiner',
+  'Curves',
+  'Dissolve',
+  'Distortion Generator',
+  'Equalizer',
+  'Erosion',
+  'Expander',
+  'File Input',
+  'Flipper',
+  'Flow Restructure',
+  'Fractal',
+  'Gamma',
+  'Gradient',
+  'Height Output',
+  'Height Slices',
+  'Instance Scattering',
+  'Instance Tiling',
+  'Integer',
+  'Integer Equals',
+  'Integer Generator',
+  'Inverter',
+  'Invert Parameter',
+  'Layers',
+  'Levels',
+  'Library Input',
+  'Library Output',
+  'Macro',
+  'Manipulate Spatial',
+  'Masked View',
+  'Material',
+  'Material Output',
+  'Mesh',
+  'Meshify',
+  'Mesh Output',
+  'Mimic',
+  'Multi Chooser',
+  'Normal Combiner',
+  'Overlay View',
+  'Parameter Arithmetic',
+  'Perlin Curve',
+  'Pull-up',
+  'Radial Grad',
+  'Ramp',
+  'Reach Scaling',
+  'Report Color',
+  'Report Extents',
+  'Report Height',
+  'Report Placement',
+  'Report Presence',
+  'Rescale',
+  'River',
+  'Route Chooser',
+  'Router',
+  'Scalar Clamp',
+  'Scalar Combiner',
+  'Scalar Generator',
+  'Scene Object',
+  'Scene Output',
+  'Scene View',
+  'Select Aspect',
+  'Select Color',
+  'Select Convexity',
+  'Select Height',
+  'Select Roughness',
+  'Select Slope',
+  'Select Wetness',
+  'Shapes',
+  'Simple Displacement',
+  'Simple Transform',
+  'Sinusoidal Curve',
+  'Snow',
+  'Sphere',
+  'Strata',
+  'Switch',
+  'Tap',
+  'Terrace',
+  'Text Output',
+  'Texture Weightmap',
+  'Thermal Weathering',
+  'Tiled File Input',
+  'Tint',
+  'Type Filter',
+  'Voronoi',
+];
+
+const ENUM_RANGE = /^Error: Error: Enum index out of range \(0-(\d+)\): 9999$/;
+
+async function enumOptions(sections) {
+  const listed = await run(['project new default force', 'device list']);
+  sections.push(...listed);
+  const known = new Set(devices(listed[1].lines).map((device) => device.id));
+  const outcomes = [];
+  for (const type of ENUM_TYPES) {
+    let id;
+    try {
+      const added = await run([`device add ${type}`, 'device list']);
+      sections.push(...added);
+      // The new device is the one the list after the add shows for the first time.
+      const fresh = devices(added[1].lines).filter((device) => !known.has(device.id));
+      for (const device of fresh) known.add(device.id);
+      if (fresh[0] === undefined) {
+        outcomes.push(`${type}: no new device in the list`);
+        continue;
+      }
+      id = fresh[0].id;
+      const read = await run([`device info #${id}`, `param list #${id}`]);
+      sections.push(...read);
+      const enums = params(read[1].lines).filter((param) => param.type === 'enum');
+      const counts = [];
+      for (const { name } of enums) {
+        const probe = await run([`param get #${id}.${name}`, `param set "#${id}.${name}" 9999`]);
+        sections.push(...probe);
+        const max = probe[1].lines.map((line) => ENUM_RANGE.exec(line)).find(Boolean)?.[1];
+        if (max === undefined) {
+          counts.push(`${name}: no range error`);
+          continue;
+        }
+        const last = Number(max);
+        sections.push(
+          ...(await run(
+            Array.from({ length: last + 1 }, (_, index) => [
+              `param set "#${id}.${name}" ${index}`,
+              `param get #${id}.${name}`,
+            ]).flat(),
+          )),
+        );
+        counts.push(`${name}: ${last + 1}`);
+      }
+      outcomes.push(`${type}: ${enums.length} enum(s)${counts.length > 0 ? ` (${counts.join(', ')})` : ''}`);
+    } catch (error) {
+      sections.push({ command: `(type ${type} stopped)`, lines: [scrub(error.message)] });
+      outcomes.push(`${type}: stopped`);
+    }
+    if (id !== undefined) {
+      try {
+        sections.push(...(await run([`device delete #${id}`])));
+      } catch (error) {
+        sections.push({ command: `(delete #${id} failed)`, lines: [scrub(error.message)] });
+      }
+    }
+  }
+  sections.push({ command: '(summary)', lines: outcomes });
   sections.push(...(await run(['project close force'])));
 }
 
