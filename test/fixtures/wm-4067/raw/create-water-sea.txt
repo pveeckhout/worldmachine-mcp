@@ -1,0 +1,515 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 513
+Set scene resolution to 513
+<<<
+>>> device delete #1
+Deleted: #1
+<<<
+>>> device delete #308
+Deleted: #308
+<<<
+>>> device delete #309
+Deleted: #309
+<<<
+>>> device delete #318
+Deleted: #318
+<<<
+>>> device add Create Water
+Added 'Create Water'
+<<<
+>>> device list
+Devices (14 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Create Water            
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (15 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Create Water            
+  #537   Height Output           
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (16 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Create Water            
+  #537   Height Output           
+  #538   Height Output           
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (17 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Create Water            
+  #537   Height Output           
+  #538   Height Output           
+  #539   Height Output           
+
+<<<
+>>> wire connect #305.1 #536.1
+Connected '#305' [1] -> '#536' [1]
+<<<
+>>> wire connect #536.1 #537
+Connected '#536' [1] -> '#537' [1]
+<<<
+>>> wire connect #536.3 #538
+Connected '#536' [3] -> '#538' [1]
+<<<
+>>> wire connect #536.4 #539
+Connected '#536' [4] -> '#539' [1]
+<<<
+>>> project save <WORK>/create-water-sea.tmd
+Project saved to: <WORK>/create-water-sea.tmd
+<<<
+>>> param set #537.filename <WORK>/sea-baseline-1.png
+Set #537.filename = <WORK>/sea-baseline-1.png
+<<<
+>>> param set #538.filename <WORK>/sea-baseline-2.png
+Set #538.filename = <WORK>/sea-baseline-2.png
+<<<
+>>> param set #539.filename <WORK>/sea-baseline-3.png
+Set #539.filename = <WORK>/sea-baseline-3.png
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Terrain      <- 'Thermal Weathering' [1]
+    [2] Existing Water <- (none)
+    [3] Precipitation Map <- (none)
+  Outputs:
+    [1] Terrain      -> 'Height Output' [1]
+    [2] Water System -> (none)
+    [3] Tributary Mask -> 'Height Output' [1]
+    [4] Lake Mask    -> 'Height Output' [1]
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+[Info       ] QIODevice::read (QSslSocket): device not open
+No build running.
+<<<
+>>> export all
+Build started.
+Successfully exported 3 file(s):
+  <WORK>/sea-baseline-1.png
+  <WORK>/sea-baseline-2.png
+  <WORK>/sea-baseline-3.png
+
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (18 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Create Water            
+  #537   Height Output           
+  #538   Height Output           
+  #539   Height Output           
+  #540   Gradient                
+
+<<<
+>>> wire connect #540 #536.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> device add Select Height
+Added 'Select Height'
+<<<
+>>> device list
+Devices (19 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Create Water            
+  #537   Height Output           
+  #538   Height Output           
+  #539   Height Output           
+  #540   Gradient                
+  #541   Select Height           
+
+<<<
+>>> param list #541
+Parameters for 'Select Height' (Select Height):
+  Minimum                   float     0.0
+  Maximum                   float     0.5
+  Falloff                   float     0.3
+  Falloff type              enum      Smoothstep
+  Invert Selection          bool      false
+
+<<<
+>>> wire list #541
+Connections for '#541':
+  Inputs:
+    [1] Primary Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+
+<<<
+>>> wire connect #540 #541
+Connected '#540' [1] -> '#541' [1]
+<<<
+>>> wire connect #541 #536.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> device add Create Water
+Added 'Create Water'
+<<<
+>>> device list
+Devices (20 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Create Water            
+  #537   Height Output           
+  #538   Height Output           
+  #539   Height Output           
+  #540   Gradient                
+  #541   Select Height           
+  #542   Create Water            
+
+<<<
+>>> wire connect #314.1 #542.1
+Connected '#314' [1] -> '#542' [1]
+<<<
+>>> wire connect #542.2 #536.2
+Connected '#542' [2] -> '#536' [2]
+<<<
+>>> param set #537.filename <WORK>/sea-water-system-1.png
+Set #537.filename = <WORK>/sea-water-system-1.png
+<<<
+>>> param set #538.filename <WORK>/sea-water-system-2.png
+Set #538.filename = <WORK>/sea-water-system-2.png
+<<<
+>>> param set #539.filename <WORK>/sea-water-system-3.png
+Set #539.filename = <WORK>/sea-water-system-3.png
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Terrain      <- 'Thermal Weathering' [1]
+    [2] Existing Water <- 'Create Water' [2]
+    [3] Precipitation Map <- (none)
+  Outputs:
+    [1] Terrain      -> 'Height Output' [1]
+    [2] Water System -> (none)
+    [3] Tributary Mask -> 'Height Output' [1]
+    [4] Lake Mask    -> 'Height Output' [1]
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (waited 2000 ms)
+Build started.
+Build started.
+[Warning    ] provideNewBuildResults() called but no matching world found in history!
+<<<
+>>> wire disconnect #542.2 #536.2
+Disconnected '#542' [2] -> '#536' [2]
+<<<
+>>> wire disconnect #536.1 #537
+Disconnected '#536' [1] -> '#537' [1]
+<<<
+>>> wire connect #35.1 #537
+Connected '#35' [1] -> '#537' [1]
+<<<
+>>> wire disconnect #536.3 #538
+Disconnected '#536' [3] -> '#538' [1]
+<<<
+>>> wire connect #35.2 #538
+Connected '#35' [2] -> '#538' [1]
+<<<
+>>> wire disconnect #536.4 #539
+Disconnected '#536' [4] -> '#539' [1]
+<<<
+>>> wire connect #35.3 #539
+Connected '#35' [3] -> '#539' [1]
+<<<
+>>> param list #35
+Parameters for 'Erosion' (Erosion):
+  Amount                    float     60.0
+  featureScale              float     400 m
+  groupBasic                other     
+  Hardness                  float     0.47
+  Capacity                  float     0.56
+  soil0                     float     14 m
+  soilScour                 float     0.1
+  groupAdv                  other     
+  soilDiffuse               float     0.7
+  massB                     float     0.0
+  wallAng                   float     74.0°
+  rockCrystal               float     0.75
+  Uplift                    float     0 m
+  waterMasking              float     16.0
+  groupMask                 other     
+  maskStr                   float     1.0
+  Structure                 float     0.429
+  soilMask                  enum      Presence Mask
+  maskSoil                  bool      true
+  compatibility             bool      false
+
+<<<
+>>> wire list #35
+Connections for '#35':
+  Inputs:
+    [1] Primary Input <- 'Flow Restructure' [1]
+    [2] Water input  <- (none)
+    [3] Bedrock Structure Value <- (none)
+  Outputs:
+    [1] Primary Output -> 'Thermal Weathering' [1]
+                          -> 'Height Output' [1]
+    [2] Flow Mask    -> 'Vegetation Layer' [2]
+                     -> 'Vegetation Layer' [2]
+                     -> 'Height Output' [1]
+    [3] Wear Mask    -> 'Rock and Soil' [5]
+                     -> 'Height Output' [1]
+    [4] Deposition Mask -> 'Rock and Soil' [6]
+    [5] Soil Mask    -> 'Rock and Soil' [2]
+
+<<<
+>>> param set #537.filename <WORK>/erosion-control-1.png
+Set #537.filename = <WORK>/erosion-control-1.png
+<<<
+>>> param set #538.filename <WORK>/erosion-control-2.png
+Set #538.filename = <WORK>/erosion-control-2.png
+<<<
+>>> param set #539.filename <WORK>/erosion-control-3.png
+Set #539.filename = <WORK>/erosion-control-3.png
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Terrain      <- 'Thermal Weathering' [1]
+    [2] Existing Water <- (none)
+    [3] Precipitation Map <- (none)
+  Outputs:
+    [1] Terrain      -> (none)
+    [2] Water System -> (none)
+    [3] Tributary Mask -> (none)
+    [4] Lake Mask    -> (none)
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Build started.
+Successfully exported 3 file(s):
+  <WORK>/erosion-control-1.png
+  <WORK>/erosion-control-2.png
+  <WORK>/erosion-control-3.png
+
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> wire connect #542.2 #35.2
+Connected '#542' [2] -> '#35' [2]
+<<<
+>>> wire list #35
+Connections for '#35':
+  Inputs:
+    [1] Primary Input <- 'Flow Restructure' [1]
+    [2] Water input  <- 'Create Water' [2]
+    [3] Bedrock Structure Value <- (none)
+  Outputs:
+    [1] Primary Output -> 'Thermal Weathering' [1]
+                          -> 'Height Output' [1]
+    [2] Flow Mask    -> 'Vegetation Layer' [2]
+                     -> 'Vegetation Layer' [2]
+                     -> 'Height Output' [1]
+    [3] Wear Mask    -> 'Rock and Soil' [5]
+                     -> 'Height Output' [1]
+    [4] Deposition Mask -> 'Rock and Soil' [6]
+    [5] Soil Mask    -> 'Rock and Soil' [2]
+
+<<<
+>>> param set #537.filename <WORK>/erosion-water-system-1.png
+Set #537.filename = <WORK>/erosion-water-system-1.png
+<<<
+>>> param set #538.filename <WORK>/erosion-water-system-2.png
+Set #538.filename = <WORK>/erosion-water-system-2.png
+<<<
+>>> param set #539.filename <WORK>/erosion-water-system-3.png
+Set #539.filename = <WORK>/erosion-water-system-3.png
+<<<
+>>> wire list #536
+Connections for '#536':
+  Inputs:
+    [1] Terrain      <- 'Thermal Weathering' [1]
+    [2] Existing Water <- (none)
+    [3] Precipitation Map <- (none)
+  Outputs:
+    [1] Terrain      -> (none)
+    [2] Water System -> (none)
+    [3] Tributary Mask -> (none)
+    [4] Lake Mask    -> (none)
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (waited 2000 ms)
+Build started.
+Build started.
+[Warning    ] provideNewBuildResults() called but no matching world found in history!
+<<<

@@ -739,6 +739,104 @@ const scenarios = [
       return sections;
     },
   ],
+  // Part 1: which sea mask Create Water's Existing Water takes (a Gradient, Select Height on it, or another Create
+  // Water's Water System), each exported against a baseline. Part 2: a Create Water on Flow Restructure #314 (upstream
+  // of Erosion, so no loop) feeds its Water System into Erosion #35's Water input; Erosion's height, Flow Mask, and Wear
+  // Mask are exported without and with it.
+  [
+    'create-water-sea',
+    async () => {
+      const sections = await run([
+        'project new default force',
+        'scene resolution 513',
+        'device delete #1',
+        'device delete #308',
+        'device delete #309',
+        'device delete #318',
+      ]);
+      const water = await freshDevice(sections, 'Create Water');
+      const outputs = [
+        await freshDevice(sections, 'File Output'),
+        await freshDevice(sections, 'File Output'),
+        await freshDevice(sections, 'File Output'),
+      ];
+      const step = async (label, edits) => {
+        sections.push(
+          ...(await run([
+            ...edits,
+            ...outputs.map(
+              (output, i) => `param set #${output.id}.filename ${join(work, `${label}-${i + 1}.png`)}`,
+            ),
+            `wire list #${water.id}`,
+            'build start',
+          ])),
+        );
+        await pollBuild(sections);
+        let [exported] = await run(['export all']);
+        sections.push(exported);
+        // raw/river-upgraded-visual.txt l.51-55: a build can report its start after the export that found it unbuilt.
+        if (exported.lines.some((line) => line.includes('not built'))) {
+          sections.push(...(await run(['build start'])));
+          await pollBuild(sections);
+          [exported] = await run(['export all']);
+          sections.push(exported);
+        }
+        sections.push(await wait(2000));
+      };
+      const connects = async (wire) => {
+        const [connect] = await run([`wire connect ${wire}`]);
+        sections.push(connect);
+        return !connect.lines.some((line) => line.startsWith('Error'));
+      };
+      // Outputs 1-3: Terrain, Tributary Mask, Lake Mask (raw/create-water.txt).
+      sections.push(
+        ...(await run([
+          `wire connect #305.1 #${water.id}.1`,
+          `wire connect #${water.id}.1 #${outputs[0].id}`,
+          `wire connect #${water.id}.3 #${outputs[1].id}`,
+          `wire connect #${water.id}.4 #${outputs[2].id}`,
+          `project save ${join(work, 'create-water-sea.tmd')}`,
+        ])),
+      );
+      await step('sea-baseline', []);
+      const sea = await freshDevice(sections, 'Gradient');
+      if (await connects(`#${sea.id} #${water.id}.2`)) {
+        await step('sea-gradient', []);
+        sections.push(...(await run([`wire disconnect #${sea.id} #${water.id}.2`])));
+      }
+      const strip = await freshDevice(sections, 'Select Height');
+      sections.push(...(await run([`param list #${strip.id}`, `wire list #${strip.id}`])));
+      if ((await connects(`#${sea.id} #${strip.id}`)) && (await connects(`#${strip.id} #${water.id}.2`))) {
+        await step('sea-select-height', []);
+        sections.push(...(await run([`wire disconnect #${strip.id} #${water.id}.2`])));
+      }
+      const upstream = await freshDevice(sections, 'Create Water');
+      if (
+        (await connects(`#314.1 #${upstream.id}.1`)) &&
+        (await connects(`#${upstream.id}.2 #${water.id}.2`))
+      ) {
+        await step('sea-water-system', []);
+        sections.push(...(await run([`wire disconnect #${upstream.id}.2 #${water.id}.2`])));
+      }
+      // Part 2. The File Outputs move to Erosion's Primary Output, Flow Mask, and Wear Mask.
+      sections.push(
+        ...(await run([
+          ...outputs.flatMap((output, i) => [
+            `wire disconnect #${water.id}.${[1, 3, 4][i]} #${output.id}`,
+            `wire connect #35.${i + 1} #${output.id}`,
+          ]),
+          'param list #35',
+          'wire list #35',
+        ])),
+      );
+      await step('erosion-control', []);
+      if (await connects(`#${upstream.id}.2 #35.2`)) {
+        await step('erosion-water-system', ['wire list #35']);
+      }
+      console.log(`create-water-sea images and project: ${work}`);
+      return sections;
+    },
+  ],
   [
     'v5-read-formats',
     () =>
