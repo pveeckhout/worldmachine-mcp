@@ -41,11 +41,13 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
   const writer = new WorldMachineProjectWriter(session);
   const scene = new WorldMachineSceneEditor(session);
   const plan = new PlanGraphService(session, reader);
+  const devices = new WorldMachineDeviceEditor(session);
+  const wires = new WorldMachineWireEditor(session);
   const apply = new ApplyGraphService(
     session,
     reader,
-    new WorldMachineDeviceEditor(session),
-    new WorldMachineWireEditor(session),
+    devices,
+    wires,
     new WorldMachineParameterEditor(session),
     new WorldMachineSnapshotEditor(session),
   );
@@ -132,4 +134,28 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
     expect(failure?.details).toMatchObject({ rolledBack: true, completedSteps: 1 });
     expect(await reader.listDevices()).toEqual(before);
   }, 120_000);
+
+  // Revision 6. The project holds 'Ramp B' and a 'Combiner' fed by it from the tests above, so three Combiners exist.
+  it('binds two Combiners by id, converges, and disconnects a Combiner wire while others exist', async () => {
+    const first = (await devices.addDevice('Combiner')).id;
+    const second = (await devices.addDevice('Combiner')).id;
+    const spec: RawGraphSpec = {
+      version: 1,
+      devices: [
+        { name: 'Ramp B', type: 'Gradient' },
+        { name: 'first mix', id: first, type: 'Combiner', inputs: { '1': 'Ramp B' } },
+        { name: 'second mix', id: second, type: 'Combiner', inputs: { '1': 'first mix' } },
+      ],
+    };
+    await planAndApply(spec);
+    const again = await plan.planGraph({ spec });
+    expect(again.conflicts).toEqual([]);
+    expect(again.steps.filter((step) => step.op !== 'set-parameter' || step.comparable)).toEqual([]);
+    // Fact 82's assumption: a Combiner lists its output targets as other devices do.
+    expect((await reader.getDevice(`#${first}`)).outputs).toEqual([
+      expect.objectContaining({ port: 1, targets: [{ device: 'Combiner', port: 1 }] }),
+    ]);
+    expect((await wires.disconnect({ device: `#${first}` }, { device: `#${second}` })).removed).toBe(true);
+    expect((await reader.getDevice(`#${second}`)).inputs[0]?.source).toBeUndefined();
+  }, 180_000);
 });
