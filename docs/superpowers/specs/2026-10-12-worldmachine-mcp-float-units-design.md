@@ -31,7 +31,7 @@ Out of scope: units in graph specs (`plan_graph`, `apply_graph`; `plan_graph` is
 - A unit is accepted only on a `float` whose current value in `param list` ends in ` m` or ` km` (or `m`/`km` directly after the number). Otherwise the item is a validation problem and the whole call is refused before anything is sent, as today:
   - a unit on a float whose value shows no `m` or `km` (`1.0`, `30.0°`, `0.0km2`): `a unit is accepted only on a float that shows m or km`;
   - a unit on another type: that type's existing problem text;
-  - a length whose metres are not a finite JavaScript number, or are not zero while the length given is not zero (a decimal of more than about 308 digits, or below about 1e-300 m): `the length is out of range`;
+  - a length whose metres are not a finite JavaScript number, or are zero while the length given is not zero (a decimal of more than about 308 digits, or below about 1e-300 m): `the length is out of range`;
   - any other unit (`ft`, `%`, `km2`): `expected a plain decimal number in World Machine's internal units, or a length in m or km such as "500 m"`.
 
 ## 4. Apply
