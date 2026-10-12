@@ -247,7 +247,9 @@ export const updateDeviceParametersInputSchema = z.object({
   device: deviceReferenceSchema,
   parameters: z
     .record(z.string().min(1), z.union([z.string(), z.number(), z.boolean()]))
-    .describe('Parameter name, exactly as get_device lists it, to the new value'),
+    .describe(
+      'Parameter name, exactly as get_device lists it, to the new value: an internal value, or, for a float that shows m or km, a length in m or km such as 500 m',
+    ),
 });
 
 export const wireInputSchema = z.object({

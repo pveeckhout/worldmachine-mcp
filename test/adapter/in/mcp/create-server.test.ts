@@ -1055,6 +1055,22 @@ describe('createMcpServer edit tools', () => {
     expect(description).toContain('undo');
   });
 
+  it.each([
+    'also takes a length such as "500 m"',
+    'setting the parameter to 1 and undoing that set',
+    "World Machine's display rounding",
+    'A plain number is always an internal value',
+  ])('describes lengths in update_device_parameters: %s', async (text) => {
+    const { tools } = await (await connect(deps())).listTools();
+    expect(tools.find((tool) => tool.name === 'update_device_parameters')?.description ?? '').toContain(text);
+  });
+
+  it('describes lengths in the update_device_parameters input schema', async () => {
+    const { tools } = await (await connect(deps())).listTools();
+    const tool = tools.find((candidate) => candidate.name === 'update_device_parameters');
+    expect(JSON.stringify(tool?.inputSchema)).toContain('a length in m or km such as 500 m');
+  });
+
   it('maps snake_case arguments to command objects', async () => {
     const seen: unknown[] = [];
     const record =
