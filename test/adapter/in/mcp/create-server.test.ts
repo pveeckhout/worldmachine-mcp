@@ -309,6 +309,33 @@ describe('createMcpServer', () => {
     expect(description).toContain('bypassed is set, not toggled');
   });
 
+  it('accepts id in a graph spec device and describes ids and shared wire sources (revision 6)', async () => {
+    const specs: unknown[] = [];
+    const client = await connect(
+      deps({
+        planGraph: {
+          planGraph: async (query) => {
+            specs.push(query.spec);
+            return { planId: PLAN_ID, conflicts: [], steps: [], unchanged: [], session: READY };
+          },
+        },
+      }),
+    );
+    const spec = { version: 1, devices: [{ name: 'hills mix', id: 536, type: 'Combiner' }] };
+    const result = await client.callTool({ name: 'plan_graph', arguments: { spec } });
+    expect(result.isError).toBeFalsy();
+    expect(specs).toEqual([spec]);
+    const { tools } = await client.listTools();
+    const description = (name: string) => tools.find((tool) => tool.name === name)?.description ?? '';
+    expect(description('plan_graph')).toContain('{ name, id?, type, enabled?, bypassed?');
+    expect(description('plan_graph')).toContain('add_device and give its id');
+    expect(description('apply_graph')).toContain('never added or renamed');
+    for (const name of ['connect_devices', 'disconnect_devices']) {
+      expect(description(name)).toContain('naming their ids');
+      expect(description(name)).not.toContain('rename');
+    }
+  });
+
   it('passes plan_id and keep_snapshot to apply_graph, keep_snapshot false by default', async () => {
     const commands: unknown[] = [];
     const client = await connect(

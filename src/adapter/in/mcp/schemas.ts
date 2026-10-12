@@ -489,7 +489,13 @@ const graphDeviceSchema = z.strictObject({
   name: z
     .string()
     .describe(
-      'The managed device; its name is its identity, compared regardless of case, at most 23 characters',
+      'Without id, the managed device: its name is its identity, compared regardless of case. With id, a label that inputs refer to. At most 23 characters',
+    ),
+  id: z
+    .number()
+    .optional()
+    .describe(
+      'The id (from list_devices, add_device, or an apply diff, without the #) of an existing device this entry manages whatever its name; such an entry is never added or renamed',
     ),
   type: z.string().describe('The exact World Machine device type, as add_device takes it'),
   enabled: z.boolean().optional(),
