@@ -909,6 +909,110 @@ const scenarios = [
       return sections;
     },
   ],
+  // Part 1: a Create Water on Curves #3 (upstream of Erosion, so no loop) feeds its Water System into Erosion #35's
+  // Water input; exports Erosion's height and Flow Mask and that Create Water's tributaries, without and with it.
+  // Part 2: a basin (a Radial Grad subtracted from the terrain by a Combiner) filled by a first Create Water as a lake,
+  // whose Water System is a second one's Existing Water with Drain to set to Existing water only. Each part has its
+  // own File Outputs, deleted after it, since export all fails on any unbuilt output.
+  [
+    'water-sea-erosion',
+    async () => {
+      const sections = await run([
+        'project new default force',
+        'scene resolution 513',
+        'device delete #1',
+        'device delete #308',
+        'device delete #309',
+        'device delete #318',
+      ]);
+      const step = async (label, outputs, edits) => {
+        sections.push(
+          ...(await run([
+            ...edits,
+            ...outputs.map(
+              (output, i) => `param set #${output.id}.filename ${join(work, `${label}-${i + 1}.png`)}`,
+            ),
+            'build start',
+          ])),
+        );
+        await pollBuild(sections);
+        let [exported] = await run(['export all']);
+        sections.push(exported);
+        // raw/river-upgraded-visual.txt l.51-55: a build can report its start after the export that found it unbuilt.
+        if (exported.lines.some((line) => line.includes('not built'))) {
+          sections.push(...(await run(['build start'])));
+          await pollBuild(sections);
+          [exported] = await run(['export all']);
+          sections.push(exported);
+        }
+        sections.push(await wait(2000));
+      };
+      const fileOutputs = async (count) => {
+        const created = [];
+        for (let i = 0; i < count; i++) created.push(await freshDevice(sections, 'File Output'));
+        return created;
+      };
+
+      const source = await freshDevice(sections, 'Create Water');
+      const part1 = await fileOutputs(3);
+      sections.push(
+        ...(await run([
+          `wire connect #3.1 #${source.id}.1`,
+          `wire connect #35.1 #${part1[0].id}`,
+          `wire connect #35.2 #${part1[1].id}`,
+          `wire connect #${source.id}.3 #${part1[2].id}`,
+        ])),
+      );
+      await step('erosion-control', part1, []);
+      await step('erosion-water', part1, [`wire connect #${source.id}.2 #35.2`, 'wire list #35']);
+      sections.push(
+        ...(await run([
+          ...part1.map((output) => `device delete #${output.id}`),
+          `device delete #${source.id}`,
+        ])),
+      );
+
+      const bowl = await freshDevice(sections, 'Radial Grad');
+      const basin = await freshDevice(sections, 'Combiner');
+      sections.push(
+        ...(await run([`param list #${bowl.id}`, `wire list #${basin.id}`, `param list #${basin.id}`])),
+      );
+      for (const label of ['Subtract', 'Minus', 'Difference']) {
+        const [set] = await run([`param set #${basin.id}.Method ${label}`]);
+        sections.push(set);
+        if (!set.lines.some((line) => line.startsWith('Error'))) break;
+      }
+      const sea = await freshDevice(sections, 'Create Water');
+      const part2 = await fileOutputs(2);
+      sections.push(
+        ...(await run([
+          `param get #${basin.id}.Method`,
+          `wire connect #305.1 #${basin.id}.1`,
+          `wire connect #${bowl.id} #${basin.id}.2`,
+          `wire connect #${basin.id} #${sea.id}.1`,
+          `wire connect #${sea.id}.4 #${part2[0].id}`,
+          `wire connect #${sea.id}.3 #${part2[1].id}`,
+        ])),
+      );
+      await step('sea-lake', part2, []);
+      const rivers = await freshDevice(sections, 'Create Water');
+      const [riverOut] = await fileOutputs(1);
+      await step(
+        'sea-rivers',
+        [...part2, riverOut],
+        [
+          `wire connect #${basin.id} #${rivers.id}.1`,
+          `wire connect #${sea.id}.2 #${rivers.id}.2`,
+          `param set "#${rivers.id}.Drain to:" 1`,
+          `param get #${rivers.id}.Drain to:`,
+          `wire connect #${rivers.id}.3 #${riverOut.id}`,
+          `wire list #${rivers.id}`,
+        ],
+      );
+      console.log(`water-sea-erosion images: ${work}`);
+      return sections;
+    },
+  ],
   [
     'v5-read-formats',
     () =>
