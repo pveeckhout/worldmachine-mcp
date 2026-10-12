@@ -3,11 +3,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { FsPathPolicy } from '../../src/adapter/out/fs/path-policy.js';
+import { ENUM_CATALOG } from '../../src/adapter/out/worldmachine/enum-options.js';
 import { parseParamList } from '../../src/adapter/out/worldmachine/parsers/param-list.js';
 import { WorldMachineGraphReader } from '../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
 import { WorldMachineParameterEditor } from '../../src/adapter/out/worldmachine/world-machine-parameter-editor.js';
 import { WorldMachineProcess } from '../../src/adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineSession } from '../../src/adapter/out/worldmachine/world-machine-session.js';
+import { rawFrame } from '../adapter/out/worldmachine/parsers/fixture.js';
 import { captureLogger, FAKE_WM, fakeEnv, waitUntil } from '../support/fake-wm.js';
 
 const sessions: WorldMachineSession[] = [];
@@ -1239,6 +1241,54 @@ describe('fake World Machine: a device without parameters (v1 fact 10)', () => {
       code: 'REFUSED',
       message: "Nothing was set on #1 'Inverter': 'Strength': no such parameter. It has no parameters",
     });
+  });
+});
+
+describe('fake World Machine: enum options and parameters of added devices (raw/enum-options.txt)', () => {
+  /** The label each index of `reference` reads back as: one quoted set and one get per index, as the capture does. */
+  async function labels(s: WorldMachineSession, reference: string, count: number) {
+    const commands = Array.from({ length: count }, (_, index) => [
+      `param set "${reference}" ${index}`,
+      `param get ${reference}`,
+    ]).flat();
+    const replies = await outputs(s, commands);
+    return replies
+      .filter((_, index) => index % 2 === 1)
+      .map(([line]) => line?.slice(`${reference} = `.length));
+  }
+
+  /** A blank project holding one device of `type`, as #1. */
+  async function one(type: string) {
+    const s = session();
+    await s.execute(['project new blank force', `device add ${type}`]);
+    return s;
+  }
+
+  it('serves the three options the catalog lists for Gradient Tiling (l.3520-3532)', async () => {
+    expect(await labels(await one('Gradient'), '#1.Tiling', 3)).toEqual(ENUM_CATALOG.types.Gradient?.Tiling);
+  });
+
+  it('serves the eleven options the catalog lists for Combiner Method (l.1572-1632)', async () => {
+    expect(await labels(await one('Combiner'), '#1.Method', 11)).toEqual(ENUM_CATALOG.types.Combiner?.Method);
+  });
+
+  it('refuses Combiner Method index 11 with the range 0-10 (l.1566)', async () => {
+    expect(await outputs(await one('Combiner'), ['param set "#1.Method" 11'])).toEqual([
+      ['Error: Error: Enum index out of range (0-10): 11'],
+    ]);
+  });
+
+  it('serves the two options the catalog lists for River Planform Type', async () => {
+    expect(await labels(await one('River'), '#1.Planform Type', 2)).toEqual(
+      ENUM_CATALOG.types.River?.['Planform Type'],
+    );
+  });
+
+  it("lists a new Erosion's parameters as raw/enum-options.txt l.2737-2754 shows", async () => {
+    const [listed] = await (await one('Erosion')).execute(['param list #1']);
+    expect(parseParamList(listed?.output ?? [])).toEqual(
+      parseParamList(rawFrame('enum-options.txt', 'param list #576')),
+    );
   });
 });
 

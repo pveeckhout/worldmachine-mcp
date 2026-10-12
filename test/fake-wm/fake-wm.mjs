@@ -290,22 +290,42 @@ const DEFAULT_NAMES = {
 };
 // Ports and parameters of added devices (plan v3 decision D19). raw/p2a-edge-cases.txt l.38-42 and l.59-63: a
 // Gradient has no inputs, one output, and Direction, Width, and Tiling. raw/p2b-graph-edits.txt l.25-31: a Combiner
-// has two inputs named 'Primary Input' and one output. Assumed: the Combiner's parameters (not captured), and for
-// every other type one input named 'Primary Input' and no parameters. Every device has one output.
+// has two inputs named 'Primary Input' and one output. raw/enum-options.txt l.1557-1559: a new Combiner lists Method
+// and Strength. Assumed: the Combiner's Clamp, which that capture does not show, and for every other type one input
+// named 'Primary Input' and no parameters. Every device has one output. Enum options follow raw/enum-options.txt
+// (fact 85), the capture the shipped catalog is generated from.
 const SHAPES = {
   Gradient: {
     inputs: [],
     parameters: [
       ['Direction', 'int', '0'],
       ['Width', 'float', '8 km'],
-      // raw/p2c-edits.txt: index 1 reads `Mirrored Repeat`, the range is 0-2. Assumed: the third option's label.
-      ['Tiling', 'enum', 'Clamp', ['Clamp', 'Mirrored Repeat', 'Repeat']],
+      // raw/enum-options.txt l.3520-3532: the three options in index order (raw/p2c-edits.txt: the range is 0-2).
+      ['Tiling', 'enum', 'Clamp', ['Clamp', 'Mirrored Repeat', 'Discontinuous Repeat']],
     ],
   },
   Combiner: {
     inputs: ['Primary Input', 'Primary Input'],
     parameters: [
-      ['Method', 'enum', 'Average', ['Average', 'Add', 'Subtract']],
+      // raw/enum-options.txt l.1572-1632: eleven options, range 0-10 (l.1566).
+      [
+        'Method',
+        'enum',
+        'Average',
+        [
+          'Average',
+          'Add',
+          'Subtract',
+          'Multiply',
+          'Max',
+          'Min',
+          'Power',
+          'Root',
+          'Detail',
+          'Differences',
+          'Screen',
+        ],
+      ],
       ['Strength', 'float', '0.5'],
       ['Clamp', 'bool', 'true'],
     ],
@@ -319,6 +339,30 @@ const SHAPES = {
       ['Planform Type', 'enum', 'Simple Alignment', ['Simple Alignment', 'Layout Alignment']],
       ['Layout Alignment Uses Datum', 'bool', 'false'],
       ['Bankfull Width', 'float', '10 m'],
+    ],
+  },
+  // raw/enum-options.txt l.2737-2754: a new Erosion's seventeen parameters, none an enum (unlike the sample project's
+  // Erosion, fixtures/wm-4067/param-list-erosion.txt). Assumed: its inputs, one 'Primary Input' as for other types.
+  Erosion: {
+    inputs: ['Primary Input'],
+    parameters: [
+      ['Amount', 'int', '100'],
+      ['Hardness', 'float', '0.0'],
+      ['Capacity', 'float', '0.2'],
+      ['Filter Type', 'int', '0'],
+      ['Filter Strength', 'float', '0.15'],
+      ['Method', 'int', '0'],
+      ['Seed', 'int', '918'],
+      ['River Depth', 'float', '0.05'],
+      ['River Bias', 'float', '0.0'],
+      ['Multiscale Enable', 'bool', 'false'],
+      ['Multiscale Bias', 'float', '0.5'],
+      ['Multiscale Synthesis', 'int', '1'],
+      ['Scale Independence', 'bool', 'true'],
+      ['Preserve Edges', 'bool', 'true'],
+      ['Use Original Mask Style', 'bool', 'false'],
+      ['Use Active Masking', 'bool', 'true'],
+      ['Hardness Map Behavior', 'bool', 'false'],
     ],
   },
 };
