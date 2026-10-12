@@ -48,6 +48,7 @@ Then each unit item's internal value is `<metres given> / <scale in metres>`, wr
 
 Failures:
 
+- The probe `param set` is neither refused (`Error:`) nor confirmed (`Set <ref> = 1`, raw/float-scale-undo-same.txt l.55): the call fails with `UNEXPECTED_OUTPUT` before anything else is sent, saying that the parameter may be left at 1; check it with get_device and revert with undo. No undo is sent, since it could revert an earlier step. The project is marked unsaved.
 - The probe `param set` is refused, or the read at 1 is not a length in `m` or `km`, or it reads 0: that item's outcome is `rejected` with `worldMachineMessage` set to World Machine's error text, or to `could not read the scale of '<name>': it read '<value>' at 1`. When the probe set was refused, nothing more is sent for that item; when it was applied, its undo and the restore check still run. Other items continue.
 - `project undo` is not confirmed, or the read after it differs from the listed value: the call fails with `UNEXPECTED_OUTPUT` before today's batch runs, naming the parameter, the value expected, and the value read, and saying that the parameter may be left at 1; check it with get_device and revert with undo. Nothing else is set.
 - The project is marked unsaved once a probe set is applied, since undo may not restore World Machine's saved flag.
@@ -83,7 +84,8 @@ sequenceDiagram
 
 - Domain: section 3's grammar and refusals; conversion text (`500 m` at 8 km is `0.0625`, `656.25 m` at 2625 m is `0.25`, a negative length, 12 significant digits, no exponent).
 - Fake World Machine: unit floats display internal x scale, with 8 km per unit for horizontal parameters and a vertical scale of 3000 m in a blank project and 2625 m in the default one (facts 87 and 89); `project undo` reverts the last `param set` (fact 90). Every fake row and value is taken from the float-scale captures.
-- Adapter, through the fake: a unit item applied (given, scale, requested, value); a mix of unit and plain items; validation refusals; a probe set that World Machine refuses; a read at 1 that is not a length; an undo whose read-back differs (the call fails before today's batch).
+- Adapter, through the fake: a unit item applied (given, scale, requested, value); a mix of unit and plain items; validation refusals; a probe set that World Machine refuses.
+- Adapter, through a scripted session (no capture produces these, and the fake carries only captured behaviour): a probe set neither refused nor confirmed (no undo sent); a read at 1 that is not a length or reads 0; an undo not confirmed; a read after the undo that differs (the call fails before today's batch).
 - MCP: the output schema accepts `given` and `scale`; the description mentions lengths.
 - Live (`WM_LIVE=1`, after the user approves the run): in the default project, Gradient `Width` set to `"500 m"` reads `500 m`, Constant `Height` set to `"656.25 m"` reads `656.2 m`, and one `undo` per parameter restores each previous value.
 
