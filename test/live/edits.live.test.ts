@@ -103,6 +103,16 @@ describe.skipIf(!LIVE)('live World Machine graph edits', () => {
     expect(device).not.toHaveProperty('enumOptionsNote');
   }, 60_000);
 
+  it("lists no options for the default project's Flow Restructure, an older device version (enum-options design section 6)", async () => {
+    // raw/default-updated.txt l.463-470 (`fillquality`) against raw/enum-options.txt l.3152-3156 (`Operation`).
+    const device = await reader.getDevice('Flow Restructure');
+    expect(device.parameters.some((p) => p.type === 'enum')).toBe(true);
+    expect(device.parameters.filter((p) => p.options !== undefined)).toEqual([]);
+    expect(device.enumOptionsNote).toContain(
+      "enum options omitted: this 'Flow Restructure' has other parameters than a new 'Flow Restructure' (another device version)",
+    );
+  }, 60_000);
+
   it('renames to 23 characters and refuses 24 without sending', async () => {
     const name23 = 'ABCDEFGHIJKLMNOPQRSTUVW';
     const renamed = await devices.renameDevice(`#${grad}`, name23);
