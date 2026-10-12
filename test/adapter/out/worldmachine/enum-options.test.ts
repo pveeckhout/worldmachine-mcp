@@ -85,7 +85,7 @@ describe('attachEnumOptions (enum-options design section 4)', () => {
     });
   });
 
-  it('omits the options of a value the catalog does not list, as for a device at an older version', () => {
+  it('omits the options of a value the catalog does not list', () => {
     const read = device('Combiner', [enumRow('Method', 'Screen'), STRENGTH]);
     expect(attachEnumOptions(read, 4067, CATALOG)).toStrictEqual({
       ...read,

@@ -58,7 +58,7 @@ describe('parseParamList', () => {
     });
   });
 
-  it('reads a one-character name, not the name and its type as one (raw/enum-options.txt l.422-424)', () => {
+  it('reads a one-character name, not the name and its type as one (raw/enum-options.txt l.421-423)', () => {
     expect(
       parseParamList([
         "Parameters for 'VDM Features' (VDM Features):",
