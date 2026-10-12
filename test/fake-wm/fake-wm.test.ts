@@ -1021,6 +1021,95 @@ describe('fake World Machine: parameters and wires of added devices (spec v3 sec
       ["Error: Error: Could not restore snapshot 'S'"],
     ]);
   });
+
+  it('confirms a rename of a Combiner and keeps its name (raw/v3-rename-probe.txt l.51-74, spec fact 80)', async () => {
+    expect(
+      await outputs(session(), [
+        'project new blank force',
+        'device add Combiner',
+        'device add Gradient',
+        'device rename #1 Mix',
+        'device rename #2 Ramp',
+        'device list',
+      ]),
+    ).toEqual([
+      ['Created new blank project.'],
+      ["Added 'Combiner'"],
+      ["Added 'Gradient'"],
+      ["Renamed '#1' to 'Mix'"],
+      ["Renamed '#2' to 'Ramp'"],
+      [
+        'Devices (2 total):',
+        '  #1     Combiner                ',
+        '  #2     Ramp                     (Gradient)',
+      ],
+    ]);
+  });
+
+  it('adds a Combiner for an alias (raw/v3-rename-types.txt l.29-30 and l.558-559, spec fact 81)', async () => {
+    const s = session();
+    expect(
+      await outputs(s, [
+        'project new blank force',
+        'device add Average',
+        'device add Subtract',
+        'device list',
+      ]),
+    ).toEqual([
+      ['Created new blank project.'],
+      ["Added 'Combiner'"],
+      ["Added 'Combiner'"],
+      ['Devices (2 total):', '  #1     Combiner                ', '  #2     Combiner                '],
+    ]);
+    const reader = new WorldMachineGraphReader(s);
+    expect((await reader.getDevice('#1')).type).toBe('Combiner');
+    expect((await reader.getDevice('#1')).inputs).toHaveLength(2);
+  });
+
+  it('names same-named devices at both ends of a wire, further targets on continuation lines (spec fact 82)', async () => {
+    const s = session();
+    await s.execute([
+      'project new blank force',
+      'device add Gradient',
+      'device add Combiner',
+      'device add Combiner',
+      'device add Erosion',
+      'wire connect #1 #2',
+      'wire connect #2 #3',
+      'wire connect #2 #4',
+    ]);
+    // raw/water-sea-erosion.txt l.164-166 and l.481: target and source lines; raw/v3-assumptions.txt l.82-86: the
+    // continuation column.
+    expect(await outputs(s, ['wire list #2', 'wire list #3'])).toEqual([
+      [
+        "Connections for '#2':",
+        '  Inputs:',
+        "    [1] Primary Input <- 'Gradient' [1]",
+        '    [2] Primary Input <- (none)',
+        '  Outputs:',
+        "    [1] Primary Output -> 'Combiner' [1]",
+        "                          -> 'Erosion' [1]",
+      ],
+      [
+        "Connections for '#3':",
+        '  Inputs:',
+        "    [1] Primary Input <- 'Combiner' [1]",
+        '    [2] Primary Input <- (none)',
+        '  Outputs:',
+        '    [1] Primary Output -> (none)',
+      ],
+    ]);
+    expect((await new WorldMachineGraphReader(s).getDevice('#2')).outputs).toEqual([
+      {
+        port: 1,
+        name: 'Primary Output',
+        targets: [
+          { device: 'Combiner', port: 1 },
+          { device: 'Erosion', port: 1 },
+        ],
+      },
+    ]);
+  });
 });
 
 describe('fake World Machine: param set values on added devices (backlog item 49)', () => {

@@ -265,11 +265,28 @@ const switchTo = (next) => {
 // 'Gradient'; `device add Erosion` gives 'Erosion', raw/p2b-kind-markers.txt). Captured exception,
 // raw/v6b-param-set.txt l.13-14: `device add File Output` names the device 'Height Output'.
 // raw/v3-assumptions.txt l.435-472 (spec fact 79): Layout Generator is named and typed 'Shapes'.
-// raw/v3-rename-types.txt (spec fact 81): `device add Water` accepts the word and adds a Coast Erosion.
+// raw/v3-rename-types.txt (spec fact 81): `device add Water` accepts the word and adds a Coast Erosion, and eleven
+// other words add a Combiner (l.5-6, l.29-30, l.162-163, l.321-322, l.339-340, l.345-346, l.357-358, l.399-400,
+// l.453-454, l.489-490, l.558-559). Assumed: the fake accepts them in this case only; fact 81 says World Machine takes
+// type names in any case, and no capture shows an alias in another case.
+const COMBINER_ALIASES = [
+  'Add',
+  'Average',
+  'Differences',
+  'Max',
+  'Min',
+  'Minus',
+  'Multiply',
+  'Power',
+  'Root',
+  'Screen',
+  'Subtract',
+];
 const DEFAULT_NAMES = {
   'File Output': 'Height Output',
   'Layout Generator': 'Shapes',
   Water: 'Coast Erosion',
+  ...Object.fromEntries(COMBINER_ALIASES.map((alias) => [alias, 'Combiner'])),
 };
 // Ports and parameters of added devices (plan v3 decision D19). raw/p2a-edge-cases.txt l.38-42 and l.59-63: a
 // Gradient has no inputs, one output, and Direction, Width, and Tiling. raw/p2b-graph-edits.txt l.25-31: a Combiner
@@ -679,7 +696,8 @@ async function handle(line) {
     const name = DEFAULT_NAMES[type] ?? type;
     // Assumed: the type `device info` and `device list` show for `File Output` is 'Height Output', as the
     // `param list` header of raw/v6b-param-set.txt l.39 shows; no capture shows its `device info`.
-    const shape = SHAPES[type] ?? OTHER_SHAPE;
+    // By the default name, so an alias gets the ports and parameters of the type it adds.
+    const shape = SHAPES[name] ?? OTHER_SHAPE;
     const device = {
       id: nextId++,
       name,
@@ -755,7 +773,9 @@ async function handle(line) {
     const [ref, name] = splitOnce(command.slice('device rename '.length));
     const device = findAdded(ref);
     if (device === undefined) return void notFound(ref);
-    device.name = name;
+    // raw/v3-rename-probe.txt l.51-74 and l.149-171 (spec fact 80): a Combiner confirms the rename and keeps its name.
+    // Assumed: the ignored rename still counts as an unsaved change; no capture shows the dirty state after it.
+    if (device.type !== 'Combiner') device.name = name;
     dirty = true;
     out(`Renamed '${ref}' to '${name}'\n`);
     return;

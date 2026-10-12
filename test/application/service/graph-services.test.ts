@@ -72,7 +72,8 @@ const SPEC: RawGraphSpec = {
   version: 1,
   devices: [
     { name: 'Ramp', type: 'Gradient', parameters: { Width: 0.5 } },
-    { name: 'Mix', type: 'Combiner', inputs: { '1': 'Ramp' } },
+    // Spec fact 80: World Machine ignores a rename of a Combiner, so it keeps its default name.
+    { name: 'Combiner', type: 'Combiner', inputs: { '1': 'Ramp' } },
   ],
 };
 const CHANGES =
@@ -87,9 +88,9 @@ describe('PlanGraphService (spec v3 sections 3 and 5)', () => {
       conflicts: [],
       steps: [
         { op: 'add', device: 'Ramp', type: 'Gradient' },
-        { op: 'add', device: 'Mix', type: 'Combiner' },
+        { op: 'add', device: 'Combiner', type: 'Combiner' },
         { op: 'set-parameter', device: 'Ramp', name: 'Width', to: '0.5', comparable: false },
-        { op: 'connect', device: 'Mix', port: 1, from: 'Ramp.1', source: { device: 'Ramp', port: 1 } },
+        { op: 'connect', device: 'Combiner', port: 1, from: 'Ramp.1', source: { device: 'Ramp', port: 1 } },
       ],
       unchanged: [],
       session: expect.objectContaining({ state: 'ready' }),
@@ -107,12 +108,12 @@ describe('PlanGraphService (spec v3 sections 3 and 5)', () => {
 
   it('returns a plan with conflicts instead of refusing it', async () => {
     const w = wired();
-    await w.devices.addDevice('Combiner', 'Ramp');
+    await w.devices.addDevice('River', 'Ramp');
     const view = await w.plan.planGraph({ spec: SPEC });
-    // Mix's input from Ramp is a second conflict: its source is a managed device with a conflict.
+    // Combiner's input from Ramp is a second conflict: its source is a managed device with a conflict.
     expect(view.conflicts).toContainEqual({
       entry: 'Ramp',
-      reason: "#536 has type 'Combiner', not 'Gradient'",
+      reason: "#536 has type 'River', not 'Gradient'",
     });
   });
 
@@ -158,7 +159,7 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
           },
         },
         {
-          device: 'Mix',
+          device: 'Combiner',
           change: 'added',
           after: {
             id: 537,
@@ -185,7 +186,7 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
         comparable: false,
       },
     ]);
-    expect(again.unchanged).toEqual(['Mix']);
+    expect(again.unchanged).toEqual(['Combiner']);
   });
 
   it('adds a bypassed device, shows it bypassed in the diff, and a second plan has no set-bypassed', async () => {
@@ -227,13 +228,13 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
   it('rewires and removes, and reports removed, added, and changed devices', async () => {
     const w = wired();
     await w.devices.addDevice('Gradient', 'Old');
-    await w.devices.addDevice('Combiner', 'Mix');
+    await w.devices.addDevice('Combiner');
     await w.wires.connect({ device: '#536' }, { device: '#537' });
     const spec: RawGraphSpec = {
       version: 1,
       devices: [
         { name: 'Base', type: 'Gradient' },
-        { name: 'Mix', type: 'Combiner', inputs: { '1': 'Base' } },
+        { name: 'Combiner', type: 'Combiner', inputs: { '1': 'Base' } },
       ],
       remove: ['Old'],
     };
@@ -241,7 +242,12 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
     expect(plan.steps.map((step) => step.op)).toEqual(['disconnect', 'remove', 'add', 'connect']);
     const view = await w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
     expect(view.diff).toEqual([
-      { device: 'Mix', change: 'changed', id: 537, inputs: { '1': { before: 'Old.1', after: 'Base.1' } } },
+      {
+        device: 'Combiner',
+        change: 'changed',
+        id: 537,
+        inputs: { '1': { before: 'Old.1', after: 'Base.1' } },
+      },
       { device: 'Old', change: 'removed', before: { id: 536, type: 'Gradient' } },
       {
         device: 'Base',
@@ -262,10 +268,10 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
 
   it('refuses a plan with conflicts', async () => {
     const w = wired();
-    await w.devices.addDevice('Combiner', 'Ramp');
+    await w.devices.addDevice('River', 'Ramp');
     const plan = await w.plan.planGraph({ spec: SPEC });
     const error = await failure(w.apply.applyGraph({ spec: SPEC, planId: plan.planId, keepSnapshot: false }));
-    expect(error).toMatchObject({ code: 'REFUSED', message: expect.stringContaining("type 'Combiner'") });
+    expect(error).toMatchObject({ code: 'REFUSED', message: expect.stringContaining("type 'River'") });
   });
 
   it('rolls back an add that World Machine resolved to another type (spec fact 81)', async () => {
