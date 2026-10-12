@@ -144,6 +144,26 @@ export function listedType(type: string): string {
   return LISTED_TYPES[type] ?? type;
 }
 
+// Spec facts 80-81 (raw/v3-rename-probe.txt, raw/v3-rename-types.txt l.759-943): the only device that ignores a
+// rename is the Combiner, which `device add` also makes for these words. A Map, so a type such as 'constructor'
+// finds nothing.
+const RENAME_IGNORED: ReadonlyMap<string, string> = new Map(
+  [
+    'Add',
+    'Average',
+    'Combiner',
+    'Differences',
+    'Max',
+    'Min',
+    'Minus',
+    'Multiply',
+    'Power',
+    'Root',
+    'Screen',
+    'Subtract',
+  ].map((type) => [type, 'Combiner']),
+);
+
 const TRUE_WORDS = new Set(['true', '1', 'yes', 'on']);
 const FALSE_WORDS = new Set(['false', '0', 'no', 'off']);
 const INTEGER = /^-?\d+$/;
@@ -202,15 +222,8 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
     else removed.set(only.id, only.name);
   }
 
-  const managed: Managed[] = spec.devices.map((device) => {
-    const matches = matchDevices(state.devices, device.name);
-    const only = matches[0];
-    if (matches.length > 1) {
-      conflict(device.name, `the name matches ${ids(matches)}; a managed device needs a unique name`);
-      return { spec: device, usable: false };
-    }
-    if (only === undefined) return { spec: device, usable: true };
-    const existing = detail(only.id);
+  /** The checks an entry that matched an existing device passes: not also removed, and of the spec's type. */
+  const existingEntry = (device: GraphDevice, existing: DeviceDetail): Managed => {
     if (removed.has(existing.id)) {
       conflict(device.name, `#${existing.id} is managed and also in remove`);
       return { spec: device, existing, usable: false };
@@ -220,11 +233,67 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
       return { spec: device, existing, usable: false };
     }
     return { spec: device, existing, usable: true };
+  };
+
+  const matched: Managed[] = spec.devices.map((device) => {
+    // Revision 6: an entry with id manages that device whatever its name, and never adds one.
+    if (device.id !== undefined) {
+      const listed = state.devices.find((candidate) => candidate.id === device.id);
+      if (listed === undefined) {
+        conflict(device.name, `#${device.id} matches no listed device; an entry with id never adds a device`);
+        return { spec: device, usable: false };
+      }
+      return existingEntry(device, detail(listed.id));
+    }
+    const matches = matchDevices(state.devices, device.name);
+    const only = matches[0];
+    if (matches.length > 1) {
+      conflict(device.name, `the name matches ${ids(matches)}; a managed device needs a unique name`);
+      return { spec: device, usable: false };
+    }
+    if (only === undefined) {
+      // Revision 6 (facts 80-81): a device of this type keeps its default name, so an add under any other spelling
+      // fails and each apply of the spec would try again. Ruling 2: compared exactly, since the apply renames to any
+      // other spelling and World Machine ignores that rename too. Ruling 3: an alias type also fails the add's type
+      // check, so the reason names the exact type.
+      const defaultName = RENAME_IGNORED.get(device.type);
+      if (defaultName !== undefined && defaultName !== device.name) {
+        const alias =
+          device.type === defaultName
+            ? ''
+            : `, and give the type as '${defaultName}': '${device.type}' is an alias, which fails the type check (fact 81)`;
+        conflict(
+          device.name,
+          `World Machine ignores a rename of a ${defaultName}, so it cannot be added as '${device.name}'; add it with add_device and give its id in the spec${alias}`,
+        );
+        return { spec: device, usable: false };
+      }
+      return { spec: device, usable: true };
+    }
+    return existingEntry(device, detail(only.id));
   });
+
+  // Ruling 1: an entry without id may match the device another entry binds by id; one device gets one entry.
+  const claimed = new Map<number, string>();
+  const managed: Managed[] = matched.map((entry) => {
+    // Codex round 1, ruling 3: an entry that matched a device claims it even when it has a conflict of its own, so a
+    // later entry for that device is refused too; only the later entry becomes unusable here.
+    if (entry.existing === undefined) return entry;
+    const earlier = claimed.get(entry.existing.id);
+    if (earlier === undefined) {
+      claimed.set(entry.existing.id, entry.spec.name);
+      return entry;
+    }
+    conflict(entry.spec.name, `#${entry.existing.id} is also managed by '${earlier}'`);
+    return { ...entry, usable: false };
+  });
+
+  const labelOf = (id: number): string | undefined =>
+    managed.find((candidate) => candidate.existing?.id === id)?.spec.name;
 
   /** A spec source resolved to a managed or listed device; undefined after reporting a conflict. */
   const resolveSource = (owner: string, source: GraphSource): StepSource | undefined => {
-    // A `#<id>` never equals a managed name: validation refuses names of that form.
+    // Spec section 4: a managed name or label first. A `#<id>` never equals one: validation refuses names of that form.
     const own = managed.find((candidate) => foldCase(candidate.spec.name) === foldCase(source.device));
     let target: DeviceDetail;
     if (own !== undefined) {
@@ -255,7 +324,8 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
       conflict(owner, `#${target.id} '${target.name}' has no output port ${source.port}`);
       return undefined;
     }
-    return { device: own?.spec.name ?? target.name, id: target.id, port: source.port };
+    // A managed device named by its listed name or `#<id>` shows its spec name or label, as currentSource does.
+    return { device: own?.spec.name ?? labelOf(target.id) ?? target.name, id: target.id, port: source.port };
   };
 
   /**
@@ -434,7 +504,8 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
   });
 
   const steps = [...disconnects, ...removes, ...adds, ...enables, ...bypasses, ...parameters, ...connects];
-  const touched = new Set(steps.map((step) => foldCase(step.device)));
+  // A remove step carries the removed device's listed name, which a label may equal (Review Focus 1).
+  const touched = new Set(steps.flatMap((step) => (step.op === 'remove' ? [] : [foldCase(step.device)])));
   // D13.
   const unchanged = [
     ...managed

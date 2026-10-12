@@ -124,6 +124,24 @@ describe('PlanGraphService (spec v3 sections 3 and 5)', () => {
     await w.devices.addDevice('Gradient');
     expect((await w.plan.planGraph({ spec: SPEC })).planId).not.toBe(first);
   });
+
+  it('reports an id no device has and a Combiner named other than Combiner (revision 6)', async () => {
+    const w = wired();
+    const view = await w.plan.planGraph({
+      spec: {
+        version: 1,
+        devices: [
+          { name: 'Mix', type: 'Combiner' },
+          { name: 'Ghost', id: 999, type: 'Gradient' },
+        ],
+      },
+    });
+    expect(view.conflicts).toEqual([
+      { entry: 'Mix', reason: expect.stringContaining('add it with add_device and give its id') },
+      { entry: 'Ghost', reason: '#999 matches no listed device; an entry with id never adds a device' },
+    ]);
+    expect(view.steps).toEqual([]);
+  });
 });
 
 async function failure(action: Promise<unknown>): Promise<WorldMachineError> {

@@ -411,6 +411,181 @@ describe('planGraph (spec v3 section 5)', () => {
   });
 });
 
+describe('planGraph with ids and the Combiner rule (spec v3 revision 6)', () => {
+  it('manages a device by id under a label that differs from its listed name, without add or rename', () => {
+    const plan = planGraph(
+      spec([{ name: 'Renamed', id: 20, type: 'Erosion', parameters: { steps: 6 } }]),
+      PROJECT,
+    );
+    expect(plan).toEqual({
+      conflicts: [],
+      steps: [
+        {
+          op: 'set-parameter',
+          device: 'Renamed',
+          id: 20,
+          name: 'steps',
+          from: '4',
+          to: '6',
+          comparable: true,
+        },
+      ],
+      unchanged: [],
+    });
+  });
+
+  it.each<[string, ReturnType<typeof spec>, string, string]>([
+    [
+      'an id no listed device has',
+      spec([{ name: 'X', id: 99, type: 'Gradient' }]),
+      'X',
+      '#99 matches no listed device; an entry with id never adds a device',
+    ],
+    [
+      'an id of another type',
+      spec([{ name: 'X', id: 12, type: 'Gradient' }]),
+      'X',
+      "#12 has type 'Perlin Noise', not 'Gradient'",
+    ],
+    [
+      'an id whose device a remove name names',
+      spec([{ name: 'X', id: 12, type: 'Perlin Noise' }], ['Old']),
+      'X',
+      '#12 is managed and also in remove',
+    ],
+    [
+      'a device matched by two entries (Review Focus 2, ruling 1)',
+      spec([
+        { name: 'Old', type: 'Perlin Noise' },
+        { name: 'X', id: 12, type: 'Perlin Noise' },
+      ]),
+      'X',
+      "#12 is also managed by 'Old'",
+    ],
+  ])('reports %s', (_label, graph, entry, reason) => {
+    expect(planGraph(graph, PROJECT).conflicts).toEqual([{ entry, reason }]);
+  });
+
+  it('reports a device matched by two entries when the earlier one has the wrong type (Codex round 1, ruling 3)', () => {
+    expect(
+      planGraph(
+        spec([
+          { name: 'Old', type: 'Gradient' },
+          { name: 'X', id: 12, type: 'Perlin Noise' },
+        ]),
+        PROJECT,
+      ).conflicts,
+    ).toEqual([
+      { entry: 'Old', reason: "#12 has type 'Perlin Noise', not 'Gradient'" },
+      { entry: 'X', reason: "#12 is also managed by 'Old'" },
+    ]);
+  });
+
+  it('plans no add for an entry with an id no device has', () => {
+    expect(planGraph(spec([{ name: 'X', id: 99, type: 'Gradient' }]), PROJECT).steps).toEqual([]);
+  });
+
+  it('resolves a label as an input source before any listed name, and shows labels in steps', () => {
+    const plan = planGraph(
+      spec([
+        { name: 'src', id: 12, type: 'Perlin Noise' },
+        { name: 'Eroded', type: 'Erosion', inputs: { '1': 'src', '2': '#12' } },
+      ]),
+      PROJECT,
+    );
+    expect(plan).toEqual({
+      conflicts: [],
+      steps: [
+        {
+          op: 'connect',
+          device: 'Eroded',
+          id: 20,
+          port: 2,
+          from: 'src.1',
+          source: { device: 'src', id: 12, port: 1 },
+        },
+      ],
+      unchanged: ['src'],
+    });
+  });
+
+  it('lists an id-bound entry as unchanged when a removed device has its label (Review Focus 1)', () => {
+    const plan = planGraph(
+      spec([{ name: 'Combiner', id: 5, type: 'Combiner' }], ['#6']),
+      state([detail(5, 'Combiner', 'Combiner'), detail(6, 'Combiner', 'Combiner')]),
+    );
+    expect(plan).toEqual({
+      conflicts: [],
+      steps: [{ op: 'remove', device: 'Combiner', id: 6, wiresRemoved: [] }],
+      unchanged: ['Combiner'],
+    });
+  });
+
+  const ADD_BY_ID = 'add it with add_device and give its id in the spec';
+  it.each<[string, string, string]>([
+    [
+      'Combiner',
+      'Mix',
+      `World Machine ignores a rename of a Combiner, so it cannot be added as 'Mix'; ${ADD_BY_ID}`,
+    ],
+    [
+      'Combiner',
+      'combiner',
+      `World Machine ignores a rename of a Combiner, so it cannot be added as 'combiner'; ${ADD_BY_ID}`,
+    ],
+    [
+      'Average',
+      'Mix',
+      `World Machine ignores a rename of a Combiner, so it cannot be added as 'Mix'; ${ADD_BY_ID}, and give the type as 'Combiner': 'Average' is an alias, which fails the type check (fact 81)`,
+    ],
+  ])(
+    'refuses a %s entry named %s without id that matches no device (facts 80-81, rulings 2-3)',
+    (type, name, reason) => {
+      expect(planGraph(spec([{ name, type }]), state([]))).toEqual({
+        conflicts: [{ entry: name, reason }],
+        steps: [],
+        unchanged: [],
+      });
+    },
+  );
+
+  it('adds a Combiner named exactly Combiner, and plans as before for a name a device has', () => {
+    expect(planGraph(spec([{ name: 'Combiner', type: 'Combiner' }]), state([])).steps).toEqual([
+      { op: 'add', device: 'Combiner', type: 'Combiner' },
+    ]);
+    expect(
+      planGraph(spec([{ name: 'Mix', type: 'Combiner' }]), state([detail(5, 'Mix', 'Gradient')])).conflicts,
+    ).toEqual([{ entry: 'Mix', reason: "#5 has type 'Gradient', not 'Combiner'" }]);
+  });
+
+  it('manages an existing Combiner from an entry named combiner, matched regardless of case (ruling 2)', () => {
+    expect(
+      planGraph(spec([{ name: 'combiner', type: 'Combiner' }]), state([detail(5, 'Combiner', 'Combiner')])),
+    ).toEqual({
+      conflicts: [],
+      steps: [],
+      unchanged: ['combiner'],
+    });
+  });
+
+  it('applies the rule to every Combiner alias and to no other type, a prototype key included (facts 80-81)', () => {
+    // The Combiner itself is the 'Combiner' row of the table above.
+    expect(planGraph(spec([{ name: 'Mix', type: 'Subtract' }]), state([])).conflicts).toEqual([
+      {
+        entry: 'Mix',
+        reason: `World Machine ignores a rename of a Combiner, so it cannot be added as 'Mix'; ${ADD_BY_ID}, and give the type as 'Combiner': 'Subtract' is an alias, which fails the type check (fact 81)`,
+      },
+    ]);
+    for (const type of ['Gradient', 'constructor']) {
+      expect(planGraph(spec([{ name: 'Mix', type }]), state([]))).toEqual({
+        conflicts: [],
+        steps: [{ op: 'add', device: 'Mix', type }],
+        unchanged: [],
+      });
+    }
+  });
+});
+
 describe('matchDevices and referencedDeviceIds', () => {
   it('matches #<id> by id and names regardless of case', () => {
     const rows = [row(1, 'Noise'), row(2, 'NOISE'), row(3, 'Base')];
