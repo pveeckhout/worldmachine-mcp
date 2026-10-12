@@ -1,0 +1,12 @@
+[tools]
+# Development runs on the active LTS line; package.json `engines` (>=22.12) is the floor users may run.
+node = "24"
+
+[tasks.check-node]
+description = "Run the stdio smoke tests on the engines floor and the newest Node"
+# The smoke tests start dist/main.js with process.execPath, so the server runs on the Node that runs vitest.
+run = [
+  "npm run build",
+  "mise exec node@22.12 -- npx vitest run test/smoke",
+  "mise exec node@26 -- npx vitest run test/smoke",
+]
