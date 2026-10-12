@@ -993,8 +993,10 @@ describe('fake World Machine: parameters and wires of added devices (spec v3 sec
       'param set #2.Strength 0.25',
       'snapshot create S',
     ]);
+    // Float-units fact 87: after `project new blank`, Width shows 0.5 x 8 km (raw/float-scale.txt l.1624-1631);
+    // Strength shows no unit.
     expect(await outputs(s, ['param get #1.Width', 'param get #2.Strength'])).toEqual([
-      ['#1.Width = 0.5'],
+      ['#1.Width = 4 km'],
       ['#2.Strength = 0.25'],
     ]);
     await s.execute([
@@ -1007,7 +1009,7 @@ describe('fake World Machine: parameters and wires of added devices (spec v3 sec
     expect((await reader.getDevice('#1')).parameters[1]).toEqual({
       name: 'Width',
       type: 'float',
-      value: '0.5',
+      value: '4 km',
     });
     expect((await reader.getDevice('#2')).inputs[0]?.source).toEqual({ device: 'Gradient', port: 1 });
   });
@@ -1324,5 +1326,196 @@ describe('fake World Machine: device ids after a snapshot restore', () => {
     await s.execute(['snapshot restore S', 'device add Gradient']);
     const reader = new WorldMachineGraphReader(s);
     expect((await reader.listDevices()).map((device) => device.id)).toEqual([1, 2]);
+  });
+});
+
+describe('fake World Machine: lengths in display units (float-units design facts 87, 89, and 90)', () => {
+  it('lists a new Constant as raw/float-scale.txt l.848-850 shows', async () => {
+    const s = session();
+    await s.execute(['project new blank force', 'device add Constant']);
+    const [listed] = await s.execute(['param list #1']);
+    expect(parseParamList(listed?.output ?? [])).toEqual(
+      parseParamList(rawFrame('float-scale.txt', 'param list #27')),
+    );
+  });
+
+  it('shows internal x scale in a blank project: 8 km horizontal, 3000 m vertical (raw/float-scale.txt)', async () => {
+    const s = session();
+    await s.execute([
+      'project new blank force',
+      'device add Gradient',
+      'device add River',
+      'device add Constant',
+    ]);
+    expect(
+      await outputs(s, [
+        'param set "#1.Width" 1',
+        'param get #1.Width',
+        'param set "#1.Width" 0.25',
+        'param get #1.Width',
+        'param set "#2.Bankfull Width" 1',
+        'param get #2.Bankfull Width',
+        'param set "#2.Bankfull Width" 0.25',
+        'param get #2.Bankfull Width',
+        'param get #3.Height',
+        'param set "#3.Height" 1',
+        'param get #3.Height',
+        'param set "#3.Height" 0.25',
+        'param get #3.Height',
+      ]),
+    ).toEqual([
+      // l.1621-1631.
+      ['Set #1.Width = 1'],
+      ['#1.Width = 8 km'],
+      ['Set #1.Width = 0.25'],
+      ['#1.Width = 2 km'],
+      // l.4439-4449.
+      ['Set #2.Bankfull Width = 1'],
+      ['#2.Bankfull Width = 8 km'],
+      ['Set #2.Bankfull Width = 0.25'],
+      ['#2.Bankfull Width = 2 km'],
+      // l.853-866.
+      ['#3.Height = 0 m'],
+      ['Set #3.Height = 1'],
+      ['#3.Height = 3000 m'],
+      ['Set #3.Height = 0.25'],
+      ['#3.Height = 750 m'],
+    ]);
+  });
+
+  it("shows the default project's vertical scale, 2625 m, and the same horizontal one (raw/float-scale-default.txt l.60-114)", async () => {
+    const s = session();
+    await s.execute(['project new default force', 'device add Gradient', 'device add Constant']);
+    expect(
+      await outputs(s, [
+        'param get #536.Width',
+        'param set "#536.Width" 1',
+        'param get #536.Width',
+        'param set "#536.Width" 0.25',
+        'param get #536.Width',
+        'param get #537.Height',
+        'param set "#537.Height" 1',
+        'param get #537.Height',
+        'param set "#537.Height" 0.25',
+        'param get #537.Height',
+      ]),
+    ).toEqual([
+      ['#536.Width = 8 km'],
+      ['Set #536.Width = 1'],
+      ['#536.Width = 8 km'],
+      ['Set #536.Width = 0.25'],
+      ['#536.Width = 2 km'],
+      ['#537.Height = 0 m'],
+      ['Set #537.Height = 1'],
+      ['#537.Height = 2625 m'],
+      ['Set #537.Height = 0.25'],
+      ['#537.Height = 656.2 m'],
+    ]);
+  });
+
+  it('reverts the last param set on each project undo (raw/float-scale-undo.txt l.51-131, fact 90)', async () => {
+    const s = session();
+    await s.execute(['project new default force', 'device add Gradient', 'device add Constant']);
+    expect(
+      await outputs(s, [
+        'param get #536.Width',
+        'param set "#536.Width" 0.25',
+        'param get #536.Width',
+        'param set "#536.Width" 1',
+        'param get #536.Width',
+        'project undo',
+        'param get #536.Width',
+        'project undo',
+        'param get #536.Width',
+        'param get #537.Height',
+        'param set "#537.Height" 0.25',
+        'param get #537.Height',
+        'param set "#537.Height" 1',
+        'param get #537.Height',
+        'project undo',
+        'param get #537.Height',
+        'project undo',
+        'param get #537.Height',
+      ]),
+    ).toEqual([
+      ['#536.Width = 8 km'],
+      ['Set #536.Width = 0.25'],
+      ['#536.Width = 2 km'],
+      ['Set #536.Width = 1'],
+      ['#536.Width = 8 km'],
+      ['Undo performed.'],
+      ['#536.Width = 2 km'],
+      ['Undo performed.'],
+      ['#536.Width = 8 km'],
+      ['#537.Height = 0 m'],
+      ['Set #537.Height = 0.25'],
+      ['#537.Height = 656.2 m'],
+      ['Set #537.Height = 1'],
+      ['#537.Height = 2625 m'],
+      ['Undo performed.'],
+      ['#537.Height = 656.2 m'],
+      ['Undo performed.'],
+      ['#537.Height = 0 m'],
+    ]);
+  });
+
+  it('records a set to the current value as its own undo step (fact 91, raw/float-scale-undo-same.txt l.54-61)', async () => {
+    const s = session();
+    await s.execute([
+      'project new default force',
+      'device add Gradient',
+      'param set #536.Direction 3',
+      // Width is already at 1 (8 km).
+      'param set "#536.Width" 1',
+    ]);
+    expect(
+      await outputs(s, [
+        'project undo',
+        'param get #536.Direction',
+        'param get #536.Width',
+        'project undo',
+        'param get #536.Direction',
+        'param get #536.Width',
+      ]),
+    ).toEqual([
+      ['Undo performed.'],
+      ['#536.Direction = 3'],
+      ['#536.Width = 8 km'],
+      ['Undo performed.'],
+      ['#536.Direction = 0'],
+      ['#536.Width = 8 km'],
+    ]);
+  });
+
+  it('drops the recorded param sets when another undoable edit follows them (v1 fact 28)', async () => {
+    const s = session();
+    await s.execute([
+      'project new blank force',
+      'device add Gradient',
+      'param set #1.Direction 3',
+      'device add Combiner',
+      'param set #2.Strength 0.25',
+    ]);
+    // The first undo reverts the Strength set. The second is World Machine's undo of the Combiner add, which the fake
+    // does not model (P7); it must not revert the Direction set recorded before that add.
+    expect(
+      await outputs(s, ['project undo', 'param get #2.Strength', 'project undo', 'param get #1.Direction']),
+    ).toEqual([['Undo performed.'], ['#2.Strength = 0.5'], ['Undo performed.'], ['#1.Direction = 3']]);
+  });
+
+  it('keeps showing the text sent after a project close (pins today, plan decision P7)', async () => {
+    const s = session();
+    await s.execute(['project close force', 'device add Gradient', 'param set #1.Width 0.5']);
+    expect(await outputs(s, ['param get #1.Width'])).toEqual([['#1.Width = 0.5']]);
+  });
+
+  it('only marks the project unsaved on an undo with no param set to revert (pins today, plan decision P7)', async () => {
+    expect(
+      await outputs(session(), ['project new blank force', 'project undo', 'project new blank']),
+    ).toEqual([
+      ['Created new blank project.'],
+      ['Undo performed.'],
+      ["Error: Error: Project has unsaved changes. Use 'project save' first or 'project new force'."],
+    ]);
   });
 });

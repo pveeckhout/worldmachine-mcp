@@ -88,6 +88,23 @@ let added = [];
 let wires = [];
 // `param set` commands handled so far, for FAKE_WM_PARAM_SET_ERROR_AT.
 let paramSets = 0;
+// Float-units fact 90 (raw/float-scale-undo.txt l.51-131): `project undo` reverts the last `param set`, a second one
+// the set before it; fact 91 (raw/float-scale-undo-same.txt l.54-61): a set to the current value is a step too. Each
+// entry is { parameter, value }: the added device's parameter and the value it showed before the set. v1 fact 28: undo
+// reverts one step of the graph or the scene, so any other undoable edit clears the record (`edited`), and so does a
+// project switch. Assumed (plan decision P7): only sets on added devices are recorded; `project redo` re-applies
+// nothing.
+let paramUndo = [];
+// Float-units fact 89: the vertical metres per unit after `project new blank` (3000) or `project new default` (2625);
+// undefined in the startup project, an opened one, and after a close or a failed open, where a length float keeps
+// showing the text sent, as before (plan decision P7).
+let verticalMetresPerUnit;
+// An edit World Machine can undo (v1 fact 28): the project is unsaved, and the next undo takes this step, not a
+// recorded `param set`. Assumed for `device organize` and group enable or disable, which fact 28 does not show.
+const edited = () => {
+  dirty = true;
+  paramUndo = [];
+};
 // First new id: #1 in a blank project (raw/p2b-graph-edits.txt); #536 in the sample project, whose highest id is
 // #373 (spec fact 30: three adds gave #536, #537, #538).
 // Assumed: ids after those continue by one; `project open` of any file (which the fake answers with the sample
@@ -259,6 +276,8 @@ const switchTo = (next) => {
   savedPath = undefined;
   sampleDisabled = new Set();
   snapshots = [];
+  paramUndo = [];
+  verticalMetresPerUnit = undefined;
   outputExportAlways = env.FAKE_WM_EXPORT_ALWAYS === '1';
 };
 // Spec fact 30: the name is the type, without de-duplication (two `device add Gradient` give two devices named
@@ -366,6 +385,12 @@ const SHAPES = {
       ['Hardness Map Behavior', 'bool', 'false'],
     ],
   },
+  // raw/float-scale.txt l.848-850: a new Constant lists one parameter, Height, at 0 m. Assumed: its inputs, one
+  // 'Primary Input' as for other types; no capture lists a Constant's ports.
+  Constant: {
+    inputs: ['Primary Input'],
+    parameters: [['Height', 'float', '0 m']],
+  },
 };
 const OTHER_SHAPE = { inputs: ['Primary Input'], parameters: [] };
 // Backlog item 49: World Machine's checks on a value for a parameter of an added device. raw/v6b-param-set.txt
@@ -398,9 +423,43 @@ const rejection = (parameter, text) => {
       return undefined;
   }
 };
-// raw/p2c-edits.txt (fact 35): an enum shows its label, given as an index or as a label in any case. Assumed: a bool
-// shows true or false; a float keeps the text sent, so the fake shows no display units (fact 18).
+// Float-units facts 87 and 89: a length float shows internal x scale, with no offset. Horizontal: 8 km per unit in
+// both projects (raw/float-scale.txt l.1621-1631 Gradient Width, l.4439-4449 River Bankfull Width;
+// raw/float-scale-default.txt l.63-73). Vertical: 3000 m per unit in a blank project (raw/float-scale.txt l.853-866
+// Constant Height) and 2625 m in the default one (raw/float-scale-default.txt l.104-114), set by `project new`
+// (verticalMetresPerUnit). Other project states show the text sent (plan decision P7).
+const LENGTH_SCALES = new Map([
+  ['Gradient.Width', 'horizontal'],
+  ['River.Bankfull Width', 'horizontal'],
+  ['Constant.Height', 'vertical'],
+]);
+const metresPerUnit = (scale) => (scale === 'horizontal' ? 8000 : verticalMetresPerUnit);
+// raw/float-scale-default.txt l.114: 656.25 m shows as `656.2 m`. Assumed: one decimal with ties to even, and no `.0`
+// on a whole number (`8 km`, `3000 m`, `0 m` in every capture).
+const oneDecimal = (value) => {
+  const tenths = value * 10;
+  const floor = Math.floor(tenths);
+  const rest = tenths - floor;
+  const rounded = rest > 0.5 ? floor + 1 : rest < 0.5 ? floor : floor % 2 === 0 ? floor : floor + 1;
+  // `+ 0` turns -0 into 0.
+  return String(rounded / 10 + 0);
+};
+// raw/float-scale.txt: a horizontal length of 1000 m or more shows in km (l.162 `1.6 km`), a shorter one in m
+// (l.4473 `500 m`); a vertical length shows in m (l.126 `1500 m`, l.860 `3000 m`). Assumed: a vertical length above
+// 3000 m still shows in m.
+const lengthShown = (scale, internal) => {
+  const metres = internal * metresPerUnit(scale);
+  return scale === 'horizontal' && Math.abs(metres) >= 1000
+    ? `${oneDecimal(metres / 1000)} km`
+    : `${oneDecimal(metres)} m`;
+};
+// raw/p2c-edits.txt (fact 35): an enum shows its label, given as an index or as a label in any case. A length float
+// shows internal x scale (above) after `project new`. Assumed: a bool shows true or false; any other float, and a
+// length float in another project state, keeps the text sent.
 const shownValue = (parameter, text) => {
+  if (parameter.scale !== undefined && verticalMetresPerUnit !== undefined) {
+    return lengthShown(parameter.scale, Number(text));
+  }
   if (parameter.type === 'bool') return String(['true', '1', 'yes', 'on'].includes(text.toLowerCase()));
   if (parameter.type === 'enum' && parameter.options) {
     return /^\d+$/.test(text)
@@ -495,6 +554,7 @@ const restoreGraphState = (state) => {
   wires = state.wires.map((wire) => ({ ...wire }));
   sampleDisabled = new Set(state.disabled);
   selected = undefined;
+  paramUndo = [];
 };
 // A reference to an item of `items` by `#<index>` or by name (spec v2b facts 58, 61, and 65), or undefined after
 // printing World Machine's error. `sameName` compares a listed name with the reference.
@@ -658,6 +718,8 @@ async function handle(line) {
     }
     const blank = command.includes('blank');
     switchTo(blank ? 'empty' : 'sample');
+    // Float-units facts 87 and 89 (raw/float-scale.txt l.853-866, raw/float-scale-default.txt l.104-114).
+    verticalMetresPerUnit = blank ? 3000 : 2625;
     out(`Created new ${blank ? 'blank' : 'default'} project.\n`);
     return;
   }
@@ -682,8 +744,13 @@ async function handle(line) {
     return;
   }
   if (command === 'project undo' || command === 'project redo') {
-    // Not modelled: undo only marks the project unsaved; it does not revert a snapshot restore or a group enable or
-    // disable (facts 60, 64).
+    // Float-units fact 90: undo reverts the last recorded `param set` (paramUndo), unless another edit came after it
+    // (`edited`, v1 fact 28). Not modelled: undo does not revert a snapshot restore, a group enable or disable (facts
+    // 60, 64), or any other edit; with no set recorded it only marks the project unsaved.
+    if (command === 'project undo') {
+      const last = paramUndo.pop();
+      if (last !== undefined) last.parameter.value = last.value;
+    }
     dirty = true;
     out(command === 'project undo' ? 'Undo performed.\n' : 'Redo performed.\n');
     return;
@@ -728,7 +795,10 @@ async function handle(line) {
     if (problem !== undefined) return void process.stderr.write(`Error: Error: ${problem}\n`);
     dirty = true;
     if (target === '#1.exportAlways' && project === 'sample') outputExportAlways = value === 'true';
-    if (parameter !== undefined) parameter.value = shownValue(parameter, shown);
+    if (parameter !== undefined) {
+      paramUndo.push({ parameter, value: parameter.value });
+      parameter.value = shownValue(parameter, shown);
+    }
     out(`Set ${target} = ${shown}\n`);
     return;
   }
@@ -756,15 +826,19 @@ async function handle(line) {
       enabled: true,
       bypassed: false,
       inputs: shape.inputs,
-      parameters: shape.parameters.map(([parameter, kind, value, options]) => ({
-        name: parameter,
-        type: kind,
-        value,
-        ...(options ? { options } : {}),
-      })),
+      parameters: shape.parameters.map(([parameter, kind, value, options]) => {
+        const scale = LENGTH_SCALES.get(`${name}.${parameter}`);
+        return {
+          name: parameter,
+          type: kind,
+          value,
+          ...(options ? { options } : {}),
+          ...(scale ? { scale } : {}),
+        };
+      }),
     };
     added.push(device);
-    dirty = true;
+    edited();
     out(`Added '${device.name}'\n`);
     return;
   }
@@ -797,7 +871,7 @@ async function handle(line) {
     const device = findAdded(ref);
     if (device === undefined) return void notFound(ref);
     device.bypassed = !device.bypassed;
-    dirty = true;
+    edited();
     return void out(`${device.bypassed ? 'Set' : 'Removed'} bypass: ${ref}\n`);
   }
   const stateChange = /^device (enable|disable|delete) (.+)$/.exec(command);
@@ -805,7 +879,7 @@ async function handle(line) {
     const [, verb, ref] = stateChange;
     const device = findAdded(ref);
     if (device === undefined) return void notFound(ref);
-    dirty = true;
+    edited();
     if (verb === 'delete') {
       added = added.filter((other) => other !== device);
       // Fact 34: deleting a device removes its wires.
@@ -827,7 +901,7 @@ async function handle(line) {
     // raw/v3-rename-probe.txt l.51-74, l.87-110, and l.213-235 (spec fact 80): a Combiner confirms the rename and keeps its name.
     // Assumed: the ignored rename still counts as an unsaved change; no capture shows the dirty state after it.
     if (device.type !== 'Combiner') device.name = name;
-    dirty = true;
+    edited();
     out(`Renamed '${ref}' to '${name}'\n`);
     return;
   }
@@ -872,7 +946,7 @@ async function handle(line) {
       // Fact 26: confirmed whether or not the wire existed. Assumed: only a removed wire is an unsaved change.
       if (index !== -1) {
         wires.splice(index, 1);
-        dirty = true;
+        edited();
       }
       return void out(`Disconnected ${ends}\n`);
     }
@@ -883,7 +957,7 @@ async function handle(line) {
       );
     }
     wires.push({ from: source.id, fromPort: from.port, to: destination.id, toPort: to.port });
-    dirty = true;
+    edited();
     return void out(`Connected ${ends}\n`);
   }
   if (command === 'build preview') {
@@ -1013,12 +1087,12 @@ async function handle(line) {
       return void process.stderr.write(`Error: Error: Could not restore snapshot '${snapshot.name}'\n`);
     }
     restoreGraphState(snapshot.state);
-    dirty = true;
+    edited();
     return void out(`Restored snapshot [#${index}] '${snapshot.name}'\n`);
   }
   if (command === 'device organize') {
     // Fact 62, raw/v2b-snapshots.txt l.261-286. The layout is not modelled.
-    dirty = true;
+    edited();
     return void out('Devices organized by processing order.\n');
   }
   if (command === 'group list' || command.startsWith('group list ')) {
@@ -1050,7 +1124,7 @@ async function handle(line) {
       if (verb === 'disable') sampleDisabled.add(id);
       else sampleDisabled.delete(id);
     }
-    dirty = true;
+    edited();
     const verbed = verb === 'enable' ? 'Enabled' : 'Disabled';
     return void out(`${verbed} ${group.count} device(s) in group '${group.name}'\n`);
   }
