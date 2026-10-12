@@ -25,6 +25,19 @@ const HEIGHT_OUTPUT_PARAMS = [
   '  tiled                     bool      true',
   '  writeButton               action    ',
 ];
+// raw/float-scale.txt l.759-762.
+const COMBINER_PARAMS = [
+  "Parameters for 'Combiner' (Combiner):",
+  '  Method                    enum      Average',
+  '  Strength                  float     0.5',
+];
+// raw/float-scale.txt l.4318, l.4333, and l.4336 (rows abridged).
+const RIVER_DEVICES = ['Devices (1 total):', '  #536   River                   '];
+const RIVER_LENGTHS = [
+  "Parameters for 'River' (River):",
+  '  Bankfull Depth            float     2 m',
+  '  Bankfull Width            float     10 m',
+];
 
 const editor = (s: ReturnType<typeof scriptedSession>) => new WorldMachineParameterEditor(s.session);
 
@@ -82,7 +95,7 @@ describe('WorldMachineParameterEditor', () => {
       'param list #1': [{ output: GRADIENT_PARAMS }],
     });
     const call = editor(s).updateParameters('#1', {
-      Width: '1.5 km',
+      Width: '1.5 ft',
       Direction: 3.5,
       Tiling: 'Clamp',
       Nope: 1,
@@ -91,7 +104,7 @@ describe('WorldMachineParameterEditor', () => {
       code: 'REFUSED',
       message:
         "Nothing was set on #1 'Gradient': " +
-        "'Width': expected a plain decimal number in World Machine's internal units (no units, no decimal comma, no exponent); " +
+        "'Width': expected a plain decimal number in World Machine's internal units, or a length in m or km such as \"500 m\"; " +
         "'Direction': expected an integer without a decimal point; " +
         "'Tiling': expected the 0-based index of an option, such as 0 or 1; " +
         "'Nope': no such parameter. Its parameters: Direction (int), Width (float), Tiling (enum)",
@@ -253,5 +266,234 @@ describe('WorldMachineParameterEditor', () => {
       'param set "#536.Bankfull Width" 25',
       'param get #536.Bankfull Width',
     ]);
+  });
+
+  it('refuses a unit on a float that shows no m or km, and on an enum, before sending (float-units section 3)', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: DEVICES }],
+      'param list #3': [{ output: COMBINER_PARAMS }],
+    });
+    await expect(editor(s).updateParameters('#3', { Strength: '1 m', Method: '1 km' })).rejects.toMatchObject(
+      {
+        code: 'REFUSED',
+        message:
+          "Nothing was set on #3 'Combiner': " +
+          "'Strength': a unit is accepted only on a float that shows m or km; " +
+          "'Method': expected the 0-based index of an option, such as 0 or 1. " +
+          'Its parameters: Method (enum), Strength (float)',
+      },
+    );
+    expect(s.batches).toEqual([['device list'], ['param list #3']]);
+  });
+
+  it('reads the scale, undoes the probe, and sends the converted value before the plain items (section 4)', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: DEVICES }],
+      'param list #1': [{ output: GRADIENT_PARAMS }],
+      // raw/float-scale-default.txt l.63-67 and raw/float-scale-undo.txt l.66-70 (fact 90).
+      'param set #1.Width 1': [{ output: ['Set #1.Width = 1'] }],
+      'param get #1.Width': [
+        { output: ['#1.Width = 8 km'] },
+        { output: ['#1.Width = 8 km'] },
+        { output: ['#1.Width = 500 m'] },
+      ],
+      'project undo': [{ output: ['Undo performed.'] }],
+      'param set #1.Width 0.0625': [{ output: ['Set #1.Width = 0.0625'] }],
+      'param set #1.Direction 3': [{ output: ['Set #1.Direction = 3'] }],
+      'param get #1.Direction': [{ output: ['#1.Direction = 3'] }],
+    });
+    expect(await editor(s).updateParameters('#1', { Width: '500 m', Direction: 3 })).toEqual({
+      device: { id: 1, name: 'Gradient' },
+      parameters: [
+        {
+          name: 'Width',
+          type: 'float',
+          requested: '0.0625',
+          outcome: 'applied',
+          value: '500 m',
+          given: '500 m',
+          scale: '8 km',
+        },
+        { name: 'Direction', type: 'int', requested: '3', outcome: 'applied', value: '3' },
+      ],
+    });
+    expect(s.batches).toEqual([
+      ['device list'],
+      ['param list #1'],
+      ['param set #1.Width 1'],
+      ['param get #1.Width', 'project undo', 'param get #1.Width'],
+      [
+        'param set #1.Width 0.0625',
+        'param get #1.Width',
+        'param set #1.Direction 3',
+        'param get #1.Direction',
+      ],
+    ]);
+    // Section 4: the probe marks the project unsaved, and so does the applied batch.
+    expect(s.dirtyMarks()).toBe(2);
+  });
+
+  it('probes several length items in call order, then sends one batch', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: RIVER_DEVICES }],
+      'param list #536': [{ output: RIVER_LENGTHS }],
+      // raw/float-scale.txt l.4385-4389 and l.4439-4443: both read 8 km at 1.
+      'param set "#536.Bankfull Depth" 1': [{ output: ['Set #536.Bankfull Depth = 1'] }],
+      'param set "#536.Bankfull Width" 1': [{ output: ['Set #536.Bankfull Width = 1'] }],
+      'param get #536.Bankfull Depth': [
+        { output: ['#536.Bankfull Depth = 8 km'] },
+        { output: ['#536.Bankfull Depth = 2 m'] },
+        { output: ['#536.Bankfull Depth = 1 m'] },
+      ],
+      'param get #536.Bankfull Width': [
+        { output: ['#536.Bankfull Width = 8 km'] },
+        { output: ['#536.Bankfull Width = 10 m'] },
+        { output: ['#536.Bankfull Width = 20 m'] },
+      ],
+      'project undo': [{ output: ['Undo performed.'] }, { output: ['Undo performed.'] }],
+      'param set "#536.Bankfull Depth" 0.000125': [{ output: ['Set #536.Bankfull Depth = 0.000125'] }],
+      'param set "#536.Bankfull Width" 0.0025': [{ output: ['Set #536.Bankfull Width = 0.0025'] }],
+    });
+    const update = await editor(s).updateParameters('#536', {
+      'Bankfull Depth': '1 m',
+      'Bankfull Width': '20m',
+    });
+    expect(
+      update.parameters.map((item) => [item.name, item.requested, item.value, item.given, item.scale]),
+    ).toEqual([
+      ['Bankfull Depth', '0.000125', '1 m', '1 m', '8 km'],
+      ['Bankfull Width', '0.0025', '20 m', '20m', '8 km'],
+    ]);
+    expect(s.batches.slice(2)).toEqual([
+      ['param set "#536.Bankfull Depth" 1'],
+      ['param get #536.Bankfull Depth', 'project undo', 'param get #536.Bankfull Depth'],
+      ['param set "#536.Bankfull Width" 1'],
+      ['param get #536.Bankfull Width', 'project undo', 'param get #536.Bankfull Width'],
+      [
+        'param set "#536.Bankfull Depth" 0.000125',
+        'param get #536.Bankfull Depth',
+        'param set "#536.Bankfull Width" 0.0025',
+        'param get #536.Bankfull Width',
+      ],
+    ]);
+    expect(s.dirtyMarks()).toBe(3);
+  });
+
+  it('fails without sending an undo when the probe set is neither refused nor confirmed (section 4)', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: DEVICES }],
+      'param list #1': [{ output: GRADIENT_PARAMS }],
+      // Assumed: a probe set without `Set #1.Width = 1` (raw/float-scale-undo-same.txt l.55) and without an error;
+      // no capture shows one. No `project undo` is scripted, so sending one would also fail the test.
+      'param set #1.Width 1': [{ output: [] }],
+    });
+    await expect(editor(s).updateParameters('#1', { Width: '500 m', Direction: 3 })).rejects.toMatchObject({
+      code: 'UNEXPECTED_OUTPUT',
+      message:
+        "World Machine did not confirm the scale probe of 'Width' on #1 'Gradient': expected 'Set #1.Width = 1'. " +
+        'The parameter may be left at 1; check it with get_device and revert with undo. Nothing else was set.',
+    });
+    expect(s.batches).toEqual([['device list'], ['param list #1'], ['param set #1.Width 1']]);
+    expect(s.batches.flat()).not.toContain('project undo');
+    expect(s.dirtyMarks()).toBe(1);
+  });
+
+  it('fails before setting anything when the undo is not confirmed (section 4)', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: DEVICES }],
+      'param list #1': [{ output: GRADIENT_PARAMS }],
+      'param set #1.Width 1': [{ output: ['Set #1.Width = 1'] }],
+      'param get #1.Width': [{ output: ['#1.Width = 8 km'] }, { output: ['#1.Width = 8 km'] }],
+      // Assumed: an undo without its confirmation line; no capture shows one.
+      'project undo': [{ output: [] }],
+    });
+    await expect(editor(s).updateParameters('#1', { Width: '500 m', Direction: 3 })).rejects.toMatchObject({
+      code: 'UNEXPECTED_OUTPUT',
+      message:
+        "Could not confirm that the scale probe of 'Width' on #1 'Gradient' was undone: expected '8 km', read " +
+        "'8 km'. The parameter may be left at 1; check it with get_device and revert with undo. Nothing else was set.",
+    });
+    expect(s.batches).toHaveLength(4);
+    expect(s.dirtyMarks()).toBe(1);
+  });
+
+  it('fails before setting anything when the read after the undo fails', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: DEVICES }],
+      'param list #1': [{ output: GRADIENT_PARAMS }],
+      'param set #1.Width 1': [{ output: ['Set #1.Width = 1'] }],
+      'param get #1.Width': [
+        { output: ['#1.Width = 8 km'] },
+        // Assumed: a read after the undo that fails, with a neutral error text; no capture shows one, so spec section 6
+        // assigns this case to a scripted session.
+        { errors: ['Error: Error: Read failed'] },
+      ],
+      'project undo': [{ output: ['Undo performed.'] }],
+    });
+    await expect(editor(s).updateParameters('#1', { Width: '500 m' })).rejects.toMatchObject({
+      code: 'UNEXPECTED_OUTPUT',
+      message: expect.stringContaining("expected '8 km', read 'Error: Error: Read failed'"),
+    });
+    expect(s.batches).toHaveLength(4);
+  });
+
+  it('rejects a length that underflows at the scale read, after the undo (spec section 4, plan decision P9)', async () => {
+    // 5e-324 m, the smallest double: in range for validation, but 5e-324 / 8000 is 0.
+    const given = `0.${'0'.repeat(323)}5 m`;
+    const s = scriptedSession({
+      'device list': [{ output: DEVICES }],
+      'param list #1': [{ output: GRADIENT_PARAMS }],
+      'param set #1.Width 1': [{ output: ['Set #1.Width = 1'] }],
+      'param get #1.Width': [{ output: ['#1.Width = 8 km'] }, { output: ['#1.Width = 8 km'] }],
+      'project undo': [{ output: ['Undo performed.'] }],
+      'param set #1.Direction 3': [{ output: ['Set #1.Direction = 3'] }],
+      'param get #1.Direction': [{ output: ['#1.Direction = 3'] }],
+    });
+    const update = await editor(s).updateParameters('#1', { Width: given, Direction: 3 });
+    expect(update.parameters).toEqual([
+      {
+        name: 'Width',
+        type: 'float',
+        requested: '1',
+        outcome: 'rejected',
+        value: '8 km',
+        worldMachineMessage: "the length is out of range at a scale of '8 km'",
+        given,
+        scale: '8 km',
+      },
+      { name: 'Direction', type: 'int', requested: '3', outcome: 'applied', value: '3' },
+    ]);
+    expect(s.batches.slice(2)).toEqual([
+      ['param set #1.Width 1'],
+      ['param get #1.Width', 'project undo', 'param get #1.Width'],
+      ['param set #1.Direction 3', 'param get #1.Direction'],
+    ]);
+  });
+
+  it('probes nothing after a restore that fails, and sets nothing', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: RIVER_DEVICES }],
+      'param list #536': [{ output: RIVER_LENGTHS }],
+      'param set "#536.Bankfull Depth" 1': [{ output: ['Set #536.Bankfull Depth = 1'] }],
+      'param get #536.Bankfull Depth': [
+        { output: ['#536.Bankfull Depth = 8 km'] },
+        // Assumed: a read after the undo that differs from the listed `2 m`.
+        { output: ['#536.Bankfull Depth = 8 km'] },
+      ],
+      'project undo': [{ output: ['Undo performed.'] }],
+    });
+    await expect(
+      editor(s).updateParameters('#536', { 'Bankfull Depth': '1 m', 'Bankfull Width': '20 m' }),
+    ).rejects.toMatchObject({
+      code: 'UNEXPECTED_OUTPUT',
+      message: expect.stringContaining(
+        "'Bankfull Depth' on #536 'River' was undone: expected '2 m', read '8 km'",
+      ),
+    });
+    expect(s.batches.slice(2)).toEqual([
+      ['param set "#536.Bankfull Depth" 1'],
+      ['param get #536.Bankfull Depth', 'project undo', 'param get #536.Bankfull Depth'],
+    ]);
+    expect(s.dirtyMarks()).toBe(1);
   });
 });

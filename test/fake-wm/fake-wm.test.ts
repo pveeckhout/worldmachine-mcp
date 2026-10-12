@@ -1519,3 +1519,58 @@ describe('fake World Machine: lengths in display units (float-units design facts
     ]);
   });
 });
+
+describe('fake World Machine: lengths through the parameter editor (float-units design section 6)', () => {
+  it('sets a length on Gradient Width, and one undo per call restores the values before it (fact 90)', async () => {
+    const s = session();
+    await s.execute(['project new blank force', 'device add Gradient']);
+    const update = await new WorldMachineParameterEditor(s).updateParameters('#1', {
+      Width: '500 m',
+      Direction: 3,
+    });
+    expect(update.parameters).toEqual([
+      {
+        name: 'Width',
+        type: 'float',
+        requested: '0.0625',
+        outcome: 'applied',
+        value: '500 m',
+        given: '500 m',
+        scale: '8 km',
+      },
+      { name: 'Direction', type: 'int', requested: '3', outcome: 'applied', value: '3' },
+    ]);
+    // The probe's step is gone: the first undo reverts Direction, the second Width.
+    expect(
+      await outputs(s, ['project undo', 'param get #1.Direction', 'project undo', 'param get #1.Width']),
+    ).toEqual([['Undo performed.'], ['#1.Direction = 0'], ['Undo performed.'], ['#1.Width = 8 km']]);
+  });
+
+  it("converts through the default project's vertical scale: 656.25 m reads 656.2 m (fact 89)", async () => {
+    const s = session();
+    await s.execute(['project new default force', 'device add Constant']);
+    const update = await new WorldMachineParameterEditor(s).updateParameters('#536', { Height: '656.25 m' });
+    expect(update.parameters).toEqual([
+      {
+        name: 'Height',
+        type: 'float',
+        requested: '0.25',
+        outcome: 'applied',
+        value: '656.2 m',
+        given: '656.25 m',
+        scale: '2625 m',
+      },
+    ]);
+  });
+
+  it('sets a length on River Bankfull Width, a name with a space (raw/river-device.txt l.76-104)', async () => {
+    const s = session();
+    await s.execute(['project new blank force', 'device add River']);
+    const update = await new WorldMachineParameterEditor(s).updateParameters('#1', {
+      'Bankfull Width': '25 m',
+    });
+    expect(update.parameters.map((item) => [item.requested, item.outcome, item.value, item.scale])).toEqual([
+      ['0.003125', 'applied', '25 m', '8 km'],
+    ]);
+  });
+});
