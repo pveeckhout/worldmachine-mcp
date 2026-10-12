@@ -20,7 +20,7 @@ Out of scope: labels as input to `update_device_parameters` or graph specs, comp
 - Fact 84 (raw/p2c-edits.txt l.217-222, raw/create-water-isolation.txt l.335-350): `param set` with an index past the last option is refused with `Error: Error: Enum index out of range (0-<last>): <index>`, and a `param get` afterwards shows the value unchanged. Whether the refused set adds an undo step or marks the project unsaved is not captured; nothing in this design depends on it.
 - Fact 85 (raw/enum-options.txt, capture `enum-options`, 2026-10-12, build 4067): each of the 118 device types of raw/v3-rename-types.txt was added to the default project (`project new default force`, 17 devices) and deleted again before the next type; its enum rows were probed with index 9999 for the range and then set to every index and read back with `param get`. 68 types hold 111 enum parameters. The label at index `i` is the `param get` value after `param set ... <i>` (Combiner `Method`: 0 `Average`, 1 `Add`, 2 `Subtract`, 3 `Multiply`, 4 `Max`, 5 `Min`, ..., l.1572-1602, eleven in all). `param get` may print trailing whitespace after a label (`#559.Method = Add `, l.1578); the `param list` parser drops trailing whitespace (`parsers/param-list.ts`), so catalog labels are stored without it.
 - Fact 86 (raw/enum-options.txt l.1806-1809 and l.7941-7944): two enum parameters have no options. The refusal reads `Enum index out of range (0--1): 9999`, and the value reads as `0`. The catalog records them with an empty option list.
-- A device in an existing project can have enum parameters that a newly added device of the same type lacks: the default project's Erosion shows `soilMask` (enum, raw/erosion-water-input.txt l.39), while an Erosion added in the capture has no enum (raw/enum-options.txt summary, l.8158). The catalog describes newly added devices only, so such a device gets a note instead of options (section 4); this is the same class of difference as the old device versions of backlog item 102.
+- A device in an existing project can have enum parameters that a newly added device of the same type lacks: the default project's Erosion shows `soilMask` (enum, raw/erosion-water-input.txt l.39), while an Erosion added in the capture has no enum (raw/enum-options.txt summary, l.8158). The default project's devices differ from new ones in further types (raw/default-updated.txt): Flow Restructure shows `Drain to:` and `fillquality` where a new one shows `Drain to:` and `Operation` (raw/enum-options.txt l.3152-3156); Texture Weightmap shows `outputType` and `Priority Behavior` where a new one shows `Priority Behavior`; Thermal Weathering shows `simType` and `talusMask` where a new one shows `Style`; Scene View shows `normalType` where a new one shows `Interpret Water Input as:`. Some of those rows show a label the catalog lists (Flow Restructure `Drain to:` = `Map borders and drainage input`), so the current value alone cannot tell such a device apart. The console reports no device version (backlog item 102), so the catalog describes devices as `device add` creates them and uses a device's parameter names as the version fingerprint: a device whose names differ gets a note instead of options (section 4, rule 3).
 - `device info` acts on the selected device, not on an argument (v1 design, section 5: `get_device` runs `device select` first). The capture's `device info #<id>` lines therefore show the selection and are not used. The catalog key is the new device's listed type from its `device list` row (fact 81: the kind in the row, or its name when the two are equal), which for a device just added is the type `device info` reports (fact 79) and so the type `get_device` returns.
 
 ## 3. Catalog
@@ -37,13 +37,17 @@ The `enum-options` scenario of `scripts/capture-fixtures.mjs` (commit e79f969) p
 {
   "build": 4067,
   "types": {
-    "Combiner": { "Method": ["Average", "Add", "Subtract", "Multiply", "Max", "Min", "..."] }
+    "Combiner": {
+      "parameters": ["Method", "Strength", "..."],
+      "enums": { "Method": ["Average", "Add", "Subtract", "Multiply", "Max", "Min", "..."] }
+    }
   }
 }
 ```
 
 - `build` comes from `raw/system-info.txt` in the same fixture directory (`Version:  Build <n> '<name>'`), never from a constant. The capture script runs `system info` first in every run and writes it to that file, not into the scenario's transcript; the `enum-options` run left it unchanged at Build 4067.
 - A type is keyed by the listed type of its new device (section 2). Parameter names are as `param list` prints them.
+- `parameters` lists every row name of the new device's `param list`, of any type, in the order printed; `enums` maps each `enum` row name to its options.
 - Options are in index order, index 0 first; their count is the range error's `<last> + 1` (fact 84). An index whose `param get` is missing or unreadable makes the generator fail rather than write a gap.
 - A type without enum parameters is omitted. A parameter with range `(0--1)` has `[]` (fact 86).
 - The generator's parser lives in one module used by both the script and the parity test.
@@ -58,14 +62,18 @@ A test parses `raw/enum-options.txt` with the generator's parser and asserts it 
 
 1. the session's `system info` build (`status().systemInfo.build`) equals the catalog's `build`;
 2. the catalog has an entry for the device's type (as `device info` reports it) and for the row's parameter name;
-3. the row's current value is one of that entry's options.
+3. the device's parameter names, in `param list` order, equal the entry's `parameters`;
+4. the row's current value is one of that entry's options.
 
 Otherwise the row has no `options`, and the device detail lists why, one note per distinct reason, in this wording:
 
-- `enum options omitted: the catalog is from build 4067, World Machine is build <n>` (once per device, when rule 1 fails; rules 2 and 3 are then not checked);
+- `enum options omitted: the catalog is from build 4067, World Machine is build <n>` (once per device, when rule 1 fails; the other rules are then not checked);
 - `no enum options known for type '<type>'` (rule 2, type missing);
 - `no enum options known for '<parameter>' of type '<type>'` (rule 2, parameter missing);
-- `'<parameter>' shows '<value>', which the catalog does not list; its options are omitted` (rule 3; this also covers fact 86's empty lists and a device at an older version whose options differ).
+- `enum options omitted: this '<type>' has other parameters than a new '<type>' (another device version)` (once per device, when rule 3 fails; rule 4 is then not checked);
+- `'<parameter>' shows '<value>', which the catalog does not list; its options are omitted` (rule 4; this also covers fact 86's empty lists).
+
+Rule 2 is checked per row before rule 3, so a type missing from the catalog keeps its note. A device of another version with the same parameter names still gets the catalog's options; nothing the console prints tells the two apart.
 
 A device without `enum` rows gets no note. When the session holds no `system info` (it is read at start, so this is not expected), rule 1 fails with `World Machine is build unknown`.
 
@@ -85,7 +93,7 @@ sequenceDiagram
   R->>S: device select, device info, param list, wire list
   R->>S: status().systemInfo.build
   R->>C: options of (type, parameter)
-  Note over R: attach when the build matches, the entry exists,<br/>and the current value is listed; otherwise a note
+  Note over R: attach when the build matches, the entry exists,<br/>the parameter names match, and the value is listed; otherwise a note
   R-->>Q: DeviceDetail
   Q-->>Client: device view with options and enumOptionsNote
 ```
@@ -101,11 +109,11 @@ sequenceDiagram
 
 - Generator parser: the range line (including `(0--1)`), labels with trailing whitespace, index order, a missing `param get` failing the parse, the build from `system info`, the type from the `device list` row; excerpts of raw/enum-options.txt as input.
 - Parity: the transcript parses to exactly the committed JSON.
-- Reader, through the fake World Machine: build matches and the value is listed (options attached); build differs (no options, the build note); type not in the catalog; parameter not in the catalog; value not listed; a device without enums (no note).
+- Reader, through the fake World Machine: build matches and the value is listed (options attached); build differs (no options, the build note); type not in the catalog; parameter not in the catalog; parameter names differ from the entry's (the version note, no options, even when the value is listed); value not listed; a device without enums (no note).
 - The fake reports build 4067 in `system info`, and every enum row it serves shows a label the catalog lists for that type and parameter, or the test that relies on it says otherwise.
 - MCP: the view schema accepts the new fields; descriptions name `options`.
-- Live (`WM_LIVE=1`, after the user approves the run): `get_device` of a Combiner shows `Method` with the eleven captured options.
+- Live (`WM_LIVE=1`, after the user approves the run): `get_device` of a Combiner shows `Method` with the eleven captured options; `get_device` of the default project's Flow Restructure shows no options and the version note.
 
 ## 7. Documentation
 
-README: `get_device` (options and the note) and `update_device_parameters` (index of a label in `options`). Backlog: the lowlands item becomes `Done:`.
+README: `get_device` (options, the note, the version fingerprint, and labels as `param get` prints them, cut at 31 characters, for example `Hue / Saturation / Brightness (`) and `update_device_parameters` (index of a label in `options`; a row without options has its reason in `enumOptionsNote`, and finding an index by setting values makes unsaved changes). Backlog: the lowlands item becomes `Done:`.
