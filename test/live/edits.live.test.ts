@@ -79,6 +79,30 @@ describe.skipIf(!LIVE)('live World Machine graph edits', () => {
     expect(await reader.listDevices()).toHaveLength(listed.length);
   }, 120_000);
 
+  it('lists the eleven captured options of a Combiner Method (enum-options design section 6)', async () => {
+    const device = await reader.getDevice(`#${combiner}`);
+    // raw/enum-options.txt l.1558 and l.1572-1632.
+    expect(device.parameters.find((p) => p.name === 'Method')).toEqual({
+      name: 'Method',
+      type: 'enum',
+      value: 'Average',
+      options: [
+        'Average',
+        'Add',
+        'Subtract',
+        'Multiply',
+        'Max',
+        'Min',
+        'Power',
+        'Root',
+        'Detail',
+        'Differences',
+        'Screen',
+      ],
+    });
+    expect(device).not.toHaveProperty('enumOptionsNote');
+  }, 60_000);
+
   it('renames to 23 characters and refuses 24 without sending', async () => {
     const name23 = 'ABCDEFGHIJKLMNOPQRSTUVW';
     const renamed = await devices.renameDevice(`#${grad}`, name23);
