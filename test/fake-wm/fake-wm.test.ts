@@ -1573,4 +1573,25 @@ describe('fake World Machine: lengths through the parameter editor (float-units 
       ['0.003125', 'applied', '25 m', '8 km'],
     ]);
   });
+
+  it('rejects the item whose probe World Machine refuses and sets the others', async () => {
+    const s = session({ FAKE_WM_PARAM_SET_ERROR_AT: '1' });
+    await s.execute(['project new blank force', 'device add Gradient']);
+    const update = await new WorldMachineParameterEditor(s).updateParameters('#1', {
+      Width: '500 m',
+      Direction: 3,
+    });
+    expect(update.parameters).toEqual([
+      {
+        name: 'Width',
+        type: 'float',
+        requested: '1',
+        outcome: 'rejected',
+        value: '8 km',
+        worldMachineMessage: "Error: Error: Invalid value for '#1.Width'",
+      },
+      { name: 'Direction', type: 'int', requested: '3', outcome: 'applied', value: '3' },
+    ]);
+    expect(await outputs(s, ['param get #1.Width'])).toEqual([['#1.Width = 8 km']]);
+  });
 });

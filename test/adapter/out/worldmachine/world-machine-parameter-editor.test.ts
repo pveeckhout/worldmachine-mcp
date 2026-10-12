@@ -496,4 +496,106 @@ describe('WorldMachineParameterEditor', () => {
     ]);
     expect(s.dirtyMarks()).toBe(1);
   });
+
+  it('rejects an item whose probe set World Machine refuses, skips its undo, and sets the others', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: DEVICES }],
+      'param list #1': [{ output: GRADIENT_PARAMS }],
+      // Assumed text, as the fake's FAKE_WM_PARAM_SET_ERROR_AT prints it; no capture shows a refused probe.
+      'param set #1.Width 1': [{ errors: ["Error: Error: Invalid value for '#1.Width'"] }],
+      'param set #1.Direction 3': [{ output: ['Set #1.Direction = 3'] }],
+      'param get #1.Direction': [{ output: ['#1.Direction = 3'] }],
+    });
+    const update = await editor(s).updateParameters('#1', { Width: '500 m', Direction: 3 });
+    expect(update.parameters).toEqual([
+      {
+        name: 'Width',
+        type: 'float',
+        requested: '1',
+        outcome: 'rejected',
+        value: '8 km',
+        worldMachineMessage: "Error: Error: Invalid value for '#1.Width'",
+      },
+      { name: 'Direction', type: 'int', requested: '3', outcome: 'applied', value: '3' },
+    ]);
+    expect(s.batches.slice(2)).toEqual([
+      ['param set #1.Width 1'],
+      ['param set #1.Direction 3', 'param get #1.Direction'],
+    ]);
+    expect(s.dirtyMarks()).toBe(1);
+  });
+
+  it.each([['1.0'], ['0 m'], ['0 km'], ['0.5km2']])(
+    'rejects an item whose read at 1 is %j, after its undo ran',
+    async (read) => {
+      const s = scriptedSession({
+        'device list': [{ output: DEVICES }],
+        'param list #1': [{ output: GRADIENT_PARAMS }],
+        'param set #1.Width 1': [{ output: ['Set #1.Width = 1'] }],
+        // Assumed reads: no capture shows a length float that reads anything but a non-zero length at 1.
+        'param get #1.Width': [{ output: [`#1.Width = ${read}`] }, { output: ['#1.Width = 8 km'] }],
+        'project undo': [{ output: ['Undo performed.'] }],
+      });
+      const update = await editor(s).updateParameters('#1', { Width: '500 m' });
+      expect(update.parameters).toEqual([
+        {
+          name: 'Width',
+          type: 'float',
+          requested: '1',
+          outcome: 'rejected',
+          value: '8 km',
+          worldMachineMessage: `could not read the scale of 'Width': it read '${read}' at 1`,
+        },
+      ]);
+      expect(s.batches.slice(2)).toEqual([
+        ['param set #1.Width 1'],
+        ['param get #1.Width', 'project undo', 'param get #1.Width'],
+      ]);
+      expect(s.dirtyMarks()).toBe(1);
+    },
+  );
+
+  it("rejects an item whose read at 1 fails, with World Machine's text (plan decision P3)", async () => {
+    const s = scriptedSession({
+      'device list': [{ output: DEVICES }],
+      'param list #1': [{ output: GRADIENT_PARAMS }],
+      'param set #1.Width 1': [{ output: ['Set #1.Width = 1'] }],
+      // Assumed: a failing `param get`; no capture shows one for an existing parameter.
+      'param get #1.Width': [{ errors: ['Error: Error: Read failed'] }, { output: ['#1.Width = 8 km'] }],
+      'project undo': [{ output: ['Undo performed.'] }],
+    });
+    const update = await editor(s).updateParameters('#1', { Width: '500 m' });
+    expect(update.parameters[0]).toMatchObject({
+      outcome: 'rejected',
+      requested: '1',
+      value: '8 km',
+      worldMachineMessage: 'Error: Error: Read failed',
+    });
+  });
+
+  it('rejects an item whose read at 1 prints no line and no error, after its undo ran (plan decision P3)', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: DEVICES }],
+      'param list #1': [{ output: GRADIENT_PARAMS }],
+      'param set #1.Width 1': [{ output: ['Set #1.Width = 1'] }],
+      // Assumed: a `param get` with no `#1.Width = ` line and no error; no capture shows one (spec section 6).
+      'param get #1.Width': [{ output: [] }, { output: ['#1.Width = 8 km'] }],
+      'project undo': [{ output: ['Undo performed.'] }],
+    });
+    const update = await editor(s).updateParameters('#1', { Width: '500 m' });
+    expect(update.parameters).toEqual([
+      {
+        name: 'Width',
+        type: 'float',
+        requested: '1',
+        outcome: 'rejected',
+        value: '8 km',
+        worldMachineMessage: "could not read the scale of 'Width': it read '' at 1",
+      },
+    ]);
+    expect(s.batches.slice(2)).toEqual([
+      ['param set #1.Width 1'],
+      ['param get #1.Width', 'project undo', 'param get #1.Width'],
+    ]);
+  });
 });

@@ -9,7 +9,6 @@ import { lookUpDevice } from './device-lookup.js';
 import { requireLine } from './edit-checks.js';
 import { parseParamGet } from './parsers/param-get.js';
 import { parseParamList } from './parsers/param-list.js';
-import { unexpectedOutput } from './parsers/unexpected.js';
 import { type RawResponse, requireFrame, throwIfFailed } from './raw-response.js';
 import type { WorldMachineSession } from './world-machine-session.js';
 
@@ -172,11 +171,15 @@ export class WorldMachineParameterEditor implements ParameterEditPort {
   /**
    * Float-units design section 4: reads the scale of a length item by setting it to 1, reading it, and undoing that
    * set, then plans the set of the converted value. Plan decision P1: the undo is sent only once the probe set was
-   * accepted, in a batch of its own, since World Machine runs the rest of a batch after a failing command (V2).
+   * accepted, in a batch of its own, since World Machine runs the rest of a batch after a failing command (V2). A
+   * refused probe, or a read at 1 that is not a non-zero length, rejects this item only (plan decisions P2 and P3).
    */
   async #probeScale(device: string, item: LengthItem): Promise<Resolved> {
     const probe = requireFrame((await this.#session.execute([item.probe]))[0]);
-    throwIfFailed(probe);
+    // Nothing was set, so this item's later steps, its undo among them, are skipped.
+    if (probe.errors.length > 0) {
+      return { outcome: rejected(item, item.parameter.value, worldMachineText(probe.errors)) };
+    }
     // Design section 4: the probe is an unsaved change even once undone, since undo may not restore the saved flag;
     // an unconfirmed probe may have changed the project too (ruling C2), so dirty is set before the check.
     this.#session.markDirty();
@@ -186,12 +189,14 @@ export class WorldMachineParameterEditor implements ParameterEditPort {
     // as UNEXPECTED_OUTPUT would hide those codes.
     const responses = await this.#session.execute([item.get, UNDO, item.get]);
     const atOne = requireFrame(responses[0]);
-    requireRestored(device, item, requireFrame(responses[1]), requireFrame(responses[2]));
-    throwIfFailed(atOne);
-    const read = parseParamGet(atOne.output, item.reference);
-    const metres = parseLength(read);
-    if (metres === undefined || metres === 0) throw unexpectedOutput('param get', atOne.output);
-    return lengthResolved(item, read, metres);
+    const restored = requireRestored(device, item, requireFrame(responses[1]), requireFrame(responses[2]));
+    const read = readingOf(atOne, item.reference);
+    const metres = read === undefined ? undefined : parseLength(read);
+    if (read !== undefined && metres !== undefined && metres !== 0) return lengthResolved(item, read, metres);
+    const message =
+      (read === undefined && atOne.errors.length > 0 ? worldMachineText(atOne.errors) : undefined) ??
+      `could not read the scale of '${item.parameter.name}': it read '${read ?? shown(atOne)}' at 1`;
+    return { outcome: rejected(item, restored, message) };
   }
 }
 
