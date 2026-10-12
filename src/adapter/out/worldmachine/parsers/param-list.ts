@@ -7,7 +7,7 @@ const HEADER = /^Parameters for '.*' \(.*\):$/;
 const NONE = /^Device '.*' has no parameters\.$/;
 // A name may have single spaces; at least two spaces end it, even when it overflows its column (raw/river-device.txt
 // l.39: `Layout Alignment Uses Datum  bool`). The type is one word; the value is the rest of the line.
-const ROW = /^\s{2}(\S(?:.*?\S)?)\s{2,}(\S+)(?:\s+(.*?))?\s*$/;
+const ROW = /^\s{2}(\S(?:.*?\S)??)\s{2,}(\S+)(?:\s+(.*?))?\s*$/;
 
 export function parseParamList(output: readonly string[]): Parameter[] {
   const shown = output.filter((line) => line.trim() !== '');

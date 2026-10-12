@@ -58,6 +58,19 @@ describe('parseParamList', () => {
     });
   });
 
+  it('reads a one-character name, not the name and its type as one (raw/enum-options.txt l.422-424)', () => {
+    expect(
+      parseParamList([
+        "Parameters for 'VDM Features' (VDM Features):",
+        '  type                      enum      Relative area',
+        '  k                         float     1.0',
+      ]),
+    ).toEqual([
+      { name: 'type', type: 'enum', value: 'Relative area' },
+      { name: 'k', type: 'float', value: '1.0' },
+    ]);
+  });
+
   it('reads a device without parameters', () => {
     expect(parseParamList(["Parameters for 'X' (Y):"])).toEqual([]);
   });
