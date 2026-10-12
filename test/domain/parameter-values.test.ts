@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Parameter } from '../../src/domain/device.js';
-import { decimalText, parameterText } from '../../src/domain/parameter-values.js';
+import { decimalText, parameterInput, parameterText } from '../../src/domain/parameter-values.js';
 
 const param = (type: string): Parameter => ({ name: 'p', type, value: '' });
 
@@ -90,5 +90,106 @@ describe('parameterText', () => {
       problem:
         "expected a plain decimal number in World Machine's internal units (no units, no decimal comma, no exponent)",
     });
+  });
+});
+
+describe('parameterInput (float-units design section 3)', () => {
+  // raw/float-scale.txt l.1614, l.850, l.1310, l.436, and l.2365.
+  const width: Parameter = { name: 'Width', type: 'float', value: '8 km' };
+  const height: Parameter = { name: 'Height', type: 'float', value: '0 m' };
+  const hardness: Parameter = { name: 'Hardness', type: 'float', value: '0.0' };
+  const fold: Parameter = { name: 'foldAngleDeg', type: 'float', value: '30.0°' };
+  const area: Parameter = { name: 'meshMinArea', type: 'float', value: '0.0km2' };
+  const LENGTH_PROBLEM =
+    'expected a plain decimal number in World Machine\'s internal units, or a length in m or km such as "500 m"';
+  const UNIT_PROBLEM = 'a unit is accepted only on a float that shows m or km';
+
+  it.each([
+    ['500 m', 500],
+    ['2.5km', 2500],
+    ['-4 km', -4000],
+    ['0 m', 0],
+  ])('takes %j on a float that shows km as %d m', (given, metres) => {
+    expect(parameterInput(width, given)).toEqual({ length: { given, metres } });
+  });
+
+  it('takes a length on a float whose listed value is out of range but ends in km (Codex round 4 ruling 2)', () => {
+    const huge: Parameter = { name: 'Width', type: 'float', value: `${'9'.repeat(400)} km` };
+    expect(parameterInput(huge, '500 m')).toEqual({ length: { given: '500 m', metres: 500 } });
+  });
+
+  it('takes a length on a float that shows m', () => {
+    expect(parameterInput(height, '656.25 m')).toEqual({ length: { given: '656.25 m', metres: 656.25 } });
+  });
+
+  it.each([
+    [0.5, '0.5'],
+    ['2', '2'],
+    [-0.5, '-0.5'],
+  ])('returns parameterText itself for the plain value %j: an internal value', (value, text) => {
+    expect(parameterInput(width, value)).toEqual({ text });
+    expect(parameterInput(width, value)).toEqual(parameterText(width, value));
+  });
+
+  // Plan decision P4: a plain decimal, an optional single space, and a non-numeric suffix.
+  it.each([['500 ft'], ['3%'], ['1 %'], ['2 km2'], ['1 km2'], ['500 M'], ['1.5 kms']])(
+    'refuses the unit attempt %j with the length text',
+    (value) => {
+      expect(parameterInput(width, value)).toEqual({ problem: LENGTH_PROBLEM });
+    },
+  );
+
+  it.each([
+    ['1,5'],
+    ['1e-1'],
+    ['5e2 m'],
+    [1e-7],
+    [true],
+    ['500  m'],
+    ['.5 km'],
+    ['+5 m'],
+    ['km'],
+    [' 500 m'],
+    ['500 m '],
+    ['500 m\t'],
+    ['500 ft '],
+  ])("keeps parameterText's own problem for %j, which is no unit attempt", (value) => {
+    expect(parameterInput(width, value)).toEqual(parameterText(width, value));
+    expect(parameterInput(width, value)).toEqual({
+      problem:
+        "expected a plain decimal number in World Machine's internal units (no units, no decimal comma, no exponent)",
+    });
+  });
+
+  it.each([
+    [hardness, '1 m'],
+    [fold, '1 m'],
+    [area, '1 km'],
+  ])('refuses a length on a float that shows %j', (parameter, value) => {
+    expect(parameterInput(parameter, value)).toEqual({ problem: UNIT_PROBLEM });
+  });
+
+  it.each([
+    ['a 400-digit decimal', `${'9'.repeat(400)} m`],
+    ['a length below 1e-320 m', `0.${'0'.repeat(329)}1 m`],
+  ])('refuses a length out of range: %s (spec section 3)', (_, value) => {
+    expect(parameterInput(width, value)).toEqual({ problem: 'the length is out of range' });
+  });
+
+  it('takes the smallest double as a length in range (plan decision P9)', () => {
+    const given = `0.${'0'.repeat(323)}5 m`;
+    expect(parameterInput(width, given)).toEqual({ length: { given, metres: 5e-324 } });
+  });
+
+  it('refuses another unit on a float that shows no length with the length text', () => {
+    expect(parameterInput(hardness, '1 ft')).toEqual({ problem: LENGTH_PROBLEM });
+  });
+
+  it.each([
+    ['int', 'expected an integer without a decimal point'],
+    ['enum', 'expected the 0-based index of an option, such as 0 or 1'],
+    ['bool', 'expected true or false, or 1, 0, yes, or off'],
+  ])("gives a unit on an %s that type's own problem text", (type, problem) => {
+    expect(parameterInput({ name: 'p', type, value: '0' }, '1 m')).toEqual({ problem });
   });
 });

@@ -1,5 +1,6 @@
 import type { Parameter } from './device.js';
 import type { ParameterValue } from './graph-edit.js';
+import { matchesLength, parseLength, showsLength } from './lengths.js';
 
 // The forms this tool sends. World Machine accepts more (spec fact 35, raw/p2c-edits.txt l.182-240): exponent forms
 // (`1e-1`), a leading dot (`.5`), enum labels in any case (`clamp`), and the bool words `no`, `on`, and `TRUE`. They
@@ -59,6 +60,39 @@ export function parameterText(parameter: Parameter, value: ParameterValue): Para
       // l.336-340, spec fact 36), so a confirmed set would report a change that did not happen.
       return { problem: `parameters of type '${parameter.type}' cannot be set` };
   }
+}
+
+/** A value as update_device_parameters takes it: `parameterText`'s result, or a length to convert (float-units design). */
+export type ParameterInput =
+  | ParameterText
+  | { readonly length: { readonly given: string; readonly metres: number } };
+
+const LENGTH_PROBLEM =
+  'expected a plain decimal number in World Machine\'s internal units, or a length in m or km such as "500 m"';
+const UNIT_PROBLEM = 'a unit is accepted only on a float that shows m or km';
+/** Spec section 3, plan decision P9: a well-formed length whose metres a double cannot hold. */
+const RANGE_PROBLEM = 'the length is out of range';
+/**
+ * Plan decision P4: a unit attempt is the whole value: a plain decimal, an optional single space, and a non-numeric
+ * suffix that runs to the end without white space (`500 ft`, `3%`, `2 km2`). The suffix may not start with a digit,
+ * white space, `.`, `,`, `+`, `-`, or an exponent (`1e-1`), so `1,5`, `1e-1`, `500  m`, ` 500 m`, and `500 m ` keep
+ * `parameterText`'s own problem.
+ */
+const UNIT_ATTEMPT = /^-?\d+(?:\.\d+)? ?(?![eE][+-]?\d)[^\d\s.,+-]\S*$/;
+
+/**
+ * The value update_device_parameters sends, or a length to convert once the parameter's scale is read (float-units
+ * design section 3). Every value that is not a unit attempt gets `parameterText`'s own result, so its path and its
+ * problem text are unchanged; plan_graph and apply_graph keep `parameterText`, since units in graph specs are out of
+ * scope (design section 1).
+ */
+export function parameterInput(parameter: Parameter, value: ParameterValue): ParameterInput {
+  const plain = parameterText(parameter, value);
+  if (parameter.type !== 'float' || 'text' in plain || typeof value !== 'string') return plain;
+  if (!matchesLength(value)) return UNIT_ATTEMPT.test(value) ? { problem: LENGTH_PROBLEM } : plain;
+  if (!showsLength(parameter.value)) return { problem: UNIT_PROBLEM };
+  const metres = parseLength(value);
+  return metres === undefined ? { problem: RANGE_PROBLEM } : { length: { given: value, metres } };
 }
 
 function numberText(value: ParameterValue, pattern: RegExp, problem: string): ParameterText {
