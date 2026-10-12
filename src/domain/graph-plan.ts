@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
-import type { DeviceDetail, DeviceSummary, InputPort, Parameter } from './device.js';
+import type { DeviceDetail, DeviceSummary, InputPort, OutputPort, Parameter, PortLink } from './device.js';
 import { foldCase, idOfReference, listedName } from './device-name.js';
 import type { ParameterValue } from './graph-edit.js';
 import type { GraphDevice, GraphSource, GraphSpec } from './graph-spec.js';
 import { decimalText, parameterText } from './parameter-values.js';
-import { sourceCandidates } from './wire-source.js';
+import { resolveWireSource, sourceCandidates } from './wire-source.js';
 
 /** What `planGraph` reads: the device list and `get_device` of every device `referencedDeviceIds` names. */
 export type GraphState = {
@@ -328,29 +328,41 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
     return { device: own?.spec.name ?? labelOf(target.id) ?? target.name, id: target.id, port: source.port };
   };
 
+  /** The outputs of a device the state read; undefined for one it did not read. */
+  const outputsOf = (id: number): readonly OutputPort[] | undefined =>
+    state.details.find((candidate) => candidate.id === id)?.outputs;
+
   /**
-   * The device `wire list` shows as the source of `input`: undefined without a wire, null after a conflict when no
-   * single listed device has the printed name (D4, ruling K4': `wire list` names devices, not ids).
+   * The device that feeds `input` of `destination`: undefined without a wire, null after a conflict when
+   * resolveWireSource cannot tell (revision 6, fact 82: `wire list` names devices, not ids).
    */
   const currentSource = (
     owner: string,
+    destination: DeviceDetail,
     input: InputPort,
   ): (StepSource & { readonly id: number }) | null | undefined => {
     const source = input.source;
     if (source === undefined) return undefined;
-    const shown = listedName(source.device);
-    const matches = state.devices.filter((device) => device.name === shown);
-    const only = matches[0];
-    if (only === undefined || matches.length > 1) {
-      const holders = only === undefined ? 'no listed device has' : `${ids(matches)} share`;
-      conflict(
-        owner,
-        `input ${input.port} is wired from '${shown}', a name ${holders}; wire list names devices, so the wire's source cannot be identified`,
-      );
-      return null;
+    const destinationName = listedName(destination.name);
+    const resolved = resolveWireSource(destinationName, input, state.devices, outputsOf);
+    if (resolved.kind === 'none') return undefined;
+    if (resolved.kind === 'found') {
+      const id = resolved.id;
+      const listed = state.devices.find((device) => device.id === id);
+      return { device: labelOf(id) ?? listed?.name ?? listedName(source.device), id, port: resolved.port };
     }
-    const own = managed.find((candidate) => candidate.existing?.id === only.id);
-    return { device: own?.spec.name ?? only.name, id: only.id, port: source.port };
+    const candidates = sourceCandidates(input, state.devices);
+    const holders =
+      candidates.length === 0
+        ? 'a name no listed device has'
+        : resolved.kind === 'ambiguous'
+          ? `a name ${ids(candidates)} share, and ${resolved.candidates.map((id) => `#${id}`).join(', ')} each list '${destinationName}' input ${input.port} among their output targets`
+          : `a name ${ids(candidates)} share, and none of them lists '${destinationName}' input ${input.port} among its output targets`;
+    conflict(
+      owner,
+      `input ${input.port} is wired from '${listedName(source.device)}', ${holders}; wire list names devices, so the wire's source cannot be identified`,
+    );
+    return null;
   };
 
   const disconnects: PlanStep[] = [];
@@ -442,7 +454,7 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
         conflict(device.name, `#${id} has no input port ${input.port}`);
         continue;
       }
-      const current = currentSource(device.name, port);
+      const current = currentSource(device.name, existing, port);
       if (current === null) continue;
       const wanted = input.source === null ? null : resolveSource(device.name, input.source);
       if (wanted === undefined) continue;
@@ -468,39 +480,69 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
     }
   }
 
-  // D12: a removed device's wires, less those a disconnect step already removes. Wire ends are keyed by id where the
-  // printed name identifies one listed device.
-  const idOfShown = (printed: string): number | undefined => {
-    const matches = state.devices.filter((device) => device.name === listedName(printed));
-    return matches.length === 1 ? matches[0]?.id : undefined;
-  };
+  // D12, revision 6: a removed device's wires, less those a disconnect step already removes. A wire is keyed by the
+  // ids at its ends where resolveWireSource identifies them, so wires to two devices that share a name are both
+  // listed; one it cannot identify is keyed by its text, so a target line World Machine repeats
+  // (raw/v5-read-formats.txt l.44-45) stays one wire.
   const cut = new Set(
     disconnects.flatMap((step) =>
       step.op === 'disconnect' ? [`${step.source.id}.${step.source.port}>${step.id}.${step.port}`] : [],
     ),
   );
+  /** True when every listed device with `input`'s source name was read, so the resolver can run. */
+  const readable = (input: InputPort): boolean =>
+    sourceCandidates(input, state.devices).every((candidate) => outputsOf(candidate.id) !== undefined);
+  /**
+   * The device an output target line of removed device `from` names. Branch A: the one listed device of that name.
+   * Otherwise the read devices of that name whose input `target.port` resolves to this output qualify. Branch B: the
+   * first qualifying device whose input is not yet `taken` by an earlier line of the output. Branch C: every
+   * qualifying input is taken, so the line repeats one (raw/v5-read-formats.txt l.44-45) and maps to the first. Branch
+   * D: none qualifies, so undefined and the caller keys the line by its text. `taken` holds `<id>.<input port>`
+   * (Codex round 1, ruling 1), since one device may take wires on several inputs.
+   */
+  const targetId = (from: number, port: number, target: PortLink, taken: Set<string>): number | undefined => {
+    const named = state.devices.filter((device) => device.name === listedName(target.device));
+    if (named.length === 1) return named[0]?.id;
+    const qualifying = named.flatMap((candidate) => {
+      const input = state.details
+        .find((read) => read.id === candidate.id)
+        ?.inputs.find((own) => own.port === target.port);
+      if (input === undefined || !readable(input)) return [];
+      const resolved = resolveWireSource(candidate.name, input, state.devices, outputsOf);
+      return resolved.kind === 'found' && resolved.id === from && resolved.port === port
+        ? [candidate.id]
+        : [];
+    });
+    const free = qualifying.find((candidate) => !taken.has(`${candidate}.${target.port}`));
+    if (free !== undefined) {
+      taken.add(`${free}.${target.port}`);
+      return free;
+    }
+    return qualifying[0];
+  };
   const removes: PlanStep[] = [...removed].map(([id, name]): PlanStep => {
     const device = detail(id);
-    const wires = [
-      ...device.inputs.flatMap((input) =>
-        input.source === undefined
-          ? []
-          : [
-              {
-                key: `${idOfShown(input.source.device)}.${input.source.port}>${id}.${input.port}`,
-                text: wire(`${listedName(input.source.device)}.${input.source.port}`, name, input.port),
-              },
-            ],
-      ),
-      ...device.outputs.flatMap((out) =>
-        out.targets.map((target) => ({
-          key: `${id}.${out.port}>${idOfShown(target.device)}.${target.port}`,
-          text: wire(`${name}.${out.port}`, listedName(target.device), target.port),
-        })),
-      ),
-    ];
-    const wiresRemoved = [...new Set(wires.filter((w) => !cut.has(w.key)).map((w) => w.text))];
-    return { op: 'remove', device: name, id, wiresRemoved };
+    const wires = new Map<string, string>();
+    const keep = (key: string, text: string): void => {
+      if (!cut.has(key) && !wires.has(key)) wires.set(key, text);
+    };
+    for (const input of device.inputs) {
+      const source = input.source;
+      if (source === undefined) continue;
+      const text = wire(`${listedName(source.device)}.${source.port}`, name, input.port);
+      // Ruling 6: an unidentified source of a removed device is shown, not a conflict.
+      const resolved = readable(input) ? resolveWireSource(name, input, state.devices, outputsOf) : undefined;
+      keep(resolved?.kind === 'found' ? `${resolved.id}.${resolved.port}>${id}.${input.port}` : text, text);
+    }
+    for (const out of device.outputs) {
+      const taken = new Set<string>();
+      for (const target of out.targets) {
+        const text = wire(`${name}.${out.port}`, listedName(target.device), target.port);
+        const to = targetId(id, out.port, target, taken);
+        keep(to === undefined ? text : `${id}.${out.port}>${to}.${target.port}`, text);
+      }
+    }
+    return { op: 'remove', device: name, id, wiresRemoved: [...wires.values()] };
   });
 
   const steps = [...disconnects, ...removes, ...adds, ...enables, ...bypasses, ...parameters, ...connects];

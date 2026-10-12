@@ -426,3 +426,80 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
     expect(w.record.lines().filter((line) => line.startsWith('snapshot restore'))).toEqual([]);
   }, 15_000);
 });
+
+describe('apply_graph with device ids (spec v3 revision 6)', () => {
+  // Section 5's layered graph: base and hills into one Combiner, it and the mountains into a second, the second into
+  // an erosion. Both Combiners are bound by id: a Combiner keeps its default name (fact 80).
+  const layered = (first: number, second: number): RawGraphSpec => ({
+    version: 1,
+    devices: [
+      { name: 'Base', type: 'Gradient', parameters: { Width: 0.5 } },
+      { name: 'Hills', type: 'Gradient' },
+      { name: 'Mountains', type: 'Gradient' },
+      { name: 'hills mix', id: first, type: 'Combiner', inputs: { '1': 'Base', '2': 'Hills' } },
+      { name: 'mountain mix', id: second, type: 'Combiner', inputs: { '1': 'hills mix', '2': 'Mountains' } },
+      { name: 'Eroded', type: 'Erosion', inputs: { '1': 'mountain mix' } },
+    ],
+  });
+
+  /** Adds two Combiners (#536, #537) and applies the layered graph over them (#538-#541 are added). */
+  async function applyLayered(w: ReturnType<typeof wired>) {
+    const first = (await w.devices.addDevice('Combiner')).id;
+    const second = (await w.devices.addDevice('Combiner')).id;
+    const spec = layered(first, second);
+    const plan = await w.plan.planGraph({ spec });
+    expect(plan.conflicts).toEqual([]);
+    const view = await w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
+    return { spec, view, first, second };
+  }
+
+  it('applies the layered graph, and a second plan holds only comparable: false steps', async () => {
+    const w = wired();
+    const { spec, view } = await applyLayered(w);
+    expect(view.applied).toBe(10);
+    expect(view.diff.map((entry) => [entry.device, entry.change])).toEqual([
+      ['Base', 'added'],
+      ['Hills', 'added'],
+      ['Mountains', 'added'],
+      ['Eroded', 'added'],
+      ['hills mix', 'changed'],
+      ['mountain mix', 'changed'],
+    ]);
+    expect(w.record.lines().filter((line) => /^device rename #53[67] /.test(line))).toEqual([]);
+    const again = await w.plan.planGraph({ spec });
+    expect(again.conflicts).toEqual([]);
+    expect(again.steps).toEqual([
+      {
+        op: 'set-parameter',
+        device: 'Base',
+        id: 538,
+        name: 'Width',
+        from: '0.5',
+        to: '0.5',
+        comparable: false,
+      },
+    ]);
+    expect(again.unchanged).toEqual(['Hills', 'Mountains', 'hills mix', 'mountain mix', 'Eroded']);
+  });
+
+  it('reads the unmanaged device that shares a source name in a second phase (section 5)', async () => {
+    const w = wired();
+    const { second } = await applyLayered(w);
+    const before = w.record.lines().length;
+    const spec: RawGraphSpec = {
+      version: 1,
+      devices: [{ name: 'Eroded', type: 'Erosion', inputs: { '1': `#${second}` } }],
+    };
+    expect(await w.plan.planGraph({ spec })).toMatchObject({
+      conflicts: [],
+      steps: [],
+      unchanged: ['Eroded'],
+    });
+    expect(
+      w.record
+        .lines()
+        .slice(before)
+        .filter((line) => line.startsWith('device select ')),
+    ).toEqual(['device select #541', 'device select #537', 'device select #536']);
+  });
+});

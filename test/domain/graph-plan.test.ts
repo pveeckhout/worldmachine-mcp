@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { DeviceDetail, DeviceSummary, PortLink } from '../../src/domain/device.js';
+import type { DeviceDetail, DeviceSummary, InputPort, PortLink } from '../../src/domain/device.js';
 import {
   canonicalJson,
   type GraphState,
@@ -297,11 +297,11 @@ describe('planGraph (spec v3 section 5)', () => {
       '(enum)',
     ],
     [
-      'a current source name two devices share (Review Focus 5, D4)',
-      state([ERODED], [row(12, 'Old'), row(13, 'Old')]),
+      'a current source name two devices share, neither listing the input (revision 6)',
+      state([ERODED, detail(12, 'Old', 'Perlin Noise'), detail(13, 'Old', 'Perlin Noise')]),
       spec([{ name: 'Eroded', type: 'Erosion', inputs: { '1': null } }]),
       'Eroded',
-      '#12, #13 share',
+      "a name #12, #13 share, and none of them lists 'Eroded' input 1 among its output targets",
     ],
     [
       'a managed device removed by #<id>',
@@ -583,6 +583,230 @@ describe('planGraph with ids and the Combiner rule (spec v3 revision 6)', () => 
         unchanged: [],
       });
     }
+  });
+
+  const fed = (port: number, device?: string): InputPort =>
+    device === undefined
+      ? { port, name: 'Primary Input' }
+      : { port, name: 'Primary Input', source: { device, port: 1 } };
+  // Spec section 5's layered graph, as wire list shows it after an apply: base and hills into #3, #3 and the mountains
+  // into #6, #6 into Erosion. Both Combiners keep the name 'Combiner' (fact 80).
+  const BASE = detail(1, 'Base', 'Advanced Perlin', { outputs: [output([{ device: 'Combiner', port: 1 }])] });
+  const HILLS = detail(2, 'Hills', 'Advanced Perlin', {
+    outputs: [output([{ device: 'Combiner', port: 2 }])],
+  });
+  const HILLS_MIX = detail(3, 'Combiner', 'Combiner', {
+    inputs: [fed(1, 'Base'), fed(2, 'Hills')],
+    outputs: [output([{ device: 'Combiner', port: 1 }])],
+  });
+  const MOUNTAINS = detail(4, 'Mountains', 'Advanced Perlin', {
+    outputs: [output([{ device: 'Combiner', port: 2 }])],
+  });
+  const MOUNTAIN_MIX = detail(6, 'Combiner', 'Combiner', {
+    inputs: [fed(1, 'Combiner'), fed(2, 'Mountains')],
+    outputs: [output([{ device: 'Erosion', port: 1 }])],
+  });
+  const EROSION = detail(7, 'Erosion', 'Erosion', { inputs: [fed(1, 'Combiner')] });
+  const LAYERED = state([BASE, HILLS, HILLS_MIX, MOUNTAINS, MOUNTAIN_MIX, EROSION]);
+  const layered = (erosionFrom: string) =>
+    spec([
+      { name: 'Base', type: 'Advanced Perlin' },
+      { name: 'Hills', type: 'Advanced Perlin' },
+      { name: 'Mountains', type: 'Advanced Perlin' },
+      { name: 'hills mix', id: 3, type: 'Combiner', inputs: { '1': 'Base', '2': 'Hills' } },
+      { name: 'mountain mix', id: 6, type: 'Combiner', inputs: { '1': 'hills mix', '2': 'Mountains' } },
+      { name: 'Erosion', type: 'Erosion', inputs: { '1': erosionFrom } },
+    ]);
+
+  it('plans nothing for the layered graph of section 5 once applied', () => {
+    expect(planGraph(layered('mountain mix'), LAYERED)).toEqual({
+      conflicts: [],
+      steps: [],
+      unchanged: ['Base', 'Hills', 'Mountains', 'hills mix', 'mountain mix', 'Erosion'],
+    });
+  });
+
+  it('moves an input from one Combiner to the other, by label and id', () => {
+    expect(planGraph(layered('hills mix'), LAYERED).steps).toEqual([
+      {
+        op: 'disconnect',
+        device: 'Erosion',
+        id: 7,
+        port: 1,
+        from: 'mountain mix.1',
+        source: { device: 'mountain mix', id: 6, port: 1 },
+      },
+      {
+        op: 'connect',
+        device: 'Erosion',
+        id: 7,
+        port: 1,
+        from: 'hills mix.1',
+        source: { device: 'hills mix', id: 3, port: 1 },
+      },
+    ]);
+  });
+
+  it('reports an ambiguous current source with the candidate ids', () => {
+    const feeding = output([{ device: 'Combiner', port: 1 }]);
+    const project = state([
+      detail(3, 'Combiner', 'Combiner', { outputs: [feeding] }),
+      detail(4, 'Combiner', 'Combiner', { outputs: [feeding] }),
+      detail(5, 'Combiner', 'Combiner', { inputs: [fed(1, 'Combiner'), fed(2)] }),
+      detail(6, 'Combiner', 'Combiner', { inputs: [fed(1, 'Combiner'), fed(2)] }),
+    ]);
+    expect(planGraph(spec([{ name: 'p', id: 5, type: 'Combiner', inputs: { '1': null } }]), project)).toEqual(
+      {
+        conflicts: [
+          {
+            entry: 'p',
+            reason:
+              "input 1 is wired from 'Combiner', a name #3, #4, #5, #6 share, and #3, #4 each list 'Combiner' input 1 among their output targets; wire list names devices, so the wire's source cannot be identified",
+          },
+        ],
+        steps: [],
+        // As before revision 6: an entry whose only problem is an unidentified current source plans no step for it.
+        unchanged: ['p'],
+      },
+    );
+  });
+
+  const RAMP_TO_BOTH = detail(10, 'Ramp', 'Gradient', {
+    outputs: [
+      output([
+        { device: 'Combiner', port: 1 },
+        { device: 'Combiner', port: 1 },
+      ]),
+    ],
+  });
+  const FIRST = detail(536, 'Combiner', 'Combiner', { inputs: [fed(1, 'Ramp'), fed(2)] });
+  const SECOND = detail(537, 'Combiner', 'Combiner', { inputs: [fed(1, 'Ramp'), fed(2)] });
+
+  it('lists both wires of a removed device to two devices that share a name (D12)', () => {
+    const plan = planGraph(
+      spec(
+        [
+          { name: 'first mix', id: 536, type: 'Combiner' },
+          { name: 'second mix', id: 537, type: 'Combiner' },
+        ],
+        ['Ramp'],
+      ),
+      state([RAMP_TO_BOTH, FIRST, SECOND]),
+    );
+    expect(plan.steps).toEqual([
+      {
+        op: 'remove',
+        device: 'Ramp',
+        id: 10,
+        wiresRemoved: ['Ramp.1 -> Combiner.1', 'Ramp.1 -> Combiner.1'],
+      },
+    ]);
+  });
+
+  it('keeps the uncut one of two wires to same-named devices (Review Focus 4)', () => {
+    const plan = planGraph(
+      spec(
+        [
+          { name: 'first mix', id: 536, type: 'Combiner' },
+          { name: 'second mix', id: 537, type: 'Combiner', inputs: { '1': null } },
+        ],
+        ['Ramp'],
+      ),
+      state([RAMP_TO_BOTH, FIRST, SECOND]),
+    );
+    expect(plan.steps).toEqual([
+      {
+        op: 'disconnect',
+        device: 'second mix',
+        id: 537,
+        port: 1,
+        from: 'Ramp.1',
+        source: { device: 'Ramp', id: 10, port: 1 },
+      },
+      { op: 'remove', device: 'Ramp', id: 10, wiresRemoved: ['Ramp.1 -> Combiner.1'] },
+    ]);
+  });
+
+  // Codex round 1, ruling 1. #537 is a second 'Combiner' that Ramp does not feed, so each line needs the resolver.
+  const UNFED = detail(537, 'Combiner', 'Combiner', { inputs: [fed(1), fed(2)] });
+
+  it('keeps a repeated target line as one wire when two devices share the target name (Codex round 1, ruling 1)', () => {
+    // Trace: line 1 'Combiner' [1]: named #536, #537 (not branch A); #536 input 1 resolves to Ramp.1 (one listed
+    // 'Ramp'), #537 input 1 has no wire, so qualifying is [536]; '536.1' is free: branch B, key '10.1>536.1', taken
+    // {'536.1'}. Line 2, the same text: qualifying [536], '536.1' taken: branch C, #536, the same key, dropped by keep().
+    const ramp = detail(10, 'Ramp', 'Gradient', {
+      outputs: [
+        output([
+          { device: 'Combiner', port: 1 },
+          { device: 'Combiner', port: 1 },
+        ]),
+      ],
+    });
+    expect(
+      planGraph(
+        spec(
+          [
+            { name: 'first mix', id: 536, type: 'Combiner' },
+            { name: 'second mix', id: 537, type: 'Combiner' },
+          ],
+          ['Ramp'],
+        ),
+        state([ramp, FIRST, UNFED]),
+      ).steps,
+    ).toEqual([{ op: 'remove', device: 'Ramp', id: 10, wiresRemoved: ['Ramp.1 -> Combiner.1'] }]);
+  });
+
+  it('drops the cut one of two wires to two inputs of one device (Codex round 1, ruling 1)', () => {
+    // Trace: the disconnect of 'first mix' input 2 cuts '10.1>536.2'. Line 1 'Combiner' [1]: qualifying [536] (#537
+    // input 1 has no wire), '536.1' free: branch B, key '10.1>536.1', kept. Line 2 'Combiner' [2]: #536 input 2
+    // resolves to Ramp.1, #537 input 2 has no wire, so qualifying [536]; '536.2' is free (taken holds '536.1' only):
+    // branch B, key '10.1>536.2', which is cut, so it is dropped. Keyed by id alone, #536 would count as taken and the
+    // line would fall back to its text and stay.
+    const ramp = detail(10, 'Ramp', 'Gradient', {
+      outputs: [
+        output([
+          { device: 'Combiner', port: 1 },
+          { device: 'Combiner', port: 2 },
+        ]),
+      ],
+    });
+    const both = detail(536, 'Combiner', 'Combiner', { inputs: [fed(1, 'Ramp'), fed(2, 'Ramp')] });
+    expect(
+      planGraph(
+        spec(
+          [
+            { name: 'first mix', id: 536, type: 'Combiner', inputs: { '2': null } },
+            { name: 'second mix', id: 537, type: 'Combiner' },
+          ],
+          ['Ramp'],
+        ),
+        state([ramp, both, UNFED]),
+      ).steps,
+    ).toEqual([
+      {
+        op: 'disconnect',
+        device: 'first mix',
+        id: 536,
+        port: 2,
+        from: 'Ramp.1',
+        source: { device: 'Ramp', id: 10, port: 1 },
+      },
+      { op: 'remove', device: 'Ramp', id: 10, wiresRemoved: ['Ramp.1 -> Combiner.1'] },
+    ]);
+  });
+
+  it('keeps a target line World Machine repeats as one wire (raw/v5-read-formats.txt l.44-45)', () => {
+    const ramp = detail(10, 'Ramp', 'Gradient', {
+      outputs: [
+        output([
+          { device: 'Vegetation', port: 2 },
+          { device: 'Vegetation', port: 2 },
+        ]),
+      ],
+    });
+    expect(planGraph(spec([], ['Ramp']), state([ramp], [row(11, 'Vegetation')])).steps).toEqual([
+      { op: 'remove', device: 'Ramp', id: 10, wiresRemoved: ['Ramp.1 -> Vegetation.2'] },
+    ]);
   });
 });
 
