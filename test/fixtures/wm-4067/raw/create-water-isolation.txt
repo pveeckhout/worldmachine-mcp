@@ -1,0 +1,431 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 513
+Set scene resolution to 513
+<<<
+>>> device delete #1
+Deleted: #1
+<<<
+>>> device delete #308
+Deleted: #308
+<<<
+>>> device delete #309
+Deleted: #309
+<<<
+>>> device delete #318
+Deleted: #318
+<<<
+>>> device add Create Water
+Added 'Create Water'
+<<<
+>>> device list
+Devices (14 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Create Water            
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (15 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Create Water            
+  #537   Height Output           
+
+<<<
+>>> wire connect #314.1 #536.1
+Connected '#314' [1] -> '#536' [1]
+<<<
+>>> wire connect #536.3 #537
+Connected '#536' [3] -> '#537' [1]
+<<<
+>>> param set #537.filename <WORK>/a-flow-restructure.png
+Set #537.filename = <WORK>/a-flow-restructure.png
+<<<
+>>> wire list #537
+Connections for '#537':
+  Inputs:
+    [1] Primary Input <- 'Create Water' [3]
+    [2] Metadata Input <- (none)
+  Outputs:
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Error: Error: Some output devices are not built. Run 'build' first, then export.
+<<<
+>>> (waited 2000 ms)
+Build started.
+Build started.
+[Warning    ] provideNewBuildResults() called but no matching world found in history!
+<<<
+>>> device delete #537
+Deleted: #537
+<<<
+>>> device delete #536
+Deleted: #536
+<<<
+>>> device add Create Water
+Added 'Create Water'
+<<<
+>>> device list
+Devices (14 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #538   Create Water            
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (15 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #538   Create Water            
+  #539   Height Output           
+
+<<<
+>>> wire connect #305.1 #538.1
+Connected '#305' [1] -> '#538' [1]
+<<<
+>>> wire connect #538.3 #539
+Connected '#538' [3] -> '#539' [1]
+<<<
+>>> param set #539.filename <WORK>/b1-thermal.png
+Set #539.filename = <WORK>/b1-thermal.png
+<<<
+>>> wire list #539
+Connections for '#539':
+  Inputs:
+    [1] Primary Input <- 'Create Water' [3]
+    [2] Metadata Input <- (none)
+  Outputs:
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Build started.
+Successfully exported 1 file(s):
+  <WORK>/b1-thermal.png
+
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> device add Create Water
+Added 'Create Water'
+<<<
+>>> device list
+Devices (16 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #538   Create Water            
+  #539   Height Output           
+  #540   Create Water            
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (17 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #538   Create Water            
+  #539   Height Output           
+  #540   Create Water            
+  #541   Height Output           
+
+<<<
+>>> wire connect #305.1 #540.1
+Connected '#305' [1] -> '#540' [1]
+<<<
+>>> wire connect #538.2 #540.2
+Connected '#538' [2] -> '#540' [2]
+<<<
+>>> wire connect #540.3 #541
+Connected '#540' [3] -> '#541' [1]
+<<<
+>>> wire list #540
+Connections for '#540':
+  Inputs:
+    [1] Terrain      <- 'Thermal Weathering' [1]
+    [2] Existing Water <- 'Create Water' [2]
+    [3] Precipitation Map <- (none)
+  Outputs:
+    [1] Terrain      -> (none)
+    [2] Water System -> (none)
+    [3] Tributary Mask -> 'Height Output' [1]
+    [4] Lake Mask    -> (none)
+
+<<<
+>>> param set #541.filename <WORK>/b2-chained.png
+Set #541.filename = <WORK>/b2-chained.png
+<<<
+>>> wire list #541
+Connections for '#541':
+  Inputs:
+    [1] Primary Input <- 'Create Water' [3]
+    [2] Metadata Input <- (none)
+  Outputs:
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] *** Build Ended ***
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+No build running.
+<<<
+>>> export all
+Build started.
+Successfully exported 2 file(s):
+  <WORK>/b1-thermal.png
+  <WORK>/b2-chained.png
+
+<<<
+>>> (waited 2000 ms)
+<<<
+>>> device add Create Water
+Added 'Create Water'
+<<<
+>>> device list
+Devices (18 total):
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #538   Create Water            
+  #539   Height Output           
+  #540   Create Water            
+  #541   Height Output           
+  #542   Create Water            
+
+<<<
+>>> param set "#542.Drain to:" 0
+Set #542.Drain to: = 0
+<<<
+>>> param get #542.Drain to:
+#542.Drain to: = Map borders and existing water
+<<<
+>>> param set "#542.Drain to:" 1
+Set #542.Drain to: = 1
+<<<
+>>> param get #542.Drain to:
+#542.Drain to: = Existing water only
+<<<
+>>> param set "#542.Drain to:" 2
+Error: Error: Enum index out of range (0-1): 2
+<<<
+>>> param get #542.Drain to:
+#542.Drain to: = Existing water only
+<<<
+>>> param set "#542.Drain to:" 3
+Error: Error: Enum index out of range (0-1): 3
+<<<
+>>> param get #542.Drain to:
+#542.Drain to: = Existing water only
+<<<
+>>> param set "#542.Drain to:" 4
+Error: Error: Enum index out of range (0-1): 4
+<<<
+>>> param get #542.Drain to:
+#542.Drain to: = Existing water only
+<<<
+>>> param set "#542.Drain to:" 5
+Error: Error: Enum index out of range (0-1): 5
+<<<
+>>> param get #542.Drain to:
+#542.Drain to: = Existing water only
+<<<
+>>> param set "#542.Headwater Locations" 0
+Set #542.Headwater Locations = 0
+<<<
+>>> param get #542.Headwater Locations
+#542.Headwater Locations = Automatic
+<<<
+>>> param set "#542.Headwater Locations" 1
+Set #542.Headwater Locations = 1
+<<<
+>>> param get #542.Headwater Locations
+#542.Headwater Locations = Specified
+<<<
+>>> param set "#542.Headwater Locations" 2
+Error: Error: Enum index out of range (0-1): 2
+<<<
+>>> param get #542.Headwater Locations
+#542.Headwater Locations = Specified
+<<<
+>>> param set "#542.Headwater Locations" 3
+Error: Error: Enum index out of range (0-1): 3
+<<<
+>>> param get #542.Headwater Locations
+#542.Headwater Locations = Specified
+<<<
+>>> param set "#542.Headwater Locations" 4
+Error: Error: Enum index out of range (0-1): 4
+<<<
+>>> param get #542.Headwater Locations
+#542.Headwater Locations = Specified
+<<<
+>>> param set "#542.Headwater Locations" 5
+Error: Error: Enum index out of range (0-1): 5
+<<<
+>>> param get #542.Headwater Locations
+#542.Headwater Locations = Specified
+<<<
+>>> param set "#542.Channel Model" 0
+Set #542.Channel Model = 0
+<<<
+>>> param get #542.Channel Model
+#542.Channel Model = Do not carve channels
+<<<
+>>> param set "#542.Channel Model" 1
+Set #542.Channel Model = 1
+<<<
+>>> param get #542.Channel Model
+#542.Channel Model = Simple channels (single pixel)
+<<<
+>>> param set "#542.Channel Model" 2
+Set #542.Channel Model = 2
+<<<
+>>> param get #542.Channel Model
+#542.Channel Model = Full channels
+<<<
+>>> param set "#542.Channel Model" 3
+Error: Error: Enum index out of range (0-2): 3
+<<<
+>>> param get #542.Channel Model
+#542.Channel Model = Full channels
+<<<
+>>> param set "#542.Channel Model" 4
+Error: Error: Enum index out of range (0-2): 4
+<<<
+>>> param get #542.Channel Model
+#542.Channel Model = Full channels
+<<<
+>>> param set "#542.Channel Model" 5
+Error: Error: Enum index out of range (0-2): 5
+<<<
+>>> param get #542.Channel Model
+#542.Channel Model = Full channels
+<<<

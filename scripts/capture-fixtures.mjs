@@ -837,6 +837,78 @@ const scenarios = [
       return sections;
     },
   ],
+  // raw/create-water-sea.txt: every build with a Create Water on Flow Restructure as a water source failed. One File
+  // Output per question, since export all fails on any unbuilt output: A, Create Water on Flow Restructure #314 alone;
+  // B1, on Thermal Weathering #305 alone; B2, B1's Water System as a second one's Existing Water. Then the options of
+  // the Create Water enums, by index, on an unwired one.
+  [
+    'create-water-isolation',
+    async () => {
+      const sections = await run([
+        'project new default force',
+        'scene resolution 513',
+        'device delete #1',
+        'device delete #308',
+        'device delete #309',
+        'device delete #318',
+      ]);
+      const step = async (label, output, edits) => {
+        sections.push(
+          ...(await run([
+            ...edits,
+            `param set #${output.id}.filename ${join(work, `${label}.png`)}`,
+            `wire list #${output.id}`,
+            'build start',
+          ])),
+        );
+        await pollBuild(sections);
+        let [exported] = await run(['export all']);
+        sections.push(exported);
+        // raw/river-upgraded-visual.txt l.51-55: a build can report its start after the export that found it unbuilt.
+        if (exported.lines.some((line) => line.includes('not built'))) {
+          sections.push(...(await run(['build start'])));
+          await pollBuild(sections);
+          [exported] = await run(['export all']);
+          sections.push(exported);
+        }
+        sections.push(await wait(2000));
+      };
+      const a = await freshDevice(sections, 'Create Water');
+      const aOut = await freshDevice(sections, 'File Output');
+      await step('a-flow-restructure', aOut, [
+        `wire connect #314.1 #${a.id}.1`,
+        `wire connect #${a.id}.3 #${aOut.id}`,
+      ]);
+      sections.push(...(await run([`device delete #${aOut.id}`, `device delete #${a.id}`])));
+      const b1 = await freshDevice(sections, 'Create Water');
+      const b1Out = await freshDevice(sections, 'File Output');
+      await step('b1-thermal', b1Out, [
+        `wire connect #305.1 #${b1.id}.1`,
+        `wire connect #${b1.id}.3 #${b1Out.id}`,
+      ]);
+      const b2 = await freshDevice(sections, 'Create Water');
+      const b2Out = await freshDevice(sections, 'File Output');
+      await step('b2-chained', b2Out, [
+        `wire connect #305.1 #${b2.id}.1`,
+        `wire connect #${b1.id}.2 #${b2.id}.2`,
+        `wire connect #${b2.id}.3 #${b2Out.id}`,
+        `wire list #${b2.id}`,
+      ]);
+      const sweep = await freshDevice(sections, 'Create Water');
+      for (const name of ['Drain to:', 'Headwater Locations', 'Channel Model']) {
+        sections.push(
+          ...(await run([
+            ...[0, 1, 2, 3, 4, 5].flatMap((index) => [
+              `param set "#${sweep.id}.${name}" ${index}`,
+              `param get #${sweep.id}.${name}`,
+            ]),
+          ])),
+        );
+      }
+      console.log(`create-water-isolation images: ${work}`);
+      return sections;
+    },
+  ],
   [
     'v5-read-formats',
     () =>
