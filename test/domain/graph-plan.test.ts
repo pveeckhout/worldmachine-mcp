@@ -756,6 +756,35 @@ describe('planGraph with ids and the Combiner rule (spec v3 revision 6)', () => 
     ).toEqual([{ op: 'remove', device: 'Ramp', id: 10, wiresRemoved: ['Ramp.1 -> Combiner.1'] }]);
   });
 
+  it('keeps a wire to an unread same-named device when a read sibling has its wire cut (review round 1)', () => {
+    // #536 is read, #537 is only listed. Line 1 maps to #536 (cut). Line 2 would repeat it, but #537 may be its target,
+    // so it is keyed by its text and stays.
+    const ramp = detail(10, 'Ramp', 'Gradient', {
+      outputs: [
+        output([
+          { device: 'Combiner', port: 1 },
+          { device: 'Combiner', port: 1 },
+        ]),
+      ],
+    });
+    expect(
+      planGraph(
+        spec([{ name: 'first mix', id: 536, type: 'Combiner', inputs: { '1': null } }], ['Ramp']),
+        state([ramp, FIRST], [row(537, 'Combiner')]),
+      ).steps,
+    ).toEqual([
+      {
+        op: 'disconnect',
+        device: 'first mix',
+        id: 536,
+        port: 1,
+        from: 'Ramp.1',
+        source: { device: 'Ramp', id: 10, port: 1 },
+      },
+      { op: 'remove', device: 'Ramp', id: 10, wiresRemoved: ['Ramp.1 -> Combiner.1'] },
+    ]);
+  });
+
   it('drops the cut one of two wires to two inputs of one device (Codex round 1, ruling 1)', () => {
     // Trace: the disconnect of 'first mix' input 2 cuts '10.1>536.2'. Line 1 'Combiner' [1]: qualifying [536] (#537
     // input 1 has no wire), '536.1' free: branch B, key '10.1>536.1', kept. Line 2 'Combiner' [2]: #536 input 2

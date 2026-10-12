@@ -496,8 +496,9 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
    * The device an output target line of removed device `from` names. Branch A: the one listed device of that name.
    * Otherwise the read devices of that name whose input `target.port` resolves to this output qualify. Branch B: the
    * first qualifying device whose input is not yet `taken` by an earlier line of the output. Branch C: every
-   * qualifying input is taken, so the line repeats one (raw/v5-read-formats.txt l.44-45) and maps to the first. Branch
-   * D: none qualifies, so undefined and the caller keys the line by its text. `taken` holds `<id>.<input port>`
+   * qualifying input is taken and every device of that name was read, so the line repeats one
+   * (raw/v5-read-formats.txt l.44-45) and maps to the first. Branch D: none qualifies, or an unread device of that
+   * name may be the line's target, so undefined and the caller keys the line by its text. `taken` holds `<id>.<input port>`
    * (Codex round 1, ruling 1), since one device may take wires on several inputs.
    */
   const targetId = (from: number, port: number, target: PortLink, taken: Set<string>): number | undefined => {
@@ -518,7 +519,8 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
       taken.add(`${free}.${target.port}`);
       return free;
     }
-    return qualifying[0];
+    // Branch C only when every device of that name was read: an unread sibling may be what the repeated line wires.
+    return named.every((candidate) => outputsOf(candidate.id) !== undefined) ? qualifying[0] : undefined;
   };
   const removes: PlanStep[] = [...removed].map(([id, name]): PlanStep => {
     const device = detail(id);
