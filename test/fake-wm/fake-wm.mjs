@@ -365,11 +365,17 @@ const shownValue = (parameter, text) => {
   return text;
 };
 // raw/p2a-edge-cases.txt l.59-64: the header names the device and its type; rows pad the name to 24 and the type to 8,
-// each followed by two spaces, which keep a longer name apart from its type (raw/river-device.txt l.39).
+// each followed by two spaces, which keep a longer name apart from its type (raw/river-device.txt l.39). A device
+// without parameters prints one line instead (raw/enum-options.txt l.4097 and l.4422, v1 fact 10). Assumed: the line
+// names the device, as the header does; in both captures the name equals the type.
 const paramList = (device) =>
-  `Parameters for '${device.name}' (${device.type}):\n${device.parameters
-    .map((parameter) => `  ${parameter.name.padEnd(24)}  ${parameter.type.padEnd(8)}  ${parameter.value}\n`)
-    .join('')}\n`;
+  device.parameters.length === 0
+    ? `Device '${device.name}' has no parameters.\n`
+    : `Parameters for '${device.name}' (${device.type}):\n${device.parameters
+        .map(
+          (parameter) => `  ${parameter.name.padEnd(24)}  ${parameter.type.padEnd(8)}  ${parameter.value}\n`,
+        )
+        .join('')}\n`;
 // raw/p2b-graph-edits.txt l.25-32: the header echoes the reference and port names are padded to 12; a further target
 // of one output continues on its own line. Ends show current names (fact 34).
 const nameOfId = (id) => findAdded(`#${id}`)?.name ?? `#${id}`;

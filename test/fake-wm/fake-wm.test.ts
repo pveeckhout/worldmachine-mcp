@@ -1209,6 +1209,39 @@ describe('fake World Machine: parameter names with spaces (raw/river-device.txt)
   });
 });
 
+describe('fake World Machine: a device without parameters (v1 fact 10)', () => {
+  it('prints the captured line for a device without parameters (raw/enum-options.txt l.4097, l.4422)', async () => {
+    const s = session();
+    await s.execute(['project new blank force', 'device add Inverter', 'device add Macro']);
+    expect(await outputs(s, ['param list #1', 'param list #2'])).toEqual([
+      ["Device 'Inverter' has no parameters."],
+      ["Device 'Macro' has no parameters."],
+    ]);
+  });
+
+  it('lets get_device read a device without parameters', async () => {
+    const s = session();
+    await s.execute(['project new blank force', 'device add Inverter']);
+    expect(await new WorldMachineGraphReader(s).getDevice('#1')).toMatchObject({
+      id: 1,
+      name: 'Inverter',
+      type: 'Inverter',
+      parameters: [],
+    });
+  });
+
+  it('refuses update_device_parameters on a device without parameters, saying it has none', async () => {
+    const s = session();
+    await s.execute(['project new blank force', 'device add Inverter']);
+    await expect(
+      new WorldMachineParameterEditor(s).updateParameters('#1', { Strength: 0.5 }),
+    ).rejects.toMatchObject({
+      code: 'REFUSED',
+      message: "Nothing was set on #1 'Inverter': 'Strength': no such parameter. It has no parameters",
+    });
+  });
+});
+
 describe('fake World Machine: device ids after a snapshot restore', () => {
   it('reuses the ids freed by a restore, as World Machine does (raw/v3-assumptions.txt l.311-336)', async () => {
     const s = session();

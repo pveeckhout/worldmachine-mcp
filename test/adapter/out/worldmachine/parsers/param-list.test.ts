@@ -62,6 +62,20 @@ describe('parseParamList', () => {
     expect(parseParamList(["Parameters for 'X' (Y):"])).toEqual([]);
   });
 
+  it('reads the no-parameters line as an empty list (raw/enum-options.txt l.4097 and l.4422, v1 fact 10)', () => {
+    expect(parseParamList(rawFrame('enum-options.txt', 'param list #591'))).toEqual([]);
+    expect(parseParamList(rawFrame('enum-options.txt', 'param list #597'))).toEqual([]);
+  });
+
+  it.each([
+    [["Device 'Macro' has no parameters"]],
+    [['Device Macro has no parameters.']],
+    [["Device 'Macro' has no parameters.", '  Amount                    int       100']],
+    [["Parameters for 'Macro' (Macro):", "Device 'Macro' has no parameters."]],
+  ])('fails on a no-parameters line in another form or with other lines: %j', (lines) => {
+    expect(codeOf(() => parseParamList(lines))).toBe('UNEXPECTED_OUTPUT');
+  });
+
   it.each([[[]], [['  Amount  float  1']], [["Parameters for 'X' (Y):", 'garbage']]])(
     'fails on %j',
     (lines) => {

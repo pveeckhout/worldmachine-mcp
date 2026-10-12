@@ -73,10 +73,14 @@ export class WorldMachineParameterEditor implements ParameterEditPort {
       }
     }
     if (problems.length > 0) {
-      const known = parameters.map((parameter) => `${parameter.name} (${parameter.type})`).join(', ');
+      // v1 fact 10: a device without parameters lists none, so the refusal says so rather than ending in a colon.
+      const known =
+        parameters.length === 0
+          ? 'It has no parameters'
+          : `Its parameters: ${parameters.map((parameter) => `${parameter.name} (${parameter.type})`).join(', ')}`;
       throw new WorldMachineError(
         'REFUSED',
-        `Nothing was set on ${ref} '${target.name}': ${problems.join('; ')}. Its parameters: ${known}`,
+        `Nothing was set on ${ref} '${target.name}': ${problems.join('; ')}. ${known}`,
       );
     }
     // One batch, each `param set` followed by a `param get` of the same parameter (spec section 7). World Machine
