@@ -331,7 +331,8 @@ const SHAPES = {
     ],
   },
   // raw/river-device.txt l.31-70 (some parameters): names with spaces, one longer than its column, and an enum whose
-  // range is 0-1 (l.94-130).
+  // range is 0-1 (l.94-130). Deliberately not the 25 rows of a new River (raw/enum-options.txt l.6120-6148), so the
+  // reader would call this device another version; no test reads its options through get_device.
   River: {
     inputs: ['Terrain Input', 'River Parameters'],
     parameters: [

@@ -1270,12 +1270,26 @@ describe('fake World Machine: enum options and parameters of added devices (raw/
     return s;
   }
 
+  it.each(['Gradient', 'Combiner'])(
+    "lists a new %s with the parameter names the catalog's version fingerprint holds",
+    async (type) => {
+      const [listed] = await (await one(type)).execute(['param list #1']);
+      expect(parseParamList(listed?.output ?? []).map((parameter) => parameter.name)).toEqual(
+        ENUM_CATALOG.types[type]?.parameters,
+      );
+    },
+  );
+
   it('serves the three options the catalog lists for Gradient Tiling (l.3520-3532)', async () => {
-    expect(await labels(await one('Gradient'), '#1.Tiling', 3)).toEqual(ENUM_CATALOG.types.Gradient?.Tiling);
+    expect(await labels(await one('Gradient'), '#1.Tiling', 3)).toEqual(
+      ENUM_CATALOG.types.Gradient?.enums.Tiling,
+    );
   });
 
   it('serves the eleven options the catalog lists for Combiner Method (l.1572-1632)', async () => {
-    expect(await labels(await one('Combiner'), '#1.Method', 11)).toEqual(ENUM_CATALOG.types.Combiner?.Method);
+    expect(await labels(await one('Combiner'), '#1.Method', 11)).toEqual(
+      ENUM_CATALOG.types.Combiner?.enums.Method,
+    );
   });
 
   it('refuses Combiner Method index 11 with the range 0-10 (l.1566)', async () => {
@@ -1286,7 +1300,7 @@ describe('fake World Machine: enum options and parameters of added devices (raw/
 
   it('serves the two options the catalog lists for River Planform Type', async () => {
     expect(await labels(await one('River'), '#1.Planform Type', 2)).toEqual(
-      ENUM_CATALOG.types.River?.['Planform Type'],
+      ENUM_CATALOG.types.River?.enums['Planform Type'],
     );
   });
 

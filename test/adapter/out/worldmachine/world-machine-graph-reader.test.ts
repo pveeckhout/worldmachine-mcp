@@ -8,6 +8,7 @@ import { WorldMachineGraphReader } from '../../../../src/adapter/out/worldmachin
 import { WorldMachineProcess } from '../../../../src/adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineSession } from '../../../../src/adapter/out/worldmachine/world-machine-session.js';
 import { captureLogger, FAKE_WM, fakeEnv, recorder } from '../../../support/fake-wm.js';
+import { rawFrame } from './parsers/fixture.js';
 
 const lines = (name: string) =>
   readFileSync(new URL(`../../../fixtures/wm-4067/${name}`, import.meta.url), 'utf8')
@@ -232,9 +233,11 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
           return [
             frame('device select #1', []),
             frame('device info', gradientInfo),
-            // raw/p2a-edge-cases.txt l.59-64: a Gradient's Tiling row.
+            // raw/p2a-edge-cases.txt l.59-64: a new Gradient's rows, as the catalog's `parameters` list them.
             frame('param list #1', [
               "Parameters for 'Gradient' (Gradient):",
+              '  Direction                 int       0',
+              '  Width                     float     8 km',
               '  Tiling                    enum      Clamp',
             ]),
             frame('wire list #1', lines('wire-list-erosion.txt')),
@@ -243,7 +246,7 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
         },
       } as unknown as WorldMachineSession;
       const device = await new WorldMachineGraphReader(session).getDevice('#1');
-      expect(device.parameters[0]?.options).toEqual(['Clamp', 'Mirrored Repeat', 'Discontinuous Repeat']);
+      expect(device.parameters[2]?.options).toEqual(['Clamp', 'Mirrored Repeat', 'Discontinuous Repeat']);
       expect(device).not.toHaveProperty('enumOptionsNote');
     });
   });
@@ -326,14 +329,19 @@ describe('WorldMachineGraphReader enum options (enum-options design section 4)',
   });
 
   it('says the parameter is unknown when the type has no entry for it', async () => {
-    const device = await added('Gradient', { build: 4067, types: { Gradient: { Other: ['A'] } } });
+    const device = await added('Gradient', {
+      build: 4067,
+      types: { Gradient: { parameters: ['Direction', 'Width', 'Tiling'], enums: { Other: ['A'] } } },
+    });
     expect(device.enumOptionsNote).toEqual(["no enum options known for 'Tiling' of type 'Gradient'"]);
   });
 
   it('omits options when the current value is not listed', async () => {
     const device = await added('Gradient', {
       build: 4067,
-      types: { Gradient: { Tiling: ['Mirrored Repeat'] } },
+      types: {
+        Gradient: { parameters: ['Direction', 'Width', 'Tiling'], enums: { Tiling: ['Mirrored Repeat'] } },
+      },
     });
     expect(device.parameters.find((p) => p.name === 'Tiling')).toEqual({
       name: 'Tiling',
@@ -342,6 +350,40 @@ describe('WorldMachineGraphReader enum options (enum-options design section 4)',
     });
     expect(device.enumOptionsNote).toEqual([
       "'Tiling' shows 'Clamp', which the catalog does not list; its options are omitted",
+    ]);
+  });
+
+  it('omits options and gives the version note when the parameter names differ from a new device', async () => {
+    // The default project's Flow Restructure (raw/default-updated.txt l.463-470) shows `fillquality` where a new one
+    // shows `Operation` (raw/enum-options.txt l.3152-3156), and its `Drain to:` label is one the catalog lists.
+    const frame = (command: string, output: string[]) => ({ command, output, errors: [] });
+    const session = {
+      assertAcceptingCalls: () => undefined,
+      status: () => ({ systemInfo: SYSTEM_INFO }),
+      execute: async () => [
+        frame('device select #314', []),
+        frame('device info', [
+          'Selected device:',
+          '  Name:    Flow Restructure',
+          '  Type:    Flow Restructure',
+          '  Enabled: yes',
+          '  Bypass:  no',
+        ]),
+        frame('param list #314', rawFrame('default-updated.txt', 'param list #314')),
+        frame('wire list #314', rawFrame('default-updated.txt', 'wire list #314')),
+        frame('device list', ['Devices (1 total):', '  #314   Flow Restructure        ']),
+      ],
+    } as unknown as WorldMachineSession;
+    const device = await new WorldMachineGraphReader(session).getDevice('#314');
+    expect(device.parameters.find((p) => p.name === 'Drain to:')).toEqual({
+      name: 'Drain to:',
+      type: 'enum',
+      value: 'Map borders and drainage input',
+    });
+    expect(device.parameters.some((p) => p.options !== undefined)).toBe(false);
+    expect(device.enumOptionsNote).toEqual([
+      "enum options omitted: this 'Flow Restructure' has other parameters than a new 'Flow Restructure' (another device version)",
+      "no enum options known for 'fillquality' of type 'Flow Restructure'",
     ]);
   });
 

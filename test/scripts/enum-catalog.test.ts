@@ -35,6 +35,12 @@ const COMBINER_METHOD = [
   'Differences',
   'Screen',
 ];
+// l.1556-1559: the rows of Combiner's `param list`, Method (enum) and Strength (float), in printed order.
+const COMBINER_PARAMETERS = ['Method', 'Strength'];
+// l.421-423 (a one-character name, `k`), l.6053-6058, and l.1782-1784: the rows of the other `param list`s below.
+const VDM_PARAMETERS = ['type', 'k'];
+const CLAMP_PARAMETERS = ['Range1', 'Range2', 'Type', 'Normalize', 'Soft Clipping'];
+const COMPOSITE_PARAMETERS = ['Pack/Unpack', 'Type'];
 // l.1523-1636: `device add Combiner`, its list row `#559   Combiner`, `device info #559` showing Scene View
 // (l.1548-1554), `param list #559`, then Method's current value, range probe, and eleven set and get pairs.
 const COMBINER = excerpt(1523, 1636);
@@ -44,7 +50,7 @@ describe('parseEnumCatalog (enum-options design section 3)', () => {
     // l.1578 reads `#559.Method = Add ` with a trailing space.
     expect(parseEnumCatalog(COMBINER, systemInfo)).toEqual({
       build: 4067,
-      types: { Combiner: { Method: COMBINER_METHOD } },
+      types: { Combiner: { parameters: COMBINER_PARAMETERS, enums: { Method: COMBINER_METHOD } } },
     });
   });
 
@@ -52,7 +58,10 @@ describe('parseEnumCatalog (enum-options design section 3)', () => {
     // `device add Anisotropy` adds 'VDM Features' (fact 81); l.449 and l.470-471 are log lines inside frames.
     expect(parseEnumCatalog(excerpt(387, 475), systemInfo).types).toEqual({
       'VDM Features': {
-        type: ['Elevation', 'XY displacement', 'Relative area', 'Relative XY area', 'Twist', 'Anisotropy'],
+        parameters: VDM_PARAMETERS,
+        enums: {
+          type: ['Elevation', 'XY displacement', 'Relative area', 'Relative XY area', 'Twist', 'Anisotropy'],
+        },
       },
     });
   });
@@ -60,13 +69,16 @@ describe('parseEnumCatalog (enum-options design section 3)', () => {
   it('keys a type by the kind its device list row shows (l.6019-6087)', () => {
     // `device add Rescale` lists `#624   Rescale                  (Clamp)`.
     expect(parseEnumCatalog(excerpt(6019, 6087), systemInfo).types).toEqual({
-      Clamp: { Type: ['Rescale', 'Clip', 'Expand'] },
+      Clamp: { parameters: CLAMP_PARAMETERS, enums: { Type: ['Rescale', 'Clip', 'Expand'] } },
     });
   });
 
   it('records an enum whose range is (0--1) with no options (l.1748-1813, fact 86)', () => {
     expect(parseEnumCatalog(excerpt(1748, 1813), systemInfo).types).toEqual({
-      'Composite Type': { 'Pack/Unpack': ['Pack to Composite Type', 'Unpack from Composite Type'], Type: [] },
+      'Composite Type': {
+        parameters: COMPOSITE_PARAMETERS,
+        enums: { 'Pack/Unpack': ['Pack to Composite Type', 'Unpack from Composite Type'], Type: [] },
+      },
     });
   });
 
@@ -205,8 +217,9 @@ describe('the shipped enum catalog (enum-options design section 3)', () => {
   it('holds the 68 types and 111 enum parameters of fact 85', () => {
     expect(ENUM_CATALOG.build).toBe(4067);
     expect(Object.keys(ENUM_CATALOG.types)).toHaveLength(68);
-    expect(Object.values(ENUM_CATALOG.types).flatMap((entry) => Object.keys(entry))).toHaveLength(111);
-    expect(ENUM_CATALOG.types.Combiner?.Method).toEqual(COMBINER_METHOD);
+    expect(Object.values(ENUM_CATALOG.types).flatMap((entry) => Object.keys(entry.enums))).toHaveLength(111);
+    expect(ENUM_CATALOG.types.Combiner?.enums.Method).toEqual(COMBINER_METHOD);
+    expect(ENUM_CATALOG.types.Combiner?.parameters).toEqual(COMBINER_PARAMETERS);
   });
 
   it("agrees with the adapter's parseParamList on the enum rows of every captured param list", () => {
@@ -230,7 +243,10 @@ describe('the shipped enum catalog (enum-options design section 3)', () => {
         .filter((parameter) => parameter.type === 'enum')
         .map((parameter) => parameter.name);
       if (enumNames.length === 0) continue;
-      expect(Object.keys(ENUM_CATALOG.types[type] ?? {})).toEqual(enumNames);
+      expect(Object.keys(ENUM_CATALOG.types[type]?.enums ?? {})).toEqual(enumNames);
+      expect(ENUM_CATALOG.types[type]?.parameters).toEqual(
+        parseParamList(output).map((parameter) => parameter.name),
+      );
       compared.add(type);
     }
     // The only blocks without a header are the five `Device '<name>' has no parameters.` lines (l.4097, l.4422,

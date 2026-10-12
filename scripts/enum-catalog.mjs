@@ -12,7 +12,7 @@ const DEVICE_ROW = /^\s*#(\d+)\s+(.*?)(?:\s{2,}\(([^()]+)\))?\s*$/;
 // src/adapter/out/worldmachine/parsers/param-list.ts HEADER and ROW; a device without parameters prints one line
 // instead (raw/enum-options.txt l.4422).
 const PARAM_HEADER = /^(Parameters for '.*' \(.*\):|Device '.*' has no parameters\.)$/;
-const PARAM_ROW = /^\s{2}(\S(?:.*?\S)?)\s{2,}(\S+)(?:\s+(.*?))?\s*$/;
+const PARAM_ROW = /^\s{2}(\S(?:.*?\S)??)\s{2,}(\S+)(?:\s+(.*?))?\s*$/;
 // Fact 84 `(0-<last>)` (l.1566), fact 86 `(0--1)` for an enum without options (l.1809).
 const RANGE = /^Error: Error: Enum index out of range \(0-(-1|\d+)\): 9999$/;
 const PARAM_LIST = /^param list #(\d+)$/;
@@ -51,7 +51,8 @@ function buildOfSystemInfo(text) {
 }
 
 /**
- * The catalog `{ build, types }` of an `enum-options` transcript and the `system info` capture of the same build.
+ * The catalog `{ build, types }`, a type being `{ parameters, enums }` (every row name of the new device's `param list`
+ * in printed order, and the options of each enum row), of an `enum-options` transcript and the `system info` capture of the same build.
  * A type is keyed by its new device's listed type (fact 81: the kind in its `device list` row, or else its name);
  * `device info #<id>` shows the selected device, not `#<id>` (l.1548-1554), and is ignored. The label at index i is
  * the `param get` after `param set ... <i>`, trailing whitespace dropped (`#559.Method = Add `, l.1578). Anything
@@ -78,7 +79,7 @@ export function parseEnumCatalog(transcript, systemInfo) {
     }
     if (device.enums.size > 0) {
       if (Object.hasOwn(types, device.type)) throw new Error(`type '${device.type}' captured twice`);
-      types[device.type] = entry;
+      types[device.type] = { parameters: device.parameters, enums: entry };
     }
     device = undefined;
   };
@@ -118,12 +119,14 @@ export function parseEnumCatalog(transcript, systemInfo) {
       if (type === undefined) throw new Error(`#${list[1]}: not in the device list before its param list`);
       if (!PARAM_HEADER.test(lines[0] ?? '')) throw new Error(`${command}: unreadable header`);
       const enums = new Map();
+      const parameters = [];
       for (const line of lines.slice(1)) {
         const row = PARAM_ROW.exec(line);
         if (row === null) throw new Error(`${command}: unreadable row '${line}'`);
+        parameters.push(row[1]);
         if (row[2] === 'enum') enums.set(row[1], { last: undefined, labels: [] });
       }
-      device = { id: list[1], type, enums };
+      device = { id: list[1], type, parameters, enums };
       continue;
     }
     const probe = PROBE.exec(command);
