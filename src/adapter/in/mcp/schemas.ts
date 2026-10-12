@@ -98,7 +98,12 @@ const deviceDetailSchema = z.strictObject({
   enabled: z.boolean(),
   bypassed: z.boolean(),
   parameters: z.array(
-    z.strictObject({ name: z.string(), type: z.string(), value: z.string() }) satisfies z.ZodType<Parameter>,
+    z.strictObject({
+      name: z.string(),
+      type: z.string(),
+      value: z.string(),
+      options: z.array(z.string()).optional(),
+    }) satisfies z.ZodType<Parameter>,
   ),
   inputs: z.array(
     z.strictObject({
@@ -114,6 +119,7 @@ const deviceDetailSchema = z.strictObject({
       targets: z.array(portLinkSchema),
     }) satisfies z.ZodType<OutputPort>,
   ),
+  enumOptionsNote: z.array(z.string()).optional(),
 }) satisfies z.ZodType<DeviceDetail>;
 
 const sceneSchema = z.strictObject({

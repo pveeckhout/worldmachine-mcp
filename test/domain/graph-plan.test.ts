@@ -963,6 +963,22 @@ describe('planId (spec v3 section 5)', () => {
       'an input source',
       () => planId(graph, state([OLD, { ...ERODED, inputs: [{ port: 1, name: 'Primary Input' }] }])),
     ],
+    [
+      'enum options on a parameter row (enum-options design section 4)',
+      () =>
+        planId(
+          graph,
+          state([
+            OLD,
+            {
+              ...ERODED,
+              parameters: ERODED.parameters.map((row) =>
+                row.name === 'soilMask' ? { ...row, options: ['Presence Mask'] } : row,
+              ),
+            },
+          ]),
+        ),
+    ],
   ])('changes with %s', (_label, other) => {
     expect(other()).not.toBe(id);
   });

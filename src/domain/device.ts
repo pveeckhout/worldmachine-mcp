@@ -7,7 +7,13 @@ export type DeviceSummary = {
   readonly bypassed?: boolean;
 };
 
-export type Parameter = { readonly name: string; readonly type: string; readonly value: string };
+export type Parameter = {
+  readonly name: string;
+  readonly type: string;
+  readonly value: string;
+  /** An enum's labels in index order; set only by the World Machine adapter (enum-options design section 4). */
+  readonly options?: readonly string[];
+};
 
 export type PortLink = { readonly device: string; readonly port: number };
 
@@ -28,4 +34,6 @@ export type DeviceDetail = {
   readonly parameters: readonly Parameter[];
   readonly inputs: readonly InputPort[];
   readonly outputs: readonly OutputPort[];
+  /** Why enum rows have no options, one entry per distinct reason (enum-options design section 4). */
+  readonly enumOptionsNote?: readonly string[];
 };

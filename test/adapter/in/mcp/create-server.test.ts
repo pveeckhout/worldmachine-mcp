@@ -336,6 +336,16 @@ describe('createMcpServer', () => {
     }
   });
 
+  it.each([
+    ['get_device', 'lists its options in index order'],
+    ['get_device', 'enumOptionsNote'],
+    ['update_device_parameters', "the 0-based index of their label in get_device's options"],
+    ['plan_graph', 'the 0-based index of its label in the options get_device lists'],
+  ])('names enum options in the %s description: %s', async (name, text) => {
+    const { tools } = await (await connect(deps())).listTools();
+    expect(tools.find((tool) => tool.name === name)?.description ?? '').toContain(text);
+  });
+
   it('passes plan_id and keep_snapshot to apply_graph, keep_snapshot false by default', async () => {
     const commands: unknown[] = [];
     const client = await connect(
@@ -805,6 +815,58 @@ describe('createMcpServer with parser output from the wm-4067 fixtures', () => {
     const result = await client.callTool({ name: 'get_device', arguments: { device: 'Erosion' } });
     expect(result.isError).toBeFalsy();
     expect(result.structuredContent).toEqual({ device: erosion, session: READY });
+  });
+
+  // raw/enum-options.txt l.1557-1559 and l.1572-1632: a new Combiner's rows and Method's options.
+  const combinerWithOptions: DeviceDetail = {
+    id: 559,
+    name: 'Combiner',
+    type: 'Combiner',
+    enabled: true,
+    bypassed: false,
+    parameters: [
+      {
+        name: 'Method',
+        type: 'enum',
+        value: 'Average',
+        options: [
+          'Average',
+          'Add',
+          'Subtract',
+          'Multiply',
+          'Max',
+          'Min',
+          'Power',
+          'Root',
+          'Detail',
+          'Differences',
+          'Screen',
+        ],
+      },
+      { name: 'Strength', type: 'float', value: '0.5' },
+    ],
+    inputs: [
+      { port: 1, name: 'Primary Input' },
+      { port: 2, name: 'Primary Input' },
+    ],
+    outputs: [{ port: 1, name: 'Primary Output', targets: [] }],
+  };
+
+  // One test per case, so a failure of the first does not hide the second (round ruling 4).
+  it.each<[string, DeviceDetail]>([
+    ['enum options on a parameter row', combinerWithOptions],
+    // Spec section 2: the sample Erosion's soilMask has no catalog entry, since a new Erosion has no enum (l.8158).
+    [
+      'enumOptionsNote on the device',
+      { ...erosion, enumOptionsNote: ["no enum options known for type 'Erosion'"] },
+    ],
+  ])('returns get_device with %s through the strict schema', async (_label, device) => {
+    const client = await connect(
+      deps({ getDevice: { getDevice: async () => ({ device, session: READY }) } }),
+    );
+    const result = await client.callTool({ name: 'get_device', arguments: { device: '#1' } });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toEqual({ device, session: READY });
   });
 
   it('returns get_scene with the parsed scene as structured content', async () => {
