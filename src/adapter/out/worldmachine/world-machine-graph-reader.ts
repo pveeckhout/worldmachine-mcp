@@ -4,6 +4,7 @@ import type { ProjectOverview } from '../../../domain/project.js';
 import type { Scene } from '../../../domain/scene.js';
 import { buildCommand } from './command-builder.js';
 import { idOfReference, resolveDeviceReference } from './device-reference.js';
+import { attachEnumOptions, ENUM_CATALOG, type EnumCatalog } from './enum-options.js';
 import { parseDeviceInfo } from './parsers/device-info.js';
 import { parseDeviceList } from './parsers/device-list.js';
 import { parseGroupList } from './parsers/group-list.js';
@@ -16,9 +17,12 @@ import type { WorldMachineSession } from './world-machine-session.js';
 
 export class WorldMachineGraphReader implements ProjectGraphReadPort {
   readonly #session: WorldMachineSession;
+  readonly #catalog: EnumCatalog;
 
-  constructor(session: WorldMachineSession) {
+  /** `catalog`: the enum options getDevice attaches (enum-options design section 4); tests pass a small one. */
+  constructor(session: WorldMachineSession, catalog: EnumCatalog = ENUM_CATALOG) {
     this.#session = session;
+    this.#catalog = catalog;
   }
 
   async listDevices(filter?: string): Promise<DeviceSummary[]> {
@@ -55,12 +59,13 @@ export class WorldMachineGraphReader implements ProjectGraphReadPort {
       idOfReference(device) ?? idOfReference(resolveDeviceReference(parseDeviceList(list.output), device));
     // World Machine selected a device, but no listed name matches: nothing tells which id it has.
     if (id === undefined) throw unexpectedOutput('device list', list.output);
-    return {
-      id,
-      ...detail,
-      parameters: parseParamList(params.output),
-      ...parseWireList(wires.output),
-    };
+    // Enum-options design section 4. The build is read after the batch: the batch starts World Machine when it was
+    // not running, and only a start reads `system info` (world-machine-session.ts).
+    return attachEnumOptions(
+      { id, ...detail, parameters: parseParamList(params.output), ...parseWireList(wires.output) },
+      this.#session.status().systemInfo?.build,
+      this.#catalog,
+    );
   }
 
   async getScene(): Promise<Scene> {

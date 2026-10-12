@@ -155,10 +155,12 @@ describe.skipIf(!LIVE)('live World Machine graph edits', () => {
     const river = await devices.addDevice('River');
     const read = await reader.getDevice(`#${river.id}`);
     expect(read.parameters).toHaveLength(25);
+    // raw/enum-options.txt l.6160-6166: the catalog's two options.
     expect(read.parameters.find((p) => p.name === 'Planform Type')).toEqual({
       name: 'Planform Type',
       type: 'enum',
       value: 'Simple Alignment',
+      options: ['Simple Alignment', 'Layout Alignment'],
     });
     const update = await parameters.updateParameters(`#${river.id}`, {
       'Planform Type': 1,

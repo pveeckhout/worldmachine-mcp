@@ -937,7 +937,13 @@ describe('fake World Machine: parameters and wires of added devices (spec v3 sec
       parameters: [
         { name: 'Direction', type: 'int', value: '0' },
         { name: 'Width', type: 'float', value: '8 km' },
-        { name: 'Tiling', type: 'enum', value: 'Clamp' },
+        // Enum-options design section 4: the shipped catalog's options (raw/enum-options.txt l.3520-3532).
+        {
+          name: 'Tiling',
+          type: 'enum',
+          value: 'Clamp',
+          options: ['Clamp', 'Mirrored Repeat', 'Discontinuous Repeat'],
+        },
       ],
       inputs: [],
       outputs: [{ port: 1, name: 'Primary Output', targets: [] }],

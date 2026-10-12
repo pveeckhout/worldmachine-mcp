@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { FsPathPolicy } from '../../../../src/adapter/out/fs/path-policy.js';
+import { ENUM_CATALOG, type EnumCatalog } from '../../../../src/adapter/out/worldmachine/enum-options.js';
 import { WorldMachineGraphReader } from '../../../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
 import { WorldMachineProcess } from '../../../../src/adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineSession } from '../../../../src/adapter/out/worldmachine/world-machine-session.js';
@@ -13,12 +14,29 @@ const lines = (name: string) =>
     .split('\n')
     .filter((line) => line !== '');
 
+// raw/system-info.txt l.3-4, as WorldMachineSession.status() holds it.
+const SYSTEM_INFO = { build: 4067, buildName: 'Dragontail Peak', arch: 'x64-AVX2 (256-bit)' };
+// raw/enum-options.txt l.1572-1632 (fact 85).
+const COMBINER_METHOD = [
+  'Average',
+  'Add',
+  'Subtract',
+  'Multiply',
+  'Max',
+  'Min',
+  'Power',
+  'Root',
+  'Detail',
+  'Differences',
+  'Screen',
+];
+
 const sessions: WorldMachineSession[] = [];
 afterEach(async () => {
   await Promise.all(sessions.splice(0).map((session) => session.shutdown()));
 });
 
-function reader(extra: Record<string, string> = {}) {
+function reader(extra: Record<string, string> = {}, catalog?: EnumCatalog) {
   const record = recorder();
   const logger = captureLogger();
   const env = fakeEnv({ FAKE_WM_RECORD: record.path, ...extra });
@@ -33,7 +51,7 @@ function reader(extra: Record<string, string> = {}) {
       WorldMachineProcess.start({ bin, readyTimeoutMs: 5_000, logger, env, signal, onSpawn }),
   });
   sessions.push(session);
-  return { reader: new WorldMachineGraphReader(session), session, record };
+  return { reader: new WorldMachineGraphReader(session, catalog), session, record };
 }
 
 describe('WorldMachineGraphReader.listDevices', () => {
@@ -104,6 +122,7 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
     const frame = (command: string, output: string[]) => ({ command, output, errors: [] });
     const session = {
       assertAcceptingCalls: () => undefined,
+      status: () => ({ systemInfo: SYSTEM_INFO }),
       execute: async () => [
         frame('device select "Gradient"', []),
         frame('device info', infoOutput),
@@ -147,6 +166,7 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
       const batches: (readonly string[])[] = [];
       const session = {
         assertAcceptingCalls: () => undefined,
+        status: () => ({ systemInfo: SYSTEM_INFO }),
         execute: async (commands: readonly string[]) => {
           batches.push(commands);
           return [
@@ -200,6 +220,32 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
       ]);
       await expect(r.getDevice('Gradient')).rejects.toMatchObject({ code: 'UNEXPECTED_OUTPUT' });
     });
+
+    it('reads the build after the batch that starts World Machine (enum-options design section 4)', async () => {
+      // A session that has not started holds no system info; the batch starts World Machine, whose start reads it.
+      let ran = false;
+      const session = {
+        assertAcceptingCalls: () => undefined,
+        status: () => (ran ? { systemInfo: SYSTEM_INFO } : {}),
+        execute: async () => {
+          ran = true;
+          return [
+            frame('device select #1', []),
+            frame('device info', gradientInfo),
+            // raw/p2a-edge-cases.txt l.59-64: a Gradient's Tiling row.
+            frame('param list #1', [
+              "Parameters for 'Gradient' (Gradient):",
+              '  Tiling                    enum      Clamp',
+            ]),
+            frame('wire list #1', lines('wire-list-erosion.txt')),
+            frame('device list', ['Devices (1 total):', '  #1     Gradient                ']),
+          ];
+        },
+      } as unknown as WorldMachineSession;
+      const device = await new WorldMachineGraphReader(session).getDevice('#1');
+      expect(device.parameters[0]?.options).toEqual(['Clamp', 'Mirrored Repeat', 'Discontinuous Repeat']);
+      expect(device).not.toHaveProperty('enumOptionsNote');
+    });
   });
 
   it('reports a missing device', async () => {
@@ -237,5 +283,73 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
     await session.shutdown();
     await expect(r.getDevice('A"B')).rejects.toMatchObject({ code: 'SHUTTING_DOWN' });
     expect(record.lines()).toEqual([]);
+  });
+});
+
+describe('WorldMachineGraphReader enum options (enum-options design section 4)', () => {
+  /** The first device of a blank project after `device add <type>`, read with `catalog` (the shipped one if omitted). */
+  async function added(type: string, catalog?: EnumCatalog) {
+    const { reader: r, session } = reader({}, catalog);
+    await session.execute(['project new blank force', `device add ${type}`]);
+    return r.getDevice('#1');
+  }
+
+  it('attaches the captured options of a Combiner Method', async () => {
+    const device = await added('Combiner');
+    expect(device.parameters.find((p) => p.name === 'Method')).toEqual({
+      name: 'Method',
+      type: 'enum',
+      value: 'Average',
+      options: COMBINER_METHOD,
+    });
+    expect(device).not.toHaveProperty('enumOptionsNote');
+  });
+
+  it('omits options and names both builds when World Machine is another build', async () => {
+    const device = await added('Combiner', { ...ENUM_CATALOG, build: 4066 });
+    expect(device.parameters.find((p) => p.name === 'Method')).not.toHaveProperty('options');
+    expect(device.enumOptionsNote).toEqual([
+      'enum options omitted: the catalog is from build 4066, World Machine is build 4067',
+    ]);
+  });
+
+  it('says the type is unknown for the sample Erosion, whose soilMask a new Erosion lacks', async () => {
+    // Spec section 2 (abcd234): the sample Erosion's soilMask is an enum (fixtures/wm-4067/param-list-erosion.txt), a
+    // new Erosion has none (raw/enum-options.txt l.8158), so the catalog has no Erosion entry.
+    const device = await reader().reader.getDevice('#35');
+    expect(device.parameters.find((p) => p.name === 'soilMask')).toEqual({
+      name: 'soilMask',
+      type: 'enum',
+      value: 'Presence Mask',
+    });
+    expect(device.enumOptionsNote).toEqual(["no enum options known for type 'Erosion'"]);
+  });
+
+  it('says the parameter is unknown when the type has no entry for it', async () => {
+    const device = await added('Gradient', { build: 4067, types: { Gradient: { Other: ['A'] } } });
+    expect(device.enumOptionsNote).toEqual(["no enum options known for 'Tiling' of type 'Gradient'"]);
+  });
+
+  it('omits options when the current value is not listed', async () => {
+    const device = await added('Gradient', {
+      build: 4067,
+      types: { Gradient: { Tiling: ['Mirrored Repeat'] } },
+    });
+    expect(device.parameters.find((p) => p.name === 'Tiling')).toEqual({
+      name: 'Tiling',
+      type: 'enum',
+      value: 'Clamp',
+    });
+    expect(device.enumOptionsNote).toEqual([
+      "'Tiling' shows 'Clamp', which the catalog does not list; its options are omitted",
+    ]);
+  });
+
+  it('gives a device without enum rows no note, even on another build', async () => {
+    // Round ruling 1: a new Erosion has seventeen parameters and no enum (raw/enum-options.txt l.2737-2754, Task 4).
+    const device = await added('Erosion', { ...ENUM_CATALOG, build: 4066 });
+    expect(device.parameters).toHaveLength(17);
+    expect(device.parameters.some((p) => p.type === 'enum')).toBe(false);
+    expect(device).not.toHaveProperty('enumOptionsNote');
   });
 });
