@@ -1,0 +1,91 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (18 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Gradient                
+
+<<<
+>>> param get #536.Width
+#536.Width = 8 km
+<<<
+>>> param set "#536.Width" 1
+Set #536.Width = 1
+<<<
+>>> param get #536.Width
+#536.Width = 8 km
+<<<
+>>> project undo
+Undo performed.
+<<<
+>>> device list
+Devices (18 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Gradient                
+
+<<<
+>>> param get #536.Width
+#536.Width = 8 km
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<

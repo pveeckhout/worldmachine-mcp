@@ -20,6 +20,7 @@ Out of scope: units in graph specs (`plan_graph`, `apply_graph`; `plan_graph` is
 - Fact 88 (raw/float-scale.txt l.6008-6030 and the reads after it): the scene size does not change a scale. After `scene size 12 12` and `scene size 4 4` every probed value reads as before, and a new set of 1 at 4 km reads the same as at 8 km.
 - Fact 89 (raw/float-scale-default.txt l.61-108): the vertical scale is the project's. In `project new default` Constant `Height` at 1 reads `2625 m` (blank: `3000 m`) and at 0.25 reads `656.2 m`; Gradient `Width` reads `8 km` in both. World Machine's help describes a project-wide maximum elevation set in Project Setup, stored heights being 0 to 1; the console has no command to read it (raw/help.txt l.90-96: `project` has close, new, open, redo, save, and undo only). Whether the 8 km horizontal scale is a project setting is unknown, so the design treats both scales as unknown.
 - Fact 90 (raw/float-scale-undo.txt l.52-128): after `param set` to 0.25, a probe `param set` to 1, and `project undo` (`Undo performed.`), `param get` reads the 0.25 value again (`2 km`, `656.2 m`); a second `project undo` restores the value the device was added with (`8 km`, `0 m`). So undo removes the probe's step and only that step.
+- Fact 91 (raw/float-scale-undo-same.txt l.48-82): a `param set` to the value a parameter already has also records an undo step. A new Gradient's `Width` reads `8 km` (internal 1); after `param set` to 1 and `project undo`, the device list still holds the Gradient and `Width` reads `8 km`. So the probe's undo never reverts the step before it, even when the parameter is already at 1.
 - `param set` refuses a unit in a float (`Error: Error: Invalid float value: 1.5 km`, raw/v6b-param-set.txt l.96-97); the conversion is the server's.
 - Display values are rounded: an exact 656.25 m reads `656.2 m` (fact 89). The two scales read at 1 were exact in both projects.
 
@@ -36,18 +37,18 @@ Out of scope: units in graph specs (`plan_graph`, `apply_graph`; `plan_graph` is
 
 Validation is unchanged apart from section 3. When no item gives a unit, the call runs exactly as today.
 
-When at least one does, a scale batch runs first, with, for each unit item in call order:
+When at least one does, the scale probe runs first, for each unit item in call order. World Machine runs the rest of a batch after a failing command (v1 V2), so the probe set is sent on its own, and steps 2-4 are sent only when it was accepted; otherwise the undo would revert an earlier step:
 
 1. `param set <ref> 1`
 2. `param get <ref>`: the scale, parsed as a length (`8 km` = 8000 m, `2625 m` = 2625 m);
 3. `project undo`, which must print `Undo performed.`;
-4. `param get <ref>`, which must equal the value `param list` showed for that parameter before the batch.
+4. `param get <ref>`, which must equal, as text, the value `param list` showed for that parameter before the probe.
 
 Then each unit item's internal value is `<metres given> / <scale in metres>`, written as plain decimal text (no exponent) of at most 12 significant digits, trailing zeros dropped. A value that rounds to zero at that precision is sent as `0`. Today's batch follows unchanged: per item `param set` and `param get`.
 
 Failures:
 
-- The probe `param set` is refused, or the read at 1 is not a length in `m` or `km`, or it reads 0: that item's outcome is `rejected` with `worldMachineMessage` set to World Machine's error text, or to `could not read the scale of '<name>': it read '<value>' at 1`. Its later steps are skipped; when the probe set was applied, its undo still runs. Other items continue.
+- The probe `param set` is refused, or the read at 1 is not a length in `m` or `km`, or it reads 0: that item's outcome is `rejected` with `worldMachineMessage` set to World Machine's error text, or to `could not read the scale of '<name>': it read '<value>' at 1`. When the probe set was refused, nothing more is sent for that item; when it was applied, its undo and the restore check still run. Other items continue.
 - `project undo` is not confirmed, or the read after it differs from the listed value: the call fails with `UNEXPECTED_OUTPUT` before today's batch runs, naming the parameter, the value expected, and the value read, and saying that the parameter may be left at 1; check it with get_device and revert with undo. Nothing else is set.
 - The project is marked unsaved once a probe set is applied, since undo may not restore World Machine's saved flag.
 

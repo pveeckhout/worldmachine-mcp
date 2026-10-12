@@ -1877,6 +1877,41 @@ const scenarios = [
     },
   ],
   [
+    // A probe set to the value a parameter already has: a new Gradient's Width is internal 1 (`8 km`). Does
+    // `param set ... 1` add an undo step, or does the following undo revert the step before it (the device add)?
+    // The device list after each undo shows it. Default project. Ends closed.
+    'float-scale-undo-same',
+    async () => {
+      const sections = [];
+      try {
+        const listed = await run(['project new default force', 'device list']);
+        sections.push(...listed);
+        const known = new Set(devices(listed[1].lines).map((device) => device.id));
+        const added = await run(['device add Gradient', 'device list']);
+        sections.push(...added);
+        const id = devices(added[1].lines).find((device) => !known.has(device.id))?.id;
+        if (id === undefined) {
+          sections.push({ command: '(type Gradient stopped)', lines: ['no new device in the list'] });
+        } else {
+          sections.push(
+            ...(await run([
+              `param get #${id}.Width`,
+              `param set "#${id}.Width" 1`,
+              `param get #${id}.Width`,
+              'project undo',
+              'device list',
+              `param get #${id}.Width`,
+            ])),
+          );
+        }
+        sections.push(...(await run(['project close force'])));
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
     // float-scale in the default project: one parameter of each scale (Gradient Width, 8 km per unit in a blank
     // project; Constant Height, 3000 m), to see whether the scales are the project's. Ends closed.
     'float-scale-default',
