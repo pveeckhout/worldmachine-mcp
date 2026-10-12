@@ -727,6 +727,31 @@ describe('planGraph with ids and the Combiner rule (spec v3 revision 6)', () => 
     ]);
   });
 
+  // User ruling 6: a removed device's own input, wired from a name several devices share, is shown by its text and is
+  // never a conflict, whether the output targets name one source, several, or none (graph-plan.ts:538-540).
+  it.each([
+    ['both list the removed device as a target (ambiguous)', true],
+    ['neither lists the removed device as a target (unknown)', false],
+  ])(
+    "shows a removed device's unresolved input as text, with no conflict: %s (user ruling 6)",
+    (_title, listed) => {
+      const targets = listed ? [output([{ device: 'Old', port: 1 }])] : [output()];
+      const old = detail(12, 'Old', 'Gradient', { inputs: [fed(1, 'Combiner')] });
+      const plan = planGraph(
+        spec([], ['Old']),
+        state([
+          old,
+          detail(536, 'Combiner', 'Combiner', { outputs: targets }),
+          detail(537, 'Combiner', 'Combiner', { outputs: targets }),
+        ]),
+      );
+      expect(plan.conflicts).toEqual([]);
+      expect(plan.steps).toEqual([
+        { op: 'remove', device: 'Old', id: 12, wiresRemoved: ['Combiner.1 -> Old.1'] },
+      ]);
+    },
+  );
+
   // Codex round 1, ruling 1. #537 is a second 'Combiner' that Ramp does not feed, so each line needs the resolver.
   const UNFED = detail(537, 'Combiner', 'Combiner', { inputs: [fed(1), fed(2)] });
 

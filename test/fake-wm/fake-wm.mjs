@@ -773,7 +773,7 @@ async function handle(line) {
     const [ref, name] = splitOnce(command.slice('device rename '.length));
     const device = findAdded(ref);
     if (device === undefined) return void notFound(ref);
-    // raw/v3-rename-probe.txt l.51-74 and l.149-171 (spec fact 80): a Combiner confirms the rename and keeps its name.
+    // raw/v3-rename-probe.txt l.51-74, l.87-110, and l.213-235 (spec fact 80): a Combiner confirms the rename and keeps its name.
     // Assumed: the ignored rename still counts as an unsaved change; no capture shows the dirty state after it.
     if (device.type !== 'Combiner') device.name = name;
     dirty = true;
