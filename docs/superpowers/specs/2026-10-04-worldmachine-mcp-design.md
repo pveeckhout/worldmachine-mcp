@@ -36,7 +36,7 @@ Verified on 2026-10-04 against World Machine build 4067 (Dragontail Peak), Pro t
 7. `--cli` boots the full GUI. A window is shown. This is accepted behaviour (it gives the user a live view).
 8. World Machine loads its sample project (Hurricane Ridge, project version 2023.01) at startup.
 9. Device ids are stable integers shown as `#<n>` by `device list`.
-10. `param list <device>` returns `name  type  value` rows. Types observed: `filename`, `enum`, `bool`, `action`.
+10. `param list <device>` returns `name  type  value` rows. Types observed: `filename`, `enum`, `bool`, `action`. A device without parameters prints the single line `Device '<name>' has no parameters.` instead of a header and rows (amended 2026-10-12 from raw/enum-options.txt, five devices, for example l.4097 and l.4422); it reads as an empty parameter list.
 11. An unquoted device name containing a space is accepted as the final argument (`param list Height Output`).
 12. `system quit force` exits cleanly and returns the licence seat (log line `License Manager.Checkin: License returned to license server`).
 13. Licence checkout success is logged as `License Manager.Checkout: License checkout successful`.
