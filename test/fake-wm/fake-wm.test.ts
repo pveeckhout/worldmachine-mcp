@@ -984,12 +984,12 @@ describe('fake World Machine: parameters and wires of added devices (spec v3 sec
       'device add Combiner',
       'wire connect #1 #2',
       'param set #1.Width 0.5',
-      'param set #2.Clamp no',
+      'param set #2.Strength 0.25',
       'snapshot create S',
     ]);
-    expect(await outputs(s, ['param get #1.Width', 'param get #2.Clamp'])).toEqual([
+    expect(await outputs(s, ['param get #1.Width', 'param get #2.Strength'])).toEqual([
       ['#1.Width = 0.5'],
-      ['#2.Clamp = false'],
+      ['#2.Strength = 0.25'],
     ]);
     await s.execute([
       'param set #1.Width 0.9',

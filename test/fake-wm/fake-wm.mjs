@@ -290,9 +290,9 @@ const DEFAULT_NAMES = {
 };
 // Ports and parameters of added devices (plan v3 decision D19). raw/p2a-edge-cases.txt l.38-42 and l.59-63: a
 // Gradient has no inputs, one output, and Direction, Width, and Tiling. raw/p2b-graph-edits.txt l.25-31: a Combiner
-// has two inputs named 'Primary Input' and one output. raw/enum-options.txt l.1557-1559: a new Combiner lists Method
-// and Strength. Assumed: the Combiner's Clamp, which that capture does not show, and for every other type one input
-// named 'Primary Input' and no parameters. Every device has one output. Enum options follow raw/enum-options.txt
+// has two inputs named 'Primary Input' and one output. raw/enum-options.txt l.1556-1559, raw/v6b-param-set.txt
+// l.48-51, and raw/water-sea-erosion.txt l.285-288: a new Combiner lists exactly Method and Strength. Assumed: for
+// every other type one input named 'Primary Input' and no parameters. Every device has one output. Enum options follow raw/enum-options.txt
 // (fact 85), the capture the shipped catalog is generated from.
 const SHAPES = {
   Gradient: {
@@ -307,7 +307,8 @@ const SHAPES = {
   Combiner: {
     inputs: ['Primary Input', 'Primary Input'],
     parameters: [
-      // raw/enum-options.txt l.1572-1632: eleven options, range 0-10 (l.1566).
+      // raw/enum-options.txt l.1572-1632: eleven options, range 0-10 (l.1566). Assumed: `param get` prints `Add`
+      // without the trailing space real World Machine prints (l.1578).
       [
         'Method',
         'enum',
@@ -327,7 +328,6 @@ const SHAPES = {
         ],
       ],
       ['Strength', 'float', '0.5'],
-      ['Clamp', 'bool', 'true'],
     ],
   },
   // raw/river-device.txt l.31-70 (some parameters): names with spaces, one longer than its column, and an enum whose
