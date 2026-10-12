@@ -211,20 +211,31 @@ describe('the shipped enum catalog (enum-options design section 3)', () => {
 
   it("agrees with the adapter's parseParamList on the enum rows of every captured param list", () => {
     // Guards the regexes copied into scripts/enum-catalog.mjs against drifting from parsers/param-list.ts.
-    // A block's type is the kind of its device list row; `Parameters for '<name>' (<type>)` carries it too.
+    // A block's type is the kind in its header, which equals the device list kind: l.1545 `#559   Combiner` and
+    // l.1557 `Parameters for 'Combiner' (Combiner):`.
     const blocks = transcript
       .split('>>> param list #')
       .slice(1)
       .map((block) => block.split('\n<<<')[0]?.split('\n').slice(1) ?? []);
-    expect(blocks.length).toBeGreaterThan(68);
+    const compared = new Set<string>();
+    let withoutHeader = 0;
     for (const block of blocks) {
       const output = block.filter((line) => !/^\[[A-Za-z]+\s*\] /.test(line));
       const type = /^Parameters for '.*' \((.*)\):$/.exec(output[0] ?? '')?.[1];
+      if (type === undefined) {
+        withoutHeader += 1;
+        continue;
+      }
       const enumNames = parseParamList(output)
         .filter((parameter) => parameter.type === 'enum')
         .map((parameter) => parameter.name);
-      if (type === undefined || enumNames.length === 0) continue;
+      if (enumNames.length === 0) continue;
       expect(Object.keys(ENUM_CATALOG.types[type] ?? {})).toEqual(enumNames);
+      compared.add(type);
     }
+    // The only blocks without a header are the five `Device '<name>' has no parameters.` lines (l.4097, l.4422,
+    // l.4461, l.4500, l.5485), and every catalog type was compared, so nothing passed by being skipped.
+    expect(withoutHeader).toBe(5);
+    expect([...compared].sort()).toEqual(Object.keys(ENUM_CATALOG.types).sort());
   });
 });
