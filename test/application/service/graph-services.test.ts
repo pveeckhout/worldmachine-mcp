@@ -502,4 +502,45 @@ describe('apply_graph with device ids (spec v3 revision 6)', () => {
         .filter((line) => line.startsWith('device select ')),
     ).toEqual(['device select #541', 'device select #537', 'device select #536']);
   });
+
+  it('moves an input from one Combiner to the other through the wire editor (lowlands item 2)', async () => {
+    const w = wired();
+    const { spec, first, second } = await applyLayered(w);
+    const moved: RawGraphSpec = {
+      ...spec,
+      devices: spec.devices.map((device) =>
+        device.name === 'Eroded' ? { ...device, inputs: { '1': 'hills mix' } } : device,
+      ),
+    };
+    const plan = await w.plan.planGraph({ spec: moved });
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.steps.filter((step) => step.op !== 'set-parameter')).toEqual([
+      {
+        op: 'disconnect',
+        device: 'Eroded',
+        id: 541,
+        port: 1,
+        from: 'mountain mix.1',
+        source: { device: 'mountain mix', id: second, port: 1 },
+      },
+      {
+        op: 'connect',
+        device: 'Eroded',
+        id: 541,
+        port: 1,
+        from: 'hills mix.1',
+        source: { device: 'hills mix', id: first, port: 1 },
+      },
+    ]);
+    const before = w.record.lines().length;
+    await w.apply.applyGraph({ spec: moved, planId: plan.planId, keepSnapshot: false });
+    expect(
+      w.record
+        .lines()
+        .slice(before)
+        .filter((line) => /^wire (connect|disconnect) /.test(line)),
+    ).toEqual([`wire disconnect #${second}.1 #541.1`, `wire connect #${first}.1 #541.1`]);
+    const again = await w.plan.planGraph({ spec: moved });
+    expect(again.steps.map((step) => step.op)).toEqual(['set-parameter']);
+  });
 });

@@ -4,7 +4,7 @@ import { foldCase, idOfReference, listedName } from './device-name.js';
 import type { ParameterValue } from './graph-edit.js';
 import type { GraphDevice, GraphSource, GraphSpec } from './graph-spec.js';
 import { decimalText, parameterText } from './parameter-values.js';
-import { resolveWireSource, sourceCandidates } from './wire-source.js';
+import { candidateIds, resolveWireSource, sharedNameClause, sourceCandidates } from './wire-source.js';
 
 /** What `planGraph` reads: the device list and `get_device` of every device `referencedDeviceIds` names. */
 export type GraphState = {
@@ -195,7 +195,7 @@ function valueText(value: ParameterValue): string {
 }
 
 const ids = (devices: readonly { readonly id: number }[]): string =>
-  devices.map((device) => `#${device.id}`).join(', ');
+  candidateIds(devices.map((device) => device.id));
 const wire = (from: string, to: string, port: number): string => `${from} -> ${to}.${port}`;
 
 type Managed = { readonly spec: GraphDevice; readonly existing?: DeviceDetail; readonly usable: boolean };
@@ -355,9 +355,12 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
     const holders =
       candidates.length === 0
         ? 'a name no listed device has'
-        : resolved.kind === 'ambiguous'
-          ? `a name ${ids(candidates)} share, and ${resolved.candidates.map((id) => `#${id}`).join(', ')} each list '${destinationName}' input ${input.port} among their output targets`
-          : `a name ${ids(candidates)} share, and none of them lists '${destinationName}' input ${input.port} among its output targets`;
+        : sharedNameClause(
+            candidates.map((candidate) => candidate.id),
+            resolved,
+            destinationName,
+            input.port,
+          );
     conflict(
       owner,
       `input ${input.port} is wired from '${listedName(source.device)}', ${holders}; wire list names devices, so the wire's source cannot be identified`,

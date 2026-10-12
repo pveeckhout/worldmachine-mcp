@@ -1,7 +1,9 @@
 import type { WireEditPort } from '../../../application/port/out/wire-edit-port.js';
-import type { InputPort } from '../../../domain/device.js';
+import type { DeviceSummary, InputPort, OutputPort } from '../../../domain/device.js';
+import { listedName } from '../../../domain/device-name.js';
 import { WorldMachineError } from '../../../domain/errors.js';
 import type { WireConnection, WireDisconnection, WireEnd, WireEndpoint } from '../../../domain/graph-edit.js';
+import { resolveWireSource, sharedNameClause, sourceCandidates } from '../../../domain/wire-source.js';
 import { buildCommand } from './command-builder.js';
 import { listAllDevices } from './device-lookup.js';
 import { findListedDevice, matchesListedName } from './device-reference.js';
@@ -23,9 +25,7 @@ type WirePlan = {
   readonly sourceArgument: string;
   readonly destinationArgument: string;
   readonly listDestination: string;
-  /** Another listed device has the source's exact name; `wire list` names devices, so it cannot tell them apart. */
-  readonly sourceNameShared: boolean;
-  /** The destination's input already shows a wire from the source's name and port. */
+  /** The destination's input is wired from the source device and port (v3 spec revision 6). */
   readonly present: boolean;
 };
 
@@ -33,8 +33,9 @@ const argument = (id: number, port: number | undefined): string =>
   port === undefined ? `#${id}` : `#${id}.${port}`;
 
 /**
- * Whether `input` shows a wire from `end`. `wire list` names the source device and its output port
- * (raw/p2b-graph-edits.txt l.28); a renamed device by its current name (raw/p2c-edits.txt l.92, spec fact 34).
+ * Whether `input` shows a wire from `end`'s name and port. `wire list` names the source device and its output port
+ * (raw/p2b-graph-edits.txt l.28); a renamed device by its current name (raw/p2c-edits.txt l.92, spec fact 34). The
+ * checks after a change use it: an input holds one wire.
  */
 function linkedFrom(input: InputPort | undefined, end: WireEnd): boolean {
   const source = input?.source;
@@ -61,18 +62,9 @@ export class WorldMachineWireEditor implements WireEditPort {
   async connect(source: WireEndpoint, destination: WireEndpoint): Promise<WireConnection> {
     const plan = await this.#plan(source, destination);
     const ends = { source: plan.source, destination: plan.destination };
-    // An existing wire changes nothing (idempotent, spec section 7). When several devices share the source name,
-    // wire list cannot say which one feeds the input, so an occupied input of that name is refused with nothing
-    // sent. An input free of that name is unambiguous: World Machine itself refuses one held by another source.
-    if (plan.present) {
-      if (plan.sourceNameShared) {
-        throw new WorldMachineError(
-          'REFUSED',
-          `Several devices are named '${plan.source.name}', and wire list names devices, so it cannot tell whether this input is already wired from #${plan.source.id}; rename one of them first`,
-        );
-      }
-      return { ...ends, created: false };
-    }
+    // An existing wire changes nothing (idempotent, spec section 7). An input wired from another device is sent, and
+    // World Machine itself refuses it (fact 34).
+    if (plan.present) return { ...ends, created: false };
     const responses = await this.#session.execute([
       buildCommand(['wire', 'connect', plan.sourceArgument, plan.destinationArgument]),
       plan.listDestination,
@@ -102,14 +94,8 @@ export class WorldMachineWireEditor implements WireEditPort {
     const plan = await this.#plan(source, destination);
     const ends = { source: plan.source, destination: plan.destination };
     // Spec section 7: World Machine confirms a disconnect whether or not the wire existed (fact 26), so an absent
-    // wire sends nothing.
+    // wire, or one from another device, sends nothing.
     if (!plan.present) return { ...ends, removed: false };
-    if (plan.sourceNameShared) {
-      throw new WorldMachineError(
-        'REFUSED',
-        `Several devices are named '${plan.source.name}', and wire list names devices, so a removed wire could not be confirmed; rename one of them first`,
-      );
-    }
     const responses = await this.#session.execute([
       buildCommand(['wire', 'disconnect', plan.sourceArgument, plan.destinationArgument]),
       plan.listDestination,
@@ -138,7 +124,7 @@ export class WorldMachineWireEditor implements WireEditPort {
     return { ...ends, removed: true };
   }
 
-  /** `device list` and the destination's `wire list`, run before any change (spec section 7). */
+  /** `device list`, the destination's `wire list`, and the candidates' when needed, all before any change. */
   async #plan(source: WireEndpoint, destination: WireEndpoint): Promise<WirePlan> {
     checkPort(source.port);
     checkPort(destination.port);
@@ -167,9 +153,45 @@ export class WorldMachineWireEditor implements WireEditPort {
       sourceArgument: argument(from.id, source.port),
       destinationArgument: argument(to.id, destination.port),
       listDestination,
-      // Devices with equal listed names cannot be told apart by `wire list` (ruling K4').
-      sourceNameShared: devices.filter((device) => device.name === from.name).length > 1,
-      present: linkedFrom(input, sourceEnd),
+      present: await this.#present(devices, to, input, sourceEnd),
     };
+  }
+
+  /**
+   * Whether the destination's `input` is wired from `source`. An input that shows another name or port, or no wire,
+   * is not (ruling 4, as before revision 6). One listed device with the source's name is that device (spec fact 34).
+   * When several share it, `wire list` of each runs before any change, and resolveWireSource takes the one whose
+   * output lists this input (v3 spec revision 6, fact 82); one it cannot identify is refused.
+   */
+  async #present(
+    devices: readonly DeviceSummary[],
+    to: DeviceSummary,
+    input: InputPort,
+    source: WireEnd,
+  ): Promise<boolean> {
+    const shown = input.source;
+    if (shown === undefined || !linkedFrom(input, source)) return false;
+    const candidates = sourceCandidates(input, devices);
+    if (candidates.length < 2) return true;
+    const responses = await this.#session.execute(
+      candidates.map((candidate) => buildCommand(['wire', 'list', `#${candidate.id}`])),
+    );
+    const outputs = new Map<number, readonly OutputPort[]>();
+    for (const [index, candidate] of candidates.entries()) {
+      const response = requireFrame(responses[index]);
+      throwIfFailed(response);
+      outputs.set(candidate.id, parseWireList(response.output).outputs);
+    }
+    const resolved = resolveWireSource(to.name, input, devices, (id) => outputs.get(id));
+    if (resolved.kind === 'found') return resolved.id === source.id && resolved.port === source.port;
+    throw new WorldMachineError(
+      'REFUSED',
+      `Input ${input.port} of #${to.id} '${to.name}' is wired from '${listedName(shown.device)}', ${sharedNameClause(
+        candidates.map((candidate) => candidate.id),
+        resolved,
+        to.name,
+        input.port,
+      )}, so wire list cannot tell which one feeds it; nothing was changed`,
+    );
   }
 }

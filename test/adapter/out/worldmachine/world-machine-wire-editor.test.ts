@@ -73,6 +73,40 @@ const P2C_COMBINER_FREE = [
   '    [1] Primary Output -> (none)',
 ];
 
+// Assumed: constructed from the row format of raw/p2b-kind-markers.txt l.112-113 (two devices of one name,
+// spec fact 30) with small ids; no capture lists exactly these devices.
+const SHARED_DEVICES = [
+  'Devices (3 total):',
+  '  #1     Gradient                ',
+  '  #2     Gradient                ',
+  '  #3     Combiner                ',
+];
+const combiner = (input1: string) => [
+  "Connections for '#3':",
+  '  Inputs:',
+  `    [1] Primary Input <- ${input1}`,
+  '    [2] Primary Input <- (none)',
+  '  Outputs:',
+  '    [1] Primary Output -> (none)',
+];
+// Assumed: constructed from raw/p2a-edge-cases.txt l.38-42 (a Gradient has no inputs) and raw/default-updated.txt
+// l.99-100 (an output target line, spec fact 82).
+const gradient = (id: number, target: string) => [
+  `Connections for '#${id}':`,
+  '  Inputs:',
+  '  Outputs:',
+  `    [1] Primary Output -> ${target}`,
+];
+// Assumed: the row format of raw/p2b-kind-markers.txt l.112-113 with small ids; no capture lists these devices.
+const TWO_OF_EACH = [
+  'Devices (4 total):',
+  '  #1     Gradient                ',
+  '  #2     Gradient                ',
+  '  #3     Combiner                ',
+  '  #4     Combiner                ',
+];
+const COMBINER_3 = { id: 3, name: 'Combiner', port: 1 };
+
 const editor = (s: ReturnType<typeof scriptedSession>) => new WorldMachineWireEditor(s.session);
 
 describe('WorldMachineWireEditor.connect', () => {
@@ -143,36 +177,126 @@ describe('WorldMachineWireEditor.connect', () => {
     expect(s.batches).toEqual([['device list'], ['wire list #2']]);
   });
 
-  // Assumed: constructed from the row format of raw/p2b-kind-markers.txt l.112-113 (two devices of one name,
-  // spec fact 30) with small ids; no capture lists exactly these devices.
-  const SHARED_DEVICES = [
-    'Devices (3 total):',
-    '  #1     Gradient                ',
-    '  #2     Gradient                ',
-    '  #3     Combiner                ',
-  ];
-  const combiner = (input1: string) => [
-    "Connections for '#3':",
-    '  Inputs:',
-    `    [1] Primary Input <- ${input1}`,
-    '    [2] Primary Input <- (none)',
-    '  Outputs:',
-    '    [1] Primary Output -> (none)',
-  ];
-
-  it('refuses, sending nothing, when the source name is shared and the input is already wired from that name', async () => {
+  it("leaves a wire alone when the candidates' targets show it comes from the source (revision 6, fact 82)", async () => {
     const s = scriptedSession({
       'device list': [{ output: SHARED_DEVICES }],
-      // Assumed: constructed from raw/p2b-graph-edits.txt l.26-31 for #3.
       'wire list #3': [{ output: combiner("'Gradient' [1]") }],
+      'wire list #1': [{ output: gradient(1, "'Combiner' [1]") }],
+      'wire list #2': [{ output: gradient(2, '(none)') }],
+    });
+    expect(await editor(s).connect({ device: '#1' }, { device: '#3' })).toEqual({
+      source: GRADIENT_1,
+      destination: COMBINER_3,
+      created: false,
+    });
+    expect(s.batches).toEqual([['device list'], ['wire list #3'], ['wire list #1', 'wire list #2']]);
+    expect(s.dirtyMarks()).toBe(0);
+  });
+
+  it("sends the connect when the candidates' targets show another device feeds the input (World Machine refuses)", async () => {
+    const s = scriptedSession({
+      'device list': [{ output: SHARED_DEVICES }],
+      'wire list #3': [{ output: combiner("'Gradient' [1]") }, { output: combiner("'Gradient' [1]") }],
+      'wire list #1': [{ output: gradient(1, '(none)') }],
+      'wire list #2': [{ output: gradient(2, "'Combiner' [1]") }],
+      // raw/v4-quoting.txt l.127-128 (spec fact 34), with the ids of this scenario.
+      'wire connect #1 #3': [
+        { errors: ["Error: Error: Input '#3' is already connected. Disconnect first."] },
+      ],
+    });
+    await expect(editor(s).connect({ device: '#1' }, { device: '#3' })).rejects.toMatchObject({
+      code: 'WM_COMMAND_FAILED',
+    });
+    expect(s.batches).toEqual([
+      ['device list'],
+      ['wire list #3'],
+      ['wire list #1', 'wire list #2'],
+      ['wire connect #1 #3', 'wire list #3'],
+    ]);
+  });
+
+  it('refuses, naming the candidates, when two of them list the input (ambiguous)', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: TWO_OF_EACH }],
+      'wire list #3': [{ output: combiner("'Gradient' [1]") }],
+      'wire list #1': [{ output: gradient(1, "'Combiner' [1]") }],
+      'wire list #2': [{ output: gradient(2, "'Combiner' [1]") }],
     });
     await expect(editor(s).connect({ device: '#1' }, { device: '#3' })).rejects.toMatchObject({
       code: 'REFUSED',
       message:
-        "Several devices are named 'Gradient', and wire list names devices, so it cannot tell whether this input is already wired from #1; rename one of them first",
+        "Input 1 of #3 'Combiner' is wired from 'Gradient', a name #1, #2 share, and #1, #2 each list 'Combiner' input 1 among their output targets, so wire list cannot tell which one feeds it; nothing was changed",
     });
+    expect(s.batches).toEqual([['device list'], ['wire list #3'], ['wire list #1', 'wire list #2']]);
+    expect(s.dirtyMarks()).toBe(0);
+  });
+
+  it('refuses, naming the candidates, when none of them lists the input (unknown)', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: SHARED_DEVICES }],
+      'wire list #3': [{ output: combiner("'Gradient' [1]") }],
+      'wire list #1': [{ output: gradient(1, '(none)') }],
+      'wire list #2': [{ output: gradient(2, '(none)') }],
+    });
+    await expect(editor(s).connect({ device: '#1' }, { device: '#3' })).rejects.toMatchObject({
+      code: 'REFUSED',
+      message:
+        "Input 1 of #3 'Combiner' is wired from 'Gradient', a name #1, #2 share, and none of them lists 'Combiner' input 1 among its output targets, so wire list cannot tell which one feeds it; nothing was changed",
+    });
+  });
+
+  it("sends the connect, reading no candidates, when the input shows a shared name that is not the source's (ruling 4)", async () => {
+    const s = scriptedSession({
+      'device list': [{ output: TWO_OF_EACH }],
+      'wire list #3': [{ output: combiner("'Gradient' [1]") }, { output: combiner("'Gradient' [1]") }],
+      // raw/v4-quoting.txt l.127-128 (spec fact 34), with the ids of this scenario.
+      'wire connect #4 #3': [
+        { errors: ["Error: Error: Input '#3' is already connected. Disconnect first."] },
+      ],
+    });
+    await expect(editor(s).connect({ device: '#4' }, { device: '#3' })).rejects.toMatchObject({
+      code: 'WM_COMMAND_FAILED',
+    });
+    expect(s.batches).toEqual([['device list'], ['wire list #3'], ['wire connect #4 #3', 'wire list #3']]);
+  });
+
+  it("returns removed: false and sends nothing when the input shows a shared name that is not the source's (ruling 4)", async () => {
+    const s = scriptedSession({
+      'device list': [{ output: TWO_OF_EACH }],
+      'wire list #3': [{ output: combiner("'Gradient' [1]") }],
+    });
+    expect((await editor(s).disconnect({ device: '#4' }, { device: '#3' })).removed).toBe(false);
     expect(s.batches).toEqual([['device list'], ['wire list #3']]);
     expect(s.dirtyMarks()).toBe(0);
+  });
+
+  it('resolves a Combiner wired into another Combiner, listing the destination again (Review Focus 3)', async () => {
+    // Assumed: the row format of raw/p2b-kind-markers.txt l.112-113; the wire list shape of raw/p2b-graph-edits.txt
+    // l.26-31 with a Combiner as the source (spec fact 82); no capture shows exactly these devices.
+    const combinerList = (id: number, input1: string, target: string) => [
+      `Connections for '#${id}':`,
+      '  Inputs:',
+      `    [1] Primary Input <- ${input1}`,
+      '    [2] Primary Input <- (none)',
+      '  Outputs:',
+      `    [1] Primary Output -> ${target}`,
+    ];
+    const wired = combinerList(2, "'Combiner' [1]", '(none)');
+    const s = scriptedSession({
+      'device list': [
+        {
+          output: [
+            'Devices (2 total):',
+            '  #1     Combiner                ',
+            '  #2     Combiner                ',
+          ],
+        },
+      ],
+      'wire list #2': [{ output: wired }, { output: wired }],
+      'wire list #1': [{ output: combinerList(1, '(none)', "'Combiner' [1]") }],
+    });
+    expect((await editor(s).connect({ device: '#1' }, { device: '#2' })).created).toBe(false);
+    expect(s.batches).toEqual([['device list'], ['wire list #2'], ['wire list #1', 'wire list #2']]);
   });
 
   it("reports World Machine's refusal when the source name is shared and the input is wired from another device", async () => {
@@ -322,39 +446,53 @@ describe('WorldMachineWireEditor.disconnect', () => {
     expect(s.dirtyMarks()).toBe(0);
   });
 
-  it('refuses to disconnect when several devices share the source name', async () => {
+  it("disconnects a wire whose shared source name the candidates' targets attribute to the source (lowlands item 2)", async () => {
     const s = scriptedSession({
-      // Assumed: constructed from the row format of raw/p2b-kind-markers.txt l.112-113 (two devices of one name,
-      // spec fact 30) with small ids; no capture lists exactly these devices.
-      'device list': [
-        {
-          output: [
-            'Devices (3 total):',
-            '  #1     Gradient                ',
-            '  #2     Gradient                ',
-            '  #3     Combiner                ',
-          ],
-        },
-      ],
-      // Assumed: constructed from raw/p2b-graph-edits.txt l.26-31 for #3.
-      'wire list #3': [
-        {
-          output: [
-            "Connections for '#3':",
-            '  Inputs:',
-            "    [1] Primary Input <- 'Gradient' [1]",
-            '    [2] Primary Input <- (none)',
-            '  Outputs:',
-            '    [1] Primary Output -> (none)',
-          ],
-        },
-      ],
+      'device list': [{ output: SHARED_DEVICES }],
+      'wire list #3': [{ output: combiner("'Gradient' [1]") }, { output: combiner('(none)') }],
+      'wire list #1': [{ output: gradient(1, "'Combiner' [1]") }],
+      'wire list #2': [{ output: gradient(2, '(none)') }],
+      // raw/p2b-graph-edits.txt l.117-118, with the ids of this scenario.
+      'wire disconnect #1 #3': [{ output: ["Disconnected '#1' [1] -> '#3' [1]"] }],
+    });
+    expect(await editor(s).disconnect({ device: '#1' }, { device: '#3' })).toEqual({
+      source: GRADIENT_1,
+      destination: COMBINER_3,
+      removed: true,
+    });
+    expect(s.batches).toEqual([
+      ['device list'],
+      ['wire list #3'],
+      ['wire list #1', 'wire list #2'],
+      ['wire disconnect #1 #3', 'wire list #3'],
+    ]);
+    expect(s.dirtyMarks()).toBe(1);
+  });
+
+  it('returns removed: false and sends nothing when the targets show another device feeds the input', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: SHARED_DEVICES }],
+      'wire list #3': [{ output: combiner("'Gradient' [1]") }],
+      'wire list #1': [{ output: gradient(1, '(none)') }],
+      'wire list #2': [{ output: gradient(2, "'Combiner' [1]") }],
+    });
+    expect((await editor(s).disconnect({ device: '#1' }, { device: '#3' })).removed).toBe(false);
+    expect(s.batches).toEqual([['device list'], ['wire list #3'], ['wire list #1', 'wire list #2']]);
+    expect(s.dirtyMarks()).toBe(0);
+  });
+
+  it('refuses to disconnect, naming the candidates, when the source cannot be told', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: TWO_OF_EACH }],
+      'wire list #3': [{ output: combiner("'Gradient' [1]") }],
+      'wire list #1': [{ output: gradient(1, "'Combiner' [1]") }],
+      'wire list #2': [{ output: gradient(2, "'Combiner' [1]") }],
     });
     await expect(editor(s).disconnect({ device: '#1' }, { device: '#3' })).rejects.toMatchObject({
       code: 'REFUSED',
-      message: expect.stringContaining("Several devices are named 'Gradient'"),
+      message: expect.stringContaining('#1, #2 each list'),
     });
-    expect(s.batches).toEqual([['device list'], ['wire list #3']]);
+    expect(s.batches).toEqual([['device list'], ['wire list #3'], ['wire list #1', 'wire list #2']]);
   });
 
   it('disconnects a wire from a renamed source (spec fact 34)', async () => {
@@ -406,7 +544,7 @@ describe('WorldMachineWireEditor.disconnect', () => {
     expect((await editor(s).disconnect({ device: '#1' }, { device: '#2' })).removed).toBe(true);
   });
 
-  it('treats two devices listed with one 23-character name as sharing it (ruling K4)', async () => {
+  it('resolves two devices listed with one 23-character name through their output targets (ruling K4, fact 82)', async () => {
     const s = scriptedSession({
       // Assumed: constructed from the row form of raw/p2c-edits.txt l.58; no capture lists exactly these devices.
       'device list': [
@@ -431,13 +569,20 @@ describe('WorldMachineWireEditor.disconnect', () => {
             '    [1] Primary Output -> (none)',
           ],
         },
+        { output: P2C_COMBINER_FREE },
       ],
+      'wire list #1': [{ output: gradient(1, "'Combiner' [1]") }],
+      'wire list #3': [{ output: gradient(3, '(none)') }],
+      // raw/p2b-graph-edits.txt l.117-118.
+      'wire disconnect #1 #2': [{ output: ["Disconnected '#1' [1] -> '#2' [1]"] }],
     });
-    await expect(editor(s).disconnect({ device: '#1' }, { device: '#2' })).rejects.toMatchObject({
-      code: 'REFUSED',
-      message: expect.stringContaining("Several devices are named 'ABCDEFGHIJKLMNOPQRSTUVW'"),
-    });
-    expect(s.batches).toEqual([['device list'], ['wire list #2']]);
+    expect((await editor(s).disconnect({ device: '#1' }, { device: '#2' })).removed).toBe(true);
+    expect(s.batches).toEqual([
+      ['device list'],
+      ['wire list #2'],
+      ['wire list #1', 'wire list #3'],
+      ['wire disconnect #1 #2', 'wire list #2'],
+    ]);
   });
 
   it("matches a listed name whose 23rd character is a space against the full wire-list name (ruling K4')", async () => {

@@ -53,3 +53,25 @@ export function resolveWireSource(
     return { kind: 'ambiguous', candidates: qualifying.map((candidate) => candidate.id) };
   return { kind: 'unknown' };
 }
+
+/** `#a, #b`: how a conflict or refusal names a list of candidate devices. */
+export function candidateIds(ids: readonly number[]): string {
+  return ids.map((id) => `#${id}`).join(', ');
+}
+
+/**
+ * The part of a conflict or refusal that says why `wire list` cannot identify a source: the devices that share its
+ * name and what their output targets showed (revision 6, fact 82). Callers handle `found` and `none` first, so any
+ * kind but `ambiguous` reads as `unknown`. The planner and the wire editor word it alike.
+ */
+export function sharedNameClause(
+  candidates: readonly number[],
+  unresolved: Exclude<WireSource, { readonly kind: 'found' }>,
+  destinationName: string,
+  inputPort: number,
+): string {
+  const share = `a name ${candidateIds(candidates)} share, and`;
+  return unresolved.kind === 'ambiguous'
+    ? `${share} ${candidateIds(unresolved.candidates)} each list '${destinationName}' input ${inputPort} among their output targets`
+    : `${share} none of them lists '${destinationName}' input ${inputPort} among its output targets`;
+}
