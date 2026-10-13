@@ -27,6 +27,15 @@ const VERDICT = /^#(\d+)\.(\d+) (connected|refused(?: stray(?: #\d+\.\d+)+)?|cra
 const STOPPED = /^\((type .* stopped|scenario stopped)\)$/;
 // Design section 3, crashes and resumes: a probe that threw leaves its output unprobed in that transcript.
 const PROBE_STOPPED = /^\(probe .* stopped\)$/;
+// Design section 3, same-device holes: a twin of a probed device with its `wire list` answer, or a twin not added.
+const TWIN = /^\(twin #(\d+) #(\d+)\)$/;
+const TWIN_STOPPED = /^\(twin #(\d+) stopped\)$/;
+
+/** A device's port numbers and names, in order, for comparing two devices of one type. */
+const shape = (device) =>
+  JSON.stringify(
+    [device.inputs, device.outputs].map((ports) => ports?.map(({ port, name }) => [port, name])),
+  );
 
 /** A port for messages: `'<type>.<name>'`. */
 const named = (port) => `'${port.device.type}.${port.name}'`;
@@ -35,9 +44,10 @@ const like = (portClass) => `like ${portClass.members[0].device.type} ${portClas
 
 /**
  * One `(probe #<id>.<port>)` section (plan decision D11): a verdict per input of every other device, into `verdicts`
- * as `connected`, `refused`, or `crashed`.
+ * as `connected`, `refused`, or `crashed`. Design section 3, same-device holes: a verdict on an input of the source's
+ * twin (`twins`, twin id to probed id) is the cell of the source's own pair; on a twin of another device it throws.
  */
-function readProbe(command, lines, sourceId, port, devices, verdicts) {
+function readProbe(command, lines, sourceId, port, devices, twins, verdicts) {
   if (!devices.get(sourceId)?.outputs?.some((output) => output.port === port)) {
     throw new Error(`${command}: not an output of a listed device`);
   }
@@ -46,14 +56,18 @@ function readProbe(command, lines, sourceId, port, devices, verdicts) {
     if (verdict === null) throw new Error(`${command}: unreadable line '${line}'`);
     const pair = `#${sourceId}.${port} -> #${verdict[1]}.${verdict[2]}`;
     if (verdict[1] === sourceId) throw new Error(`${pair}: a pair on one device`);
-    if (!devices.get(verdict[1])?.inputs?.some((input) => input.port === Number(verdict[2]))) {
+    const probed = twins.get(verdict[1]);
+    if (probed !== undefined && probed !== sourceId)
+      throw new Error(`${pair}: an input of the twin of #${probed}`);
+    const target = probed ?? verdict[1];
+    if (!devices.get(target)?.inputs?.some((input) => input.port === Number(verdict[2]))) {
       throw new Error(`${pair}: not an input of a listed device`);
     }
     // Design section 4: no catalog rests on an unexplained answer.
     if (verdict[3].startsWith('error: ')) throw new Error(`${pair}: ${verdict[3].slice('error: '.length)}`);
     // Codex round 1 ruling B2: a refusal that left a wire contradicts design section 2, so it fails as well.
     if (verdict[3].startsWith('refused stray')) throw new Error(`${pair}: ${verdict[3]}`);
-    const key = `${sourceId}.${port}>${verdict[1]}.${verdict[2]}`;
+    const key = `${sourceId}.${port}>${target}.${verdict[2]}`;
     if (verdicts.has(key)) throw new Error(`${pair}: probed twice`);
     verdicts.set(key, verdict[3]);
   }
@@ -140,7 +154,8 @@ function classNames(outputClasses, outputs, names) {
 /**
  * One `port-types` transcript: its added devices by id, in transcript order, `{ id, type, word, inputs, outputs }`
  * with ports from their wire list, and its verdicts by `<output id>.<port>><input id>.<port>`. A stopped type or
- * scenario, an error answer, a refusal recorded with a stray wire, or a pair probed twice throws.
+ * scenario, an error answer, a refusal recorded with a stray wire, or a pair probed twice throws. A twin's verdict is
+ * keyed as its probed device's own pair (design section 3, same-device holes); a twin with other ports throws.
  */
 function readTranscript(transcript) {
   /** Ids to listed types of the last `device list`. */
@@ -151,6 +166,8 @@ function readTranscript(transcript) {
   let blank = false;
   /** Added devices by id, in transcript order: `{ id, type, word, inputs, outputs }`, ports from their wire list. */
   const devices = new Map();
+  /** Design section 3, same-device holes: twin ids to the ids of their probed devices. */
+  const twins = new Map();
   const verdicts = new Map();
   for (const { command, lines } of transcriptSections(transcript)) {
     if (STOPPED.test(command)) throw new Error(`the capture did not complete: ${command}`);
@@ -224,8 +241,27 @@ function readTranscript(transcript) {
       Object.assign(device, readWireList(command, lines));
       continue;
     }
+    const twin = TWIN.exec(command);
+    if (twin) {
+      const [, probedId, twinId] = twin;
+      const probed = devices.get(probedId);
+      if (
+        probed === undefined ||
+        [...devices.values()].find((other) => other.type === probed.type) !== probed
+      ) {
+        throw new Error(`${command}: not a probed device`);
+      }
+      if (devices.has(twinId) || twins.has(twinId)) throw new Error(`${command}: not a new device`);
+      if (shape(readWireList(command, lines)) !== shape(probed)) {
+        throw new Error(`twin #${twinId} of #${probedId}: other ports than its probed device`);
+      }
+      twins.set(twinId, probedId);
+      continue;
+    }
+    // Design section 3, same-device holes: a twin that was not added leaves its device's own pairs holes.
+    if (TWIN_STOPPED.test(command)) continue;
     const probe = PROBE.exec(command);
-    if (probe) readProbe(command, lines, probe[1], Number(probe[2]), devices, verdicts);
+    if (probe) readProbe(command, lines, probe[1], Number(probe[2]), devices, twins, verdicts);
   }
   if (adding !== undefined)
     throw new Error(`device add ${adding.word}: no new device and no not-added record`);
@@ -250,9 +286,9 @@ const described = (device) => {
  * class ids.
  * Design section 3, crashes and resumes: every transcript must list the same devices and ports, a pair probed in two
  * transcripts must have one verdict, and a stopped probe leaves its output to another transcript.
- * A pair on one device was never probed, and a crashed pair has no answer, so their cells are unknown and ignored. A
- * stopped step, an error answer, a refusal recorded with a stray wire, a gap, or a port that matches two classes
- * throws, so the catalog never rests on a hole.
+ * A pair on one device without a twin verdict (design section 3, same-device holes) and a crashed pair have no answer,
+ * so their cells are unknown and ignored. A stopped step, an error answer, a refusal recorded with a stray wire, a gap,
+ * or a port that matches two classes throws, so the catalog never rests on a hole.
  */
 export function parsePortTypeCatalog(transcripts, systemInfo, names = {}) {
   const build = buildOfSystemInfo(systemInfo);
@@ -290,10 +326,6 @@ export function parsePortTypeCatalog(transcripts, systemInfo, names = {}) {
   const catalogued = all.filter(
     (device, index) => all.findIndex((other) => other.type === device.type) === index,
   );
-  const shape = (device) =>
-    JSON.stringify(
-      [device.inputs, device.outputs].map((ports) => ports.map(({ port, name }) => [port, name])),
-    );
   for (const device of all) {
     const probed = catalogued.find((candidate) => candidate.type === device.type);
     if (shape(device) !== shape(probed)) {
@@ -319,7 +351,8 @@ export function parsePortTypeCatalog(transcripts, systemInfo, names = {}) {
       }
     }
   }
-  // Design section 4: a pair on one device and a crashed pair are left out, so they never decide a class.
+  // Design section 4: a pair on one device without a twin verdict and a crashed pair are left out, so they never decide
+  // a class.
   const rowOf = (output) =>
     new Map(
       inputs

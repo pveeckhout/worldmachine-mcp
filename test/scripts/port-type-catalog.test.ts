@@ -394,6 +394,92 @@ describe('parsePortTypeCatalog of several transcripts (port-types design section
   });
 });
 
+/**
+ * Design section 3, same-device holes: the merged build 4067 run failed on `output 'River.GCS Covariance' matches 2
+ * classes`, two classes that differ only at River's own input `River Parameters`. Synthetic devices of that shape:
+ * `River` (id 8) has the one input that tells Height from Mask, and its output is a mask, so only a pair on River
+ * itself decides it. The `port-types-self` transcript (scripts/capture-fixtures.mjs portTypesBody) repeats the
+ * opening, then a `(twin #<probed id> #<twin id>)` section per twin holding the twin's `wire list` answer, and a
+ * `(probe ...)` section per output of a twinned device with a verdict line per input of its twin.
+ */
+describe('parsePortTypeCatalog of twin probes (port-types design section 3, same-device holes)', () => {
+  const RIVER: Device = {
+    id: 8,
+    type: 'River',
+    inputs: ['Height In'],
+    outputs: [{ name: 'Covariance', kind: 'mask' }],
+  };
+  const ANY: Device = { id: 9, type: 'Any Sink', inputs: ['Any In'], outputs: [] };
+  const SELF: readonly Device[] = [HEIGHT, MASK, RIVER, ANY];
+  const TWIN = 10;
+  /** The twin's `wire list` answer: its probed device's ports under the twin's id. */
+  const twinList = (device: Device, id: number) =>
+    wireList({ ...device, id })
+      .split('\n')
+      .slice(1, -1);
+  /** The self transcript: the opening, the twin section, and one probe of River's output against its twin's input. */
+  const self = (verdict = 'refused', twin = section(`(twin #8 #${TWIN})`, twinList(RIVER, TWIN))) =>
+    [
+      ...added(SELF),
+      ...SELF.map((device) => wireList(device)),
+      twin,
+      section('(probe #8.1)', [`#${TWIN}.1 ${verdict}`]),
+      section('project close force'),
+    ].join('\n');
+
+  it('fails on an output whose classes differ only at its own device without a twin verdict', () => {
+    expect(() => parsePortTypeCatalog([transcript(SELF)], systemInfo)).toThrow(
+      "output 'River.Covariance' matches 2 classes: like Height Source Height, like Mask Source Mask",
+    );
+  });
+
+  it("reads a twin verdict as the cell of the probed device's own pair", () => {
+    const catalog = parsePortTypeCatalog([transcript(SELF), self()], systemInfo);
+    expect(catalog.outputClasses).toEqual({ o1: 'like Height Source Height', o2: 'like Mask Source Mask' });
+    expect(catalog.types.River?.outputs).toEqual([entry(1, 'Covariance', 'o2')]);
+    expect(catalog.inputClasses).toEqual({ i1: ['o1'], i2: ['o1', 'o2'] });
+  });
+
+  it('fails on a twin whose ports differ from its probed device', () => {
+    const other = section(`(twin #8 #${TWIN})`, twinList({ ...RIVER, inputs: ['Water In'] }, TWIN));
+    expect(() => parsePortTypeCatalog([transcript(SELF), self('refused', other)], systemInfo)).toThrow(
+      `twin #${TWIN} of #8: other ports than its probed device`,
+    );
+  });
+
+  it('fails on a twin verdict in the probe of another source', () => {
+    const text = self().replace('(probe #8.1)', '(probe #1.1)');
+    expect(() => parsePortTypeCatalog([transcript(SELF), text], systemInfo)).toThrow(
+      `#1.1 -> #${TWIN}.1: an input of the twin of #8`,
+    );
+  });
+
+  it('leaves the pair a hole when the twin was not added', () => {
+    // scripts/capture-fixtures.mjs: a twin add that shows no new device is recorded with the add's answer lines.
+    const stopped = [
+      ...added(SELF),
+      ...SELF.map((device) => wireList(device)),
+      section('(twin #8 stopped)', ["Error: Error: Device type not found: 'River'"]),
+      section('project close force'),
+    ].join('\n');
+    expect(() => parsePortTypeCatalog([transcript(SELF), stopped], systemInfo)).toThrow(
+      "output 'River.Covariance' matches 2 classes",
+    );
+  });
+
+  it('fails on a twin verdict two transcripts give differently', () => {
+    expect(() => parsePortTypeCatalog([transcript(SELF), self(), self('connected')], systemInfo)).toThrow(
+      '#8.1 -> #8.1: probed differently',
+    );
+  });
+
+  it('leaves a crashed twin pair a hole', () => {
+    expect(() => parsePortTypeCatalog([transcript(SELF), self('crashed')], systemInfo)).toThrow(
+      "output 'River.Covariance' matches 2 classes",
+    );
+  });
+});
+
 // Synthetic (plan decision D1): two outputs of one type with one name, in two classes.
 const SPLITTER: Device = {
   id: 7,
