@@ -17,10 +17,15 @@ export type OutputChains = {
  * Section 4 steps 1-3 (plan decision B2): `export list` gives the outputs by name (fact 49), matched to `device list`
  * by `devicesNamed` (B3); then `get_device` of each output and of every device upstream of it, as `plan_graph` reads
  * devices, with each wire's source resolved by `resolveWireSource` (fact 82, B4). Each device is read once.
+ *
+ * `beforeReading` receives the id of every listed device once the outputs are known and before the first
+ * `get_device`, whose `device select` is an uncaptured step before a timing read (step 2, fact 95); it is not called
+ * when no output is configured.
  */
 export async function readOutputChains(
   exports: ExportPort,
   graph: ProjectGraphReadPort,
+  beforeReading: (ids: readonly number[]) => Promise<void> = async () => undefined,
 ): Promise<OutputChains> {
   const targets = await exports.targets();
   if (targets.length === 0) return { outputs: [], graph: [] };
@@ -45,6 +50,7 @@ export async function readOutputChains(
     }
     for (const device of named) if (!outputs.includes(device.id)) outputs.push(device.id);
   }
+  await beforeReading(devices.map((device) => device.id));
   const details = new Map<number, DeviceDetail>();
   const read = async (id: number): Promise<DeviceDetail> => {
     const known = details.get(id);

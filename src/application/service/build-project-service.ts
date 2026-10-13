@@ -56,7 +56,8 @@ export class BuildProjectService implements BuildProjectCommandPort {
   }
 
   /**
-   * Build-not-built design sections 4-6: whether every configured output has a result and where building stopped. Its
+   * Build-not-built design sections 4-6: whether every configured output has a result at the scene
+   * resolution and where building stopped. Its
    * own exclusive() action, since none is held once the wait ends (plan decision B1). A WorldMachineError leaves the
    * build finished and becomes outputsCheckError (section 6, as apply_graph's diffError; B9); any other error is a bug
    * and propagates.
@@ -65,10 +66,12 @@ export class BuildProjectService implements BuildProjectCommandPort {
     const { session, exports, graph } = this.#ports;
     try {
       return await session.exclusive(async () => {
-        const chains = await readOutputChains(exports, graph);
-        const ids = chains.graph.map((device) => device.id);
-        // Plan decision B12: no outputs, no batch.
-        const built = new Set(ids.length === 0 ? [] : await this.#results.builtDevices(ids));
+        // Section 4 step 2: the timing of every listed device, before any read that selects a device. Plan decision
+        // B12: no outputs, no batch (readOutputChains does not call back then).
+        let built = new Set<number>();
+        const chains = await readOutputChains(exports, graph, async (ids) => {
+          built = new Set(await this.#results.builtDevices(ids));
+        });
         return checkOutputs(chains.graph, built, chains.outputs);
       });
     } catch (error) {

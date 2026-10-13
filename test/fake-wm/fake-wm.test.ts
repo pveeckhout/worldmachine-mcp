@@ -1673,6 +1673,7 @@ describe('fake World Machine: build results (build-not-built design, facts 93 an
     const s = session({ FAKE_WM_BUILD_MS: '50' });
     await s.execute([
       'project new blank force',
+      'scene resolution 513',
       'device add Gradient',
       'device add River',
       'device add File Output',
@@ -1690,6 +1691,7 @@ describe('fake World Machine: build results (build-not-built design, facts 93 an
     const s = session({ FAKE_WM_BUILD_MS: '50' });
     await s.execute([
       'project new blank force',
+      'scene resolution 513',
       'device add Gradient',
       'device add File Output',
       'wire connect #1 #2',
@@ -1704,11 +1706,64 @@ describe('fake World Machine: build results (build-not-built design, facts 93 an
 
   it('empties the results when a full build starts (fact 94)', async () => {
     const s = session({ FAKE_WM_BUILD_MS: '400' });
-    await s.execute(['project new blank force', 'device add Gradient', 'build start']);
+    await s.execute([
+      'project new blank force',
+      'scene resolution 513',
+      'device add Gradient',
+      'build start',
+    ]);
     await ended(700);
     expect(await outputs(s, ['debug devicetiming #1'])).toEqual([timing(1, 1)]);
     expect((await outputs(s, ['build start', 'debug devicetiming #1']))[1]).toEqual(noResults('Gradient', 1));
     await ended(700);
     expect(await outputs(s, ['debug devicetiming #1'])).toEqual([timing(1, 1)]);
+  });
+
+  it('prints the scene resolution that `scene resolution` set (raw/build-stop-timing.txt l.92-100, l.89-90)', async () => {
+    const s = session();
+    await s.execute(['project new default force', 'scene resolution 2049']);
+    expect(await outputs(s, ['scene show'])).toEqual([rawFrame('build-stop-timing.txt', 'scene show')]);
+    await s.execute(['scene resolution 513']);
+    expect((await outputs(s, ['scene show']))[0]?.some((line) => /Resolution:\s+513$/.test(line))).toBe(true);
+  });
+
+  // Assumed: the result levels double from 129 px up to the scene resolution (129, 257, 513 captured; 1025 and 2049
+  // follow the rule), so a finished build always has a row at the scene resolution (fact 93).
+  it('gives a built device a row at the scene resolution', async () => {
+    const s = session({ FAKE_WM_BUILD_MS: '50' });
+    await s.execute([
+      'project new blank force',
+      'scene resolution 2049',
+      'device add Gradient',
+      'build start',
+    ]);
+    await ended();
+    const [frame] = await outputs(s, ['debug devicetiming #1']);
+    expect(frame?.slice(2, -1).map((row) => row.slice(0, row.indexOf('px') + 2))).toEqual([
+      '129px',
+      '257px',
+      '513px',
+      '1025px',
+      '2049px',
+    ]);
+  });
+
+  // Fact 95 (raw/build-stop-timing.txt l.187-189): the shape of a device a stopped build never reached. Assumed: a
+  // stopped full build leaves every device in that state (the capture's stopped build left lower levels on some).
+  it("answers 'has no build results yet' for every device after a stopped full build (fact 95)", async () => {
+    const s = session({ FAKE_WM_BUILD_MS: '60000' });
+    await s.execute([
+      'project new blank force',
+      'device add Gradient',
+      'device add File Output',
+      'wire connect #1 #2',
+      'build start',
+      'build stop',
+    ]);
+    await ended();
+    expect(await outputs(s, ['debug devicetiming #2', 'debug devicetiming #1'])).toEqual([
+      rawFrame('build-stop-timing.txt', 'debug devicetiming #1'),
+      ["'Gradient' has no build results yet."],
+    ]);
   });
 });

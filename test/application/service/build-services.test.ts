@@ -141,11 +141,12 @@ const OUTPUT_CHECK_CALLS = [
   'exclusive',
   'export list',
   'device list',
+  // Design section 4 step 2: the timing of every listed device comes before any read that selects a device.
+  'devicetiming #1, #308, #309, #318',
   'device info #1',
   'device info #308',
   'device info #309',
   'device info #318',
-  'devicetiming #1, #308, #309, #318',
   'exclusive end',
 ];
 
@@ -652,12 +653,21 @@ describe('BuildProjectService output check (build-not-built design sections 3-6)
       'exclusive',
       'export list',
       'device list',
+      'devicetiming #1, #2, #3',
       'device info #3',
       'device info #2',
       'device info #1',
-      'devicetiming #3, #2, #1',
       'exclusive end',
     ]);
+  });
+
+  it('times every listed device before any device is read, since a read selects the device (section 4 step 2)', async () => {
+    const f = building({}, { targets: RIVER_TARGETS, devices: RIVER_DEVICES, details: [] }, {});
+    await f.service.buildProject({ mode: 'full', waitSeconds: 60 });
+    const timing = f.calls.findIndex((call) => call.startsWith('devicetiming'));
+    const firstRead = f.calls.findIndex((call) => call.startsWith('device info'));
+    expect(timing).toBeGreaterThan(-1);
+    expect(firstRead).toBeGreaterThan(timing);
   });
 
   it('reports every output built, without a hint, when every device has a result', async () => {

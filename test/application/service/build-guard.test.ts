@@ -342,7 +342,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       mode: 'full',
       // The fake does not model the sample project's own devices, so get_device of its Height Output #1 fails and the
       // check reports why (spec section 6); the build is still finished.
-      outputsCheckError: 'World Machine rejected "device select #1"',
+      outputsCheckError: 'World Machine rejected "debug devicetiming #1"',
     });
     const exported = await new ExportOutputsService(session, exporter, reader, policy).exportOutputs({});
     expect(exported.files).toHaveLength(4);
@@ -531,10 +531,18 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
     ).buildProject({ mode: 'full', waitSeconds: 30 });
     await waitUntil(() => builder.current()?.state === 'running');
     expect((await new StopBuildService(session, builder).stopBuild({})).stopped).toBe('full');
-    // Codex round 1 ruling 4 (as narrowed by round 2 ruling 4): the build reads as finished and the check ran, whatever
-    // it found; what a stopped build leaves is not captured.
+    // Spec section 3 and fact 95: the build reads as finished, the check ran, and the output it never reached is not
+    // built. The fake's stopped build leaves every device without results (Assumed there).
     const view = await building;
-    expect(view).toMatchObject({ state: 'finished', mode: 'full' });
-    expect('outputsBuilt' in view || 'outputsCheckError' in view).toBe(true);
+    expect(view).toMatchObject({
+      state: 'finished',
+      mode: 'full',
+      outputsBuilt: false,
+      notBuilt: [{ id: output.id, name: 'Height Output' }],
+      hint: NOT_BUILT_HINT,
+    });
+    expect('outputsCheckError' in view).toBe(false);
+    // Task 6 minor: a check refused its exclusive() action would say so here.
+    expect(JSON.stringify(view)).not.toMatch(/A build is running/);
   });
 });

@@ -23,6 +23,16 @@ describe('stoppedAt (build-not-built design section 4)', () => {
     expect(stoppedAt([OUTPUT, RIVER, GRADIENT], new Set([1]), [3])).toEqual([shown(RIVER)]);
   });
 
+  // Pins existing behaviour (Task 1 minor): only an output without a result starts the walk.
+  it('lists nothing for an output that built while a device upstream of it did not', () => {
+    expect(stoppedAt([OUTPUT, RIVER, GRADIENT], new Set([3]), [3])).toEqual([]);
+    expect(checkOutputs([OUTPUT, RIVER, GRADIENT], new Set([3]), [3])).toEqual({
+      outputsBuilt: true,
+      notBuilt: [],
+      stoppedAt: [],
+    });
+  });
+
   it('lists the unbuilt branch of a device whose other branch built', () => {
     const river = chain(2, 'River', [3]);
     const graph = [
@@ -118,7 +128,7 @@ describe('checkOutputs (build-not-built design sections 4 and 5)', () => {
 
   it('carries the hint text of spec section 5', () => {
     expect(NOT_BUILT_HINT).toBe(
-      'An output was not built. A device added from the console can be an older version that does not build; open the project in World Machine and update it in the Project Version dialog.',
+      'An output was not built. A device added from the console can be an older version that does not build; open the project in World Machine and update it in the Project Version dialog. A build ended by stop_build also leaves outputs not built.',
     );
   });
 });

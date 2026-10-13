@@ -39,7 +39,12 @@ function chains(
   details: readonly DeviceDetail[],
 ) {
   const f = exportFakes({ targets, devices, details });
-  return { calls: f.calls, read: () => readOutputChains(f.exports, f.graph) };
+  return {
+    calls: f.calls,
+    read: () => readOutputChains(f.exports, f.graph),
+    readWith: (beforeReading: (ids: readonly number[]) => Promise<void>) =>
+      readOutputChains(f.exports, f.graph, beforeReading),
+  };
 }
 
 // raw/build-not-built-timing.txt l.1-46: Gradient into River into File Output.
@@ -55,6 +60,25 @@ const RIVER_DETAILS = [
 const RIVER_TARGETS = [{ device: 'Height Output', template: '<WORK>/river-height.png' }];
 
 describe('readOutputChains (build-not-built design section 4)', () => {
+  it('hands every listed id to beforeReading once, before any device is read (step 2)', async () => {
+    const c = chains(RIVER_TARGETS, RIVER_GRAPH, RIVER_DETAILS);
+    await c.readWith(async (ids) => void c.calls.push(`before ${ids.join(',')}`));
+    expect(c.calls).toEqual([
+      'export list',
+      'device list',
+      'before 1,2,3',
+      'device info #3',
+      'device info #2',
+      'device info #1',
+    ]);
+  });
+
+  it('does not call beforeReading when no output is configured', async () => {
+    const c = chains([], RIVER_GRAPH, RIVER_DETAILS);
+    await c.readWith(async () => void c.calls.push('before'));
+    expect(c.calls).toEqual(['export list']);
+  });
+
   it('reads the output and every device upstream of it, breadth first', async () => {
     const c = chains(RIVER_TARGETS, RIVER_GRAPH, RIVER_DETAILS);
     expect(await c.read()).toEqual({

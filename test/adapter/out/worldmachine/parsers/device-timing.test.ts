@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasFinishedResults } from '../../../../../src/adapter/out/worldmachine/parsers/device-timing.js';
+import { isBuiltAtResolution } from '../../../../../src/adapter/out/worldmachine/parsers/device-timing.js';
 import { codeOf, rawFrame } from './fixture.js';
 
 const timing = (device: number, occurrence = 0) =>
@@ -8,23 +8,42 @@ const timing = (device: number, occurrence = 0) =>
 const [, COLUMNS = '', NONE = '', LEGEND = ''] = timing(2);
 const title = (name: string, id: number) => `Build timing for '${name}' (#${id}), per result level:`;
 
-describe('hasFinishedResults (fact 93)', () => {
+describe('isBuiltAtResolution (fact 93)', () => {
   it('reads no finished results for the File Output and the River (raw/build-not-built-timing.txt l.72-82)', () => {
-    expect(hasFinishedResults(3, timing(3))).toBe(false);
-    expect(hasFinishedResults(2, timing(2))).toBe(false);
+    expect(isBuiltAtResolution(3, timing(3), 513)).toBe(false);
+    expect(isBuiltAtResolution(2, timing(2), 513)).toBe(false);
   });
 
   it('reads the result rows of the Gradient that fed the River (l.84-90)', () => {
-    expect(hasFinishedResults(1, timing(1))).toBe(true);
+    expect(isBuiltAtResolution(1, timing(1), 513)).toBe(true);
   });
 
   it('reads the result rows of both devices of Gradient into File Output (l.167-181)', () => {
-    expect(hasFinishedResults(2, timing(2, 1))).toBe(true);
-    expect(hasFinishedResults(1, timing(1, 1))).toBe(true);
+    expect(isBuiltAtResolution(2, timing(2, 1), 513)).toBe(true);
+    expect(isBuiltAtResolution(1, timing(1, 1), 513)).toBe(true);
+  });
+
+  // Fact 95 (raw/build-stop-timing.txt l.190-196, l.187-189): a stopped build leaves lower levels only, or nothing.
+  it('reads a table with lower levels only as not built (fact 95)', () => {
+    const stopped = rawFrame('build-stop-timing.txt', 'debug devicetiming #2', 3);
+    expect(stopped.slice(2, 4)).toEqual([expect.stringMatching(/^129px/), expect.stringMatching(/^257px/)]);
+    expect(isBuiltAtResolution(2, stopped, 2049)).toBe(false);
+    expect(isBuiltAtResolution(1, timing(1), 1025)).toBe(false);
+  });
+
+  it('reads a table with the scene resolution row as built, and the same table as not built at a higher one', () => {
+    expect(isBuiltAtResolution(1, timing(1), 513)).toBe(true);
+    expect(isBuiltAtResolution(1, timing(1), 2049)).toBe(false);
+  });
+
+  it('reads the third answer, the device has no build results yet, as not built (fact 95, l.187-189)', () => {
+    const none = rawFrame('build-stop-timing.txt', 'debug devicetiming #1');
+    expect(none).toEqual(["'Height Output' has no build results yet."]);
+    expect(isBuiltAtResolution(1, none, 2049)).toBe(false);
   });
 
   it('reads the id from the end of a title whose name holds a quote and an id (Review Focus 5)', () => {
-    expect(hasFinishedResults(5, [title("It's (#2)", 5), COLUMNS, NONE, LEGEND])).toBe(false);
+    expect(isBuiltAtResolution(5, [title("It's (#2)", 5), COLUMNS, NONE, LEGEND], 513)).toBe(false);
   });
 
   it.each([
@@ -36,6 +55,9 @@ describe('hasFinishedResults (fact 93)', () => {
     ['the frame of another device', 3, timing(2)],
     ['an empty output', 1, []],
     ['a frame without its legend', 2, timing(2).slice(0, -1)],
+    ['the third answer with text after it', 1, ["'Height Output' has no build results yet.", 'more']],
+    ['the third answer without its quotes', 1, ['Height Output has no build results yet.']],
+    ['the third answer beside a table', 1, [...timing(1), "'Gradient' has no build results yet."]],
     ['a frame without rows', 2, [title('River', 2), COLUMNS, LEGEND]],
     [
       'a summary row in a device frame',
@@ -66,6 +88,6 @@ describe('hasFinishedResults (fact 93)', () => {
       [title('Gradient', 1), COLUMNS, timing(1)[2] ?? '', '', timing(1)[3] ?? '', LEGEND],
     ],
   ])('fails UNEXPECTED_OUTPUT on %s', (_label, id, output) => {
-    expect(codeOf(() => hasFinishedResults(id, output))).toBe('UNEXPECTED_OUTPUT');
+    expect(codeOf(() => isBuiltAtResolution(id, output, 513))).toBe('UNEXPECTED_OUTPUT');
   });
 });

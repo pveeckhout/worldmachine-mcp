@@ -144,8 +144,14 @@ const EXPORT_ROWS = [
   ['Colormap only', '<project> <name> <res>.png'],
   ['Splatmap', '<project> <name> <res>.png'],
 ];
-// Assumed: the fake does not model `scene resolution`; `<res>` is the resolution of fixtures/wm-4067/scene-show.txt.
+// Assumed: `<res>` in an export file name is the resolution of fixtures/wm-4067/scene-show.txt, whatever
+// `scene resolution` set.
 const FAKE_RESOLUTION = 2049;
+// `scene resolution <n>` (raw/build-stop-timing.txt l.5-6, l.89-90) sets what `scene show` prints on its Resolution line
+// and the top result level of a finished build. Assumed: undefined keeps the fixture's, which a project switch restores,
+// and the command is not an undoable edit and does not make the project dirty.
+let sceneResolution;
+const resolutionOf = (fixtureText) => Number(/Resolution:\s+(\d+)/.exec(fixtureText)?.[1]);
 // undefined, or { mode: 'full' | 'tiled', timer } while a build runs.
 let build;
 let previewUntil = 0;
@@ -163,6 +169,11 @@ let built = false;
 // none (its purge stands), a group build leaves the results alone, a full build started from the window does not
 // empty them first, and a project switch clears them.
 let results = new Set();
+// Fact 95 (raw/build-stop-timing.txt l.187-189): a device a stopped full build never reached prints `'<name>' has no
+// build results yet.` instead of a table. Assumed: a full build stopped by `build stop` leaves every device in that
+// state until the next full build ends (the capture's stopped build also left lower levels on some devices, which the
+// fake does not model), and a full build that was started from and stopped in the window does the same.
+let buildStopped = false;
 const resultsOfFullBuild = () => {
   const stopped = new Set(added.filter((device) => device.type === 'River').map((device) => device.id));
   for (let grew = true; grew; ) {
@@ -176,12 +187,16 @@ const resultsOfFullBuild = () => {
   }
   return new Set(added.filter((device) => !stopped.has(device.id)).map((device) => device.id));
 };
-// raw/build-not-built-timing.txt l.73-76 and l.86-90, verbatim. Assumed: the fake does not model `scene resolution`,
-// so the result levels are the ones captured at 513.
+// raw/build-not-built-timing.txt l.73-76 and l.86-90, verbatim. Assumed: the result levels double from 129 px up to the
+// scene resolution (129, 257, and 513 are captured at 513; 1025 and 2049 follow), then the resolution itself when it is
+// no power of two plus one (the blank project's 1024).
 const TIMING_COLUMNS = `${'Device'.padEnd(33)}Prepare  Activate   Distrib     Total`;
-const TIMING_ROWS = ['129px', '257px', '513px'].map(
-  (level) => `${level.padEnd(37)}0ms       1ms       0ms       1ms\n`,
-);
+const timingRows = (resolution) => {
+  const levels = [];
+  for (let level = 129; level < resolution; level = (level - 1) * 2 + 1) levels.push(level);
+  levels.push(resolution);
+  return levels.map((level) => `${`${level}px`.padEnd(37)}0ms       1ms       0ms       1ms\n`).join('');
+};
 const TIMING_LEGEND =
   "Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.";
 // The `.tmd` file that `project save` or `project open` named; templates resolve against its folder (fact 50).
@@ -253,6 +268,7 @@ const endBuild = () => {
       if (ending.group === undefined) {
         built = true;
         results = resultsOfFullBuild();
+        buildStopped = false;
       }
       out(lateLine(ending));
     });
@@ -270,6 +286,13 @@ const lateLine = (run) =>
     ? 'Build started.\n'
     : `Building ${run.group.count} device(s) in group '${run.group.name}'\n`;
 // `build start`, or `group build` with its group: the same events (spec v2b fact 66).
+const sceneShow = () => {
+  const text = fixture(project === 'empty' ? 'scene-show-blank.txt' : 'scene-show.txt');
+  return sceneResolution === undefined
+    ? text
+    : text.replace(/(Resolution:\s+)\d+/, (_, label) => `${label}${sceneResolution}`);
+};
+const currentResolution = () => sceneResolution ?? resolutionOf(sceneShow());
 const startFull = (group) => {
   // Fact 94: a full build purges every result before it starts; a group build leaves them (Assumed).
   if (group === undefined) results = new Set();
@@ -310,6 +333,8 @@ const switchTo = (next) => {
   nextId = firstFreeId(next);
   built = false;
   results = new Set();
+  buildStopped = false;
+  sceneResolution = undefined;
   savedPath = undefined;
   sampleDisabled = new Set();
   snapshots = [];
@@ -1075,6 +1100,7 @@ async function handle(line) {
     previewUntil = 0;
     const stopping = build;
     if (stopping === undefined) return;
+    if (stopping.mode === 'full' && stopping.group === undefined) buildStopped = true;
     clearTimeout(stopping.timer);
     build = undefined;
     if (stopping.mode === 'full') {
@@ -1097,7 +1123,8 @@ async function handle(line) {
     // Assumed: a device the fake does not model, the sample project's own included, gets the not-found error of the
     // device commands; no capture times a missing device.
     if (device === undefined) return void notFound(ref);
-    const rows = results.has(device.id) ? TIMING_ROWS.join('') : '  (no finished results)\n';
+    if (buildStopped) return void out(`'${device.name}' has no build results yet.\n`);
+    const rows = results.has(device.id) ? timingRows(currentResolution()) : '  (no finished results)\n';
     return void out(
       `Build timing for '${device.name}' (${ref}), per result level:\n${TIMING_COLUMNS}\n${rows}${TIMING_LEGEND}\n`,
     );
@@ -1154,7 +1181,12 @@ async function handle(line) {
     return;
   }
   const blank = project === 'empty';
-  if (command === 'scene show') return void out(fixture(blank ? 'scene-show-blank.txt' : 'scene-show.txt'));
+  if (command === 'scene show') return void out(sceneShow());
+  const resolution = /^scene resolution (\d+)$/.exec(command);
+  if (resolution) {
+    sceneResolution = Number(resolution[1]);
+    return void out(`Set scene resolution to ${sceneResolution}\n`);
+  }
   if (command === 'scene list') return void out(fixture(blank ? 'scene-list-blank.txt' : 'scene-list.txt'));
   // Spec v2b facts 57-61: raw/v2b-snapshots.txt and raw/v2b-snapshot-restore.txt.
   if (command === 'snapshot list' || command === 'snapshots') {

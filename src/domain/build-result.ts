@@ -37,7 +37,7 @@ export type OutputsCheck = {
 
 /** Section 5, verbatim. */
 export const NOT_BUILT_HINT =
-  'An output was not built. A device added from the console can be an older version that does not build; open the project in World Machine and update it in the Project Version dialog.';
+  'An output was not built. A device added from the console can be an older version that does not build; open the project in World Machine and update it in the Project Version dialog. A build ended by stop_build also leaves outputs not built.';
 
 /**
  * Section 4 step 1 (plan decision B3): the listed devices an `export list` name stands for. `export list` prints a
