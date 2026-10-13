@@ -181,7 +181,14 @@ function deps(overrides: Partial<McpDependencies> = {}): McpDependencies {
       setGroupEnabled: async (c) => ({ ...TERRAIN, enabled: c.enabled, session: READY_DIRTY }),
     },
     planGraph: {
-      planGraph: async () => ({ planId: PLAN_ID, conflicts: [], steps: [], unchanged: [], session: READY }),
+      planGraph: async () => ({
+        planId: PLAN_ID,
+        conflicts: [],
+        steps: [],
+        unchanged: [],
+        uncheckedWires: [],
+        session: READY,
+      }),
     },
     applyGraph: { applyGraph: async () => ({ applied: 0, snapshot: null, diff: [], session: READY }) },
     currentSession: () => READY,
@@ -296,7 +303,14 @@ describe('createMcpServer', () => {
         planGraph: {
           planGraph: async (query) => {
             specs.push(query.spec);
-            return { planId: PLAN_ID, conflicts: [], steps: [], unchanged: [], session: READY };
+            return {
+              planId: PLAN_ID,
+              conflicts: [],
+              steps: [],
+              unchanged: [],
+              uncheckedWires: [],
+              session: READY,
+            };
           },
         },
       }),
@@ -318,7 +332,14 @@ describe('createMcpServer', () => {
         planGraph: {
           planGraph: async (query) => {
             specs.push(query.spec);
-            return { planId: PLAN_ID, conflicts: [], steps: [], unchanged: [], session: READY };
+            return {
+              planId: PLAN_ID,
+              conflicts: [],
+              steps: [],
+              unchanged: [],
+              uncheckedWires: [],
+              session: READY,
+            };
           },
         },
       }),
@@ -366,6 +387,21 @@ describe('createMcpServer', () => {
     );
   });
 
+  it.each([
+    'A wire whose output port type the input does not accept is a conflict when both devices have catalogued port types',
+    'a wire with an end whose port types are unknown is listed in uncheckedWires and not checked',
+  ])('describes port types in plan_graph: %s', async (text) => {
+    const { tools } = await (await connect(deps())).listTools();
+    expect(tools.find((tool) => tool.name === 'plan_graph')?.description ?? '').toContain(text);
+  });
+
+  it('refuses a plan view without uncheckedWires (port-types design section 6)', async () => {
+    const view = { planId: PLAN_ID, conflicts: [], steps: [], unchanged: [], session: READY };
+    const client = await connect(deps({ planGraph: { planGraph: async () => view as never } }));
+    const result = await client.callTool({ name: 'plan_graph', arguments: { spec: GRAPH_SPEC } });
+    expect(result.isError).toBe(true);
+  });
+
   it('passes plan_id and keep_snapshot to apply_graph, keep_snapshot false by default', async () => {
     const commands: unknown[] = [];
     const client = await connect(
@@ -395,6 +431,7 @@ describe('createMcpServer', () => {
       conflicts: [],
       steps: [{ op: 'set-bypassed', device: 'Base', to: true, toggle: true }],
       unchanged: [],
+      uncheckedWires: [],
       session: READY,
     };
     const client = await connect(deps({ planGraph: { planGraph: async () => view as never } }));
@@ -432,6 +469,7 @@ describe('createMcpServer', () => {
         },
       ],
       unchanged: ['Shape'],
+      uncheckedWires: ["'Eroded' input 1"],
       session: READY,
     } as const;
     const client = await connect(deps({ planGraph: { planGraph: async () => view } }));
@@ -688,7 +726,14 @@ describe('createMcpServer', () => {
         planGraph: {
           planGraph: async () => {
             calls += 1;
-            return { planId: PLAN_ID, conflicts: [], steps: [], unchanged: [], session: READY };
+            return {
+              planId: PLAN_ID,
+              conflicts: [],
+              steps: [],
+              unchanged: [],
+              uncheckedWires: [],
+              session: READY,
+            };
           },
         },
       }),

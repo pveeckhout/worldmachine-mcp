@@ -8,6 +8,8 @@ export type PlanGraphView = {
   readonly conflicts: readonly PlanConflict[];
   readonly steps: readonly PlanStep[];
   readonly unchanged: readonly string[];
+  /** Port-types design section 6: the planned wires with an untyped end, as `'<destination>' input <port>`. */
+  readonly uncheckedWires: readonly string[];
   readonly session: SessionSummary;
 };
 export interface PlanGraphQueryPort {

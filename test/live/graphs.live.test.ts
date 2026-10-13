@@ -8,6 +8,10 @@ import { resolveExecutable } from '../../src/adapter/out/worldmachine/locator.js
 import { WorldMachineDeviceEditor } from '../../src/adapter/out/worldmachine/world-machine-device-editor.js';
 import { WorldMachineGraphReader } from '../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
 import { WorldMachineParameterEditor } from '../../src/adapter/out/worldmachine/world-machine-parameter-editor.js';
+import {
+  PORT_TYPE_CATALOG,
+  WorldMachinePortTypes,
+} from '../../src/adapter/out/worldmachine/world-machine-port-types.js';
 import { WorldMachineProcess } from '../../src/adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineProjectWriter } from '../../src/adapter/out/worldmachine/world-machine-project-writer.js';
 import { WorldMachineSceneEditor } from '../../src/adapter/out/worldmachine/world-machine-scene-editor.js';
@@ -40,7 +44,9 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
   const reader = new WorldMachineGraphReader(session);
   const writer = new WorldMachineProjectWriter(session);
   const scene = new WorldMachineSceneEditor(session);
-  const plan = new PlanGraphService(session, reader);
+  // Port-types plan decision D3: the live tests use the shipped catalog, as main.ts does.
+  const portTypes = new WorldMachinePortTypes(session, PORT_TYPE_CATALOG);
+  const plan = new PlanGraphService(session, reader, portTypes);
   const devices = new WorldMachineDeviceEditor(session);
   const wires = new WorldMachineWireEditor(session);
   const apply = new ApplyGraphService(
@@ -50,6 +56,7 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
     wires,
     new WorldMachineParameterEditor(session),
     new WorldMachineSnapshotEditor(session),
+    portTypes,
   );
   const names = async () => (await reader.listDevices()).map((device) => device.name);
   const planAndApply = async (spec: RawGraphSpec) => {

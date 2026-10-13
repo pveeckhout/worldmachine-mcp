@@ -12,11 +12,13 @@ import type {
 } from '../port/in/command/apply-graph-command.js';
 import type { DeviceEditPort } from '../port/out/device-edit-port.js';
 import type { ParameterEditPort } from '../port/out/parameter-edit-port.js';
+import type { PortTypeCatalogPort } from '../port/out/port-type-catalog-port.js';
 import type { ProjectGraphReadPort } from '../port/out/project-graph-read-port.js';
 import type { SnapshotPort } from '../port/out/snapshot-port.js';
 import type { WireEditPort } from '../port/out/wire-edit-port.js';
 import type { SessionStatus, WorldMachineSessionPort } from '../port/out/world-machine-session-port.js';
 import { readGraphState } from './read-graph-state.js';
+import { checkWireTypes } from './wire-types.js';
 
 export const APPLY_SNAPSHOT_PREFIX = 'apply_graph ';
 
@@ -27,6 +29,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
   readonly #wires: WireEditPort;
   readonly #parameters: ParameterEditPort;
   readonly #snapshots: SnapshotPort;
+  readonly #portTypes: PortTypeCatalogPort;
 
   constructor(
     session: WorldMachineSessionPort,
@@ -35,6 +38,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
     wires: WireEditPort,
     parameters: ParameterEditPort,
     snapshots: SnapshotPort,
+    portTypes: PortTypeCatalogPort,
   ) {
     this.#session = session;
     this.#graph = graph;
@@ -42,6 +46,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
     this.#wires = wires;
     this.#parameters = parameters;
     this.#snapshots = snapshots;
+    this.#portTypes = portTypes;
   }
 
   /**
@@ -60,8 +65,13 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
         );
       }
       const plan = planGraph(spec, state);
-      if (plan.conflicts.length > 0) {
-        const listed = plan.conflicts.map((conflict) => `${conflict.entry}: ${conflict.reason}`).join('; ');
+      // Port-types plan decision D8: plan_graph's type check, so a type conflict refuses before any change.
+      const conflicts = [
+        ...plan.conflicts,
+        ...checkWireTypes(spec, state, plan.steps, this.#portTypes).conflicts,
+      ];
+      if (conflicts.length > 0) {
+        const listed = conflicts.map((conflict) => `${conflict.entry}: ${conflict.reason}`).join('; ');
         throw new WorldMachineError(
           'REFUSED',
           `The plan has conflicts; resolve them and plan again: ${listed}`,

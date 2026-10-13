@@ -629,6 +629,7 @@ export const planGraphViewSchema = z.strictObject({
   conflicts: z.array(z.strictObject({ entry: z.string(), reason: z.string() })),
   steps: z.array(planStepSchema),
   unchanged: z.array(z.string()),
+  uncheckedWires: z.array(z.string()),
   session: sessionSummarySchema,
 }) satisfies z.ZodType<PlanGraphView>;
 

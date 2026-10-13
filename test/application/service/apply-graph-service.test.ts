@@ -4,6 +4,7 @@ import { WorldMachineError } from '../../../src/domain/errors.js';
 import { planId } from '../../../src/domain/graph-plan.js';
 import { type RawGraphSpec, validateGraphSpec } from '../../../src/domain/graph-spec.js';
 import type { SessionSummary } from '../../../src/domain/session.js';
+import { syntheticPortTypes } from '../../support/port-types.js';
 
 const SPEC: RawGraphSpec = {
   version: 1,
@@ -53,6 +54,10 @@ describe('ApplyGraphService with a World Machine that exits between steps', () =
       stub<ConstructorParameters<typeof ApplyGraphService>[3]>({}),
       stub<ConstructorParameters<typeof ApplyGraphService>[4]>({}),
       stub<ConstructorParameters<typeof ApplyGraphService>[5]>(snapshots),
+      stub<ConstructorParameters<typeof ApplyGraphService>[6]>({
+        portsOf: () => undefined,
+        portsOfAdded: () => undefined,
+      }),
     );
     const id = planId(validateGraphSpec(SPEC), { projectPath: null, devices: [], details: [] });
     const error = await service.applyGraph({ spec: SPEC, planId: id, keepSnapshot: false }).then(
@@ -136,6 +141,10 @@ describe('ApplyGraphService robustness', () => {
       stub<ConstructorParameters<typeof ApplyGraphService>[3]>({}),
       stub<ConstructorParameters<typeof ApplyGraphService>[4]>({}),
       stub<ConstructorParameters<typeof ApplyGraphService>[5]>(snapshots),
+      stub<ConstructorParameters<typeof ApplyGraphService>[6]>({
+        portsOf: () => undefined,
+        portsOfAdded: () => undefined,
+      }),
     );
     const id = planId(validateGraphSpec(SPEC), { projectPath: null, devices: [], details: [] });
     return { service, calls, id, control };
@@ -306,5 +315,49 @@ describe('ApplyGraphService robustness', () => {
     expect(error.code).toBe('CRASHED');
     expect(error.message).toContain('were applied');
     expect(result.calls.filter((call) => call.startsWith('remove'))).toEqual([]);
+  });
+});
+
+describe('ApplyGraphService port types (port-types design section 6, plan decision D8)', () => {
+  it('refuses a plan with an incompatible wire before any command', async () => {
+    const calls: string[] = [];
+    const record = (name: string) => async () => {
+      calls.push(name);
+      return [];
+    };
+    const stub = <T>(value: unknown): T => value as T;
+    const spec: RawGraphSpec = {
+      version: 1,
+      devices: [
+        { name: 'Lake', type: 'Create Water' },
+        { name: 'Combiner', type: 'Combiner', inputs: { '1': 'Lake.2' } },
+      ],
+    };
+    const session = {
+      status: () => ({
+        executable: null,
+        session: { state: 'ready', binding: { kind: 'fresh' }, dirty: false } as SessionSummary,
+      }),
+      exclusive: <T>(action: () => Promise<T>) => action(),
+    };
+    const service = new ApplyGraphService(
+      stub<ConstructorParameters<typeof ApplyGraphService>[0]>(session),
+      stub<ConstructorParameters<typeof ApplyGraphService>[1]>({
+        listDevices: async () => [],
+        getDevice: record('get'),
+      }),
+      stub<ConstructorParameters<typeof ApplyGraphService>[2]>({ addDevice: record('add') }),
+      stub<ConstructorParameters<typeof ApplyGraphService>[3]>({ connect: record('connect') }),
+      stub<ConstructorParameters<typeof ApplyGraphService>[4]>({}),
+      stub<ConstructorParameters<typeof ApplyGraphService>[5]>({ list: record('snapshot list') }),
+      syntheticPortTypes,
+    );
+    const id = planId(validateGraphSpec(spec), { projectPath: null, devices: [], details: [] });
+    await expect(service.applyGraph({ spec, planId: id, keepSnapshot: false })).rejects.toMatchObject({
+      code: 'REFUSED',
+      message:
+        "The plan has conflicts; resolve them and plan again: Combiner: 'Lake' output 2 (water system) cannot feed 'Combiner' input 1, which accepts heightfield",
+    });
+    expect(calls).toEqual([]);
   });
 });

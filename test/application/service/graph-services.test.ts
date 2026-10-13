@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { FsPathPolicy } from '../../../src/adapter/out/fs/path-policy.js';
+import { ENUM_CATALOG } from '../../../src/adapter/out/worldmachine/enum-options.js';
 import { WorldMachineBuildResultReader } from '../../../src/adapter/out/worldmachine/world-machine-build-result-reader.js';
 import { WorldMachineBuilder } from '../../../src/adapter/out/worldmachine/world-machine-builder.js';
 import { WorldMachineDeviceEditor } from '../../../src/adapter/out/worldmachine/world-machine-device-editor.js';
@@ -10,6 +11,10 @@ import { WorldMachineExporter } from '../../../src/adapter/out/worldmachine/worl
 import { WorldMachineGraphReader } from '../../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
 import { WorldMachineGroupEditor } from '../../../src/adapter/out/worldmachine/world-machine-group-editor.js';
 import { WorldMachineParameterEditor } from '../../../src/adapter/out/worldmachine/world-machine-parameter-editor.js';
+import {
+  type PortTypeCatalog,
+  WorldMachinePortTypes,
+} from '../../../src/adapter/out/worldmachine/world-machine-port-types.js';
 import { WorldMachineProcess } from '../../../src/adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineSession } from '../../../src/adapter/out/worldmachine/world-machine-session.js';
 import { WorldMachineSnapshotEditor } from '../../../src/adapter/out/worldmachine/world-machine-snapshot-editor.js';
@@ -28,8 +33,12 @@ afterEach(async () => {
   await Promise.all(sessions.splice(0).map((session) => session.shutdown()));
 });
 
-/** The v3 services over one session and the fake World Machine, which starts with its sample project (ids from #536). */
-function wired(extra: Record<string, string> = {}) {
+/**
+ * The v3 services over one session and the fake World Machine, which starts with its sample project (ids from #536).
+ * `catalog`: the port types of the reader, the wire editor, and both services; none by default (port-types plan
+ * decision D3).
+ */
+function wired(extra: Record<string, string> = {}, catalog?: PortTypeCatalog) {
   const record = recorder();
   const logger = captureLogger();
   const env = fakeEnv({ FAKE_WM_RECORD: record.path, ...extra });
@@ -44,11 +53,12 @@ function wired(extra: Record<string, string> = {}) {
       WorldMachineProcess.start({ bin, readyTimeoutMs: 5_000, logger, env, signal, onSpawn }),
   });
   sessions.push(session);
-  const reader = new WorldMachineGraphReader(session);
+  const portTypes = new WorldMachinePortTypes(session, catalog);
+  const reader = new WorldMachineGraphReader(session, ENUM_CATALOG, portTypes);
   const devices = new WorldMachineDeviceEditor(session);
   const snapshots = new WorldMachineSnapshotEditor(session);
-  const wires = new WorldMachineWireEditor(session);
-  const plan = new PlanGraphService(session, reader);
+  const wires = new WorldMachineWireEditor(session, portTypes);
+  const plan = new PlanGraphService(session, reader, portTypes);
   const apply = new ApplyGraphService(
     session,
     reader,
@@ -56,6 +66,7 @@ function wired(extra: Record<string, string> = {}) {
     wires,
     new WorldMachineParameterEditor(session),
     snapshots,
+    portTypes,
   );
   return {
     record,
@@ -95,6 +106,8 @@ describe('PlanGraphService (spec v3 sections 3 and 5)', () => {
         { op: 'connect', device: 'Combiner', port: 1, from: 'Ramp.1', source: { device: 'Ramp', port: 1 } },
       ],
       unchanged: [],
+      // Port-types plan decision D2: no catalog, so the planned wire is unchecked.
+      uncheckedWires: ["'Combiner' input 1"],
       session: expect.objectContaining({ state: 'ready' }),
     });
     expect(w.record.lines().filter((line) => CHANGES.test(line))).toEqual([]);
