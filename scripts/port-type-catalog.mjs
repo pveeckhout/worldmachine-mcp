@@ -101,15 +101,46 @@ function accepts(outputClass, inputClass, cells) {
 }
 
 /**
+ * Design section 4, plan decision D14: `names` maps a representative port, `<type>.<output port name>`, to its class's
+ * name; a class without an entry is named by its first port in catalog order. An entry that names no output port,
+ * names ports of two classes, or names a class another entry names, throws.
+ */
+function classNames(outputClasses, outputs, names) {
+  const classOf = new Map(
+    outputClasses.flatMap((outputClass) => outputClass.members.map((output) => [output.key, outputClass.id])),
+  );
+  const entries = new Map();
+  for (const [entry, name] of Object.entries(names)) {
+    const ids = new Set(
+      outputs
+        .filter((output) => `${output.device.type}.${output.name}` === entry)
+        .map((output) => classOf.get(output.key)),
+    );
+    if (ids.size === 0) throw new Error(`names: '${entry}' names no output port`);
+    if (ids.size > 1) throw new Error(`names: '${entry}' names ports of ${ids.size} classes`);
+    const [id] = ids;
+    const earlier = entries.get(id);
+    if (earlier !== undefined) throw new Error(`names: '${earlier.entry}' and '${entry}' name one class`);
+    entries.set(id, { entry, name });
+  }
+  return Object.fromEntries(
+    outputClasses.map((outputClass) => [
+      outputClass.id,
+      entries.get(outputClass.id)?.name ?? like(outputClass),
+    ]),
+  );
+}
+
+/**
  * The catalog `{ build, outputClasses, inputClasses, types }` of a `port-types` transcript and the `system info`
- * capture of the same build (design section 4, plan decision D4). A type is keyed by its new device's listed type
+ * capture of the same build, the classes named by `names` (design section 4, plan decisions D4 and D14). A type is keyed by its new device's listed type
  * (fact 81: the kind in its `device list` row, or else its name), with every `device add` word that gave it (`added`,
  * Codex round 1 ruling B1) and its ports in `wire list` order with their class ids.
  * A pair on one device was never probed, so its cell is unknown and ignored. A stopped step, an error answer, a
  * refusal recorded with a stray wire, a gap, or a port that matches two classes throws, so the catalog never rests on
  * a hole.
  */
-export function parsePortTypeCatalog(transcript, systemInfo) {
+export function parsePortTypeCatalog(transcript, systemInfo, names = {}) {
   const build = buildOfSystemInfo(systemInfo);
   /** Ids to listed types of the last `device list`. */
   let listed = new Map();
@@ -272,9 +303,7 @@ export function parsePortTypeCatalog(transcript, systemInfo) {
   }
   return {
     build,
-    outputClasses: Object.fromEntries(
-      outputClasses.map((outputClass) => [outputClass.id, like(outputClass)]),
-    ),
+    outputClasses: classNames(outputClasses, outputs, names),
     inputClasses: Object.fromEntries(
       inputClasses.map((inputClass) => [
         inputClass.id,

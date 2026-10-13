@@ -1,4 +1,8 @@
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parsePortTypeCatalog } from '../../scripts/port-type-catalog.mjs';
 
@@ -275,5 +279,106 @@ describe('parsePortTypeCatalog (port-types design section 4)', () => {
 
   it('takes the build only from the system info capture (design section 4)', () => {
     expect(() => parsePortTypeCatalog(transcript(), '')).toThrow('expected one Version line, found 0');
+  });
+});
+
+// Synthetic (plan decision D1): two outputs of one type with one name, in two classes.
+const SPLITTER: Device = {
+  id: 7,
+  type: 'Splitter',
+  inputs: [],
+  outputs: [
+    { name: 'Part', kind: 'height' },
+    { name: 'Part', kind: 'water' },
+  ],
+};
+
+describe('parsePortTypeCatalog names (port-types design section 4, plan decision D14)', () => {
+  it('names a class by any of its ports and leaves the others to their first port', () => {
+    expect(
+      parsePortTypeCatalog(transcript(), systemInfo, { 'Mixer.Mixed': 'heightfield' }).outputClasses,
+    ).toEqual({
+      o1: 'heightfield',
+      o2: 'like Water Source Water',
+      o3: 'like Mask Source Mask',
+    });
+  });
+
+  it('fails on an entry that names no output port', () => {
+    expect(() =>
+      parsePortTypeCatalog(transcript(), systemInfo, { 'Mixer.Height In': 'heightfield' }),
+    ).toThrow("names: 'Mixer.Height In' names no output port");
+  });
+
+  it('fails on two entries for one class', () => {
+    expect(() =>
+      parsePortTypeCatalog(transcript(), systemInfo, {
+        'Height Source.Height': 'heightfield',
+        'Mixer.Mixed': 'height',
+      }),
+    ).toThrow("names: 'Height Source.Height' and 'Mixer.Mixed' name one class");
+  });
+
+  it('fails on an entry that names ports of two classes', () => {
+    const text = transcript([...DEVICES, SPLITTER]);
+    expect(() => parsePortTypeCatalog(text, systemInfo, { 'Splitter.Part': 'part' })).toThrow(
+      "names: 'Splitter.Part' names ports of 2 classes",
+    );
+  });
+});
+
+const script = fileURLToPath(new URL('../../scripts/build-port-type-catalog.mjs', import.meta.url));
+const NAMES = { 'Height Source.Height': 'heightfield', 'Water Source.Water': 'water system' };
+
+/** Runs the script on the synthetic transcript in a fresh directory, beside `info` unless it is null (section 4). */
+function generate(names?: Readonly<Record<string, string>>, info: string | null = systemInfo) {
+  const dir = mkdtempSync(join(tmpdir(), 'port-type-catalog-'));
+  try {
+    writeFileSync(join(dir, 'port-types.txt'), transcript());
+    if (info !== null) writeFileSync(join(dir, 'system-info.txt'), info);
+    const args = [script, join(dir, 'port-types.txt')];
+    if (names !== undefined) {
+      writeFileSync(join(dir, 'names.json'), JSON.stringify(names));
+      args.push(join(dir, 'names.json'));
+    }
+    return spawnSync(process.execPath, args, { encoding: 'utf8' });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+describe('scripts/build-port-type-catalog.mjs (port-types design section 4, plan decision D16)', () => {
+  it('prints the catalog the transcript, its system info, and the names map parse to', () => {
+    const result = generate(NAMES);
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout)).toStrictEqual(parsePortTypeCatalog(transcript(), systemInfo, NAMES));
+  });
+
+  it('prints the fallback names without a names map', () => {
+    const result = generate();
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout)).toStrictEqual(CATALOG);
+  });
+
+  it('exits 2 with a usage line when no transcript is given', () => {
+    const result = spawnSync(process.execPath, [script], { encoding: 'utf8' });
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain(
+      'usage: node scripts/build-port-type-catalog.mjs <transcript> [names.json]',
+    );
+  });
+
+  it('prints nothing on stdout when the names map fails', () => {
+    const result = generate({ 'Mixer.Nope': 'x' });
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain("names: 'Mixer.Nope' names no output port");
+  });
+
+  it('prints nothing on stdout when no system-info.txt lies beside the transcript', () => {
+    const result = generate(undefined, null);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('system-info.txt');
   });
 });

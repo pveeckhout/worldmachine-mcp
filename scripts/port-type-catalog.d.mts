@@ -9,4 +9,8 @@ export type PortTypeCatalogData = {
     { added: string[]; inputs: PortTypeCatalogPortEntry[]; outputs: PortTypeCatalogPortEntry[] }
   >;
 };
-export function parsePortTypeCatalog(transcript: string, systemInfo: string): PortTypeCatalogData;
+export function parsePortTypeCatalog(
+  transcript: string,
+  systemInfo: string,
+  names?: Readonly<Record<string, string>>,
+): PortTypeCatalogData;
