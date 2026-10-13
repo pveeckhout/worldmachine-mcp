@@ -1727,9 +1727,28 @@ describe('fake World Machine: build results (build-not-built design, facts 93 an
     expect((await outputs(s, ['scene show']))[0]?.some((line) => /Resolution:\s+513$/.test(line))).toBe(true);
   });
 
-  // Assumed: the result levels double from 129 px up to the scene resolution (129, 257, 513 captured; 1025 and 2049
-  // follow the rule), so a finished build always has a row at the scene resolution (fact 93).
-  it('gives a built device a row at the scene resolution', async () => {
+  // Fact 96 (raw/build-resolution-timing.txt l.64-67 at 1024, l.106-110 at 2049; raw/build-not-built-timing.txt at 513):
+  // a finished full build's levels are the scene resolution and its halvings (rounded up) down to the lowest level
+  // shown, 128 px at 1024 and 129 px at 2049 and 513. The row at the scene resolution is fact 93.
+  it('lists 128, 256, 512, and 1024 px rows for a build at 1024 (fact 96)', async () => {
+    const s = session({ FAKE_WM_BUILD_MS: '50' });
+    await s.execute([
+      'project new blank force',
+      'scene resolution 1024',
+      'device add Gradient',
+      'build start',
+    ]);
+    await ended();
+    const [frame] = await outputs(s, ['debug devicetiming #1']);
+    expect(frame?.slice(2, -1).map((row) => row.slice(0, row.indexOf('px') + 2))).toEqual([
+      '128px',
+      '256px',
+      '512px',
+      '1024px',
+    ]);
+  });
+
+  it('lists the five rows 129 to 2049 px for a build at 2049 (fact 96)', async () => {
     const s = session({ FAKE_WM_BUILD_MS: '50' });
     await s.execute([
       'project new blank force',

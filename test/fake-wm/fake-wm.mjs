@@ -187,14 +187,14 @@ const resultsOfFullBuild = () => {
   }
   return new Set(added.filter((device) => !stopped.has(device.id)).map((device) => device.id));
 };
-// raw/build-not-built-timing.txt l.73-76 and l.86-90, verbatim. Assumed: the result levels double from 129 px up to the
-// scene resolution (129, 257, and 513 are captured at 513; 1025 and 2049 follow), then the resolution itself when it is
-// no power of two plus one (the blank project's 1024).
+// raw/build-not-built-timing.txt l.73-76 and l.86-90, verbatim. Fact 96 (raw/build-resolution-timing.txt l.64-67 at
+// 1024 and l.106-110 at 2049; build-not-built-timing.txt at 513): a finished full build's levels are the scene
+// resolution and its successive halvings, rounded up, while the level stays at or above 128 (1024 gives 128 to 1024,
+// 2049 gives 129 to 2049, 513 gives 129 to 513).
 const TIMING_COLUMNS = `${'Device'.padEnd(33)}Prepare  Activate   Distrib     Total`;
 const timingRows = (resolution) => {
   const levels = [];
-  for (let level = 129; level < resolution; level = (level - 1) * 2 + 1) levels.push(level);
-  levels.push(resolution);
+  for (let level = resolution; level >= 128; level = Math.ceil(level / 2)) levels.unshift(level);
   return levels.map((level) => `${`${level}px`.padEnd(37)}0ms       1ms       0ms       1ms\n`).join('');
 };
 const TIMING_LEGEND =
