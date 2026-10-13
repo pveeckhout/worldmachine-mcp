@@ -245,6 +245,12 @@ describe.skipIf(!LIVE)('live World Machine graph edits', () => {
         scale: '2625 m',
       },
     ]);
+    // Float-units spec section 4 ("to be confirmed by the live test"): the redo entry a probe's undo leaves is
+    // cleared by the next `param set`, so a redo after the sets changes nothing. A rejected redo (nothing to redo)
+    // also changes nothing, so its error is not the assertion; the values are.
+    await writer.redo().catch(() => undefined);
+    expect(await readValue(constant.id, 'Height')).toBe('656.2 m');
+    expect(await readValue(grad, 'Width')).toBe('500 m');
     // Fact 90: the probes left no undo step, so each undo reverts one call's set, the last first.
     await writer.undo();
     expect(await readValue(constant.id, 'Height')).toBe(heightBefore);
