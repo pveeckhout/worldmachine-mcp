@@ -33,7 +33,7 @@ A new scenario `port-types` in `scripts/capture-fixtures.mjs`, run live once per
 
 Crashes and resumes (amendment 2026-10-14, after the full run of build 4067 crashed World Machine with SIGSEGV while probing output #185.1, 157 of 173 outputs done):
 
-- When World Machine exits during a probe batch, the pairs whose commands all answered keep their verdicts, and the pair whose command was in flight is recorded as `crashed`. The capture starts World Machine again, makes a new blank project, adds every word again, checks that the device list equals the first one (ids and types), records a `(restarted …)` section, and continues with the next pair. A run stops after 5 restarts.
+- When World Machine exits during a probe batch, the pairs whose commands all answered keep their verdicts, and the pair whose command was in flight is recorded as `crashed`. The capture starts World Machine again, makes a new blank project, adds every word again, checks that the device list equals the first one (ids and types), records a `(restarted …)` section, and continues with the next pair. A run stops after 20 restarts.
 - A `crashed` pair is a hole, like a pair on one device: its cell is unknown and no class rests on it.
 - The scenario `port-types-resume`, with `PORT_TYPES_FROM=#<id>.<port>`, probes only that output and the outputs after it, into `raw/port-types-resume.txt`. The generator reads every transcript given. All of them must list the same devices and ports. A pair probed in two transcripts must have the same verdict. A `(probe … stopped)` section leaves its output unprobed in that transcript, so another transcript has to probe it.
 
