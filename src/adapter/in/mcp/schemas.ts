@@ -371,12 +371,27 @@ export const buildProjectInputSchema = z.object({
     .describe('Seconds to wait for the build to end, 0 to 600; the build keeps running after the wait'),
 });
 
+// Build-not-built design section 5.
+const unbuiltOutputSchema = z.strictObject({ id: z.number().int(), name: z.string() });
+const stoppedDeviceSchema = z.strictObject({
+  id: z.number().int(),
+  name: z.string(),
+  type: z.string(),
+  enabled: z.boolean(),
+  bypassed: z.boolean(),
+});
+
 export const buildProjectViewSchema = z.strictObject({
   state: z.enum(['finished', 'running']),
   mode: buildModeSchema,
   elapsedSeconds: z.number().int().min(0),
   outputFolders: z.array(z.string()).optional(),
   group: groupSchema.optional(),
+  outputsBuilt: z.boolean().optional(),
+  notBuilt: z.array(unbuiltOutputSchema).optional(),
+  stoppedAt: z.array(stoppedDeviceSchema).optional(),
+  hint: z.string().optional(),
+  outputsCheckError: z.string().optional(),
   session: sessionSummarySchema,
 }) satisfies z.ZodType<BuildProjectView>;
 

@@ -10,6 +10,7 @@ import { parseSceneList, parseSceneShow } from '../../../../src/adapter/out/worl
 import { parseSnapshotList } from '../../../../src/adapter/out/worldmachine/parsers/snapshot-list.js';
 import { parseWireList } from '../../../../src/adapter/out/worldmachine/parsers/wire-list.js';
 import type { BuildProjectCommand } from '../../../../src/application/port/in/command/build-project-command.js';
+import { NOT_BUILT_HINT } from '../../../../src/domain/build-result.js';
 import type { DeviceDetail } from '../../../../src/domain/device.js';
 import { WorldMachineError } from '../../../../src/domain/errors.js';
 import type { ProjectOverview } from '../../../../src/domain/project.js';
@@ -1187,6 +1188,75 @@ describe('createMcpServer edit tools', () => {
     });
     expect(result.isError).toBeFalsy();
     expect(result.structuredContent).toMatchObject({ parameters: [{ given: '500 m', scale: '8 km' }] });
+  });
+
+  it('admits the output check fields in build_project (build-not-built design section 5)', async () => {
+    const client = await connect(
+      deps({
+        buildProject: {
+          buildProject: async () => ({
+            state: 'finished',
+            mode: 'full',
+            elapsedSeconds: 3,
+            outputsBuilt: false,
+            notBuilt: [{ id: 3, name: 'Height Output' }],
+            stoppedAt: [{ id: 2, name: 'River', type: 'River', enabled: true, bypassed: false }],
+            hint: NOT_BUILT_HINT,
+            session: READY,
+          }),
+        },
+      }),
+    );
+    const result = await client.callTool({ name: 'build_project', arguments: { mode: 'full' } });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toMatchObject({
+      outputsBuilt: false,
+      notBuilt: [{ id: 3, name: 'Height Output' }],
+      stoppedAt: [{ id: 2, name: 'River', type: 'River', enabled: true, bypassed: false }],
+      hint: NOT_BUILT_HINT,
+    });
+  });
+
+  it('admits outputsCheckError in build_project (build-not-built design section 6)', async () => {
+    const client = await connect(
+      deps({
+        buildProject: {
+          buildProject: async () => ({
+            state: 'finished',
+            mode: 'full',
+            elapsedSeconds: 3,
+            outputsCheckError: 'World Machine rejected "device select #1"',
+            session: READY,
+          }),
+        },
+      }),
+    );
+    const result = await client.callTool({ name: 'build_project', arguments: { mode: 'full' } });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toMatchObject({
+      outputsCheckError: 'World Machine rejected "device select #1"',
+    });
+  });
+
+  it('refuses a stopped device without its state in build_project', async () => {
+    const client = await connect(
+      deps({
+        buildProject: {
+          buildProject: async () =>
+            ({
+              state: 'finished',
+              mode: 'full',
+              elapsedSeconds: 3,
+              outputsBuilt: false,
+              notBuilt: [],
+              stoppedAt: [{ id: 2, name: 'River' }],
+              session: READY,
+            }) as unknown as Awaited<ReturnType<McpDependencies['buildProject']['buildProject']>>,
+        },
+      }),
+    );
+    const result = await client.callTool({ name: 'build_project', arguments: { mode: 'full' } });
+    expect(result.isError).toBe(true);
   });
 
   it.each([
