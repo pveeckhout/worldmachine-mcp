@@ -511,6 +511,32 @@ const scenarios = [
       return sections;
     },
   ],
+  // Re-review of the build check: whether a finished full build at a resolution other than 513 leaves a result row
+  // named `<resolution>px` (raw/build-not-built-timing.txt shows only 513). Gradient into File Output, built at 1024
+  // and at 2049 in a blank project. Never exports, never saves. Ends closed.
+  [
+    'build-resolution-timing',
+    async () => {
+      const sections = await run(['project new blank force', 'scene show']);
+      const terrain = await freshDevice(sections, 'Gradient');
+      const output = await freshDevice(sections, 'File Output');
+      sections.push(
+        ...(await run([
+          `wire connect #${terrain.id} #${output.id}`,
+          `param set #${output.id}.filename ${join(work, 'resolution-height.png')}`,
+        ])),
+      );
+      for (const resolution of [1024, 2049]) {
+        sections.push(...(await run([`scene resolution ${resolution}`, 'scene show', 'build start'])));
+        await pollBuild(sections);
+        sections.push(
+          ...(await run([`debug devicetiming #${output.id}`, `debug devicetiming #${terrain.id}`])),
+        );
+      }
+      sections.push(...(await run(['project close force'])));
+      return sections;
+    },
+  ],
   // Final review of the build check: (a) whether `device select` after a full build starts a preview that changes
   // `debug devicetiming`, read at once and two seconds later; (b) which result rows a full build ended by `build stop`
   // leaves, in the default project at 2049 (raw/v2-build-long.txt shows its builds take seconds). Never exports,

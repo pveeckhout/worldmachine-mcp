@@ -1,0 +1,127 @@
+>>> project new blank force
+Created new blank project.
+[Info       ] Closing current project
+<<<
+>>> scene show
+Scene 'Main Extents' (index 0 of 1):
+  Origin (center): 4.00, 4.00 km
+  Size:            8.00 x 8.00 km
+  Lower-left:      0.00, 0.00 km
+  Upper-right:     8.00, 8.00 km
+  Resolution:      1024
+  Locked:          no
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (2 total):
+  #1     Gradient                
+  #2     Height Output           
+
+<<<
+>>> wire connect #1 #2
+Connected '#1' [1] -> '#2' [1]
+<<<
+>>> param set #2.filename <WORK>/resolution-height.png
+Set #2.filename = <WORK>/resolution-height.png
+<<<
+>>> scene resolution 1024
+Set scene resolution to 1024
+<<<
+>>> scene show
+Scene 'Main Extents' (index 0 of 1):
+  Origin (center): 4.00, 4.00 km
+  Size:            8.00 x 8.00 km
+  Lower-left:      0.00, 0.00 km
+  Upper-right:     8.00, 8.00 km
+  Resolution:      1024
+  Locked:          no
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> debug devicetiming #2
+Build timing for 'Height Output' (#2), per result level:
+Device                           Prepare  Activate   Distrib     Total
+128px                                0ms       1ms       0ms       1ms
+256px                                0ms       1ms       0ms       1ms
+512px                                0ms       1ms       0ms       1ms
+1024px                               0ms       1ms       0ms       1ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #1
+Build timing for 'Gradient' (#1), per result level:
+Device                           Prepare  Activate   Distrib     Total
+128px                                0ms       1ms       0ms       1ms
+256px                                0ms       1ms       0ms       1ms
+512px                                0ms       1ms       1ms       2ms
+1024px                               0ms       5ms       2ms       7ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> scene resolution 2049
+Set scene resolution to 2049
+<<<
+>>> scene show
+Scene 'Main Extents' (index 0 of 1):
+  Origin (center): 4.00, 4.00 km
+  Size:            8.00 x 8.00 km
+  Lower-left:      0.00, 0.00 km
+  Upper-right:     8.00, 8.00 km
+  Resolution:      2049
+  Locked:          no
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> debug devicetiming #2
+Build timing for 'Height Output' (#2), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                                0ms       1ms       0ms       1ms
+257px                                0ms       1ms       0ms       1ms
+513px                                0ms       1ms       0ms       1ms
+1025px                               0ms       1ms       0ms       1ms
+2049px                               0ms       1ms       0ms       1ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #1
+Build timing for 'Gradient' (#1), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                                0ms       1ms       0ms       1ms
+257px                                0ms       1ms       1ms       2ms
+513px                                0ms       2ms       1ms       3ms
+1025px                               0ms       4ms       3ms       7ms
+2049px                               0ms      17ms      10ms      27ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<
