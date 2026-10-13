@@ -84,7 +84,7 @@ export class WorldMachineProjectWriter implements ProjectGraphWritePort {
         response.output.join('\n') || undefined,
       );
     }
-    this.#session.bind({ kind: 'opened', path });
+    this.#session.bind({ kind: 'opened', path }, 'save');
   }
 
   /** Only a definite absence passes; an existing entry, or a stat failure other than ENOENT, does not (spec section 9). */

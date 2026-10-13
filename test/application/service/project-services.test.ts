@@ -24,6 +24,8 @@ function fakes(session: SessionSummary, target: SaveTarget = { path: '/r/x.tmd',
     status: () => ({ executable: '/wm', session }),
     shutdown: async () => {},
     forgetReopen: () => void calls.push('forget'),
+    projectRevision: () => 0,
+    projectSwitches: () => 0,
     exclusive: (action) => {
       calls.push('exclusive');
       return action();

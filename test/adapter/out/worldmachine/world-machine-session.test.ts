@@ -474,6 +474,27 @@ describe('WorldMachineSession', () => {
     });
   });
 
+  it('counts changes and project switches, not saves (build-status-check design section 6, plan decision D1)', async () => {
+    const { session: s } = session();
+    await s.ensureRunning();
+    const counters = () => [s.projectRevision(), s.projectSwitches()];
+    expect(counters()).toEqual([0, 0]);
+    s.markDirty();
+    expect(counters()).toEqual([1, 0]);
+    s.bind({ kind: 'opened', path: '/p/x.tmd' });
+    expect(counters()).toEqual([2, 1]);
+    s.bind({ kind: 'fresh' });
+    expect(counters()).toEqual([3, 2]);
+    s.markDirty();
+    s.bind({ kind: 'opened', path: '/p/y.tmd' }, 'save');
+    expect(counters()).toEqual([4, 2]);
+    expect(s.status().session).toEqual({
+      state: 'ready',
+      binding: { kind: 'opened', path: '/p/y.tmd' },
+      dirty: false,
+    });
+  });
+
   it('refuses calls with SHUTTING_DOWN once shutdown has begun', async () => {
     const { session: s, record } = session();
     await s.shutdown();

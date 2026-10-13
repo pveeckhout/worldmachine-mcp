@@ -80,6 +80,10 @@ export class WorldMachineSession implements WorldMachineSessionPort {
   #exclusiveTail: Promise<unknown> = Promise.resolve();
   /** The project the next start opens instead of the default project (spec section 6); that start forgets it. */
   #reopen: string | undefined;
+  /** Build-status-check design section 6 and plan decision D4: see projectRevision(). */
+  #revision = 0;
+  /** Plan decision D2: see projectSwitches(). */
+  #switches = 0;
 
   constructor(options: SessionOptions) {
     this.#options = options;
@@ -175,14 +179,30 @@ export class WorldMachineSession implements WorldMachineSessionPort {
 
   /** Records that the open project has unsaved changes (spec section 6). */
   markDirty(): void {
+    this.#revision += 1;
     if (this.#state.kind === 'ready') this.#state = { ...this.#state, dirty: true };
     this.#armIdleTimer();
   }
 
-  /** Records which project is open after an open, a new project, or a save; clears unsaved changes. */
-  bind(binding: ProjectBinding): void {
+  /**
+   * Records which project is open after an open, a new project, or a save; clears unsaved changes. A save binds the
+   * same graph (`'save'`), so it counts neither as a change nor as a switch (plan decision D1).
+   */
+  bind(binding: ProjectBinding, cause: 'switch' | 'save' = 'switch'): void {
+    if (cause === 'switch') {
+      this.#revision += 1;
+      this.#switches += 1;
+    }
     if (this.#state.kind === 'ready') this.#state = { kind: 'ready', binding, dirty: false };
     this.#armIdleTimer();
+  }
+
+  projectRevision(): number {
+    return this.#revision;
+  }
+
+  projectSwitches(): number {
+    return this.#switches;
   }
 
   /** The server sent `build stop` to the current process (stop_build); see `#stopped`. */

@@ -33,6 +33,8 @@ const session: WorldMachineSessionPort = {
   status: () => ({ executable: '/wm', session: READY }),
   shutdown: async () => {},
   forgetReopen: () => {},
+  projectRevision: () => 0,
+  projectSwitches: () => 0,
   exclusive: (action) => action(),
 };
 const graph: ProjectGraphReadPort = {

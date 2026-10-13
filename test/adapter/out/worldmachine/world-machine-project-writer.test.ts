@@ -89,6 +89,20 @@ describe('WorldMachineProjectWriter', () => {
     });
   });
 
+  it('counts an open and a create as project switches and a save as neither (build-status-check design section 6)', async () => {
+    const { session, writer: w } = writer();
+    await session.ensureRunning();
+    const revision = session.projectRevision();
+    const switches = session.projectSwitches();
+    const path = join(root, 'counted.tmd');
+    await w.saveProject(path, true);
+    expect([session.projectRevision(), session.projectSwitches()]).toEqual([revision, switches]);
+    await w.openProject(path);
+    expect([session.projectRevision(), session.projectSwitches()]).toEqual([revision + 1, switches + 1]);
+    await w.createProject();
+    expect([session.projectRevision(), session.projectSwitches()]).toEqual([revision + 2, switches + 2]);
+  });
+
   it('fails when World Machine reports a save but writes nothing', async () => {
     const { session, writer: w } = writer({ FAKE_WM_SAVE_SILENT: '1' });
     await expect(w.saveProject(join(root, 'ghost.tmd'), false)).rejects.toMatchObject({

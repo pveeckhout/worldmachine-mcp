@@ -73,6 +73,8 @@ export function exportFakes(options: ExportFakeOptions = {}) {
     status: () => ({ executable: '/wm', session: options.session ?? SAVED }),
     shutdown: async () => undefined,
     forgetReopen: () => undefined,
+    projectRevision: () => 0,
+    projectSwitches: () => 0,
     exclusive: async (action) => {
       calls.push('exclusive');
       try {

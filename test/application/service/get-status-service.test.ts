@@ -14,6 +14,8 @@ function sessionWith(status: SessionStatus): WorldMachineSessionPort & { started
     status: () => status,
     async shutdown() {},
     forgetReopen: () => {},
+    projectRevision: () => 0,
+    projectSwitches: () => 0,
     exclusive: (action) => action(),
   };
 }

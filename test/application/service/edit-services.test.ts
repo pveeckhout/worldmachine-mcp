@@ -41,6 +41,8 @@ function fakes() {
     status: () => ({ executable: '/wm', session: READY_DIRTY }),
     shutdown: async () => {},
     forgetReopen: () => void calls.push('forget'),
+    projectRevision: () => 0,
+    projectSwitches: () => 0,
     exclusive: (action) => {
       calls.push('exclusive:start');
       return action().finally(() => void calls.push('exclusive:end'));
