@@ -89,7 +89,23 @@ function wired(extra: Record<string, string> = {}) {
   const devices = new WorldMachineDeviceEditor(session);
   const builder = new WorldMachineBuilder(session);
   const exporter = new WorldMachineExporter(session);
-  return { record, session, policy, reader, writer, devices, builder, exporter };
+  // Build-status-check design section 6: build_project and get_build_status share one record, as in main.ts.
+  const lastFullBuild = new LastFullBuildRecord();
+  const results = new WorldMachineBuildResultReader(session);
+  const checker = new OutputsChecker(session, exporter, reader, results);
+  return {
+    record,
+    session,
+    policy,
+    reader,
+    writer,
+    devices,
+    builder,
+    exporter,
+    lastFullBuild,
+    results,
+    checker,
+  };
 }
 
 describe('the build guard across the command tools (spec v2a section 4)', () => {
@@ -572,5 +588,104 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
     expect('outputsCheckError' in view).toBe(false);
     // Task 6 minor: a check refused its exclusive() action would say so here.
     expect(JSON.stringify(view)).not.toMatch(/A build is running/);
+  });
+
+  /**
+   * Build-status-check design section 7: a graph in a blank project, a full build that outlives a 0 s wait, and the
+   * wait for its end (plan decision D5). `river` adds a River between the Gradient and the File Output.
+   */
+  async function outlivedBuild(w: ReturnType<typeof wired>, river: boolean) {
+    const { session, policy, reader, devices, builder, exporter, lastFullBuild, results, checker } = w;
+    const wires = new WorldMachineWireEditor(session);
+    await session.execute(['project new blank force']);
+    const gradient = await devices.addDevice('Gradient');
+    const middle = river ? await devices.addDevice('River') : undefined;
+    const output = await devices.addDevice('File Output');
+    if (middle === undefined) {
+      await wires.connect({ device: `#${gradient.id}` }, { device: `#${output.id}` });
+    } else {
+      await wires.connect({ device: `#${gradient.id}` }, { device: `#${middle.id}`, port: 1 });
+      await wires.connect({ device: `#${middle.id}` }, { device: `#${output.id}` });
+    }
+    const buildProject = new BuildProjectService(
+      session,
+      builder,
+      exporter,
+      reader,
+      policy,
+      new WorldMachineGroupEditor(session),
+      results,
+      lastFullBuild,
+    );
+    expect(await buildProject.buildProject({ mode: 'full', waitSeconds: 0 })).toMatchObject({
+      state: 'running',
+      mode: 'full',
+    });
+    await waitUntil(() => builder.last()?.state === 'ended');
+    const startedAt = new Date(builder.last()?.startedAt ?? 0).toISOString();
+    return {
+      gradient,
+      middle,
+      output,
+      startedAt,
+      status: new GetBuildStatusService(session, builder, lastFullBuild, checker),
+    };
+  }
+
+  it('reports in get_build_status the output a River did not build in a full build that outlived the wait (build-status-check section 7)', async () => {
+    const { middle, output, startedAt, status } = await outlivedBuild(
+      wired({ FAKE_WM_BUILD_MS: '100' }),
+      true,
+    );
+    expect((await status.getBuildStatus({})).lastFullBuild).toEqual({
+      startedAt,
+      outputsBuilt: false,
+      notBuilt: [{ id: output.id, name: 'Height Output' }],
+      stoppedAt: [{ id: middle?.id, name: 'River', type: 'River', enabled: true, bypassed: false }],
+      hint: NOT_BUILT_HINT,
+    });
+  });
+
+  it('reports in get_build_status every output built for Gradient into File Output (build-status-check section 7)', async () => {
+    const { startedAt, status } = await outlivedBuild(wired({ FAKE_WM_BUILD_MS: '100' }), false);
+    expect((await status.getBuildStatus({})).lastFullBuild).toEqual({
+      startedAt,
+      outputsBuilt: true,
+      notBuilt: [],
+      stoppedAt: [],
+    });
+  });
+
+  it('reports that the project changed after update_device_parameters between the end and get_build_status (build-status-check section 7)', async () => {
+    const w = wired({ FAKE_WM_BUILD_MS: '100' });
+    const { gradient, startedAt, status } = await outlivedBuild(w, true);
+    await new UpdateDeviceParametersService(
+      w.session,
+      new WorldMachineParameterEditor(w.session),
+    ).updateDeviceParameters({ device: `#${gradient.id}`, parameters: { Width: 0.5 } });
+    const sent = w.record.lines().length;
+    expect((await status.getBuildStatus({})).lastFullBuild).toEqual({
+      startedAt,
+      outputsCheckError: 'The project changed after the build ended; run build_project again.',
+    });
+    // Design section 3: without reads; only get_build_status's own `build status` is sent (batch sentinel filtered).
+    expect(
+      w.record
+        .lines()
+        .slice(sent)
+        .filter((line) => !line.startsWith('__end_')),
+    ).toEqual(['build status']);
+  });
+
+  it('checks an outlived build after save_project, which changes nothing (plan decision D1)', async () => {
+    const w = wired({ FAKE_WM_BUILD_MS: '100' });
+    const { startedAt, status } = await outlivedBuild(w, false);
+    await w.writer.saveProject(join(root, 'checked.tmd'), true);
+    expect((await status.getBuildStatus({})).lastFullBuild).toEqual({
+      startedAt,
+      outputsBuilt: true,
+      notBuilt: [],
+      stoppedAt: [],
+    });
   });
 });
