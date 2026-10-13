@@ -1,5 +1,4 @@
 // The tests run in order against one World Machine session, so a failure cascades to the later ones.
-
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';

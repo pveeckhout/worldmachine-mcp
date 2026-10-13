@@ -21,8 +21,8 @@ export type GuardedOutcome<T> =
 /**
  * Build-not-built design sections 4-6, shared by build_project and get_build_status (build-status-check design
  * section 4): whether every configured output has a result at the scene resolution and where building stopped. Its
- * own exclusive() action (build-not-built plan decision B1). A WorldMachineError becomes outputsCheckError (B9); any
- * other error is a bug and propagates.
+ * own exclusive() section, since none is held once the wait ends (build-not-built plan decision B1). A
+ * WorldMachineError becomes outputsCheckError (B9); any other error is a bug and propagates.
  */
 export class OutputsChecker {
   readonly #session: WorldMachineSessionPort;
