@@ -23,13 +23,13 @@ Out of scope: `preview`, `tiled`, and `group` builds (no capture of how they rep
 
 ## 3. When the check runs
 
-Only when `build_project` was called with `mode: full` and the build reached `finished` within the wait. In every other case (`preview`, `tiled`, `group`, or `running`) the result is exactly as today.
+Only when `build_project` was called with `mode: full` and the build reached `finished` within the wait. A full build ended by `stop_build` during the wait also reads as `finished` (README: a stopped build is reported as finished), so it is checked too, and its outputs usually report not built; the tool text says so. In every other case (`preview`, `tiled`, `group`, or `running`) the result is exactly as today.
 
 ## 4. The check
 
 After the build ends:
 
-1. `export list` gives the configured File Outputs by name (fact 49). They are matched to devices as `export_outputs` matches them (names cut at 23 characters in `device list`, fact 33; case-insensitive, fact 31). A name several devices share matches each of them. With no configured outputs, the check ends: `outputsBuilt: true`, `notBuilt: []`, `stoppedAt: []`.
+1. `export list` gives the configured File Outputs by name (fact 49). They are matched to devices by the rule the exporter's `exportingAlways` uses (names cut at 23 characters in `device list`, fact 33; case-insensitive, fact 31). A name several devices share matches each of them; a name that matches no listed device fails the check (section 6), so an output that was not read can never count as built. With no configured outputs, the check ends: `outputsBuilt: true`, `notBuilt: []`, `stoppedAt: []`.
 2. The graph is read as `plan_graph` reads it: devices with ids, names, types, enabled and bypassed, and wires whose sources are resolved by `resolveWireSource`.
 3. The devices to read are the outputs and every device upstream of them (through input wires). For each, `debug devicetiming #<id>`, all in one batch. A device is built when its table has at least one result row, and not built when it prints `(no finished results)`. Any other output is unexpected and fails the check (section 6).
 4. `notBuilt` is every output without a result, `outputsBuilt` is `notBuilt` being empty, and `stoppedAt` is computed by the domain function `stoppedAt(graph, built, outputs)`: the devices without a result, on the input chain of an output without a result, whose wired inputs all have a result or which have no wired input. A device that no unbuilt output needs is never listed.
@@ -52,7 +52,7 @@ A failure while checking (an `export list` or graph read error, an unexpected `d
 ## 7. Structure
 
 - Domain: `stoppedAt(graph, built, outputs)` in a new pure module, unit-tested.
-- Application: a new outbound port `BuildResultPort` with one query, `builtDevices(ids)`, returning the ids with a result; `BuildProjectService` runs the check after a finished full build, inside the session's exclusive section it already holds.
+- Application: a new outbound port `BuildResultPort` with one query, `builtDevices(ids)`, returning the ids with a result; `BuildProjectService` runs the check after a finished full build in a new exclusive section of the session (it releases the build's section before waiting); when that section cannot be had, the check reports `outputsCheckError`.
 - Adapter: `WorldMachineBuildResultReader` implements the port with `debug devicetiming #<id>` and a parser for its two shapes (fact 93); outputs come from the existing `export list` read.
 
 ```mermaid
