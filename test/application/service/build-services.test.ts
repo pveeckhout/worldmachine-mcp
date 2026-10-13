@@ -705,7 +705,7 @@ describe('get_build_status reports the last full build (build-status-check desig
     expect(g.calls).toEqual(['build status']);
   });
 
-  it('reports the results gone under the new build when its wait failed, not the earlier build\'s result', async () => {
+  it("reports the results gone under the new build when its wait failed, not the earlier build's result", async () => {
     let crash = false;
     const f = building(
       {
