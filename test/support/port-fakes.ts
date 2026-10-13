@@ -68,13 +68,20 @@ export type ExportFakeOptions = {
  */
 export function exportFakes(options: ExportFakeOptions = {}) {
   const calls: string[] = [];
+  let summary = options.session ?? SAVED;
+  // Build-status-check design section 6: what markDirty() and a bind() to another project bump; edit() and
+  // switchProject() stand for them.
+  let revision = 0;
+  let switches = 0;
+  // Codex round 2 ruling 1a: the World Machine process, as status().generation; relaunch() stands for a new one.
+  let generation = 1;
   const session: WorldMachineSessionPort = {
     ensureRunning: async () => void calls.push('ensureRunning'),
-    status: () => ({ executable: '/wm', session: options.session ?? SAVED }),
+    status: () => ({ executable: '/wm', session: summary, generation }),
     shutdown: async () => undefined,
     forgetReopen: () => undefined,
-    projectRevision: () => 0,
-    projectSwitches: () => 0,
+    projectRevision: () => revision,
+    projectSwitches: () => switches,
     exclusive: async (action) => {
       calls.push('exclusive');
       try {
@@ -130,5 +137,27 @@ export function exportFakes(options: ExportFakeOptions = {}) {
       return options.canonical?.(path) ?? path;
     },
   };
-  return { calls, session, exports, graph, policy };
+  return {
+    calls,
+    session,
+    exports,
+    graph,
+    policy,
+    /** A change this server made (markDirty). */
+    edit: () => {
+      revision += 1;
+    },
+    /** An open or a create (bind() to another project). */
+    switchProject: () => {
+      revision += 1;
+      switches += 1;
+    },
+    /** A new World Machine process became the session's. */
+    relaunch: () => {
+      generation += 1;
+    },
+    setSession: (next: SessionSummary) => {
+      summary = next;
+    },
+  };
 }

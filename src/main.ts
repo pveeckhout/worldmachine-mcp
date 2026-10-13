@@ -34,12 +34,14 @@ import { GetDeviceService } from './application/service/get-device-service.js';
 import { GetSceneService } from './application/service/get-scene-service.js';
 import { GetStatusService } from './application/service/get-status-service.js';
 import { InspectProjectService } from './application/service/inspect-project-service.js';
+import { LastFullBuildRecord } from './application/service/last-full-build-record.js';
 import { ListDevicesService } from './application/service/list-devices-service.js';
 import { ListExportsService } from './application/service/list-exports-service.js';
 import { ListGroupsService } from './application/service/list-groups-service.js';
 import { ListSnapshotsService } from './application/service/list-snapshots-service.js';
 import { OpenProjectService } from './application/service/open-project-service.js';
 import { OrganizeDevicesService } from './application/service/organize-devices-service.js';
+import { OutputsChecker } from './application/service/outputs-checker.js';
 import { PlanGraphService } from './application/service/plan-graph-service.js';
 import { RedoService } from './application/service/redo-service.js';
 import { RenameDeviceService } from './application/service/rename-device-service.js';
@@ -90,6 +92,8 @@ const exporter = new WorldMachineExporter(session);
 const groups = new WorldMachineGroupEditor(session);
 const snapshots = new WorldMachineSnapshotEditor(session);
 const results = new WorldMachineBuildResultReader(session);
+// Build-status-check design section 6: one record, shared by build_project and get_build_status.
+const lastFullBuild = new LastFullBuildRecord();
 
 const handle = serveStdio(() =>
   createMcpServer({
@@ -114,8 +118,22 @@ const handle = serveStdio(() =>
     connectDevices: new ConnectDevicesService(session, wires),
     disconnectDevices: new DisconnectDevicesService(session, wires),
     configureScene: new ConfigureSceneService(session, scene),
-    buildProject: new BuildProjectService(session, builder, exporter, reader, pathPolicy, groups, results),
-    getBuildStatus: new GetBuildStatusService(session, builder),
+    buildProject: new BuildProjectService(
+      session,
+      builder,
+      exporter,
+      reader,
+      pathPolicy,
+      groups,
+      results,
+      lastFullBuild,
+    ),
+    getBuildStatus: new GetBuildStatusService(
+      session,
+      builder,
+      lastFullBuild,
+      new OutputsChecker(session, exporter, reader, results),
+    ),
     stopBuild: new StopBuildService(session, builder),
     listExports: new ListExportsService(session, exporter, reader, pathPolicy),
     exportOutputs: new ExportOutputsService(session, exporter, reader, pathPolicy),

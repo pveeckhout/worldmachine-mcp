@@ -27,11 +27,13 @@ import { DeleteSnapshotService } from '../../../src/application/service/delete-s
 import { DisconnectDevicesService } from '../../../src/application/service/disconnect-devices-service.js';
 import { ExportOutputsService } from '../../../src/application/service/export-outputs-service.js';
 import { GetBuildStatusService } from '../../../src/application/service/get-build-status-service.js';
+import { LastFullBuildRecord } from '../../../src/application/service/last-full-build-record.js';
 import { ListDevicesService } from '../../../src/application/service/list-devices-service.js';
 import { ListGroupsService } from '../../../src/application/service/list-groups-service.js';
 import { ListSnapshotsService } from '../../../src/application/service/list-snapshots-service.js';
 import { OpenProjectService } from '../../../src/application/service/open-project-service.js';
 import { OrganizeDevicesService } from '../../../src/application/service/organize-devices-service.js';
+import { OutputsChecker } from '../../../src/application/service/outputs-checker.js';
 import { RedoService } from '../../../src/application/service/redo-service.js';
 import { RenameDeviceService } from '../../../src/application/service/rename-device-service.js';
 import { RestoreSnapshotService } from '../../../src/application/service/restore-snapshot-service.js';
@@ -50,6 +52,20 @@ const sessions: WorldMachineSession[] = [];
 afterEach(async () => {
   await Promise.all(sessions.splice(0).map((session) => session.shutdown()));
 });
+
+/** get_build_status with a record of its own, for the tests that do not read build_project's record (plan decision D6). */
+const statusOf = (session: WorldMachineSession, builder: WorldMachineBuilder) =>
+  new GetBuildStatusService(
+    session,
+    builder,
+    new LastFullBuildRecord(),
+    new OutputsChecker(
+      session,
+      new WorldMachineExporter(session),
+      new WorldMachineGraphReader(session),
+      new WorldMachineBuildResultReader(session),
+    ),
+  );
 
 /** The services of main.ts over one session and the fake World Machine, whose builds take 60 s. */
 function wired(extra: Record<string, string> = {}) {
@@ -88,6 +104,7 @@ describe('the build guard across the command tools (spec v2a section 4)', () => 
       policy,
       new WorldMachineGroupEditor(session),
       new WorldMachineBuildResultReader(session),
+      new LastFullBuildRecord(),
     );
     expect(await buildProject.buildProject({ mode: 'full', waitSeconds: 0 })).toMatchObject({
       state: 'running',
@@ -198,7 +215,7 @@ describe('the build guard across the command tools (spec v2a section 4)', () => 
     expect((await new ListDevicesService(session, reader).listDevices({})).devices).toHaveLength(17);
     expect((await new ListSnapshotsService(session, snapshots).listSnapshots({})).snapshots).toEqual([]);
     expect((await new ListGroupsService(session, groups).listGroups({})).groups).toHaveLength(5);
-    expect((await new GetBuildStatusService(session, builder).getBuildStatus({})).build?.mode).toBe('full');
+    expect((await statusOf(session, builder).getBuildStatus({})).build?.mode).toBe('full');
     expect((await new StopBuildService(session, builder).stopBuild({})).stopped).toBe('full');
     await expect(new UndoService(session, writer).undo({})).resolves.toMatchObject({
       session: { state: 'ready' },
@@ -226,6 +243,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       policy,
       new WorldMachineGroupEditor(session),
       new WorldMachineBuildResultReader(session),
+      new LastFullBuildRecord(),
     );
     const stopBuild = new StopBuildService(session, builder);
     await writer.saveProject(join(root, 'late.tmd'), true);
@@ -235,7 +253,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       state: 'running',
       mode: 'tiled',
     });
-    expect((await new GetBuildStatusService(session, builder).getBuildStatus({})).build?.mode).toBe('tiled');
+    expect((await statusOf(session, builder).getBuildStatus({})).build?.mode).toBe('tiled');
     expect((await stopBuild.stopBuild({})).stopped).toBe('tiled');
   });
 
@@ -249,6 +267,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       policy,
       new WorldMachineGroupEditor(session),
       new WorldMachineBuildResultReader(session),
+      new LastFullBuildRecord(),
     ).buildProject({
       mode: 'full',
       waitSeconds: 0,
@@ -270,6 +289,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       policy,
       new WorldMachineGroupEditor(session),
       new WorldMachineBuildResultReader(session),
+      new LastFullBuildRecord(),
     ).buildProject({
       mode: 'full',
       waitSeconds: 0,
@@ -287,7 +307,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       FAKE_WM_GUI_BUILD_ON: 'device list',
     });
     expect((await new ListDevicesService(session, reader).listDevices({})).devices).toHaveLength(17);
-    expect((await new GetBuildStatusService(session, builder).getBuildStatus({})).build).toMatchObject({
+    expect((await statusOf(session, builder).getBuildStatus({})).build).toMatchObject({
       mode: 'unknown',
       startedBy: 'world-machine',
     });
@@ -296,7 +316,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       message: 'A build is running; call stop_build or wait for it to finish',
     });
     expect(await session.buildTracker()?.ended(5_000)).toBe(true);
-    expect((await new GetBuildStatusService(session, builder).getBuildStatus({})).build).toBeNull();
+    expect((await statusOf(session, builder).getBuildStatus({})).build).toBeNull();
     await expect(new UndoService(session, writer).undo({})).resolves.toMatchObject({
       session: { state: 'ready' },
     });
@@ -308,7 +328,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       FAKE_WM_GUI_BUILD_ON: 'device list',
     });
     await new ListDevicesService(session, reader).listDevices({});
-    expect((await new GetBuildStatusService(session, builder).getBuildStatus({})).build).toMatchObject({
+    expect((await statusOf(session, builder).getBuildStatus({})).build).toMatchObject({
       mode: 'full',
       startedBy: 'world-machine',
     });
@@ -333,6 +353,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
         policy,
         new WorldMachineGroupEditor(session),
         new WorldMachineBuildResultReader(session),
+        new LastFullBuildRecord(),
       ).buildProject({
         mode: 'full',
         waitSeconds: 10,
@@ -359,6 +380,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       policy,
       groups,
       new WorldMachineBuildResultReader(session),
+      new LastFullBuildRecord(),
     );
     await writer.saveProject(join(root, 'group.tmd'), true);
     expect(await buildProject.buildProject({ mode: 'group', group: '#0', waitSeconds: 0 })).toMatchObject({
@@ -366,7 +388,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       mode: 'group',
       group: { index: 0, name: 'Create your Terrain', deviceCount: 6 },
     });
-    expect((await new GetBuildStatusService(session, builder).getBuildStatus({})).build).toMatchObject({
+    expect((await statusOf(session, builder).getBuildStatus({})).build).toMatchObject({
       mode: 'full',
       startedBy: 'server',
     });
@@ -395,6 +417,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       policy,
       groups,
       new WorldMachineBuildResultReader(session),
+      new LastFullBuildRecord(),
     ).buildProject({
       mode: 'group',
       group: '#0',
@@ -419,6 +442,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       policy,
       groups,
       new WorldMachineBuildResultReader(session),
+      new LastFullBuildRecord(),
     ).buildProject({
       mode: 'group',
       group: '#0',
@@ -440,11 +464,12 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       policy,
       new WorldMachineGroupEditor(session),
       new WorldMachineBuildResultReader(session),
+      new LastFullBuildRecord(),
     ).buildProject({
       mode: 'full',
       waitSeconds: 0,
     });
-    expect(await new GetBuildStatusService(session, builder).getBuildStatus({})).toMatchObject({
+    expect(await statusOf(session, builder).getBuildStatus({})).toMatchObject({
       build: null,
       previewRunning: false,
     });
@@ -468,6 +493,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       policy,
       new WorldMachineGroupEditor(session),
       new WorldMachineBuildResultReader(session),
+      new LastFullBuildRecord(),
     );
     expect(await buildProject.buildProject({ mode: 'full', waitSeconds: 10 })).toEqual({
       state: 'finished',
@@ -498,6 +524,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       policy,
       new WorldMachineGroupEditor(session),
       new WorldMachineBuildResultReader(session),
+      new LastFullBuildRecord(),
     );
     expect(await buildProject.buildProject({ mode: 'full', waitSeconds: 10 })).toEqual({
       state: 'finished',
@@ -528,6 +555,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       policy,
       new WorldMachineGroupEditor(session),
       new WorldMachineBuildResultReader(session),
+      new LastFullBuildRecord(),
     ).buildProject({ mode: 'full', waitSeconds: 30 });
     await waitUntil(() => builder.current()?.state === 'running');
     expect((await new StopBuildService(session, builder).stopBuild({})).stopped).toBe('full');

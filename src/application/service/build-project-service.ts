@@ -18,6 +18,7 @@ import {
   outputFolders,
   requireAllAllowed,
 } from './export-rules.js';
+import type { LastFullBuildRecord } from './last-full-build-record.js';
 import { OutputsChecker } from './outputs-checker.js';
 
 /** Spec v2a section 4: with a progress token, the wait reports elapsed seconds every 5 s. */
@@ -38,6 +39,7 @@ export class BuildProjectService implements BuildProjectCommandPort {
   readonly #ports: ExportCheckPorts;
   readonly #groups: GroupPort;
   readonly #checker: OutputsChecker;
+  readonly #lastFullBuild: LastFullBuildRecord;
 
   constructor(
     session: WorldMachineSessionPort,
@@ -47,11 +49,13 @@ export class BuildProjectService implements BuildProjectCommandPort {
     policy: PathPolicyPort,
     groups: GroupPort,
     results: BuildResultPort,
+    lastFullBuild: LastFullBuildRecord,
   ) {
     this.#build = build;
     this.#ports = { session, exports, graph, policy };
     this.#groups = groups;
     this.#checker = new OutputsChecker(session, exports, graph, results);
+    this.#lastFullBuild = lastFullBuild;
   }
 
   /** Mode `group`: the group the reference names, refused when it has no devices (decision D8). */
@@ -102,13 +106,23 @@ export class BuildProjectService implements BuildProjectCommandPort {
       }
       if (mode === 'full' || mode === 'group') await this.#checkExportAlways(mode);
       const requestedAt = Date.now();
+      // Build-status-check design section 3: the project as the build starts; no command changes it until the build
+      // ends (section 2, plan decision D4).
+      const revision = session.projectRevision();
+      const switches = session.projectSwitches();
       await this.#build.start(mode, group);
-      return { startedAt: this.#build.current()?.startedAt ?? requestedAt, folders, group };
+      // Plan decision D9: the run the record names in its World Machine process, none when no run is visible.
+      const run = this.#build.current()?.startedAt;
+      const stamp =
+        run === undefined
+          ? undefined
+          : { startedAt: run, generation: session.status().generation, revision, switches };
+      return { startedAt: run ?? requestedAt, stamp, folders, group };
     });
     if (started === undefined) {
       return { state: 'running', mode, elapsedSeconds: 0, session: session.status().session };
     }
-    const { startedAt, folders, group } = started;
+    const { startedAt, stamp, folders, group } = started;
     const elapsedSeconds = () => Math.floor((Date.now() - startedAt) / 1_000);
     const onProgress = command.onProgress;
     const ticker =
@@ -124,7 +138,12 @@ export class BuildProjectService implements BuildProjectCommandPort {
     // Plan decision B8: the build's seconds, before the check reads anything.
     const elapsed = elapsedSeconds();
     // Section 3: only a full build that finished within the wait is checked; a build ended by stop_build is too (B10).
-    const check = ended && mode === 'full' ? await this.#checker.check() : {};
+    const check = ended && mode === 'full' ? await this.#checker.check() : undefined;
+    // Build-status-check design section 3: the record get_build_status reports from (plan decision D9).
+    if (mode === 'full' && stamp !== undefined) {
+      if (check === undefined) this.#lastFullBuild.outlived(stamp);
+      else this.#lastFullBuild.finished(stamp, check);
+    }
     return {
       state: ended ? 'finished' : 'running',
       mode,

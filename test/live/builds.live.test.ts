@@ -21,7 +21,9 @@ import { BuildProjectService } from '../../src/application/service/build-project
 import { ConfigureSceneService } from '../../src/application/service/configure-scene-service.js';
 import { ExportOutputsService } from '../../src/application/service/export-outputs-service.js';
 import { GetBuildStatusService } from '../../src/application/service/get-build-status-service.js';
+import { LastFullBuildRecord } from '../../src/application/service/last-full-build-record.js';
 import { ListExportsService } from '../../src/application/service/list-exports-service.js';
+import { OutputsChecker } from '../../src/application/service/outputs-checker.js';
 import { StopBuildService } from '../../src/application/service/stop-build-service.js';
 import { NOT_BUILT_HINT } from '../../src/domain/build-result.js';
 import { captureLogger } from '../support/fake-wm.js';
@@ -49,6 +51,7 @@ describe.skipIf(!LIVE)('live World Machine builds and exports (spec v2a section 
   const scene = new WorldMachineSceneEditor(session);
   const builder = new WorldMachineBuilder(session);
   const exporter = new WorldMachineExporter(session);
+  const lastFullBuild = new LastFullBuildRecord();
   const buildProject = new BuildProjectService(
     session,
     builder,
@@ -57,9 +60,15 @@ describe.skipIf(!LIVE)('live World Machine builds and exports (spec v2a section 
     policy,
     new WorldMachineGroupEditor(session),
     new WorldMachineBuildResultReader(session),
+    lastFullBuild,
   );
   const stopBuild = new StopBuildService(session, builder);
-  const buildStatus = new GetBuildStatusService(session, builder);
+  const buildStatus = new GetBuildStatusService(
+    session,
+    builder,
+    lastFullBuild,
+    new OutputsChecker(session, exporter, reader, new WorldMachineBuildResultReader(session)),
+  );
   const listExports = new ListExportsService(session, exporter, reader, policy);
   const exportOutputs = new ExportOutputsService(session, exporter, reader, policy);
   const configureScene = new ConfigureSceneService(session, scene);

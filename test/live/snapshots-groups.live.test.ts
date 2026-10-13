@@ -1,4 +1,5 @@
 // The tests run in order against one World Machine session, so a failure cascades to the later ones.
+
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -21,6 +22,7 @@ import { BuildProjectService } from '../../src/application/service/build-project
 import { CreateSnapshotService } from '../../src/application/service/create-snapshot-service.js';
 import { DeleteSnapshotService } from '../../src/application/service/delete-snapshot-service.js';
 import { ExportOutputsService } from '../../src/application/service/export-outputs-service.js';
+import { LastFullBuildRecord } from '../../src/application/service/last-full-build-record.js';
 import { ListDevicesService } from '../../src/application/service/list-devices-service.js';
 import { ListGroupsService } from '../../src/application/service/list-groups-service.js';
 import { ListSnapshotsService } from '../../src/application/service/list-snapshots-service.js';
@@ -76,6 +78,7 @@ describe.skipIf(!LIVE)('live World Machine snapshots, organize, and groups (spec
     policy,
     groups,
     new WorldMachineBuildResultReader(session),
+    new LastFullBuildRecord(),
   );
   const listDevices = new ListDevicesService(session, reader);
   const addDevice = new AddDeviceService(session, devices);

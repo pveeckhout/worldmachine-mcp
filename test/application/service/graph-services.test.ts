@@ -16,6 +16,7 @@ import { WorldMachineSnapshotEditor } from '../../../src/adapter/out/worldmachin
 import { WorldMachineWireEditor } from '../../../src/adapter/out/worldmachine/world-machine-wire-editor.js';
 import { ApplyGraphService } from '../../../src/application/service/apply-graph-service.js';
 import { BuildProjectService } from '../../../src/application/service/build-project-service.js';
+import { LastFullBuildRecord } from '../../../src/application/service/last-full-build-record.js';
 import { PlanGraphService } from '../../../src/application/service/plan-graph-service.js';
 import { WorldMachineError } from '../../../src/domain/errors.js';
 import type { RawGraphSpec } from '../../../src/domain/graph-spec.js';
@@ -377,6 +378,7 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
       w.policy,
       groups,
       new WorldMachineBuildResultReader(w.session),
+      new LastFullBuildRecord(),
     );
     await build.buildProject({ mode: 'full', waitSeconds: 0 });
     const plan = await w.plan.planGraph({ spec: SPEC });

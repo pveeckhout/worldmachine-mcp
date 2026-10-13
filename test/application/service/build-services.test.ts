@@ -2,9 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BuildPort } from '../../../src/application/port/out/build-port.js';
 import type { BuildResultPort } from '../../../src/application/port/out/build-result-port.js';
 import type { GroupPort } from '../../../src/application/port/out/group-port.js';
+import type { WorldMachineSessionPort } from '../../../src/application/port/out/world-machine-session-port.js';
 import { BuildProjectService } from '../../../src/application/service/build-project-service.js';
 import { NEVER_SAVED } from '../../../src/application/service/export-rules.js';
 import { GetBuildStatusService } from '../../../src/application/service/get-build-status-service.js';
+import {
+  LastFullBuildRecord,
+  PROJECT_CHANGED,
+  RESULTS_GONE,
+} from '../../../src/application/service/last-full-build-record.js';
+import { OutputsChecker } from '../../../src/application/service/outputs-checker.js';
 import { StopBuildService } from '../../../src/application/service/stop-build-service.js';
 import type { BuildMode, BuildRun, RunMode } from '../../../src/domain/build.js';
 import { NOT_BUILT_HINT } from '../../../src/domain/build-result.js';
@@ -26,12 +33,24 @@ type BuildFakeOptions = {
   readonly wait?: (mode: BuildMode | RunMode, ms: number, signal?: AbortSignal) => Promise<boolean>;
 };
 
-/** A BuildPort that records its calls into `calls`, as `exportFakes` does. */
-function buildFake(calls: string[], options: BuildFakeOptions = {}): BuildPort {
+/**
+ * A BuildPort that records its calls into `calls`, as `exportFakes` does. `end()` ends its run as the tracker would;
+ * `exit()` drops it as a World Machine exit does (`last()` has no run).
+ */
+function buildFake(
+  calls: string[],
+  options: BuildFakeOptions = {},
+): BuildPort & { readonly end: () => void; readonly exit: () => void } {
   let run = options.run;
   const previews = [...(options.previews ?? [false])];
   return {
-    current: () => run,
+    end: () => {
+      if (run !== undefined) run = { ...run, state: 'ended' };
+    },
+    exit: () => {
+      run = undefined;
+    },
+    current: () => (run?.state === 'running' ? run : undefined),
     last: () => run,
     awaitStart: async () => undefined,
     start: async (mode, group) => {
@@ -94,14 +113,22 @@ type ResultsFakeOptions = {
   readonly unbuilt?: readonly number[];
   /** Thrown by builtDevices instead of answering. */
   readonly failure?: Error;
+  /** Thrown by the first builtDevices call only. */
+  readonly failOnce?: Error;
 };
 
 /** A BuildResultPort that records each batch into `calls` as one `devicetiming` line. */
 function resultsFake(calls: string[], options: ResultsFakeOptions = {}): BuildResultPort {
+  let once = options.failOnce;
   return {
     builtDevices: async (ids) => {
       calls.push(`devicetiming ${ids.map((id) => `#${id}`).join(', ')}`);
       if (options.failure !== undefined) throw options.failure;
+      if (once !== undefined) {
+        const failure = once;
+        once = undefined;
+        throw failure;
+      }
       return ids.filter((id) => !options.unbuilt?.includes(id));
     },
   };
@@ -158,8 +185,12 @@ function building(
 ) {
   const f = exportFakes({ devices: OUTPUT_DEVICES, details: OUTPUT_DETAILS, ...ports });
   const port = buildFake(f.calls, build);
+  // Build-status-check design section 6: one record, shared by both services as in main.ts.
+  const lastFullBuild = new LastFullBuildRecord();
   return {
     ...f,
+    port,
+    lastFullBuild,
     service: new BuildProjectService(
       f.session,
       port,
@@ -168,8 +199,25 @@ function building(
       f.policy,
       groupsFake(f.calls),
       resultsFake(f.calls, results),
+      lastFullBuild,
+    ),
+    status: new GetBuildStatusService(
+      f.session,
+      port,
+      lastFullBuild,
+      new OutputsChecker(f.session, f.exports, f.graph, resultsFake(f.calls, results)),
     ),
   };
+}
+
+/** get_build_status with a record and checker of its own, over the fakes of `f` (plan decision D6). */
+function statusService(f: ReturnType<typeof exportFakes>, port: BuildPort): GetBuildStatusService {
+  return new GetBuildStatusService(
+    f.session,
+    port,
+    new LastFullBuildRecord(),
+    new OutputsChecker(f.session, f.exports, f.graph, resultsFake(f.calls)),
+  );
 }
 
 async function failure(promise: Promise<unknown>): Promise<WorldMachineError> {
@@ -324,6 +372,7 @@ describe('BuildProjectService (spec v2a section 4)', () => {
       f.policy,
       groupsFake(f.calls),
       resultsFake(f.calls),
+      new LastFullBuildRecord(),
     );
     const abort = new AbortController();
     const view = service.buildProject({ mode: 'full', waitSeconds: 60, signal: abort.signal });
@@ -460,6 +509,7 @@ describe('BuildProjectService mode group (spec v2b section 3)', () => {
       f.policy,
       { ...groups, resolve: async () => extended },
       resultsFake(f.calls),
+      new LastFullBuildRecord(),
     );
     const view = await service.buildProject({ mode: 'group', group: '#0', waitSeconds: 60 });
     expect(view.group).toStrictEqual(TERRAIN);
@@ -499,6 +549,7 @@ describe('BuildProjectService mode group (spec v2b section 3)', () => {
       f.policy,
       groupsFake(f.calls),
       resultsFake(f.calls),
+      new LastFullBuildRecord(),
     );
     const abort = new AbortController();
     const view = service.buildProject({ mode: 'group', group: '#0', waitSeconds: 60, signal: abort.signal });
@@ -536,15 +587,15 @@ describe('BuildProjectService mode group (spec v2b section 3)', () => {
 describe('GetBuildStatusService (spec v2a section 4)', () => {
   it('reports no build and no preview', async () => {
     const f = exportFakes();
-    const service = new GetBuildStatusService(f.session, buildFake(f.calls));
+    const service = statusService(f, buildFake(f.calls));
     expect(await service.getBuildStatus({})).toEqual({ build: null, previewRunning: false, session: SAVED });
   });
 
   it('reports a running build with its elapsed seconds and starter, and a preview', async () => {
     const f = exportFakes();
     vi.setSystemTime(30_900);
-    const service = new GetBuildStatusService(
-      f.session,
+    const service = statusService(
+      f,
       buildFake(f.calls, { run: { ...RUNNING_FULL, startedBy: 'world-machine' }, previews: [true] }),
     );
     expect(await service.getBuildStatus({})).toEqual({
@@ -557,12 +608,369 @@ describe('GetBuildStatusService (spec v2a section 4)', () => {
   it('reports a run World Machine started with mode unknown until its kind shows (spec v2a section 3)', async () => {
     const f = exportFakes();
     vi.setSystemTime(4_000);
-    const service = new GetBuildStatusService(f.session, buildFake(f.calls, { run: RUNNING_UNKNOWN }));
+    const service = statusService(f, buildFake(f.calls, { run: RUNNING_UNKNOWN }));
     expect((await service.getBuildStatus({})).build).toEqual({
       mode: 'unknown',
       elapsedSeconds: 4,
       startedBy: 'world-machine',
     });
+  });
+});
+
+describe('get_build_status reports the last full build (build-status-check design sections 3-5)', () => {
+  const STARTED = '1970-01-01T00:00:00.000Z';
+  // Height Output #1 without a result; the default project's other outputs built.
+  const NOT_BUILT = {
+    outputsBuilt: false,
+    notBuilt: [{ id: 1, name: 'Height Output' }],
+    stoppedAt: [{ id: 1, name: 'Height Output', type: 'Height Output', enabled: true, bypassed: false }],
+    hint: NOT_BUILT_HINT,
+  };
+
+  /** A full build that outlived build_project's wait and then ended; `calls` starts empty. */
+  async function outlived(results: ResultsFakeOptions = { unbuilt: [1] }) {
+    const f = building({ wait: async () => false }, {}, results);
+    expect(await f.service.buildProject({ mode: 'full', waitSeconds: 1 })).toEqual({
+      state: 'running',
+      mode: 'full',
+      elapsedSeconds: 0,
+      session: SAVED,
+    });
+    f.port.end();
+    f.calls.length = 0;
+    return f;
+  }
+
+  it('reports nothing while the build runs, checks it once it has ended, and repeats the result without reads', async () => {
+    const f = building({ wait: async () => false }, {}, { unbuilt: [1] });
+    await f.service.buildProject({ mode: 'full', waitSeconds: 1 });
+    expect(await f.status.getBuildStatus({})).toStrictEqual({
+      build: { mode: 'full', elapsedSeconds: 0, startedBy: 'server' },
+      previewRunning: false,
+      session: SAVED,
+    });
+    f.port.end();
+    f.calls.length = 0;
+    const view = {
+      build: null,
+      previewRunning: false,
+      lastFullBuild: { startedAt: STARTED, ...NOT_BUILT },
+      session: SAVED,
+    };
+    expect(await f.status.getBuildStatus({})).toStrictEqual(view);
+    expect(f.calls).toEqual(['build status', ...OUTPUT_CHECK_CALLS]);
+    f.calls.length = 0;
+    expect(await f.status.getBuildStatus({})).toStrictEqual(view);
+    expect(f.calls).toEqual(['build status']);
+  });
+
+  it('reports that the project changed, without reads, after an edit between the end and the check', async () => {
+    const f = await outlived();
+    f.edit();
+    expect((await f.status.getBuildStatus({})).lastFullBuild).toStrictEqual({
+      startedAt: STARTED,
+      outputsCheckError: PROJECT_CHANGED,
+    });
+    expect(f.calls).toEqual(['build status']);
+  });
+
+  it('reports the results gone, without reads, when the session is not ready', async () => {
+    const f = await outlived();
+    f.setSession({ state: 'notRunning' });
+    expect(await f.status.getBuildStatus({})).toStrictEqual({
+      build: null,
+      previewRunning: false,
+      lastFullBuild: { startedAt: STARTED, outputsCheckError: RESULTS_GONE },
+      session: { state: 'notRunning' },
+    });
+    expect(f.calls).toEqual(['build status']);
+  });
+
+  it('reports the results gone, without reads, when the run vanished with World Machine, and keeps a checked result (Revision 2)', async () => {
+    const f = await outlived();
+    f.port.exit();
+    expect((await f.status.getBuildStatus({})).lastFullBuild).toStrictEqual({
+      startedAt: STARTED,
+      outputsCheckError: RESULTS_GONE,
+    });
+    expect(f.calls).toEqual(['build status']);
+    const g = building({}, {}, { unbuilt: [1] });
+    await g.service.buildProject({ mode: 'full', waitSeconds: 60 });
+    g.port.exit();
+    g.calls.length = 0;
+    expect((await g.status.getBuildStatus({})).lastFullBuild).toStrictEqual({
+      startedAt: STARTED,
+      ...NOT_BUILT,
+    });
+    expect(g.calls).toEqual(['build status']);
+  });
+
+  it('stores a WorldMachineError of the check and repeats it without reads', async () => {
+    const f = await outlived({ failure: new WorldMachineError('TIMEOUT', 'World Machine did not answer') });
+    const failed = { startedAt: STARTED, outputsCheckError: 'World Machine did not answer' };
+    expect((await f.status.getBuildStatus({})).lastFullBuild).toStrictEqual(failed);
+    f.calls.length = 0;
+    expect((await f.status.getBuildStatus({})).lastFullBuild).toStrictEqual(failed);
+    expect(f.calls).toEqual(['build status']);
+  });
+
+  it('fails the call on an error that is no WorldMachineError and checks again on the next call (plan decision D11)', async () => {
+    const f = await outlived({ failOnce: new Error('a bug') });
+    await expect(f.status.getBuildStatus({})).rejects.toThrow('a bug');
+    expect((await f.status.getBuildStatus({})).lastFullBuild).toStrictEqual({
+      startedAt: STARTED,
+      outputsBuilt: true,
+      notBuilt: [],
+      stoppedAt: [],
+    });
+    expect(f.calls.filter((call) => call.startsWith('devicetiming'))).toHaveLength(2);
+  });
+
+  it('clears the record when a new build starts', async () => {
+    const f = await outlived();
+    expect((await f.status.getBuildStatus({})).lastFullBuild).toStrictEqual({
+      startedAt: STARTED,
+      ...NOT_BUILT,
+    });
+    vi.setSystemTime(5_000);
+    await f.service.buildProject({ mode: 'group', group: '#0', waitSeconds: 1 });
+    expect(await f.status.getBuildStatus({})).toStrictEqual({
+      build: { mode: 'full', elapsedSeconds: 0, startedBy: 'server' },
+      previewRunning: false,
+      session: SAVED,
+    });
+    f.port.end();
+    f.calls.length = 0;
+    expect(await f.status.getBuildStatus({})).toStrictEqual({
+      build: null,
+      previewRunning: false,
+      session: SAVED,
+    });
+    expect(f.calls).toEqual(['build status']);
+  });
+
+  it('repeats a build that finished within the wait without reads', async () => {
+    const f = building({}, {}, { unbuilt: [1] });
+    expect(await f.service.buildProject({ mode: 'full', waitSeconds: 60 })).toMatchObject(NOT_BUILT);
+    f.port.end();
+    f.calls.length = 0;
+    expect(await f.status.getBuildStatus({})).toStrictEqual({
+      build: null,
+      previewRunning: false,
+      lastFullBuild: { startedAt: STARTED, ...NOT_BUILT },
+      session: SAVED,
+    });
+    expect(f.calls).toEqual(['build status']);
+  });
+
+  it('leaves the record alone when build_project is cancelled while it queued for exclusive()', async () => {
+    const f = building({}, {}, { unbuilt: [1] });
+    await f.service.buildProject({ mode: 'full', waitSeconds: 60 });
+    f.port.end();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const exclusive = f.session.exclusive;
+    const queued: WorldMachineSessionPort = {
+      ...f.session,
+      exclusive: async (action) => {
+        await gate;
+        return exclusive(action);
+      },
+    };
+    const service = new BuildProjectService(
+      queued,
+      f.port,
+      f.exports,
+      f.graph,
+      f.policy,
+      groupsFake(f.calls),
+      resultsFake(f.calls),
+      f.lastFullBuild,
+    );
+    const abort = new AbortController();
+    const view = service.buildProject({ mode: 'full', waitSeconds: 60, signal: abort.signal });
+    abort.abort();
+    release();
+    expect(await view).toEqual({ state: 'running', mode: 'full', elapsedSeconds: 0, session: SAVED });
+    expect((await f.status.getBuildStatus({})).lastFullBuild).toStrictEqual({
+      startedAt: STARTED,
+      ...NOT_BUILT,
+    });
+  });
+
+  it('omits the result of a check refused because a build started meanwhile, and clears it on the next call', async () => {
+    const f = await outlived();
+    const starting: WorldMachineSessionPort = {
+      ...f.session,
+      exclusive: async () => {
+        vi.setSystemTime(5_000);
+        await f.port.start('full');
+        throw new WorldMachineError(
+          'REFUSED',
+          'A build is running; call stop_build or wait for it to finish',
+        );
+      },
+    };
+    const status = new GetBuildStatusService(
+      starting,
+      f.port,
+      f.lastFullBuild,
+      new OutputsChecker(starting, f.exports, f.graph, resultsFake(f.calls)),
+    );
+    expect(await status.getBuildStatus({})).toStrictEqual({
+      build: { mode: 'full', elapsedSeconds: 0, startedBy: 'server' },
+      previewRunning: false,
+      session: SAVED,
+    });
+    f.port.end();
+    f.calls.length = 0;
+    expect(await f.status.getBuildStatus({})).toStrictEqual({
+      build: null,
+      previewRunning: false,
+      session: SAVED,
+    });
+    expect(f.calls).toEqual(['build status']);
+  });
+
+  it("reports that the project changed when an edit ran before the check's exclusive() section (plan decision D7)", async () => {
+    const f = await outlived();
+    const edited: WorldMachineSessionPort = {
+      ...f.session,
+      exclusive: (action) => {
+        f.edit();
+        return f.session.exclusive(action);
+      },
+    };
+    const status = new GetBuildStatusService(
+      edited,
+      f.port,
+      f.lastFullBuild,
+      new OutputsChecker(edited, f.exports, f.graph, resultsFake(f.calls)),
+    );
+    expect((await status.getBuildStatus({})).lastFullBuild).toStrictEqual({
+      startedAt: STARTED,
+      outputsCheckError: PROJECT_CHANGED,
+    });
+    expect(f.calls).toEqual(['build status', 'exclusive', 'exclusive end']);
+  });
+
+  it("clears the record, reading nothing, when an open or create ran before the check's exclusive() section (plan decision D7)", async () => {
+    const f = await outlived();
+    const switched: WorldMachineSessionPort = {
+      ...f.session,
+      exclusive: (action) => {
+        f.switchProject();
+        return f.session.exclusive(action);
+      },
+    };
+    const status = new GetBuildStatusService(
+      switched,
+      f.port,
+      f.lastFullBuild,
+      new OutputsChecker(switched, f.exports, f.graph, resultsFake(f.calls)),
+    );
+    expect(await status.getBuildStatus({})).toStrictEqual({
+      build: null,
+      previewRunning: false,
+      session: SAVED,
+    });
+    expect(f.calls).toEqual(['build status', 'exclusive', 'exclusive end']);
+    f.calls.length = 0;
+    expect(await f.status.getBuildStatus({})).toStrictEqual({
+      build: null,
+      previewRunning: false,
+      session: SAVED,
+    });
+    expect(f.calls).toEqual(['build status']);
+  });
+
+  it('clears the record, reading nothing, when a window build started and ended while the check queued (Codex round 2 ruling 1a)', async () => {
+    const f = await outlived();
+    // buildFake opens a server run; the record needs only another run that ended before the check's section.
+    const window: WorldMachineSessionPort = {
+      ...f.session,
+      exclusive: async (action) => {
+        vi.setSystemTime(5_000);
+        await f.port.start('full');
+        f.port.end();
+        return f.session.exclusive(action);
+      },
+    };
+    const status = new GetBuildStatusService(
+      window,
+      f.port,
+      f.lastFullBuild,
+      new OutputsChecker(window, f.exports, f.graph, resultsFake(f.calls)),
+    );
+    expect(await status.getBuildStatus({})).toStrictEqual({
+      build: null,
+      previewRunning: false,
+      session: SAVED,
+    });
+    expect(f.calls).toEqual(['build status', 'start full', 'exclusive', 'exclusive end']);
+    f.calls.length = 0;
+    expect(await f.status.getBuildStatus({})).toStrictEqual({
+      build: null,
+      previewRunning: false,
+      session: SAVED,
+    });
+    expect(f.calls).toEqual(['build status']);
+  });
+
+  it('reports the results gone, reading nothing, when World Machine was relaunched while the check queued (Codex round 2 ruling 1a)', async () => {
+    const f = await outlived();
+    const relaunched: WorldMachineSessionPort = {
+      ...f.session,
+      exclusive: (action) => {
+        f.port.exit();
+        f.relaunch();
+        return f.session.exclusive(action);
+      },
+    };
+    const status = new GetBuildStatusService(
+      relaunched,
+      f.port,
+      f.lastFullBuild,
+      new OutputsChecker(relaunched, f.exports, f.graph, resultsFake(f.calls)),
+    );
+    expect((await status.getBuildStatus({})).lastFullBuild).toStrictEqual({
+      startedAt: STARTED,
+      outputsCheckError: RESULTS_GONE,
+    });
+    expect(f.calls).toEqual(['build status', 'exclusive', 'exclusive end']);
+  });
+
+  it('stores nothing for a check refused because a build runs, so a later World Machine exit reports the results gone (Codex round 2 ruling 1b)', async () => {
+    const f = await outlived();
+    const refusing: WorldMachineSessionPort = {
+      ...f.session,
+      exclusive: async () => {
+        throw new WorldMachineError(
+          'REFUSED',
+          'A build is running; call stop_build or wait for it to finish',
+        );
+      },
+    };
+    const status = new GetBuildStatusService(
+      refusing,
+      f.port,
+      f.lastFullBuild,
+      new OutputsChecker(refusing, f.exports, f.graph, resultsFake(f.calls)),
+    );
+    expect(await status.getBuildStatus({})).toStrictEqual({
+      build: null,
+      previewRunning: false,
+      session: SAVED,
+    });
+    f.port.exit();
+    f.calls.length = 0;
+    expect((await f.status.getBuildStatus({})).lastFullBuild).toStrictEqual({
+      startedAt: STARTED,
+      outputsCheckError: RESULTS_GONE,
+    });
+    expect(f.calls).toEqual(['build status']);
   });
 });
 
@@ -782,6 +1190,7 @@ describe('BuildProjectService output check (build-not-built design sections 3-6)
       f.policy,
       groupsFake(f.calls),
       resultsFake(f.calls),
+      new LastFullBuildRecord(),
     );
     expect(await service.buildProject({ mode: 'full', waitSeconds: 60 })).toEqual({
       state: 'finished',
@@ -818,6 +1227,7 @@ describe('BuildProjectService output check (build-not-built design sections 3-6)
       f.policy,
       groupsFake(f.calls),
       slow,
+      new LastFullBuildRecord(),
     );
     expect((await service.buildProject({ mode: 'full', waitSeconds: 60 })).elapsedSeconds).toBe(12);
   });
