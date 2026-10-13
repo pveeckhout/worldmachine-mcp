@@ -1334,7 +1334,8 @@ describe('createMcpServer build and export tools (spec v2a section 4)', () => {
 
   it.each([
     'After a full build that finished within the wait, the result reports whether every output was built (outputsBuilt)',
-    'where building stopped (stoppedAt',
+    'the devices where building stopped on the way to an output that was not built (stoppedAt',
+    'a full build ended by stop_build is checked too and its outputs report not built',
     'outputsCheckError',
     'preview, tiled, and group builds, and a running result, are not checked',
   ])('describes the output check in build_project: %s', async (text) => {
