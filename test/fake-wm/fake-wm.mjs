@@ -434,15 +434,27 @@ const LENGTH_SCALES = new Map([
   ['Constant.Height', 'vertical'],
 ]);
 const metresPerUnit = (scale) => (scale === 'horizontal' ? 8000 : verticalMetresPerUnit);
-// raw/float-scale-default.txt l.114: 656.25 m shows as `656.2 m`. Assumed: one decimal with ties to even, and no `.0`
-// on a whole number (`8 km`, `3000 m`, `0 m` in every capture).
-const oneDecimal = (value) => {
-  const tenths = value * 10;
-  const floor = Math.floor(tenths);
-  const rest = tenths - floor;
-  const rounded = rest > 0.5 ? floor + 1 : rest < 0.5 ? floor : floor % 2 === 0 ? floor : floor + 1;
-  // `+ 0` turns -0 into 0.
-  return String(rounded / 10 + 0);
+// The captures show a length with four significant digits and no trailing zeros: `656.2 m` (raw/float-scale-default.txt
+// l.114), `2625 m` (l.108), `1.313 m` (raw/default-updated.txt l.311), `1.05 m` (raw/erosion-water-input.txt l.403),
+// `4.8 km` (raw/float-scale.txt l.5155), `1.6 km` (l.95), `112 m` (l.4335), `800 m` (l.1543), `400 m` (l.2894). Not
+// one decimal: `1.313 m` and `1.05 m` have three and two. Assumed: a tie rounds to even, as 656.25 does (`656.2 m`,
+// not `656.3 m`). A tie is detected on the exact decimal expansion of the double, so 0.7 x 2625 =
+// 1837.4999999999998 is not a tie and shows `1837 m` (Assumed: World Machine's own arithmetic is not captured). A
+// whole number shows no `.0` (`8 km`, `3000 m`, `0 m` in every capture).
+const SHOWN_DIGITS = 4;
+const fourDigits = (value) => {
+  if (value === 0) return '0';
+  // 100 digits are exact for every double a tie can come from: a tie is a short decimal, so any other double differs
+  // from it well inside 100 digits.
+  const [mantissa, exponent] = Math.abs(value).toExponential(99).split('e');
+  const digits = mantissa.replace('.', '');
+  let kept = BigInt(digits.slice(0, SHOWN_DIGITS));
+  const rest = digits.slice(SHOWN_DIGITS);
+  const half = `5${'0'.repeat(rest.length - 1)}`;
+  if (rest > half || (rest === half && kept % 2n === 1n)) kept += 1n;
+  // `kept` may have carried to 10000, which Number reads back right.
+  const shown = Number(`${kept}e${Number(exponent) - (SHOWN_DIGITS - 1)}`);
+  return String(value < 0 ? -shown : shown);
 };
 // raw/float-scale.txt: a horizontal length of 1000 m or more shows in km (l.162 `1.6 km`), a shorter one in m
 // (l.4473 `500 m`); a vertical length shows in m (l.126 `1500 m`, l.860 `3000 m`). Assumed: a vertical length above
@@ -450,8 +462,8 @@ const oneDecimal = (value) => {
 const lengthShown = (scale, internal) => {
   const metres = internal * metresPerUnit(scale);
   return scale === 'horizontal' && Math.abs(metres) >= 1000
-    ? `${oneDecimal(metres / 1000)} km`
-    : `${oneDecimal(metres)} m`;
+    ? `${fourDigits(metres / 1000)} km`
+    : `${fourDigits(metres)} m`;
 };
 // raw/p2c-edits.txt (fact 35): an enum shows its label, given as an index or as a label in any case. A length float
 // shows internal x scale (above) after `project new`. Assumed: a bool shows true or false; any other float, and a

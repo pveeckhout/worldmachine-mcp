@@ -1413,6 +1413,36 @@ describe('fake World Machine: lengths in display units (float-units design facts
     ]);
   });
 
+  it('shows a length with four significant digits, ties to even (raw/default-updated.txt l.311, raw/float-scale-default.txt l.114)', async () => {
+    const s = session();
+    await s.execute(['project new default force', 'device add Constant']);
+    // Vertical scale 2625 m. 0.00048 x 2625 = 1.26 m (not one decimal: `1.313 m` and `1.05 m` are captured). Assumed:
+    // an exact tie rounds to even, as 656.25 does in the capture (`656.2 m`): 0.5 x 2625 = 1312.5 m shows as 1312 m.
+    // 0.7 x 2625 is 1837.4999999999998 as a double, not a tie, so it shows 1837 m (Assumed: World Machine's own
+    // arithmetic is not captured; the fake rounds the double it holds).
+    expect(
+      await outputs(s, [
+        'param set "#536.Height" 0.00048',
+        'param get #536.Height',
+        'param set "#536.Height" 0.5',
+        'param get #536.Height',
+        'param set "#536.Height" 0.7',
+        'param get #536.Height',
+        'param set "#536.Height" 0.375',
+        'param get #536.Height',
+      ]),
+    ).toEqual([
+      ['Set #536.Height = 0.00048'],
+      ['#536.Height = 1.26 m'],
+      ['Set #536.Height = 0.5'],
+      ['#536.Height = 1312 m'],
+      ['Set #536.Height = 0.7'],
+      ['#536.Height = 1837 m'],
+      ['Set #536.Height = 0.375'],
+      ['#536.Height = 984.4 m'],
+    ]);
+  });
+
   it('reverts the last param set on each project undo (raw/float-scale-undo.txt l.51-131, fact 90)', async () => {
     const s = session();
     await s.execute(['project new default force', 'device add Gradient', 'device add Constant']);
