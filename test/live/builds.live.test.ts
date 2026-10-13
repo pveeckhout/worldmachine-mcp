@@ -3,9 +3,12 @@ import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { FsPathPolicy } from '../../src/adapter/out/fs/path-policy.js';
+import { buildCommand } from '../../src/adapter/out/worldmachine/command-builder.js';
 import { resolveExecutable } from '../../src/adapter/out/worldmachine/locator.js';
+import { throwIfFailed } from '../../src/adapter/out/worldmachine/raw-response.js';
 import { WorldMachineBuildResultReader } from '../../src/adapter/out/worldmachine/world-machine-build-result-reader.js';
 import { WorldMachineBuilder } from '../../src/adapter/out/worldmachine/world-machine-builder.js';
+import { WorldMachineDeviceEditor } from '../../src/adapter/out/worldmachine/world-machine-device-editor.js';
 import { WorldMachineExporter } from '../../src/adapter/out/worldmachine/world-machine-exporter.js';
 import { WorldMachineGraphReader } from '../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
 import { WorldMachineGroupEditor } from '../../src/adapter/out/worldmachine/world-machine-group-editor.js';
@@ -13,12 +16,14 @@ import { WorldMachineProcess } from '../../src/adapter/out/worldmachine/world-ma
 import { WorldMachineProjectWriter } from '../../src/adapter/out/worldmachine/world-machine-project-writer.js';
 import { WorldMachineSceneEditor } from '../../src/adapter/out/worldmachine/world-machine-scene-editor.js';
 import { WorldMachineSession } from '../../src/adapter/out/worldmachine/world-machine-session.js';
+import { WorldMachineWireEditor } from '../../src/adapter/out/worldmachine/world-machine-wire-editor.js';
 import { BuildProjectService } from '../../src/application/service/build-project-service.js';
 import { ConfigureSceneService } from '../../src/application/service/configure-scene-service.js';
 import { ExportOutputsService } from '../../src/application/service/export-outputs-service.js';
 import { GetBuildStatusService } from '../../src/application/service/get-build-status-service.js';
 import { ListExportsService } from '../../src/application/service/list-exports-service.js';
 import { StopBuildService } from '../../src/application/service/stop-build-service.js';
+import { NOT_BUILT_HINT } from '../../src/domain/build-result.js';
 import { captureLogger } from '../support/fake-wm.js';
 
 const executable = resolveExecutable(process.env.WORLD_MACHINE_BIN ?? null);
@@ -58,6 +63,8 @@ describe.skipIf(!LIVE)('live World Machine builds and exports (spec v2a section 
   const listExports = new ListExportsService(session, exporter, reader, policy);
   const exportOutputs = new ExportOutputsService(session, exporter, reader, policy);
   const configureScene = new ConfigureSceneService(session, scene);
+  const devices = new WorldMachineDeviceEditor(session);
+  const wires = new WorldMachineWireEditor(session);
   const startedAt = Date.now();
   // Close-then-quit always runs, so the licence seat returns (spec fact 20); a build still running is stopped first.
   afterAll(async () => {
@@ -127,4 +134,43 @@ describe.skipIf(!LIVE)('live World Machine builds and exports (spec v2a section 
     expect((await stopBuild.stopBuild({})).stopped).toBe('full');
     expect((await buildStatus.getBuildStatus({})).build).toBeNull();
   }, 120_000);
+
+  it('reports the output a console-added River did not build, and a plain graph as built (build-not-built section 8)', async () => {
+    await session.ensureRunning();
+    const blank = async () => {
+      throwIfFailed(await session.executeOne('project new blank force'));
+      await scene.configureScene({ resolution: 513 });
+    };
+    // raw/build-not-built-timing.txt l.41-42: the File Output's filename, inside the live root. A full build writes no
+    // file (fact 48) and a new File Output's exportAlways is false (raw/v6b-param-set.txt l.43).
+    const filename = async (id: number, file: string) =>
+      throwIfFailed(
+        await session.executeOne(buildCommand(['param', 'set', `#${id}.filename`], join(liveRoot, file))),
+      );
+    // l.1-46: Gradient into River into File Output.
+    await blank();
+    const gradient = await devices.addDevice('Gradient');
+    const river = await devices.addDevice('River');
+    const output = await devices.addDevice('File Output');
+    await wires.connect({ device: `#${gradient.id}` }, { device: `#${river.id}`, port: 1 });
+    await wires.connect({ device: `#${river.id}` }, { device: `#${output.id}` });
+    await filename(output.id, 'river-height.png');
+    expect(await buildProject.buildProject({ mode: 'full', waitSeconds: 120 })).toMatchObject({
+      state: 'finished',
+      outputsBuilt: false,
+      notBuilt: [{ id: output.id, name: 'Height Output' }],
+      stoppedAt: [{ id: river.id, name: 'River', type: 'River', enabled: true, bypassed: false }],
+      hint: NOT_BUILT_HINT,
+    });
+    // l.119-149: Gradient into File Output.
+    await blank();
+    const plain = await devices.addDevice('Gradient');
+    const plainOutput = await devices.addDevice('File Output');
+    await wires.connect({ device: `#${plain.id}` }, { device: `#${plainOutput.id}` });
+    await filename(plainOutput.id, 'plain-height.png');
+    const built = await buildProject.buildProject({ mode: 'full', waitSeconds: 120 });
+    expect(built).toMatchObject({ state: 'finished', outputsBuilt: true, notBuilt: [], stoppedAt: [] });
+    expect(built).not.toHaveProperty('hint');
+    expect(built).not.toHaveProperty('outputsCheckError');
+  }, 360_000);
 });
