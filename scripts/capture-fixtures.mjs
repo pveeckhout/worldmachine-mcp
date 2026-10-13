@@ -465,6 +465,94 @@ const scenarios = [
       return sections;
     },
   ],
+  // Backlog item 102: which console command shows, without writing files, that a full build left its outputs not
+  // built. A console-added River does not build (raw/river-failing-graph.txt); a Gradient into a File Output does.
+  // Each graph is built in its own blank project, then read with build status, export list, device info, and param
+  // list. The help of the build, debug, and export groups comes first (raw/help.txt has only the group names).
+  // Never exports, never saves. Ends closed.
+  [
+    'build-not-built',
+    async () => {
+      const sections = await run(['help build', 'help debug', 'help export']);
+      const check = async (label, upstream) => {
+        sections.push(...(await run(['project new blank force', 'scene resolution 513'])));
+        const terrain = await freshDevice(sections, 'Gradient');
+        const middle = upstream ? await freshDevice(sections, upstream) : undefined;
+        const output = await freshDevice(sections, 'File Output');
+        const wires = middle
+          ? [`wire connect #${terrain.id} #${middle.id}.1`, `wire connect #${middle.id}.1 #${output.id}`]
+          : [`wire connect #${terrain.id} #${output.id}`];
+        sections.push(
+          ...(await run([
+            ...wires,
+            `param set #${output.id}.filename ${join(work, `${label}-height.png`)}`,
+            'build status',
+            'export list',
+            'build start',
+          ])),
+        );
+        await pollBuild(sections);
+        const reads = (device) => [`device select #${device.id}`, 'device info', `param list #${device.id}`];
+        sections.push(
+          ...(await run([
+            'build status',
+            'export list',
+            ...reads(output),
+            ...(middle ? reads(middle) : []),
+            ...reads(terrain),
+            'debug',
+          ])),
+        );
+        sections.push({ command: `(${label}: files in work)`, lines: readdirSync(work) });
+      };
+      await check('river', 'River');
+      await check('plain');
+      sections.push(...(await run(['project close force'])));
+      return sections;
+    },
+  ],
+  // build-not-built found no passive read that tells the two graphs apart; this reads the per-device build timing
+  // and the previewer's view targets after the same two builds (raw/build-not-built.txt l.1-25: `help debug`).
+  // Never exports, never saves. Ends closed.
+  [
+    'build-not-built-timing',
+    async () => {
+      const sections = [];
+      const check = async (label, upstream) => {
+        sections.push(...(await run(['project new blank force', 'scene resolution 513'])));
+        const terrain = await freshDevice(sections, 'Gradient');
+        const middle = upstream ? await freshDevice(sections, upstream) : undefined;
+        const output = await freshDevice(sections, 'File Output');
+        const wires = middle
+          ? [`wire connect #${terrain.id} #${middle.id}.1`, `wire connect #${middle.id}.1 #${output.id}`]
+          : [`wire connect #${terrain.id} #${output.id}`];
+        sections.push(
+          ...(await run([
+            ...wires,
+            `param set #${output.id}.filename ${join(work, `${label}-height.png`)}`,
+            'build status',
+            'export list',
+            'build start',
+          ])),
+        );
+        await pollBuild(sections);
+        sections.push(
+          ...(await run([
+            'debug devicetiming',
+            `debug devicetiming #${output.id}`,
+            ...(middle ? [`debug devicetiming #${middle.id}`] : []),
+            `debug devicetiming #${terrain.id}`,
+            'debug viewtargets',
+          ])),
+        );
+        sections.push({ command: `(${label}: files in work)`, lines: readdirSync(work) });
+      };
+      await check('river', 'River');
+      await check('plain');
+      sections.push(...(await run(['project close force'])));
+      return sections;
+    },
+  ],
   // The graphs of raw/river-default-project.txt step b and raw/river-build-diag.txt step 2, built once and saved, so
   // they can be opened in the World Machine window to see why River does not build.
   [

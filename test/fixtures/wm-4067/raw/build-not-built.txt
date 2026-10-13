@@ -1,0 +1,351 @@
+>>> help build
+build commands:
+  build preview                   Trigger async preview build
+  build start [tiled]             Execute a full build
+  build status                    Show build status and progress
+  build stop                      Cancel current build or preview
+
+<<<
+>>> help debug
+debug commands:
+  debug devicetiming [device]     Show where each device's build time goes
+  debug get <key>                 Get a debug variable
+  debug list [filter]             List debug variables
+  debug pclear                    Clear all debug output packets
+  debug previewtiming [device|reset]  Inspect or reset interactive preview res scaling
+  debug reassign                  Reassign all device IDs in the world
+  debug remove <name>             Remove a stored debug packet
+  debug revert                    Reset all debug variables to defaults
+  debug set <key> <value>         Set a debug variable
+  debug style <reload|clear>      Reload or clear the app-wide stylesheet
+  debug unset <key>               Clear a debug variable
+  debug view [name]               Open the debug packet viewer
+  debug viewtargets               Show the current view targets and what the previewer got
+
+<<<
+>>> help export
+export commands:
+  export all                      Export all File Output devices (Pro)
+  export list                     List configured File Output devices (Pro)
+
+<<<
+>>> project new blank force
+Created new blank project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 513
+Set scene resolution to 513
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> device add River
+Added 'River'
+<<<
+>>> device list
+Devices (2 total):
+  #1     Gradient                
+  #2     River                   
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (3 total):
+  #1     Gradient                
+  #2     River                   
+  #3     Height Output           
+
+<<<
+>>> wire connect #1 #2.1
+Connected '#1' [1] -> '#2' [1]
+<<<
+>>> wire connect #2.1 #3
+Connected '#2' [1] -> '#3' [1]
+<<<
+>>> param set #3.filename <WORK>/river-height.png
+Set #3.filename = <WORK>/river-height.png
+<<<
+>>> build status
+No build running.
+<<<
+>>> export list
+Configured exports:
+  'Height Output       ' -> <WORK>/river-height.png
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> build status
+No build running.
+<<<
+>>> export list
+Configured exports:
+  'Height Output       ' -> <WORK>/river-height.png
+
+<<<
+>>> device select #3
+Selected: Height Output
+<<<
+>>> device info
+Selected device:
+  Name:    Height Output
+  Type:    Height Output
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #3
+Parameters for 'Height Output' (Height Output):
+  filename                  filename  <WORK>/river-height.png
+  format                    enum      PNG (16bit)
+  exportAlways              bool      false
+  tiled                     bool      true
+  writeButton               action    
+
+<<<
+>>> device select #2
+Selected: River
+<<<
+>>> device info
+Selected device:
+  Name:    River
+  Type:    River
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #2
+Parameters for 'River' (River):
+  Sinuosity                 float     0.0
+  Channel Gradient          float     0.0
+  Planform Type             enum      Simple Alignment
+  Reach Heading             int       0
+  Reach Length              float     8 km
+  Reach Elevation Datum     float     800 m
+  Reach Slope               float     0.02
+  Layout Alignment Uses Datum  bool      false
+  Draw Alignment...         action    
+  Channel Type              enum      Curved
+  Trapezoid Aspect          float     0.5
+  Channel Depth from Shields Eqn  bool      false
+  Critical Shear Stress     float     0.04
+  Particle Size             float     0.256
+  Bankfull Depth            float     2 m
+  Floodplain Height         float     21 m
+  Valley Height             float     112 m
+  Bankfull Width            float     10 m
+  Floodplain Width          float     10 m
+  Valley Width              float     500 m
+  Render Valley Wall        bool      true
+  Smooth Valley Profile     bool      true
+  Flatten Meander Belt Area  float     0.0
+  Terrain Bleed Amount      float     0.0
+  Quality                   float     6.0
+
+<<<
+>>> device select #1
+Selected: Gradient
+<<<
+>>> device info
+Selected device:
+  Name:    Gradient
+  Type:    Gradient
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #1
+Parameters for 'Gradient' (Gradient):
+  Direction                 int       0
+  Width                     float     8 km
+  Tiling                    enum      Clamp
+
+<<<
+>>> debug
+Debug variables:
+  build.purge_before_final           = 1       Purge all build results before starting a final build to free memory: 0=off, 1=on  
+  debug.devicetiming                 = 0       Show where device build time goes beyond Activate: the workview '+overhead' readout and the Build Status time tooltip. 'debug devicetiming' works regardless: 0=off (default), 1=on  
+  heal.dismissed                     =         Heal-settings findings the user chose to keep (comma-joined rule ids); the startup card re-offers only when a novel finding appears  
+  linux.desktop_integration.worldmachine = 2         
+  params.saveValuesOnly              = 1       Serialize only parameter values for standard devices on save (smaller files; back-compatible -- still loadable by older WM): 1=on (default), 0=off  
+  preview.broadfocus                 = 0       Broaden the preview to all devices once the focused device has built  
+  viewport.2D_mode                   = 1       Automatically switch between 3D and 2D cameras based on content type: 0=off, 1=on  
+  viewport.2D_nearest_mag            = 1       Use nearest-neighbor magnification in 2D viewport: 0=linear, 1=nearest  
+  viewport.cursor_readout            = 1       Show the cursor ID readout overlay in the 3D/2D viewport when an ID map is displayed: 0=off, 1=on (default)  
+  viewport.depth_compute_near        = 1       Use GPU compute shader to determine near clip plane from depth buffer: 0=off, 1=on  
+  viewport.double_click_center       = 1       Double-click on terrain to center camera on that point: 0=off, 1=on  
+  viewport.preserve_fov_axis         = 0       FOV axis on resize: 0=preserve cross-axis, 1=preserve same-axis  
+  viewport.show_aids                 = 1       Draw the 3D viewport orientation aids -- ground grid, origin cross and axis lines, render extent outline; turn off for clean terrain screenshots: 0=off, 1=on (default)  
+  viewport.surface_navigation        = 1       Surface-aware navigation (orbit around and track to clicked surface point): 0=off, 1=on  
+  viewport.trackpad_zoom             = 1       Two-finger trackpad scroll: 0=pan/track, 1=zoom (default)  
+  workview.anchor_toolbar_resize     = 1       Keep workview graph content visually anchored when the device toolbar's row count changes (e.g. switching category tabs): 0=off, 1=on (default)  
+  workview.animation.deviceDespawn   = 1       Fade devices out when they are deleted: 1=on (default), 0=instant  
+  workview.animation.deviceSpawn     = 1       Pop devices in when they are created: 1=on (default), 0=instant  
+  workview.animation.hoverGlow       = 1       Ease the device glow in/out on hover: 1=on (default), 0=instant  
+  workview.animation.selectGlow      = 1       Ease the device glow in/out on selection: 1=on (default), 0=instant  
+  workview.animation.selectionFocusDim = 1       Ease unselected devices/wires into the dimmed state: 1=on (default), 0=instant  
+  workview.animation.wireConnect     = 1       Pulse wires when they are connected: 1=on (default), 0=instant  
+  workview.animation.wireDisconnect  = 1       Fade wires out when they are cut/deleted: 1=on (default), 0=instant  
+  workview.device_corner_radius      = 3       Device rectangle corner radius in pixels  
+  workview.dim_unselected_wires      = 0       Dim wires and devices not attached to the selection when a wire or device is selected: 0=off (default), 1=on  
+  workview.group_corner_radius       = 7       Group rectangle corner radius in pixels  
+  workview.text_bg_corner_radius     = 3       Text background corner radius in pixels  
+  workview.velocity_snap             = 1       Velocity-sensitive grid snap during drag: 0=off (classic snap), 1=on  
+
+<<<
+>>> (river: files in work)
+dir with space
+<<<
+>>> project new blank force
+Created new blank project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 513
+Set scene resolution to 513
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (2 total):
+  #1     Gradient                
+  #2     Height Output           
+
+<<<
+>>> wire connect #1 #2
+Connected '#1' [1] -> '#2' [1]
+<<<
+>>> param set #2.filename <WORK>/plain-height.png
+Set #2.filename = <WORK>/plain-height.png
+<<<
+>>> build status
+No build running.
+<<<
+>>> export list
+Configured exports:
+  'Height Output       ' -> <WORK>/plain-height.png
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> build status
+No build running.
+<<<
+>>> export list
+Configured exports:
+  'Height Output       ' -> <WORK>/plain-height.png
+
+<<<
+>>> device select #2
+Selected: Height Output
+<<<
+>>> device info
+Selected device:
+  Name:    Height Output
+  Type:    Height Output
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #2
+Parameters for 'Height Output' (Height Output):
+  filename                  filename  <WORK>/plain-height.png
+  format                    enum      PNG (16bit)
+  exportAlways              bool      false
+  tiled                     bool      true
+  writeButton               action    
+
+<<<
+>>> device select #1
+Selected: Gradient
+<<<
+>>> device info
+Selected device:
+  Name:    Gradient
+  Type:    Gradient
+  Enabled: yes
+  Bypass:  no
+
+<<<
+>>> param list #1
+Parameters for 'Gradient' (Gradient):
+  Direction                 int       0
+  Width                     float     8 km
+  Tiling                    enum      Clamp
+
+<<<
+>>> debug
+Debug variables:
+  build.purge_before_final           = 1       Purge all build results before starting a final build to free memory: 0=off, 1=on  
+  debug.devicetiming                 = 0       Show where device build time goes beyond Activate: the workview '+overhead' readout and the Build Status time tooltip. 'debug devicetiming' works regardless: 0=off (default), 1=on  
+  heal.dismissed                     =         Heal-settings findings the user chose to keep (comma-joined rule ids); the startup card re-offers only when a novel finding appears  
+  linux.desktop_integration.worldmachine = 2         
+  params.saveValuesOnly              = 1       Serialize only parameter values for standard devices on save (smaller files; back-compatible -- still loadable by older WM): 1=on (default), 0=off  
+  preview.broadfocus                 = 0       Broaden the preview to all devices once the focused device has built  
+  viewport.2D_mode                   = 1       Automatically switch between 3D and 2D cameras based on content type: 0=off, 1=on  
+  viewport.2D_nearest_mag            = 1       Use nearest-neighbor magnification in 2D viewport: 0=linear, 1=nearest  
+  viewport.cursor_readout            = 1       Show the cursor ID readout overlay in the 3D/2D viewport when an ID map is displayed: 0=off, 1=on (default)  
+  viewport.depth_compute_near        = 1       Use GPU compute shader to determine near clip plane from depth buffer: 0=off, 1=on  
+  viewport.double_click_center       = 1       Double-click on terrain to center camera on that point: 0=off, 1=on  
+  viewport.preserve_fov_axis         = 0       FOV axis on resize: 0=preserve cross-axis, 1=preserve same-axis  
+  viewport.show_aids                 = 1       Draw the 3D viewport orientation aids -- ground grid, origin cross and axis lines, render extent outline; turn off for clean terrain screenshots: 0=off, 1=on (default)  
+  viewport.surface_navigation        = 1       Surface-aware navigation (orbit around and track to clicked surface point): 0=off, 1=on  
+  viewport.trackpad_zoom             = 1       Two-finger trackpad scroll: 0=pan/track, 1=zoom (default)  
+  workview.anchor_toolbar_resize     = 1       Keep workview graph content visually anchored when the device toolbar's row count changes (e.g. switching category tabs): 0=off, 1=on (default)  
+  workview.animation.deviceDespawn   = 1       Fade devices out when they are deleted: 1=on (default), 0=instant  
+  workview.animation.deviceSpawn     = 1       Pop devices in when they are created: 1=on (default), 0=instant  
+  workview.animation.hoverGlow       = 1       Ease the device glow in/out on hover: 1=on (default), 0=instant  
+  workview.animation.selectGlow      = 1       Ease the device glow in/out on selection: 1=on (default), 0=instant  
+  workview.animation.selectionFocusDim = 1       Ease unselected devices/wires into the dimmed state: 1=on (default), 0=instant  
+  workview.animation.wireConnect     = 1       Pulse wires when they are connected: 1=on (default), 0=instant  
+  workview.animation.wireDisconnect  = 1       Fade wires out when they are cut/deleted: 1=on (default), 0=instant  
+  workview.device_corner_radius      = 3       Device rectangle corner radius in pixels  
+  workview.dim_unselected_wires      = 0       Dim wires and devices not attached to the selection when a wire or device is selected: 0=off (default), 1=on  
+  workview.group_corner_radius       = 7       Group rectangle corner radius in pixels  
+  workview.text_bg_corner_radius     = 3       Text background corner radius in pixels  
+  workview.velocity_snap             = 1       Velocity-sensitive grid snap during drag: 0=off (classic snap), 1=on  
+
+<<<
+>>> (plain: files in work)
+dir with space
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<

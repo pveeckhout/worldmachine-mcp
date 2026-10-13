@@ -1,0 +1,201 @@
+>>> project new blank force
+Created new blank project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 513
+Set scene resolution to 513
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> device add River
+Added 'River'
+<<<
+>>> device list
+Devices (2 total):
+  #1     Gradient                
+  #2     River                   
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (3 total):
+  #1     Gradient                
+  #2     River                   
+  #3     Height Output           
+
+<<<
+>>> wire connect #1 #2.1
+Connected '#1' [1] -> '#2' [1]
+<<<
+>>> wire connect #2.1 #3
+Connected '#2' [1] -> '#3' [1]
+<<<
+>>> param set #3.filename <WORK>/river-height.png
+Set #3.filename = <WORK>/river-height.png
+<<<
+>>> build status
+No build running.
+<<<
+>>> export list
+Configured exports:
+  'Height Output       ' -> <WORK>/river-height.png
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> debug devicetiming
+Build timing, best result per device (1 device, sorted by total):
+Device                           Prepare  Activate   Distrib     Total
+Gradient                             0ms       1ms       0ms       1ms
+(sum)                                0ms       1ms       0ms       1ms
+Activate is 100% of the summed device time. 'debug devicetiming <device>' lists every result level.
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #3
+Build timing for 'Height Output' (#3), per result level:
+Device                           Prepare  Activate   Distrib     Total
+  (no finished results)
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #2
+Build timing for 'River' (#2), per result level:
+Device                           Prepare  Activate   Distrib     Total
+  (no finished results)
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #1
+Build timing for 'Gradient' (#1), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                                0ms       1ms       0ms       1ms
+257px                                0ms       1ms       0ms       1ms
+513px                                0ms       1ms       0ms       1ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug viewtargets
+View target model:
+  raw state:      selected=none locked=none entity=none refs={} targets=[]
+  build targets:  (none)
+Previewer:
+  last request:   new preview source (broad)
+  last targets:   (none)
+  worker:         idle, no preview source, idle
+  preview source: none (a retarget would be dropped; needs a fresh preview)
+Build targets differing from the previewer's last targets means a change never reached it.
+'debug set debug.viewtargets 1' traces every change as it happens; 0 or 'debug unset' turns it off.
+<<<
+>>> (river: files in work)
+dir with space
+<<<
+>>> project new blank force
+Created new blank project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 513
+Set scene resolution to 513
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (2 total):
+  #1     Gradient                
+  #2     Height Output           
+
+<<<
+>>> wire connect #1 #2
+Connected '#1' [1] -> '#2' [1]
+<<<
+>>> param set #2.filename <WORK>/plain-height.png
+Set #2.filename = <WORK>/plain-height.png
+<<<
+>>> build status
+No build running.
+<<<
+>>> export list
+Configured exports:
+  'Height Output       ' -> <WORK>/plain-height.png
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> debug devicetiming
+Build timing, best result per device (2 devices, sorted by total):
+Device                           Prepare  Activate   Distrib     Total
+Gradient                             0ms       1ms       0ms       1ms
+Height Output                        0ms       1ms       0ms       1ms
+(sum)                                0ms       2ms       0ms       2ms
+Activate is 100% of the summed device time. 'debug devicetiming <device>' lists every result level.
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #2
+Build timing for 'Height Output' (#2), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                                0ms       1ms       0ms       1ms
+257px                                0ms       1ms       0ms       1ms
+513px                                0ms       1ms       0ms       1ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #1
+Build timing for 'Gradient' (#1), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                                0ms       1ms       0ms       1ms
+257px                                0ms       1ms       0ms       1ms
+513px                                0ms       1ms       0ms       1ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug viewtargets
+View target model:
+  raw state:      selected=none locked=none entity=none refs={} targets=[]
+  build targets:  (none)
+Previewer:
+  last request:   new preview source (broad)
+  last targets:   (none)
+  worker:         idle, no preview source, idle
+  preview source: none (a retarget would be dropped; needs a fresh preview)
+Build targets differing from the previewer's last targets means a change never reached it.
+'debug set debug.viewtargets 1' traces every change as it happens; 0 or 'debug unset' turns it off.
+<<<
+>>> (plain: files in work)
+dir with space
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<
