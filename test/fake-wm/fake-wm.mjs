@@ -373,8 +373,9 @@ const DEFAULT_NAMES = {
 // Gradient has no inputs, one output, and Direction, Width, and Tiling. raw/p2b-graph-edits.txt l.25-31: a Combiner
 // has two inputs named 'Primary Input' and one output. raw/enum-options.txt l.1556-1559, raw/v6b-param-set.txt
 // l.48-51, and raw/water-sea-erosion.txt l.285-288: a new Combiner lists exactly Method and Strength. Assumed: for
-// every other type one input named 'Primary Input' and no parameters. Every device has one output. Enum options follow raw/enum-options.txt
-// (fact 85), the capture the shipped catalog is generated from.
+// every other type one input named 'Primary Input' and no parameters. A device has one output, 'Primary Output',
+// unless its shape lists `outputs` (port-types design section 8). Enum options follow raw/enum-options.txt (fact 85),
+// the capture the shipped catalog is generated from.
 const SHAPES = {
   Gradient: {
     inputs: [],
@@ -452,6 +453,13 @@ const SHAPES = {
   Constant: {
     inputs: ['Primary Input'],
     parameters: [['Height', 'float', '0 m']],
+  },
+  // raw/create-water.txt l.122-133: a Create Water's three inputs and four outputs (port-types design section 8).
+  // Assumed: no parameters, as for the other types this fake does not model.
+  'Create Water': {
+    inputs: ['Terrain', 'Existing Water', 'Precipitation Map'],
+    outputs: ['Terrain', 'Water System', 'Tributary Mask', 'Lake Mask'],
+    parameters: [],
   },
   // raw/v6b-param-set.txt l.39-45 and raw/enum-options.txt l.3571-3576: a new File Output's parameters, its format
   // options in index order at l.3579-3673. raw/river-build-diag.txt l.38-41: its inputs. Assumed: like every fake
@@ -597,12 +605,25 @@ const wireList = (ref, device) => {
     const source = wire === undefined ? '(none)' : `'${nameOfId(wire.from)}' [${wire.fromPort}]`;
     return `    [${index + 1}] ${name.padEnd(12)} <- ${source}\n`;
   });
-  const targets = wires.filter((wire) => wire.from === device.id);
-  const [first, ...more] = targets.map((wire) => `'${nameOfId(wire.to)}' [${wire.toPort}]`);
-  // raw/v3-assumptions.txt l.82-86: further targets of 'Primary Output' continue 26 spaces in.
-  const continued = more.map((target) => `${' '.repeat(26)}-> ${target}\n`).join('');
-  return `Connections for '${ref}':\n  Inputs:\n${inputs.join('')}  Outputs:\n    [1] ${'Primary Output'.padEnd(12)} -> ${first ?? '(none)'}\n${continued}\n`;
+  const outputs = device.outputs.map((name, index) => {
+    const targets = wires.filter((wire) => wire.from === device.id && wire.fromPort === index + 1);
+    const [first, ...more] = targets.map((wire) => `'${nameOfId(wire.to)}' [${wire.toPort}]`);
+    // raw/v3-assumptions.txt l.82-86: further targets of an output continue 26 spaces in.
+    const continued = more.map((target) => `${' '.repeat(26)}-> ${target}\n`).join('');
+    return `    [${index + 1}] ${name.padEnd(12)} -> ${first ?? '(none)'}\n${continued}`;
+  });
+  return `Connections for '${ref}':\n  Inputs:\n${inputs.join('')}  Outputs:\n${outputs.join('')}\n`;
 };
+// Port-types design section 8, plan decision D17. raw/create-water-sea.txt l.194-195 and l.243-244: Create Water's
+// input 2, Existing Water, refuses a Gradient's and a Select Height's output; l.276-277: it takes another Create
+// Water's output 2, Water System. Assumed: it refuses every output other than a Water System, a Water System feeds no
+// other input of a fake device (no fake device has Erosion's Water input, which takes one, l.440-441), the type check
+// comes after the port checks. A refusal changes nothing (port-types design section 2, raw/reach-scaling-inputs.txt
+// l.604-638).
+const INCOMPATIBLE = 'Error: Error: Failed to create connection (incompatible types?)';
+const waterSystemPort = (device, port) => device.type === 'Create Water' && port === 2;
+const typesFit = (source, fromPort, destination, toPort) =>
+  waterSystemPort(source, fromPort) === waterSystemPort(destination, toPort);
 // raw/device-list-sample.txt: two spaces, "#<id>" padded to 7, the name padded to 24. A device whose name differs
 // from its type adds " (<type>)" (raw/v4-quoting.txt l.16-18), a disabled one " [disabled]" after that
 // (raw/p2b-graph-edits.txt l.48-51, raw/p2b-kind-markers.txt l.97). Spec fact 32: the kind appears when the name
@@ -934,6 +955,7 @@ async function handle(line) {
       enabled: true,
       bypassed: false,
       inputs: shape.inputs,
+      outputs: shape.outputs ?? ['Primary Output'],
       parameters: shape.parameters.map(([parameter, kind, value, options]) => {
         const scale = LENGTH_SCALES.get(`${name}.${parameter}`);
         return {
@@ -1038,9 +1060,13 @@ async function handle(line) {
     if (to.port < 1 || to.port > destination.inputs.length) {
       return void process.stderr.write(`Error: Error: Input port not found on '${to.ref}'\n`);
     }
-    // Assumed text, modelled on the input's: every fake device has one output.
-    if (from.port !== 1)
+    // raw/p2c-edits.txt l.123-124 (fact 34).
+    if (from.port < 1 || from.port > source.outputs.length) {
       return void process.stderr.write(`Error: Error: Output port not found on '${from.ref}'\n`);
+    }
+    if (verb === 'connect' && !typesFit(source, from.port, destination, to.port)) {
+      return void process.stderr.write(`${INCOMPATIBLE}\n`);
+    }
     // raw/p2b-graph-edits.txt l.22-23 and l.117-118, raw/p2c-edits.txt l.108-109: references without their port.
     const ends = `'${from.ref}' [${from.port}] -> '${to.ref}' [${to.port}]`;
     const index = wires.findIndex(

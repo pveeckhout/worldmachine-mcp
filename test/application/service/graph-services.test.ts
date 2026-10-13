@@ -26,6 +26,7 @@ import { PlanGraphService } from '../../../src/application/service/plan-graph-se
 import { WorldMachineError } from '../../../src/domain/errors.js';
 import type { RawGraphSpec } from '../../../src/domain/graph-spec.js';
 import { captureLogger, FAKE_WM, fakeEnv, recorder } from '../../support/fake-wm.js';
+import { SYNTHETIC_CATALOG } from '../../support/port-types.js';
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'graph-services-')));
 const sessions: WorldMachineSession[] = [];
@@ -562,5 +563,60 @@ describe('apply_graph with device ids (spec v3 revision 6)', () => {
     ).toEqual([`wire disconnect #${second}.1 #541.1`, `wire connect #${first}.1 #541.1`]);
     const again = await w.plan.planGraph({ spec: moved });
     expect(again.steps.map((step) => step.op)).toEqual(['set-parameter']);
+  });
+});
+
+describe('port types over the fake World Machine (port-types design section 8)', () => {
+  const WATER_CONFLICT = {
+    entry: 'Combiner',
+    reason:
+      "'Create Water' output 2 (water system) cannot feed 'Combiner' input 1, which accepts heightfield",
+  };
+  const SPEC_WATER: RawGraphSpec = {
+    version: 1,
+    devices: [
+      { name: 'Create Water', type: 'Create Water' },
+      { name: 'Combiner', type: 'Combiner', inputs: { '1': 'Create Water.2' } },
+    ],
+  };
+
+  it('plans a Water System into a Combiner the project holds as a conflict, and apply_graph changes nothing', async () => {
+    const w = wired({}, SYNTHETIC_CATALOG);
+    // Codex round 3 nit: both exist, so the plan types the Create Water by its ports (the fingerprint), which needs
+    // the fake to list Create Water's captured ports.
+    await w.devices.addDevice('Create Water');
+    await w.devices.addDevice('Combiner');
+    const plan = await w.plan.planGraph({ spec: SPEC_WATER });
+    expect(plan.conflicts).toEqual([WATER_CONFLICT]);
+    expect(plan.uncheckedWires).toEqual([]);
+    const before = w.record.lines().length;
+    await expect(
+      w.apply.applyGraph({ spec: SPEC_WATER, planId: plan.planId, keepSnapshot: false }),
+    ).rejects.toMatchObject({
+      code: 'REFUSED',
+      message: `The plan has conflicts; resolve them and plan again: Combiner: ${WATER_CONFLICT.reason}`,
+    });
+    expect(
+      w.record
+        .lines()
+        .slice(before)
+        .filter((line) => CHANGES.test(line)),
+    ).toEqual([]);
+  });
+
+  it('connects a Water System to Existing Water and names the types when World Machine refuses one', async () => {
+    const w = wired({}, SYNTHETIC_CATALOG);
+    const lake = await w.devices.addDevice('Create Water');
+    const sea = await w.devices.addDevice('Create Water');
+    const mix = await w.devices.addDevice('Combiner');
+    expect(
+      (await w.wires.connect({ device: `#${lake.id}`, port: 2 }, { device: `#${sea.id}`, port: 2 })).created,
+    ).toBe(true);
+    await expect(
+      w.wires.connect({ device: `#${lake.id}`, port: 2 }, { device: `#${mix.id}` }),
+    ).rejects.toMatchObject({
+      code: 'WM_COMMAND_FAILED',
+      message: `World Machine rejected "wire connect #${lake.id}.2 #${mix.id}": output 2 is water system; input 1 accepts heightfield`,
+    });
   });
 });

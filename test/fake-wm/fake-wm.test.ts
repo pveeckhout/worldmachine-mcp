@@ -1788,3 +1788,96 @@ describe('fake World Machine: build results (build-not-built design, facts 93 an
     ]);
   });
 });
+
+describe('fake World Machine: port types (port-types design section 8)', () => {
+  // raw/create-water-sea.txt l.194-195.
+  const INCOMPATIBLE = 'Error: Error: Failed to create connection (incompatible types?)';
+  // raw/create-water.txt l.122-133 with id #1, nothing connected.
+  const CREATE_WATER_FREE = [
+    "Connections for '#1':",
+    '  Inputs:',
+    '    [1] Terrain      <- (none)',
+    '    [2] Existing Water <- (none)',
+    '    [3] Precipitation Map <- (none)',
+    '  Outputs:',
+    '    [1] Terrain      -> (none)',
+    '    [2] Water System -> (none)',
+    '    [3] Tributary Mask -> (none)',
+    '    [4] Lake Mask    -> (none)',
+  ];
+
+  it("lists a Create Water's ports as raw/create-water.txt l.122-133 does", async () => {
+    const s = session();
+    await s.execute(['project new blank force', 'device add Create Water']);
+    expect(await outputs(s, ['wire list #1'])).toEqual([CREATE_WATER_FREE]);
+  });
+
+  it('refuses on Existing Water what raw/create-water-sea.txt refuses, and takes a Water System there', async () => {
+    const s = session();
+    await s.execute([
+      'project new blank force',
+      'device add Create Water',
+      'device add Gradient',
+      'device add Select Height',
+      'device add Create Water',
+    ]);
+    const [, , terrain, existing, ...rest] = CREATE_WATER_FREE;
+    expect(
+      await outputs(s, [
+        'wire connect #2 #1.2',
+        'wire connect #3 #1.2',
+        'wire connect #4.2 #1.2',
+        'wire list #1',
+      ]),
+    ).toEqual([
+      [INCOMPATIBLE],
+      [INCOMPATIBLE],
+      ["Connected '#4' [2] -> '#1' [2]"],
+      [
+        "Connections for '#1':",
+        '  Inputs:',
+        terrain,
+        existing?.replace('(none)', "'Create Water' [2]"),
+        ...rest,
+      ],
+    ]);
+  });
+
+  it('refuses a Water System on another input and changes nothing (Assumed, plan decision D17)', async () => {
+    const s = session();
+    await s.execute(['project new blank force', 'device add Create Water', 'device add Combiner']);
+    expect(await outputs(s, ['wire connect #1.2 #2', 'wire list #2'])).toEqual([
+      [INCOMPATIBLE],
+      [
+        "Connections for '#2':",
+        '  Inputs:',
+        '    [1] Primary Input <- (none)',
+        '    [2] Primary Input <- (none)',
+        '  Outputs:',
+        '    [1] Primary Output -> (none)',
+      ],
+    ]);
+  });
+
+  it('lists the targets of each output of a device with several', async () => {
+    const s = session();
+    await s.execute(['project new blank force', 'device add Create Water', 'device add Combiner']);
+    expect(
+      await outputs(s, [
+        'wire connect #1.3 #2',
+        'wire connect #1.4 #2.2',
+        'wire connect #1.5 #2',
+        'wire list #1',
+      ]),
+    ).toEqual([
+      ["Connected '#1' [3] -> '#2' [1]"],
+      ["Connected '#1' [4] -> '#2' [2]"],
+      ["Error: Error: Output port not found on '#1'"],
+      [
+        ...CREATE_WATER_FREE.slice(0, 8),
+        "    [3] Tributary Mask -> 'Combiner' [1]",
+        "    [4] Lake Mask    -> 'Combiner' [2]",
+      ],
+    ]);
+  });
+});
