@@ -3262,7 +3262,9 @@ async function enumOptions(sections) {
 /**
  * Plan decisions D10, D11, and D20: one batch per source output against every input of every other device, each pair
  * sent as probeCommands and read by probeVerdict (scripts/port-type-probe.mjs, Codex round 1 ruling S2), recorded as
- * one `(probe ...)` section per output. Returns the pairs probed and the milliseconds taken.
+ * one `(probe ...)` section per output. Returns the pairs probed, the milliseconds taken, and whether a batch stopped.
+ * The first `(probe ... stopped)` section ends the loop: the catalog parser cannot produce a catalog after a stopped
+ * section, and a full run takes hours, so the rest would be wasted.
  */
 async function probeOutputs(sections, sources, targetsOf, lean) {
   const started = Date.now();
@@ -3284,9 +3286,10 @@ async function probeOutputs(sections, sources, targetsOf, lean) {
       sections.push({ command: `(probe ${from})`, lines, unsolicited: answers[0]?.unsolicited });
     } catch (error) {
       sections.push({ command: `(probe ${from} stopped)`, lines: [scrub(error.message)] });
+      return { pairs, ms: Date.now() - started, stopped: true };
     }
   }
-  return { pairs, ms: Date.now() - started };
+  return { pairs, ms: Date.now() - started, stopped: false };
 }
 
 // Port-types plan decision D22: the words `device add` accepted in build 4067, read from their capture.
@@ -3312,6 +3315,19 @@ const listedDevices = (lines) =>
  * D12), so the controller can choose the mode with the user.
  */
 async function portTypes(sections, { sample = false, lean = false } = {}) {
+  try {
+    await portTypesBody(sections, { sample, lean });
+  } finally {
+    // Every path ends closed, including a throw from the opening run, the wire-list batch, or a probe.
+    try {
+      sections.push(...(await run(['project close force'])));
+    } catch (error) {
+      sections.push({ command: '(close stopped)', lines: [scrub(error.message)] });
+    }
+  }
+}
+
+async function portTypesBody(sections, { sample, lean }) {
   const started = Date.now();
   const words = acceptedAddWords(readFileSync(ADD_WORDS_CAPTURE, 'utf8'));
   const listed = await run(['project new blank force', 'device list']);
@@ -3332,10 +3348,14 @@ async function portTypes(sections, { sample = false, lean = false } = {}) {
   }
   // Plan decision D11: the ports after every add, so the parser sees every input still free before probing. A list
   // that does not read completely leaves the device without ports here; the parser fails on it.
-  const lists = await run(
-    added.map((device) => `wire list #${device.id}`),
-    Math.max(60_000, added.length * 2_000),
-  );
+  // Nothing added: no wire-list batch, an empty one would time out.
+  const lists =
+    added.length === 0
+      ? []
+      : await run(
+          added.map((device) => `wire list #${device.id}`),
+          Math.max(60_000, added.length * 2_000),
+        );
   sections.push(...lists);
   for (const [index, device] of added.entries()) {
     const ports = readProbeWireList(lists[index]);
@@ -3367,13 +3387,13 @@ async function portTypes(sections, { sample = false, lean = false } = {}) {
     }
   };
   if (sample) {
-    report('checked', await probeOutputs(sections, sources.slice(0, 3), targetsOf, false));
-    report('lean', await probeOutputs(sections, sources.slice(3, 6), targetsOf, true));
+    const checked = await probeOutputs(sections, sources.slice(0, 3), targetsOf, false);
+    report('checked', checked);
+    if (!checked.stopped) report('lean', await probeOutputs(sections, sources.slice(3, 6), targetsOf, true));
   } else {
     report(lean ? 'lean' : 'checked', await probeOutputs(sections, sources, targetsOf, lean));
   }
   sections.push({ command: '(timing)', lines: timing });
-  sections.push(...(await run(['project close force'])));
 }
 
 async function v3Assumptions(sections) {
