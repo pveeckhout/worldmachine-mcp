@@ -1,0 +1,278 @@
+>>> project new blank force
+Created new blank project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 513
+Set scene resolution to 513
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> device add File Output
+Added 'Height Output'
+<<<
+>>> device list
+Devices (2 total):
+  #1     Gradient                
+  #2     Height Output           
+
+<<<
+>>> wire connect #1 #2
+Connected '#1' [1] -> '#2' [1]
+<<<
+>>> param set #2.filename <WORK>/select-height.png
+Set #2.filename = <WORK>/select-height.png
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> debug devicetiming #2
+Build timing for 'Height Output' (#2), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                                0ms       1ms       0ms       1ms
+257px                                0ms       1ms       0ms       1ms
+513px                                0ms       1ms       0ms       1ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> device select #2
+Selected: Height Output
+<<<
+>>> debug devicetiming #2
+Build timing for 'Height Output' (#2), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                                0ms       1ms       0ms       1ms
+257px                                0ms       1ms       0ms       1ms
+513px                                0ms       1ms       0ms       1ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> (waited 2000 ms)
+[Info       ] QIODevice::read (QSslSocket): device not open
+<<<
+>>> debug devicetiming #2
+Build timing for 'Height Output' (#2), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                                0ms       1ms       0ms       1ms
+257px                                0ms       1ms       0ms       1ms
+513px                                0ms       1ms       0ms       1ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug viewtargets
+View target model:
+  raw state:      selected=2 locked=none entity=none refs={2 x12} targets=[2]
+  build targets:  'Height Output' (#2)
+Previewer:
+  last request:   new preview source (focused)
+  last targets:   'Height Output' (#2)
+  worker:         holding source, idle, idle
+  preview source: held (retargets apply)
+Build targets differing from the previewer's last targets means a change never reached it.
+'debug set debug.viewtargets 1' traces every change as it happens; 0 or 'debug unset' turns it off.
+<<<
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 2049
+Set scene resolution to 2049
+<<<
+>>> scene show
+Scene 'Main Extents' (index 0 of 1):
+  Origin (center): 4.00, 4.00 km
+  Size:            12.00 x 12.00 km
+  Lower-left:      -2.00, -2.00 km
+  Upper-right:     10.00, 10.00 km
+  Resolution:      2049
+  Locked:          no
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+<<<
+>>> (waited 1500 ms)
+<<<
+>>> build stop
+Stop requested.
+[Build Event] *** Build Ended ***
+<<<
+>>> build status
+[Build Event] System allowed to sleep again
+No build running.
+<<<
+>>> (waited 1000 ms)
+<<<
+>>> build status
+No build running.
+<<<
+>>> debug devicetiming
+Build timing, best result per device (39 devices, sorted by total):
+Device                           Prepare  Activate   Distrib     Total
+Thermal Weathering                   0ms      40ms       0ms      40ms
+Erosion                              0ms      33ms       0ms      33ms
+Rock and Soil                        0ms      22ms       0ms      22ms
+Flow Restructure                     0ms      21ms       0ms      21ms
+Vegetation Layer                     0ms       9ms       0ms       9ms
+Curves                               1ms       1ms       0ms       2ms
+Advanced Perlin                      0ms       1ms       0ms       1ms
+Scene View                           0ms       1ms       0ms       1ms
+Output                               0ms       1ms       0ms       1ms
+Configuration                        0ms       1ms       0ms       1ms
+Glow Mask Out                        0ms       1ms       0ms       1ms
+Glow Mask Help                       0ms       1ms       0ms       1ms
+Easy Distortion In                   0ms       1ms       0ms       1ms
+Easy Distortion Out                  0ms       1ms       0ms       1ms
+Easy Distortion Help                 0ms       1ms       0ms       1ms
+Output                               0ms       1ms       0ms       1ms
+Configuration                        0ms       1ms       0ms       1ms
+Masked View                          0ms       1ms       0ms       1ms
+Layers                               0ms       1ms       0ms       1ms
+Ambient Occlusion                    0ms       1ms       0ms       1ms
+Easy Distortion                      0ms       1ms       0ms       1ms
+Easy Distortion In                   0ms       1ms       0ms       1ms
+Easy Distortion Out                  0ms       1ms       0ms       1ms
+Easy Distortion Help                 0ms       1ms       0ms       1ms
+Output                               0ms       1ms       0ms       1ms
+Configuration                        0ms       1ms       0ms       1ms
+Easy Distortion In                   0ms       1ms       0ms       1ms
+Easy Distortion Out                  0ms       1ms       0ms       1ms
+Easy Distortion Help                 0ms       1ms       0ms       1ms
+Manipulate Spatial                   0ms       1ms       0ms       1ms
+Output                               0ms       1ms       0ms       1ms
+Configuration                        0ms       1ms       0ms       1ms
+Route Chooser                        0ms       1ms       0ms       1ms
+Output                               0ms       1ms       0ms       1ms
+Configuration                        0ms       1ms       0ms       1ms
+Scalar Combiner                      0ms       1ms       0ms       1ms
+Output                               0ms       1ms       0ms       1ms
+Configuration                        0ms       1ms       0ms       1ms
+Scalar Combiner                      0ms       1ms       0ms       1ms
+(sum)                                1ms     159ms       0ms     160ms
+Activate is 99% of the summed device time. 'debug devicetiming <device>' lists every result level.
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #1
+'Height Output' has no build results yet.
+<<<
+>>> debug devicetiming #2
+Build timing for 'Advanced Perlin' (#2), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                                0ms       1ms       0ms       1ms
+257px                                0ms       1ms       0ms       1ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #3
+Build timing for 'Curves' (#3), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                                0ms       1ms       0ms       1ms
+257px                                1ms       1ms       0ms       2ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #35
+Build timing for 'Erosion' (#35), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                                0ms      33ms       0ms      33ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #36
+Build timing for 'Scene View' (#36), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                                0ms       1ms       0ms       1ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #222
+Build timing for 'Vegetation Layer' (#222), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                                0ms       9ms       0ms       9ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #304
+Build timing for 'Layers' (#304), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                                0ms       1ms       0ms       1ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #305
+Build timing for 'Thermal Weathering' (#305), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                                0ms      40ms       0ms      40ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #307
+Build timing for 'Ambient Occlusion' (#307), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                                0ms       1ms       0ms       1ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #308
+'Material Output' has no build results yet.
+<<<
+>>> debug devicetiming #309
+'Colormap only' has no build results yet.
+<<<
+>>> debug devicetiming #310
+'Tap' has no build results yet.
+<<<
+>>> debug devicetiming #314
+Build timing for 'Flow Restructure' (#314), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                                0ms       5ms       0ms       5ms
+257px                                0ms      21ms       0ms      21ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #317
+'Texture Weightmap' has no build results yet.
+<<<
+>>> debug devicetiming #318
+'Splatmap' has no build results yet.
+<<<
+>>> debug devicetiming #319
+Build timing for 'Easy Distortion' (#319), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                                0ms       1ms       0ms       1ms
+257px                                0ms       1ms       0ms       1ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #373
+Build timing for 'Rock and Soil' (#373), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                                0ms      22ms       0ms      22ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<

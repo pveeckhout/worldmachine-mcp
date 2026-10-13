@@ -511,6 +511,50 @@ const scenarios = [
       return sections;
     },
   ],
+  // Final review of the build check: (a) whether `device select` after a full build starts a preview that changes
+  // `debug devicetiming`, read at once and two seconds later; (b) which result rows a full build ended by `build stop`
+  // leaves, in the default project at 2049 (raw/v2-build-long.txt shows its builds take seconds). Never exports,
+  // never saves. Ends closed.
+  [
+    'build-stop-timing',
+    async () => {
+      const sections = await run(['project new blank force', 'scene resolution 513']);
+      const terrain = await freshDevice(sections, 'Gradient');
+      const output = await freshDevice(sections, 'File Output');
+      sections.push(
+        ...(await run([
+          `wire connect #${terrain.id} #${output.id}`,
+          `param set #${output.id}.filename ${join(work, 'select-height.png')}`,
+          'build start',
+        ])),
+      );
+      await pollBuild(sections);
+      sections.push(
+        ...(await run([
+          `debug devicetiming #${output.id}`,
+          `device select #${output.id}`,
+          `debug devicetiming #${output.id}`,
+        ])),
+      );
+      sections.push(await wait(2000));
+      sections.push(...(await run([`debug devicetiming #${output.id}`, 'debug viewtargets'])));
+      const listed = await run([
+        'project new default force',
+        'scene resolution 2049',
+        'scene show',
+        'device list',
+      ]);
+      sections.push(...listed);
+      const ids = devices(listed[3].lines).map((device) => device.id);
+      sections.push(...(await run(['build start'])));
+      sections.push(await wait(1500));
+      sections.push(...(await run(['build stop', 'build status'])));
+      await pollBuild(sections);
+      sections.push(...(await run(['debug devicetiming', ...ids.map((id) => `debug devicetiming #${id}`)])));
+      sections.push(...(await run(['project close force'])));
+      return sections;
+    },
+  ],
   // build-not-built found no passive read that tells the two graphs apart; this reads the per-device build timing
   // and the previewer's view targets after the same two builds (raw/build-not-built.txt l.1-25: `help debug`).
   // Never exports, never saves. Ends closed.
