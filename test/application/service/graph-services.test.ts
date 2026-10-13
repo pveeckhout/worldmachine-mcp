@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { FsPathPolicy } from '../../../src/adapter/out/fs/path-policy.js';
+import { WorldMachineBuildResultReader } from '../../../src/adapter/out/worldmachine/world-machine-build-result-reader.js';
 import { WorldMachineBuilder } from '../../../src/adapter/out/worldmachine/world-machine-builder.js';
 import { WorldMachineDeviceEditor } from '../../../src/adapter/out/worldmachine/world-machine-device-editor.js';
 import { WorldMachineExporter } from '../../../src/adapter/out/worldmachine/world-machine-exporter.js';
@@ -375,6 +376,7 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
       w.reader,
       w.policy,
       groups,
+      new WorldMachineBuildResultReader(w.session),
     );
     await build.buildProject({ mode: 'full', waitSeconds: 0 });
     const plan = await w.plan.planGraph({ spec: SPEC });

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { FsPathPolicy } from '../../src/adapter/out/fs/path-policy.js';
 import { resolveExecutable } from '../../src/adapter/out/worldmachine/locator.js';
+import { WorldMachineBuildResultReader } from '../../src/adapter/out/worldmachine/world-machine-build-result-reader.js';
 import { WorldMachineBuilder } from '../../src/adapter/out/worldmachine/world-machine-builder.js';
 import { WorldMachineExporter } from '../../src/adapter/out/worldmachine/world-machine-exporter.js';
 import { WorldMachineGraphReader } from '../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
@@ -50,6 +51,7 @@ describe.skipIf(!LIVE)('live World Machine builds and exports (spec v2a section 
     reader,
     policy,
     new WorldMachineGroupEditor(session),
+    new WorldMachineBuildResultReader(session),
   );
   const stopBuild = new StopBuildService(session, builder);
   const buildStatus = new GetBuildStatusService(session, builder);

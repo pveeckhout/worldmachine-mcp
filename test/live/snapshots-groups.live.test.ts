@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { FsPathPolicy } from '../../src/adapter/out/fs/path-policy.js';
 import { resolveExecutable } from '../../src/adapter/out/worldmachine/locator.js';
+import { WorldMachineBuildResultReader } from '../../src/adapter/out/worldmachine/world-machine-build-result-reader.js';
 import { WorldMachineBuilder } from '../../src/adapter/out/worldmachine/world-machine-builder.js';
 import { WorldMachineDeviceEditor } from '../../src/adapter/out/worldmachine/world-machine-device-editor.js';
 import { WorldMachineExporter } from '../../src/adapter/out/worldmachine/world-machine-exporter.js';
@@ -67,7 +68,15 @@ describe.skipIf(!LIVE)('live World Machine snapshots, organize, and groups (spec
   const organizeDevices = new OrganizeDevicesService(session, devices);
   const listGroups = new ListGroupsService(session, groups);
   const setGroupEnabled = new SetGroupEnabledService(session, groups);
-  const buildProject = new BuildProjectService(session, builder, exporter, reader, policy, groups);
+  const buildProject = new BuildProjectService(
+    session,
+    builder,
+    exporter,
+    reader,
+    policy,
+    groups,
+    new WorldMachineBuildResultReader(session),
+  );
   const listDevices = new ListDevicesService(session, reader);
   const addDevice = new AddDeviceService(session, devices);
   const undo = new UndoService(session, writer);

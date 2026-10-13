@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BuildPort } from '../../../src/application/port/out/build-port.js';
+import type { BuildResultPort } from '../../../src/application/port/out/build-result-port.js';
 import type { GroupPort } from '../../../src/application/port/out/group-port.js';
 import { BuildProjectService } from '../../../src/application/service/build-project-service.js';
 import { NEVER_SAVED } from '../../../src/application/service/export-rules.js';
 import { GetBuildStatusService } from '../../../src/application/service/get-build-status-service.js';
 import { StopBuildService } from '../../../src/application/service/stop-build-service.js';
 import type { BuildMode, BuildRun, RunMode } from '../../../src/domain/build.js';
+import { NOT_BUILT_HINT } from '../../../src/domain/build-result.js';
+import type { DeviceDetail, DeviceSummary, InputPort } from '../../../src/domain/device.js';
 import { WorldMachineError } from '../../../src/domain/errors.js';
 import type { Group } from '../../../src/domain/group.js';
 import {
@@ -85,12 +88,85 @@ function groupsFake(calls: string[]): GroupPort {
   };
 }
 
-function building(build: BuildFakeOptions = {}, ports: ExportFakeOptions = {}) {
-  const f = exportFakes(ports);
+type ResultsFakeOptions = {
+  /** Ids without a result after the build (fact 93). */
+  readonly unbuilt?: readonly number[];
+  /** Thrown by builtDevices instead of answering. */
+  readonly failure?: Error;
+};
+
+/** A BuildResultPort that records each batch into `calls` as one `devicetiming` line. */
+function resultsFake(calls: string[], options: ResultsFakeOptions = {}): BuildResultPort {
+  return {
+    builtDevices: async (ids) => {
+      calls.push(`devicetiming ${ids.map((id) => `#${id}`).join(', ')}`);
+      if (options.failure !== undefined) throw options.failure;
+      return ids.filter((id) => !options.unbuilt?.includes(id));
+    },
+  };
+}
+
+const detailOf = (
+  id: number,
+  name: string,
+  type: string,
+  inputs: readonly InputPort[] = [],
+): DeviceDetail => ({
+  id,
+  name,
+  type,
+  enabled: true,
+  bypassed: false,
+  parameters: [],
+  inputs,
+  outputs: [],
+});
+
+// raw/v2-build-export.txt l.15-20 and fixtures/wm-4067/device-list.txt l.2, l.11, l.12, and l.16: the default project's
+// four outputs, read here without inputs, so the output check reads only them.
+const OUTPUT_DEVICES: readonly DeviceSummary[] = [
+  { id: 1, name: 'Height Output', enabled: true, bypassed: false },
+  { id: 308, name: 'Material Output', enabled: true, bypassed: false },
+  { id: 309, name: 'Colormap only', kind: 'Bitmap Output', enabled: true, bypassed: false },
+  { id: 318, name: 'Splatmap', kind: 'Bitmap Output', enabled: true, bypassed: false },
+];
+const OUTPUT_DETAILS: readonly DeviceDetail[] = [
+  detailOf(1, 'Height Output', 'Height Output'),
+  detailOf(308, 'Material Output', 'Material Output'),
+  detailOf(309, 'Colormap only', 'Bitmap Output'),
+  detailOf(318, 'Splatmap', 'Bitmap Output'),
+];
+/** The output check after a finished full build of the default outputs (build-not-built design section 4). */
+const OUTPUT_CHECK_CALLS = [
+  'exclusive',
+  'export list',
+  'device list',
+  'device info #1',
+  'device info #308',
+  'device info #309',
+  'device info #318',
+  'devicetiming #1, #308, #309, #318',
+  'exclusive end',
+];
+
+function building(
+  build: BuildFakeOptions = {},
+  ports: ExportFakeOptions = {},
+  results: ResultsFakeOptions = {},
+) {
+  const f = exportFakes({ devices: OUTPUT_DEVICES, details: OUTPUT_DETAILS, ...ports });
   const port = buildFake(f.calls, build);
   return {
     ...f,
-    service: new BuildProjectService(f.session, port, f.exports, f.graph, f.policy, groupsFake(f.calls)),
+    service: new BuildProjectService(
+      f.session,
+      port,
+      f.exports,
+      f.graph,
+      f.policy,
+      groupsFake(f.calls),
+      resultsFake(f.calls, results),
+    ),
   };
 }
 
@@ -132,6 +208,9 @@ describe('BuildProjectService (spec v2a section 4)', () => {
       state: 'finished',
       mode: 'full',
       elapsedSeconds: 12,
+      outputsBuilt: true,
+      notBuilt: [],
+      stoppedAt: [],
       session: SAVED,
     });
     expect(f.calls).toEqual([
@@ -141,6 +220,7 @@ describe('BuildProjectService (spec v2a section 4)', () => {
       'start full',
       'exclusive end',
       'wait full 60000',
+      ...OUTPUT_CHECK_CALLS,
     ]);
   });
 
@@ -150,6 +230,9 @@ describe('BuildProjectService (spec v2a section 4)', () => {
       state: 'finished',
       mode: 'full',
       elapsedSeconds: 0,
+      outputsBuilt: true,
+      notBuilt: [],
+      stoppedAt: [],
       session: SAVED,
     });
     expect(f.calls).toEqual([
@@ -163,6 +246,7 @@ describe('BuildProjectService (spec v2a section 4)', () => {
       'start full',
       'exclusive end',
       'wait full 60000',
+      ...OUTPUT_CHECK_CALLS,
     ]);
   });
 
@@ -237,6 +321,7 @@ describe('BuildProjectService (spec v2a section 4)', () => {
       f.graph,
       f.policy,
       groupsFake(f.calls),
+      resultsFake(f.calls),
     );
     const abort = new AbortController();
     const view = service.buildProject({ mode: 'full', waitSeconds: 60, signal: abort.signal });
@@ -365,10 +450,15 @@ describe('BuildProjectService mode group (spec v2b section 3)', () => {
     const f = building();
     const groups = groupsFake(f.calls);
     const extended = { ...TERRAIN, filter: 'Terrain' };
-    const service = new BuildProjectService(f.session, buildFake(f.calls), f.exports, f.graph, f.policy, {
-      ...groups,
-      resolve: async () => extended,
-    });
+    const service = new BuildProjectService(
+      f.session,
+      buildFake(f.calls),
+      f.exports,
+      f.graph,
+      f.policy,
+      { ...groups, resolve: async () => extended },
+      resultsFake(f.calls),
+    );
     const view = await service.buildProject({ mode: 'group', group: '#0', waitSeconds: 60 });
     expect(view.group).toStrictEqual(TERRAIN);
   });
@@ -406,6 +496,7 @@ describe('BuildProjectService mode group (spec v2b section 3)', () => {
       f.graph,
       f.policy,
       groupsFake(f.calls),
+      resultsFake(f.calls),
     );
     const abort = new AbortController();
     const view = service.buildProject({ mode: 'group', group: '#0', waitSeconds: 60, signal: abort.signal });
@@ -520,5 +611,203 @@ describe('StopBuildService (spec v2a section 4)', () => {
     const f = stopping({});
     expect(await f.service.stopBuild({})).toEqual({ stopped: null, session: SAVED });
     expect(f.calls).toEqual(['build status']);
+  });
+});
+
+// raw/build-not-built-timing.txt l.1-46: Gradient into River into File Output.
+const RIVER_DEVICES: readonly DeviceSummary[] = [
+  { id: 1, name: 'Gradient', enabled: true, bypassed: false },
+  { id: 2, name: 'River', enabled: true, bypassed: false },
+  { id: 3, name: 'Height Output', enabled: true, bypassed: false },
+];
+const RIVER_DETAILS: readonly DeviceDetail[] = [
+  detailOf(3, 'Height Output', 'Height Output', [
+    { port: 1, name: 'Primary Input', source: { device: 'River', port: 1 } },
+  ]),
+  detailOf(2, 'River', 'River', [
+    { port: 1, name: 'Terrain Input', source: { device: 'Gradient', port: 1 } },
+    { port: 2, name: 'River Parameters' },
+  ]),
+  detailOf(1, 'Gradient', 'Gradient'),
+];
+const RIVER_TARGETS = [{ device: 'Height Output', template: '<WORK>/river-height.png' }];
+/** The River graph; by default the River and its output have no result (fact 93). */
+const river = (results: ResultsFakeOptions = { unbuilt: [2, 3] }) =>
+  building({}, { targets: RIVER_TARGETS, devices: RIVER_DEVICES, details: RIVER_DETAILS }, results);
+
+describe('BuildProjectService output check (build-not-built design sections 3-6)', () => {
+  it('reports the output a River did not build and the River where building stopped (fact 93)', async () => {
+    const f = river();
+    expect(await f.service.buildProject({ mode: 'full', waitSeconds: 60 })).toEqual({
+      state: 'finished',
+      mode: 'full',
+      elapsedSeconds: 0,
+      outputsBuilt: false,
+      notBuilt: [{ id: 3, name: 'Height Output' }],
+      stoppedAt: [{ id: 2, name: 'River', type: 'River', enabled: true, bypassed: false }],
+      hint: NOT_BUILT_HINT,
+      session: SAVED,
+    });
+    expect(f.calls.slice(f.calls.indexOf('wait full 60000') + 1)).toEqual([
+      'exclusive',
+      'export list',
+      'device list',
+      'device info #3',
+      'device info #2',
+      'device info #1',
+      'devicetiming #3, #2, #1',
+      'exclusive end',
+    ]);
+  });
+
+  it('reports every output built, without a hint, when every device has a result', async () => {
+    expect(await river({}).service.buildProject({ mode: 'full', waitSeconds: 60 })).toEqual({
+      state: 'finished',
+      mode: 'full',
+      elapsedSeconds: 0,
+      outputsBuilt: true,
+      notBuilt: [],
+      stoppedAt: [],
+      session: SAVED,
+    });
+  });
+
+  it('ends the check after export list when no output is configured (section 4 step 1, plan decision B12)', async () => {
+    const f = building({}, { targets: [] });
+    expect(await f.service.buildProject({ mode: 'full', waitSeconds: 60 })).toMatchObject({
+      state: 'finished',
+      outputsBuilt: true,
+      notBuilt: [],
+      stoppedAt: [],
+    });
+    expect(f.calls).toEqual([
+      'exclusive',
+      'export list',
+      'start full',
+      'exclusive end',
+      'wait full 60000',
+      'exclusive',
+      'export list',
+      'exclusive end',
+    ]);
+  });
+
+  it.each([
+    [{ mode: 'preview' as const }],
+    [{ mode: 'tiled' as const }],
+    [{ mode: 'group' as const, group: '#0' }],
+  ])('checks no outputs after a finished build of %j (section 3)', async (input) => {
+    const f = building();
+    const view = await f.service.buildProject({ ...input, waitSeconds: 60 });
+    expect(view.state).toBe('finished');
+    for (const field of ['outputsBuilt', 'notBuilt', 'stoppedAt', 'hint', 'outputsCheckError']) {
+      expect(view).not.toHaveProperty(field);
+    }
+    expect(f.calls.some((call) => call.startsWith('devicetiming') || call === 'device list')).toBe(false);
+    expect(f.calls.at(-1)).toMatch(/^wait /);
+  });
+
+  it('checks no outputs when the wait ends first (section 3)', async () => {
+    const f = building(
+      { wait: async () => false },
+      { targets: RIVER_TARGETS, devices: RIVER_DEVICES, details: RIVER_DETAILS },
+    );
+    expect(await f.service.buildProject({ mode: 'full', waitSeconds: 0 })).toEqual({
+      state: 'running',
+      mode: 'full',
+      elapsedSeconds: 0,
+      session: SAVED,
+    });
+    expect(f.calls.at(-1)).toBe('wait full 0');
+  });
+
+  it('keeps the build finished and reports why when the results cannot be read (section 6)', async () => {
+    const message =
+      'Could not parse World Machine output for debug devicetiming #3. This World Machine build may format it differently.';
+    const f = river({ failure: new WorldMachineError('UNEXPECTED_OUTPUT', message) });
+    expect(await f.service.buildProject({ mode: 'full', waitSeconds: 60 })).toEqual({
+      state: 'finished',
+      mode: 'full',
+      elapsedSeconds: 0,
+      outputsCheckError: message,
+      session: SAVED,
+    });
+    expect(f.calls.at(-1)).toBe('exclusive end');
+  });
+
+  it('keeps the build finished and reports why when a device cannot be read (section 6)', async () => {
+    const f = building({}, { targets: RIVER_TARGETS, devices: RIVER_DEVICES, details: [] });
+    expect(await f.service.buildProject({ mode: 'full', waitSeconds: 60 })).toEqual({
+      state: 'finished',
+      mode: 'full',
+      elapsedSeconds: 0,
+      outputsCheckError: 'World Machine rejected "device select #3"',
+      session: SAVED,
+    });
+  });
+
+  it('keeps the build finished when the check is refused its exclusive() action (Review Focus 4, plan decision B1)', async () => {
+    const f = river();
+    const exclusive = f.session.exclusive;
+    let entries = 0;
+    const refusing: typeof f.session = {
+      ...f.session,
+      exclusive: async (action) => {
+        entries++;
+        if (entries === 2) {
+          throw new WorldMachineError(
+            'REFUSED',
+            'A build is running; call stop_build or wait for it to finish',
+          );
+        }
+        return exclusive(action);
+      },
+    };
+    const service = new BuildProjectService(
+      refusing,
+      buildFake(f.calls),
+      f.exports,
+      f.graph,
+      f.policy,
+      groupsFake(f.calls),
+      resultsFake(f.calls),
+    );
+    expect(await service.buildProject({ mode: 'full', waitSeconds: 60 })).toEqual({
+      state: 'finished',
+      mode: 'full',
+      elapsedSeconds: 0,
+      outputsCheckError: 'A build is running; call stop_build or wait for it to finish',
+      session: SAVED,
+    });
+  });
+
+  it('lets an error that is no WorldMachineError propagate (plan decision B9)', async () => {
+    await expect(
+      river({ failure: new Error('a bug') }).service.buildProject({ mode: 'full', waitSeconds: 60 }),
+    ).rejects.toThrow('a bug');
+  });
+
+  it('reports the seconds of the build, not of the check (plan decision B8)', async () => {
+    const f = building();
+    const slow: BuildResultPort = {
+      builtDevices: async (ids) => {
+        vi.setSystemTime(40_000);
+        return [...ids];
+      },
+    };
+    const wait = async () => {
+      vi.setSystemTime(12_500);
+      return true;
+    };
+    const service = new BuildProjectService(
+      f.session,
+      buildFake(f.calls, { wait }),
+      f.exports,
+      f.graph,
+      f.policy,
+      groupsFake(f.calls),
+      slow,
+    );
+    expect((await service.buildProject({ mode: 'full', waitSeconds: 60 })).elapsedSeconds).toBe(12);
   });
 });

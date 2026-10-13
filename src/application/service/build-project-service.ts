@@ -1,3 +1,4 @@
+import { checkOutputs, type OutputsCheck } from '../../domain/build-result.js';
 import { WorldMachineError } from '../../domain/errors.js';
 import type { Group } from '../../domain/group.js';
 import type {
@@ -6,6 +7,7 @@ import type {
   BuildProjectView,
 } from '../port/in/command/build-project-command.js';
 import { type BuildPort, GROUP_BUILD_NEEDS_GROUP } from '../port/out/build-port.js';
+import type { BuildResultPort } from '../port/out/build-result-port.js';
 import type { ExportPort } from '../port/out/export-port.js';
 import type { GroupPort } from '../port/out/group-port.js';
 import type { PathPolicyPort } from '../port/out/path-policy-port.js';
@@ -17,6 +19,7 @@ import {
   outputFolders,
   requireAllAllowed,
 } from './export-rules.js';
+import { readOutputChains } from './output-chains.js';
 
 /** Spec v2a section 4: with a progress token, the wait reports elapsed seconds every 5 s. */
 export const PROGRESS_INTERVAL_MS = 5_000;
@@ -35,6 +38,7 @@ export class BuildProjectService implements BuildProjectCommandPort {
   readonly #build: BuildPort;
   readonly #ports: ExportCheckPorts;
   readonly #groups: GroupPort;
+  readonly #results: BuildResultPort;
 
   constructor(
     session: WorldMachineSessionPort,
@@ -43,10 +47,34 @@ export class BuildProjectService implements BuildProjectCommandPort {
     graph: ProjectGraphReadPort,
     policy: PathPolicyPort,
     groups: GroupPort,
+    results: BuildResultPort,
   ) {
     this.#build = build;
     this.#ports = { session, exports, graph, policy };
     this.#groups = groups;
+    this.#results = results;
+  }
+
+  /**
+   * Build-not-built design sections 4-6: whether every configured output has a result and where building stopped. Its
+   * own exclusive() action, since none is held once the wait ends (plan decision B1). A WorldMachineError leaves the
+   * build finished and becomes outputsCheckError (section 6, as apply_graph's diffError; B9); any other error is a bug
+   * and propagates.
+   */
+  async #checkOutputs(): Promise<OutputsCheck | { readonly outputsCheckError: string }> {
+    const { session, exports, graph } = this.#ports;
+    try {
+      return await session.exclusive(async () => {
+        const chains = await readOutputChains(exports, graph);
+        const ids = chains.graph.map((device) => device.id);
+        // Plan decision B12: no outputs, no batch.
+        const built = new Set(ids.length === 0 ? [] : await this.#results.builtDevices(ids));
+        return checkOutputs(chains.graph, built, chains.outputs);
+      });
+    } catch (error) {
+      if (!(error instanceof WorldMachineError)) throw error;
+      return { outputsCheckError: error.message };
+    }
   }
 
   /** Mode `group`: the group the reference names, refused when it has no devices (decision D8). */
@@ -116,14 +144,19 @@ export class BuildProjectService implements BuildProjectCommandPort {
     } finally {
       clearInterval(ticker);
     }
+    // Plan decision B8: the build's seconds, before the check reads anything.
+    const elapsed = elapsedSeconds();
+    // Section 3: only a full build that finished within the wait is checked; a build ended by stop_build is too (B10).
+    const check = ended && mode === 'full' ? await this.#checkOutputs() : {};
     return {
       state: ended ? 'finished' : 'running',
       mode,
-      elapsedSeconds: elapsedSeconds(),
+      elapsedSeconds: elapsed,
       ...(folders === undefined ? {} : { outputFolders: folders }),
       ...(group === undefined
         ? {}
         : { group: { index: group.index, name: group.name, deviceCount: group.deviceCount } }),
+      ...check,
       session: session.status().session,
     };
   }

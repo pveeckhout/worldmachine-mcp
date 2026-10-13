@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { FsPathPolicy } from '../../../src/adapter/out/fs/path-policy.js';
+import { WorldMachineBuildResultReader } from '../../../src/adapter/out/worldmachine/world-machine-build-result-reader.js';
 import { WorldMachineBuilder } from '../../../src/adapter/out/worldmachine/world-machine-builder.js';
 import { WorldMachineDeviceEditor } from '../../../src/adapter/out/worldmachine/world-machine-device-editor.js';
 import { WorldMachineExporter } from '../../../src/adapter/out/worldmachine/world-machine-exporter.js';
@@ -40,6 +41,7 @@ import { SetGroupEnabledService } from '../../../src/application/service/set-gro
 import { StopBuildService } from '../../../src/application/service/stop-build-service.js';
 import { UndoService } from '../../../src/application/service/undo-service.js';
 import { UpdateDeviceParametersService } from '../../../src/application/service/update-device-parameters-service.js';
+import { NOT_BUILT_HINT } from '../../../src/domain/build-result.js';
 import type { WorldMachineError } from '../../../src/domain/errors.js';
 import { captureLogger, FAKE_WM, fakeEnv, recorder, waitUntil } from '../../support/fake-wm.js';
 
@@ -85,6 +87,7 @@ describe('the build guard across the command tools (spec v2a section 4)', () => 
       reader,
       policy,
       new WorldMachineGroupEditor(session),
+      new WorldMachineBuildResultReader(session),
     );
     expect(await buildProject.buildProject({ mode: 'full', waitSeconds: 0 })).toMatchObject({
       state: 'running',
@@ -222,6 +225,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       reader,
       policy,
       new WorldMachineGroupEditor(session),
+      new WorldMachineBuildResultReader(session),
     );
     const stopBuild = new StopBuildService(session, builder);
     await writer.saveProject(join(root, 'late.tmd'), true);
@@ -244,6 +248,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       reader,
       policy,
       new WorldMachineGroupEditor(session),
+      new WorldMachineBuildResultReader(session),
     ).buildProject({
       mode: 'full',
       waitSeconds: 0,
@@ -264,6 +269,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       reader,
       policy,
       new WorldMachineGroupEditor(session),
+      new WorldMachineBuildResultReader(session),
     ).buildProject({
       mode: 'full',
       waitSeconds: 0,
@@ -326,11 +332,18 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
         reader,
         policy,
         new WorldMachineGroupEditor(session),
+        new WorldMachineBuildResultReader(session),
       ).buildProject({
         mode: 'full',
         waitSeconds: 10,
       }),
-    ).toMatchObject({ state: 'finished', mode: 'full' });
+    ).toMatchObject({
+      state: 'finished',
+      mode: 'full',
+      // The fake does not model the sample project's own devices, so get_device of its Height Output #1 fails and the
+      // check reports why (spec section 6); the build is still finished.
+      outputsCheckError: 'World Machine rejected "device select #1"',
+    });
     const exported = await new ExportOutputsService(session, exporter, reader, policy).exportOutputs({});
     expect(exported.files).toHaveLength(4);
   });
@@ -338,7 +351,15 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
   it('refuses command tools during a group build, which ends at its late line and leaves exports refused (spec v2b facts 66-67)', async () => {
     const { session, policy, reader, writer, builder, exporter } = wired({ FAKE_WM_BUILD_MS: '500' });
     const groups = new WorldMachineGroupEditor(session);
-    const buildProject = new BuildProjectService(session, builder, exporter, reader, policy, groups);
+    const buildProject = new BuildProjectService(
+      session,
+      builder,
+      exporter,
+      reader,
+      policy,
+      groups,
+      new WorldMachineBuildResultReader(session),
+    );
     await writer.saveProject(join(root, 'group.tmd'), true);
     expect(await buildProject.buildProject({ mode: 'group', group: '#0', waitSeconds: 0 })).toMatchObject({
       state: 'running',
@@ -366,7 +387,15 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
   it('stops a group build, reports it as full, and lifts the guard (spec v2b section 3, assumption B6)', async () => {
     const { session, policy, reader, writer, builder, exporter } = wired();
     const groups = new WorldMachineGroupEditor(session);
-    await new BuildProjectService(session, builder, exporter, reader, policy, groups).buildProject({
+    await new BuildProjectService(
+      session,
+      builder,
+      exporter,
+      reader,
+      policy,
+      groups,
+      new WorldMachineBuildResultReader(session),
+    ).buildProject({
       mode: 'group',
       group: '#0',
       waitSeconds: 0,
@@ -382,7 +411,15 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
     const w = wired();
     const { session, policy, reader, builder, exporter } = w;
     const groups = new WorldMachineGroupEditor(session);
-    await new BuildProjectService(session, builder, exporter, reader, policy, groups).buildProject({
+    await new BuildProjectService(
+      session,
+      builder,
+      exporter,
+      reader,
+      policy,
+      groups,
+      new WorldMachineBuildResultReader(session),
+    ).buildProject({
       mode: 'group',
       group: '#0',
       waitSeconds: 0,
@@ -402,6 +439,7 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       reader,
       policy,
       new WorldMachineGroupEditor(session),
+      new WorldMachineBuildResultReader(session),
     ).buildProject({
       mode: 'full',
       waitSeconds: 0,
@@ -410,5 +448,93 @@ describe('build services over the fake World Machine (spec v2a sections 3-5)', (
       build: null,
       previewRunning: false,
     });
+  });
+
+  it('reports the output a console-added River did not build, and where building stopped (build-not-built section 8)', async () => {
+    const { session, policy, reader, devices, builder, exporter } = wired({ FAKE_WM_BUILD_MS: '100' });
+    const wires = new WorldMachineWireEditor(session);
+    // raw/build-not-built-timing.txt l.1-46: Gradient into River into File Output in a blank project.
+    await session.execute(['project new blank force']);
+    const gradient = await devices.addDevice('Gradient');
+    const river = await devices.addDevice('River');
+    const output = await devices.addDevice('File Output');
+    await wires.connect({ device: `#${gradient.id}` }, { device: `#${river.id}`, port: 1 });
+    await wires.connect({ device: `#${river.id}` }, { device: `#${output.id}` });
+    const buildProject = new BuildProjectService(
+      session,
+      builder,
+      exporter,
+      reader,
+      policy,
+      new WorldMachineGroupEditor(session),
+      new WorldMachineBuildResultReader(session),
+    );
+    expect(await buildProject.buildProject({ mode: 'full', waitSeconds: 10 })).toEqual({
+      state: 'finished',
+      mode: 'full',
+      elapsedSeconds: expect.any(Number),
+      outputsBuilt: false,
+      notBuilt: [{ id: output.id, name: 'Height Output' }],
+      stoppedAt: [{ id: river.id, name: 'River', type: 'River', enabled: true, bypassed: false }],
+      hint: NOT_BUILT_HINT,
+      session: expect.any(Object),
+    });
+  });
+
+  it('reports every output built for Gradient into File Output (build-not-built section 8, l.119-149)', async () => {
+    const { session, policy, reader, devices, builder, exporter } = wired({ FAKE_WM_BUILD_MS: '100' });
+    await session.execute(['project new blank force']);
+    const gradient = await devices.addDevice('Gradient');
+    const output = await devices.addDevice('File Output');
+    await new WorldMachineWireEditor(session).connect(
+      { device: `#${gradient.id}` },
+      { device: `#${output.id}` },
+    );
+    const buildProject = new BuildProjectService(
+      session,
+      builder,
+      exporter,
+      reader,
+      policy,
+      new WorldMachineGroupEditor(session),
+      new WorldMachineBuildResultReader(session),
+    );
+    expect(await buildProject.buildProject({ mode: 'full', waitSeconds: 10 })).toEqual({
+      state: 'finished',
+      mode: 'full',
+      elapsedSeconds: expect.any(Number),
+      outputsBuilt: true,
+      notBuilt: [],
+      stoppedAt: [],
+      session: expect.any(Object),
+    });
+  });
+
+  it('checks a full build that stop_build ended during the wait (spec section 3, plan decision B10)', async () => {
+    // wired() builds for 60 s, so the build is still running when stop_build ends it.
+    const { session, policy, reader, devices, builder, exporter } = wired();
+    await session.execute(['project new blank force']);
+    const gradient = await devices.addDevice('Gradient');
+    const output = await devices.addDevice('File Output');
+    await new WorldMachineWireEditor(session).connect(
+      { device: `#${gradient.id}` },
+      { device: `#${output.id}` },
+    );
+    const building = new BuildProjectService(
+      session,
+      builder,
+      exporter,
+      reader,
+      policy,
+      new WorldMachineGroupEditor(session),
+      new WorldMachineBuildResultReader(session),
+    ).buildProject({ mode: 'full', waitSeconds: 30 });
+    await waitUntil(() => builder.current()?.state === 'running');
+    expect((await new StopBuildService(session, builder).stopBuild({})).stopped).toBe('full');
+    // Codex round 1 ruling 4 (as narrowed by round 2 ruling 4): the build reads as finished and the check ran, whatever
+    // it found; what a stopped build leaves is not captured.
+    const view = await building;
+    expect(view).toMatchObject({ state: 'finished', mode: 'full' });
+    expect('outputsBuilt' in view || 'outputsCheckError' in view).toBe(true);
   });
 });

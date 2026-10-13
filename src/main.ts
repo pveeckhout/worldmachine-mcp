@@ -5,6 +5,7 @@ import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import { createMcpServer } from './adapter/in/mcp/create-server.js';
 import { FsPathPolicy } from './adapter/out/fs/path-policy.js';
 import { resolveExecutable } from './adapter/out/worldmachine/locator.js';
+import { WorldMachineBuildResultReader } from './adapter/out/worldmachine/world-machine-build-result-reader.js';
 import { WorldMachineBuilder } from './adapter/out/worldmachine/world-machine-builder.js';
 import { WorldMachineDeviceEditor } from './adapter/out/worldmachine/world-machine-device-editor.js';
 import { WorldMachineExporter } from './adapter/out/worldmachine/world-machine-exporter.js';
@@ -88,6 +89,7 @@ const builder = new WorldMachineBuilder(session);
 const exporter = new WorldMachineExporter(session);
 const groups = new WorldMachineGroupEditor(session);
 const snapshots = new WorldMachineSnapshotEditor(session);
+const results = new WorldMachineBuildResultReader(session);
 
 const handle = serveStdio(() =>
   createMcpServer({
@@ -112,7 +114,7 @@ const handle = serveStdio(() =>
     connectDevices: new ConnectDevicesService(session, wires),
     disconnectDevices: new DisconnectDevicesService(session, wires),
     configureScene: new ConfigureSceneService(session, scene),
-    buildProject: new BuildProjectService(session, builder, exporter, reader, pathPolicy, groups),
+    buildProject: new BuildProjectService(session, builder, exporter, reader, pathPolicy, groups, results),
     getBuildStatus: new GetBuildStatusService(session, builder),
     stopBuild: new StopBuildService(session, builder),
     listExports: new ListExportsService(session, exporter, reader, pathPolicy),
