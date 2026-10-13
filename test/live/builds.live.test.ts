@@ -26,7 +26,7 @@ import { ListExportsService } from '../../src/application/service/list-exports-s
 import { OutputsChecker } from '../../src/application/service/outputs-checker.js';
 import { StopBuildService } from '../../src/application/service/stop-build-service.js';
 import { NOT_BUILT_HINT } from '../../src/domain/build-result.js';
-import { captureLogger } from '../support/fake-wm.js';
+import { captureLogger, waitUntil } from '../support/fake-wm.js';
 
 const executable = resolveExecutable(process.env.WORLD_MACHINE_BIN ?? null);
 const LIVE = process.env.WM_LIVE === '1' && executable !== null;
@@ -181,5 +181,34 @@ describe.skipIf(!LIVE)('live World Machine builds and exports (spec v2a section 
     expect(built).toMatchObject({ state: 'finished', outputsBuilt: true, notBuilt: [], stoppedAt: [] });
     expect(built).not.toHaveProperty('hint');
     expect(built).not.toHaveProperty('outputsCheckError');
+  }, 360_000);
+
+  it('reports in get_build_status the output a River did not build once a full build that outlived the wait ends (build-status-check section 7)', async () => {
+    await session.ensureRunning();
+    throwIfFailed(await session.executeOne('project new blank force'));
+    await scene.configureScene({ resolution: 513 });
+    // raw/build-not-built-timing.txt l.1-46: Gradient into River into File Output, its filename inside the live root.
+    const gradient = await devices.addDevice('Gradient');
+    const river = await devices.addDevice('River');
+    const output = await devices.addDevice('File Output');
+    await wires.connect({ device: `#${gradient.id}` }, { device: `#${river.id}`, port: 1 });
+    await wires.connect({ device: `#${river.id}` }, { device: `#${output.id}` });
+    throwIfFailed(
+      await session.executeOne(
+        buildCommand(['param', 'set', `#${output.id}.filename`], join(liveRoot, 'outlived-height.png')),
+      ),
+    );
+    expect(await buildProject.buildProject({ mode: 'full', waitSeconds: 0 })).toMatchObject({
+      state: 'running',
+      mode: 'full',
+    });
+    await waitUntil(() => builder.last()?.state === 'ended', 120_000);
+    expect((await buildStatus.getBuildStatus({})).lastFullBuild).toEqual({
+      startedAt: new Date(builder.last()?.startedAt ?? 0).toISOString(),
+      outputsBuilt: false,
+      notBuilt: [{ id: output.id, name: 'Height Output' }],
+      stoppedAt: [{ id: river.id, name: 'River', type: 'River', enabled: true, bypassed: false }],
+      hint: NOT_BUILT_HINT,
+    });
   }, 360_000);
 });
