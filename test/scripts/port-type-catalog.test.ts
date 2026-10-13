@@ -362,6 +362,21 @@ describe('parsePortTypeCatalog of several transcripts (port-types design section
     );
   });
 
+  it('keeps the answered pairs of a probe that stopped after them, its other pairs left to another transcript', () => {
+    // scripts/capture-fixtures.mjs probeOutputs: the verdicts gathered before a stop, then the stopped section.
+    const partly: Verdict = (pair) =>
+      pair.startsWith('#4.1>#5.') && pair !== '#4.1>#5.1' ? undefined : plain(pair);
+    const text = `${transcript(DEVICES, partly)}\n${section('(probe #4.1 stopped)', ['timed out waiting for batch 1a2b3c4d'])}`;
+    expect(() => parsePortTypeCatalog([text], systemInfo)).toThrow('#4.1 -> #5.2: not probed');
+    expect(
+      parsePortTypeCatalog([text, transcript(DEVICES, plain, (from) => from === '#4.1')], systemInfo),
+    ).toEqual(CATALOG);
+    const flipped: Verdict = (pair) => (pair === '#4.1>#5.1' ? 'refused' : plain(pair));
+    expect(() =>
+      parsePortTypeCatalog([text, transcript(DEVICES, flipped, (from) => from === '#4.1')], systemInfo),
+    ).toThrow('#4.1 -> #5.1: probed differently');
+  });
+
   it('leaves a crashed pair a hole that decides no class (design section 4)', () => {
     // As the same-device hole test above: with Mixed's pairs into Sink crashed, its row is all unknown.
     const crashed: Verdict = (pair) => (pair.startsWith('#4.1>#5.') ? 'crashed' : plain(pair));

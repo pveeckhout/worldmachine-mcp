@@ -3343,7 +3343,8 @@ async function enumOptions(sections) {
  * Port-types design section 3, crashes and resumes: when World Machine exits during a batch, the pairs whose commands
  * all answered keep their verdicts, the pair in flight is `crashed`, and `crashes` (the run's add words, its first
  * device list, and its restart count) restarts World Machine into the same devices; the source then continues after
- * the crashed pair. A timeout, a failed restart, or a crash after MAX_RESTARTS stops as before.
+ * the crashed pair. A timeout, a failed restart, or a crash after MAX_RESTARTS stops as before, after a `(probe ...)`
+ * section with the verdicts gathered so far, so a later transcript only has to give the rest.
  */
 async function probeOutputs(sections, sources, targetsOf, lean, crashes) {
   const started = Date.now();
@@ -3354,6 +3355,7 @@ async function probeOutputs(sections, sources, targetsOf, lean, crashes) {
     const lines = [];
     const unsolicited = [];
     const stop = (messages) => {
+      if (lines.length > 0) sections.push({ command: `(probe ${from})`, lines });
       sections.push({ command: `(probe ${from} stopped)`, lines: messages.map(scrub) });
       return { pairs, ms: Date.now() - started, stopped: true };
     };
@@ -3384,18 +3386,21 @@ async function probeOutputs(sections, sources, targetsOf, lean, crashes) {
         const last = rest[answered] ?? rest[answered - 1];
         if (crashed !== undefined) lines.push(`#${last.id}.${last.port} ${CRASHED}`);
         crashes.restarts++;
-        let count;
+        let restarted;
         try {
-          count = await restartWorldMachine(crashes);
+          restarted = await restartWorldMachine(crashes);
         } catch (restartError) {
           return stop([error.message, restartError.message]);
         }
-        if (count === undefined) {
-          return stop([error.message, 'restarted, but the device list differs from the first run']);
+        if (restarted.difference !== undefined) {
+          return stop([
+            error.message,
+            `restarted, but the device list differs from the first run: ${restarted.difference}`,
+          ]);
         }
         sections.push({
           command: `(restarted after ${from} -> #${last.id}.${last.port})`,
-          lines: [scrub(error.message), `re-added ${count} devices, list unchanged`],
+          lines: [scrub(error.message), `re-added ${restarted.count} devices, list unchanged`],
         });
         next += answered + 1;
       }
@@ -3409,13 +3414,14 @@ async function probeOutputs(sections, sources, targetsOf, lean, crashes) {
   return { pairs, ms: Date.now() - started, stopped: false };
 }
 
-// Port-types design section 3, crashes and resumes: a run stops at its sixth crash.
-const MAX_RESTARTS = 5;
+// Port-types design section 3, crashes and resumes: a run stops at its 21st crash.
+const MAX_RESTARTS = 20;
 
 /**
  * Port-types design section 3, crashes and resumes: starts World Machine again, makes a new blank project, and adds
- * every word of the first run in the same order. Returns the number of devices listed when the list equals the first
- * run's (ids and listed types), else undefined. Its batches are not recorded.
+ * every word of the first run in the same order. Returns the number of devices listed and, when the list differs from
+ * the first run's (ids and listed types), its first differing row as `expected '<row>', got '<row>'`. Its batches are
+ * not recorded.
  */
 async function restartWorldMachine({ words, devices }) {
   await startWorldMachine();
@@ -3424,9 +3430,15 @@ async function restartWorldMachine({ words, devices }) {
     [...words.map((word) => `device add ${word}`), 'device list'],
     Math.max(60_000, words.length * 2_000),
   );
-  const shown = (list) => list.map((device) => `#${device.id} ${device.type}`).join('\n');
+  const rows = (list) => list.map((device) => `#${device.id} ${device.type}`);
   const again = listedDevices(answers.at(-1).lines);
-  return shown(again) === shown(devices) ? again.length : undefined;
+  const [expected, got] = [rows(devices), rows(again)];
+  const at = [...Array(Math.max(expected.length, got.length)).keys()].find((i) => expected[i] !== got[i]);
+  const row = (text) => (text === undefined ? 'no row' : `'${text}'`);
+  return {
+    count: again.length,
+    difference: at === undefined ? undefined : `expected ${row(expected[at])}, got ${row(got[at])}`,
+  };
 }
 
 // Port-types plan decision D22: the words `device add` accepted in build 4067, read from their capture.
