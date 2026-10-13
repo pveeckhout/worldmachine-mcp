@@ -1405,6 +1405,23 @@ describe('createMcpServer build and export tools (spec v2a section 4)', () => {
     );
   });
 
+  it.each([
+    'After a full build that build_project started has ended, also reports whether every output was built and where building stopped (lastFullBuild).',
+    "The first call after a build that outlived build_project's wait runs that check; later calls repeat it.",
+    'If this server changed the project after the build ended, the check is skipped.',
+    'Edits made in the World Machine window are not seen.',
+  ])('describes the last full build in get_build_status: %s', async (text) => {
+    const { tools } = await (await connect(deps())).listTools();
+    expect(tools.find((tool) => tool.name === 'get_build_status')?.description ?? '').toContain(text);
+  });
+
+  it('says in build_project that get_build_status reports the check once the build ends (build-status-check section 5)', async () => {
+    const { tools } = await (await connect(deps())).listTools();
+    expect(tools.find((tool) => tool.name === 'build_project')?.description ?? '').toContain(
+      'check get_build_status, or call stop_build; get_build_status reports the check once the build ends.',
+    );
+  });
+
   it('maps build_project arguments, with wait_seconds defaulting to 60 and the call signal passed on', async () => {
     const seen: BuildProjectCommand[] = [];
     const client = await connect(
