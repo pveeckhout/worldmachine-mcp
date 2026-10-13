@@ -110,6 +110,7 @@ const deviceDetailSchema = z.strictObject({
       port: z.number().int(),
       name: z.string(),
       source: portLinkSchema.optional(),
+      accepts: z.array(z.string()).optional(),
     }) satisfies z.ZodType<InputPort>,
   ),
   outputs: z.array(
@@ -117,6 +118,7 @@ const deviceDetailSchema = z.strictObject({
       port: z.number().int(),
       name: z.string(),
       targets: z.array(portLinkSchema),
+      type: z.string().optional(),
     }) satisfies z.ZodType<OutputPort>,
   ),
   enumOptionsNote: z.array(z.string()).optional(),

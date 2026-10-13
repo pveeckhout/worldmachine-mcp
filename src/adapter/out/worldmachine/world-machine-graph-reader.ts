@@ -1,3 +1,4 @@
+import type { PortTypeCatalogPort } from '../../../application/port/out/port-type-catalog-port.js';
 import type { ProjectGraphReadPort } from '../../../application/port/out/project-graph-read-port.js';
 import type { DeviceDetail, DeviceSummary } from '../../../domain/device.js';
 import type { ProjectOverview } from '../../../domain/project.js';
@@ -13,16 +14,27 @@ import { parseSceneList, parseSceneShow } from './parsers/scene.js';
 import { unexpectedOutput } from './parsers/unexpected.js';
 import { parseWireList } from './parsers/wire-list.js';
 import { requireFrame, throwIfFailed } from './raw-response.js';
+import { attachPortTypes, NO_PORT_TYPES } from './world-machine-port-types.js';
 import type { WorldMachineSession } from './world-machine-session.js';
 
 export class WorldMachineGraphReader implements ProjectGraphReadPort {
   readonly #session: WorldMachineSession;
   readonly #catalog: EnumCatalog;
+  readonly #portTypes: PortTypeCatalogPort;
 
-  /** `catalog`: the enum options getDevice attaches (enum-options design section 4); tests pass a small one. */
-  constructor(session: WorldMachineSession, catalog: EnumCatalog = ENUM_CATALOG) {
+  /**
+   * `catalog`: the enum options getDevice attaches (enum-options design section 4); tests pass a small one.
+   * `portTypes`: the port types it attaches (port-types design section 6); none unless main.ts passes the shipped
+   * catalog (port-types plan decision D3).
+   */
+  constructor(
+    session: WorldMachineSession,
+    catalog: EnumCatalog = ENUM_CATALOG,
+    portTypes: PortTypeCatalogPort = NO_PORT_TYPES,
+  ) {
     this.#session = session;
     this.#catalog = catalog;
+    this.#portTypes = portTypes;
   }
 
   async listDevices(filter?: string): Promise<DeviceSummary[]> {
@@ -61,18 +73,20 @@ export class WorldMachineGraphReader implements ProjectGraphReadPort {
     if (id === undefined) throw unexpectedOutput('device list', list.output);
     // Enum-options design section 4. The build is read after the batch: the batch starts World Machine when it was
     // not running, and only a start reads `system info` (world-machine-session.ts).
-    return attachEnumOptions(
+    const read = attachEnumOptions(
       {
         id,
         ...detail,
         parameters: parseParamList(params.output),
         ...parseWireList(wires.output),
-        // Port-types design section 6: untyped until plan Task 5 attaches the catalog's types.
+        // Port-types design section 6: replaced below when the device is typed.
         portTypes: 'unknown',
       },
       this.#session.status().systemInfo?.build,
       this.#catalog,
     );
+    // Port-types design section 6, also after the batch; the fingerprint is the domain's (plan decision D5).
+    return attachPortTypes(read, this.#portTypes.portsOf(read.type));
   }
 
   async getScene(): Promise<Scene> {

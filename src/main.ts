@@ -4,6 +4,7 @@ import { homedir } from 'node:os';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import { createMcpServer } from './adapter/in/mcp/create-server.js';
 import { FsPathPolicy } from './adapter/out/fs/path-policy.js';
+import { ENUM_CATALOG } from './adapter/out/worldmachine/enum-options.js';
 import { resolveExecutable } from './adapter/out/worldmachine/locator.js';
 import { WorldMachineBuildResultReader } from './adapter/out/worldmachine/world-machine-build-result-reader.js';
 import { WorldMachineBuilder } from './adapter/out/worldmachine/world-machine-builder.js';
@@ -12,6 +13,10 @@ import { WorldMachineExporter } from './adapter/out/worldmachine/world-machine-e
 import { WorldMachineGraphReader } from './adapter/out/worldmachine/world-machine-graph-reader.js';
 import { WorldMachineGroupEditor } from './adapter/out/worldmachine/world-machine-group-editor.js';
 import { WorldMachineParameterEditor } from './adapter/out/worldmachine/world-machine-parameter-editor.js';
+import {
+  PORT_TYPE_CATALOG,
+  WorldMachinePortTypes,
+} from './adapter/out/worldmachine/world-machine-port-types.js';
 import { WorldMachineProcess } from './adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineProjectWriter } from './adapter/out/worldmachine/world-machine-project-writer.js';
 import { WorldMachineSceneEditor } from './adapter/out/worldmachine/world-machine-scene-editor.js';
@@ -81,7 +86,9 @@ const session = new WorldMachineSession({
   startProcess: (bin, signal, onSpawn) =>
     WorldMachineProcess.start({ bin, readyTimeoutMs: READY_TIMEOUT_MS, logger, signal, onSpawn }),
 });
-const reader = new WorldMachineGraphReader(session);
+// Port-types design section 7: the shipped catalog is wired here and in the live tests only (plan decision D3).
+const portTypes = new WorldMachinePortTypes(session, PORT_TYPE_CATALOG);
+const reader = new WorldMachineGraphReader(session, ENUM_CATALOG, portTypes);
 const writer = new WorldMachineProjectWriter(session);
 const devices = new WorldMachineDeviceEditor(session);
 const parameters = new WorldMachineParameterEditor(session);

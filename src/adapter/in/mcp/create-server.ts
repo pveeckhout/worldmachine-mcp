@@ -187,7 +187,7 @@ export function createMcpServer(deps: McpDependencies): McpServer {
     {
       title: 'Get device',
       description:
-        'Show one device: type, enabled and bypass state, every parameter with its current value as World Machine displays it, and its input and output connections. An enum row lists its options in index order when the catalog shipped with the server covers the device; the catalog describes devices as device add creates them, and enumOptionsNote says why options are missing (another build, a type or parameter the catalog lacks, other parameters than a new device has, or a current value the catalog does not list).',
+        'Show one device: type, enabled and bypass state, every parameter with its current value as World Machine displays it, and its input and output connections. An enum row lists its options in index order when the catalog shipped with the server covers the device; the catalog describes devices as device add creates them, and enumOptionsNote says why options are missing (another build, a type or parameter the catalog lacks, other parameters than a new device has, or a current value the catalog does not list). Each output shows its port type (type) and each input the types it accepts (accepts) when portTypes is catalogued: World Machine is the build of the port-type catalog shipped with the server and the ports of the device equal those of a new device of its type; otherwise portTypes is unknown and the port types are left out.',
       inputSchema: getDeviceInputSchema,
       outputSchema: deviceViewSchema,
       annotations: READ_ONLY,

@@ -5,9 +5,14 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { FsPathPolicy } from '../../../../src/adapter/out/fs/path-policy.js';
 import { ENUM_CATALOG, type EnumCatalog } from '../../../../src/adapter/out/worldmachine/enum-options.js';
 import { WorldMachineGraphReader } from '../../../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
+import {
+  type PortTypeCatalog,
+  WorldMachinePortTypes,
+} from '../../../../src/adapter/out/worldmachine/world-machine-port-types.js';
 import { WorldMachineProcess } from '../../../../src/adapter/out/worldmachine/world-machine-process.js';
 import { WorldMachineSession } from '../../../../src/adapter/out/worldmachine/world-machine-session.js';
 import { captureLogger, FAKE_WM, fakeEnv, recorder } from '../../../support/fake-wm.js';
+import { SYNTHETIC_CATALOG } from '../../../support/port-types.js';
 import { rawFrame } from './parsers/fixture.js';
 
 const lines = (name: string) =>
@@ -397,5 +402,54 @@ describe('WorldMachineGraphReader enum options (enum-options design section 4)',
     expect(device.parameters).toHaveLength(17);
     expect(device.parameters.some((p) => p.type === 'enum')).toBe(false);
     expect(device).not.toHaveProperty('enumOptionsNote');
+  });
+});
+
+describe('WorldMachineGraphReader port types (port-types design sections 5 and 6)', () => {
+  /** A Gradient (#1) and a Combiner (#2) in a blank fake project, read with `catalog` as the port types. */
+  async function typedReader(catalog: PortTypeCatalog = SYNTHETIC_CATALOG) {
+    const { session } = reader();
+    await session.execute(['project new blank force', 'device add Gradient', 'device add Combiner']);
+    return new WorldMachineGraphReader(session, ENUM_CATALOG, new WorldMachinePortTypes(session, catalog));
+  }
+
+  it("types a device whose ports equal the catalog's", async () => {
+    const r = await typedReader();
+    expect(await r.getDevice('#1')).toMatchObject({
+      portTypes: 'catalogued',
+      inputs: [],
+      outputs: [{ port: 1, name: 'Primary Output', targets: [], type: 'heightfield' }],
+    });
+    expect((await r.getDevice('#2')).inputs).toEqual([
+      { port: 1, name: 'Primary Input', accepts: ['heightfield'] },
+      { port: 2, name: 'Primary Input', accepts: ['heightfield'] },
+    ]);
+  });
+
+  it("leaves a device untyped whose port names differ from the catalog's (Review Focus 3)", async () => {
+    const r = await typedReader({
+      ...SYNTHETIC_CATALOG,
+      types: {
+        ...SYNTHETIC_CATALOG.types,
+        Combiner: {
+          added: ['Combiner'],
+          inputs: [{ port: 1, name: 'Primary Input', class: 'i1' }],
+          outputs: [{ port: 1, name: 'Primary Output', class: 'o1' }],
+        },
+      },
+    });
+    const device = await r.getDevice('#2');
+    expect(device.portTypes).toBe('unknown');
+    expect(device.inputs).toEqual([
+      { port: 1, name: 'Primary Input' },
+      { port: 2, name: 'Primary Input' },
+    ]);
+    expect(device.outputs).toEqual([{ port: 1, name: 'Primary Output', targets: [] }]);
+  });
+
+  it('types nothing on another build', async () => {
+    const device = await (await typedReader({ ...SYNTHETIC_CATALOG, build: 4066 })).getDevice('#1');
+    expect(device.portTypes).toBe('unknown');
+    expect(device.outputs).toEqual([{ port: 1, name: 'Primary Output', targets: [] }]);
   });
 });

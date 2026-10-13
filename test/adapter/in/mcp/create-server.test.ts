@@ -351,6 +351,14 @@ describe('createMcpServer', () => {
     expect(tools.find((tool) => tool.name === name)?.description ?? '').toContain(text);
   });
 
+  it.each([
+    'Each output shows its port type (type) and each input the types it accepts (accepts) when portTypes is catalogued',
+    'otherwise portTypes is unknown and the port types are left out',
+  ])('describes port types in get_device: %s', async (text) => {
+    const { tools } = await (await connect(deps())).listTools();
+    expect(tools.find((tool) => tool.name === 'get_device')?.description ?? '').toContain(text);
+  });
+
   it('passes plan_id and keep_snapshot to apply_graph, keep_snapshot false by default', async () => {
     const commands: unknown[] = [];
     const client = await connect(
@@ -883,6 +891,38 @@ describe('createMcpServer with parser output from the wm-4067 fixtures', () => {
     );
     const result = await client.callTool({ name: 'get_device', arguments: { device: '#35' } });
     expect(result.isError).toBe(true);
+  });
+
+  // raw/create-water.txt l.122-133, typed with the synthetic classes of test/support/port-types.ts.
+  const typedCreateWater: DeviceDetail = {
+    id: 536,
+    name: 'Create Water',
+    type: 'Create Water',
+    enabled: true,
+    bypassed: false,
+    parameters: [],
+    inputs: [
+      { port: 1, name: 'Terrain', accepts: ['heightfield'] },
+      { port: 2, name: 'Existing Water', accepts: ['water system'] },
+      { port: 3, name: 'Precipitation Map', accepts: ['heightfield'] },
+    ],
+    outputs: [
+      { port: 1, name: 'Terrain', targets: [], type: 'heightfield' },
+      { port: 2, name: 'Water System', targets: [], type: 'water system' },
+      { port: 3, name: 'Tributary Mask', targets: [], type: 'heightfield' },
+      { port: 4, name: 'Lake Mask', targets: [], type: 'heightfield' },
+    ],
+    portTypes: 'catalogued',
+  };
+
+  it('returns get_device with catalogued port types through the strict schema (port-types design section 6)', async () => {
+    const device = typedCreateWater;
+    const client = await connect(
+      deps({ getDevice: { getDevice: async () => ({ device, session: READY }) } }),
+    );
+    const result = await client.callTool({ name: 'get_device', arguments: { device: '#536' } });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toEqual({ device, session: READY });
   });
 
   it('returns get_scene with the parsed scene as structured content', async () => {
