@@ -47,7 +47,7 @@ The `build_project` view schema admits these fields. The `build_project` descrip
 
 ## 6. Failure of the check
 
-A failure while checking (an `export list` or graph read error, an unexpected `debug devicetiming` answer) does not change the build's outcome: the result stays `finished`, the new fields are absent, and `outputsCheckError` carries the reason (the pattern of `apply_graph`'s `diffError`).
+A `WorldMachineError` while checking (an `export list` or graph read error, an unexpected `debug devicetiming` answer, a check that cannot get the session) does not change the build's outcome: the result stays `finished`, the new fields are absent, and `outputsCheckError` carries the reason (the pattern of `apply_graph`'s `diffError`). Any other error is a defect and fails the call, as with `diffError`.
 
 ## 7. Structure
 
