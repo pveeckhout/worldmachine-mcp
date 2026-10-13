@@ -2082,6 +2082,21 @@ const scenarios = [
     },
   ],
   [
+    // Port-types design section 3, same-device holes: as `port-types` up to its wire lists, then a twin of every probed
+    // device with inputs and outputs, and every output of the probed device against every input of its twin, for a
+    // transcript the catalog generator merges. PORT_TYPES_LEAN=1 probes lean. Ends closed.
+    'port-types-self',
+    async () => {
+      const sections = [];
+      try {
+        await portTypes(sections, { lean: process.env.PORT_TYPES_LEAN === '1', self: true });
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
     // Backlog item 101: the scale between a float's internal value and its display unit. Every unit float of every
     // type of ENUM_TYPES read as added, at 1, and at 0.25, then re-read after the scene size changes to 12 and 4 km
     // and set to 1 again. Devices stay in one blank project. Ends closed.
@@ -3419,9 +3434,9 @@ const MAX_RESTARTS = 20;
 
 /**
  * Port-types design section 3, crashes and resumes: starts World Machine again, makes a new blank project, and adds
- * every word of the first run in the same order. Returns the number of devices listed and, when the list differs from
- * the first run's (ids and listed types), its first differing row as `expected '<row>', got '<row>'`. Its batches are
- * not recorded.
+ * every word the first run added in the same order (in `port-types-self`, the twins' words after the others). Returns
+ * the number of devices listed and, when the list differs from the first run's (ids and listed types), its first
+ * differing row as `expected '<row>', got '<row>'`. Its batches are not recorded.
  */
 async function restartWorldMachine({ words, devices }) {
   await startWorldMachine();
@@ -3462,11 +3477,16 @@ const listedDevices = (lines) =>
  * (`probeOutputs`), checked unless `lean` (Codex round 1 ruling B1 addendum). `sample` probes only the first three
  * outputs checked and the next three lean, and adds the projected time of the full run in each mode (plan decision
  * D12), so the controller can choose the mode with the user. `resume` probes only the sources from the output `from`
- * on (port-types design section 3, crashes and resumes).
+ * on (port-types design section 3, crashes and resumes). `self` adds a twin of every probed device with inputs and
+ * outputs (`addTwins`) and probes only every output of a twinned device against every input of its twin (design
+ * section 3, same-device holes).
  */
-async function portTypes(sections, { sample = false, lean = false, resume = false, from } = {}) {
+async function portTypes(
+  sections,
+  { sample = false, lean = false, resume = false, from, self = false } = {},
+) {
   try {
-    await portTypesBody(sections, { sample, lean, resume, from });
+    await portTypesBody(sections, { sample, lean, resume, from, self });
   } finally {
     // Every path ends closed, including a throw from the opening run, the wire-list batch, or a probe.
     try {
@@ -3477,7 +3497,7 @@ async function portTypes(sections, { sample = false, lean = false, resume = fals
   }
 }
 
-async function portTypesBody(sections, { sample, lean, resume, from }) {
+async function portTypesBody(sections, { sample, lean, resume, from, self }) {
   if (resume && !from) throw new Error('set PORT_TYPES_FROM=#<id>.<port>, the first output to probe');
   const started = Date.now();
   const words = acceptedAddWords(readFileSync(ADD_WORDS_CAPTURE, 'utf8'));
@@ -3495,7 +3515,7 @@ async function portTypesBody(sections, { sample, lean, resume, from }) {
       const fresh = lastList.filter((device) => !known.has(device.id));
       for (const device of fresh) known.add(device.id);
       if (fresh[0] === undefined) sections.push({ command: `(type ${word} not added)`, lines: add[0].lines });
-      else added.push({ ...fresh[0], inputs: [], outputs: [] });
+      else added.push({ ...fresh[0], word, inputs: [], outputs: [] });
     } catch (error) {
       sections.push({ command: `(type ${word} stopped)`, lines: [scrub(error.message)] });
     }
@@ -3521,20 +3541,33 @@ async function portTypesBody(sections, { sample, lean, resume, from }) {
   const probed = added.filter(
     (device, index) => added.findIndex((other) => other.type === device.type) === index,
   );
-  const outputs = probed.flatMap((device) => device.outputs.map((port) => ({ ...device, port })));
+  // Design section 3, same-device holes: the twins, and the words a restart adds again after the first run's.
+  const twins = self ? await addTwins(sections, probed, known) : undefined;
+  if (twins?.list !== undefined) lastList = twins.list;
+  const twinOf = new Map((twins?.added ?? []).map((twin) => [twin.of.id, twin]));
+  const outputs = (twins === undefined ? probed : twins.added.map((twin) => twin.of)).flatMap((device) =>
+    device.outputs.map((port) => ({ ...device, port })),
+  );
   const first = resume ? outputs.findIndex((source) => `#${source.id}.${source.port}` === from) : 0;
   if (first === -1) throw new Error(`PORT_TYPES_FROM=${from} is no probed output`);
   const sources = outputs.slice(first);
-  const targetsOf = (source) =>
-    probed
-      .filter((device) => device.id !== source.id)
-      .flatMap((device) => device.inputs.map((port) => ({ ...device, port })));
+  const targetsOf =
+    twins === undefined
+      ? (source) =>
+          probed
+            .filter((device) => device.id !== source.id)
+            .flatMap((device) => device.inputs.map((port) => ({ ...device, port })))
+      : (source) => {
+          const twin = twinOf.get(source.id);
+          return twin.inputs.map((port) => ({ ...twin, port }));
+        };
   const total = sources.reduce((sum, source) => sum + targetsOf(source).length, 0);
   const timing = [
     `words: ${words.length}, added: ${added.length}, listed types probed: ${probed.length}`,
     `outputs: ${sources.length}, pairs: ${total}`,
     `adding and listing: ${listedMs} ms`,
     ...(resume ? [`from: ${from}`] : []),
+    ...(twins === undefined ? [] : [`twins: ${twins.added.length}`]),
   ];
   const report = (mode, { pairs, ms }) => {
     timing.push(`${mode}: ${pairs} pairs in ${ms} ms`);
@@ -3544,7 +3577,7 @@ async function portTypesBody(sections, { sample, lean, resume, from }) {
       );
     }
   };
-  const crashes = { words, devices: lastList, restarts: 0 };
+  const crashes = { words: [...words, ...(twins?.words ?? [])], devices: lastList, restarts: 0 };
   if (sample) {
     const checked = await probeOutputs(sections, sources.slice(0, 3), targetsOf, false, crashes);
     report('checked', checked);
@@ -3555,6 +3588,51 @@ async function portTypesBody(sections, { sample, lean, resume, from }) {
     report(lean ? 'lean' : 'checked', await probeOutputs(sections, sources, targetsOf, lean, crashes));
   }
   sections.push({ command: '(timing)', lines: timing });
+}
+
+/**
+ * Port-types design section 3, same-device holes: per probed device with at least one input and one output, in order,
+ * `device add <its word>` and `device list`; the new device is its twin. Then one `wire list` batch of every twin. The
+ * adds and lists are not recorded as sections: per twin, `(twin #<probed id> #<twin id>)` holds the twin's `wire list`
+ * answer lines, and an add that shows no new device (or throws) is `(twin #<probed id> stopped)` with the add's answer
+ * lines (or the error). Returns the twins (`{ id, name, type, of, inputs, outputs }`, `of` the probed device, ports
+ * from the twin's own list), every word added (a restart adds them again), and the last device list read, if any.
+ */
+async function addTwins(sections, probed, known) {
+  const added = [];
+  const words = [];
+  let list;
+  for (const device of probed.filter(
+    (candidate) => candidate.inputs.length > 0 && candidate.outputs.length > 0,
+  )) {
+    words.push(device.word);
+    try {
+      const add = await run([`device add ${device.word}`, 'device list']);
+      list = listedDevices(add[1].lines);
+      const fresh = list.filter((other) => !known.has(other.id));
+      for (const other of fresh) known.add(other.id);
+      if (fresh[0] === undefined)
+        sections.push({ command: `(twin #${device.id} stopped)`, lines: add[0].lines });
+      else added.push({ ...fresh[0], of: device, inputs: [], outputs: [] });
+    } catch (error) {
+      sections.push({ command: `(twin #${device.id} stopped)`, lines: [scrub(error.message)] });
+    }
+  }
+  // Nothing added: no wire-list batch, an empty one would time out.
+  const lists =
+    added.length === 0
+      ? []
+      : await run(
+          added.map((twin) => `wire list #${twin.id}`),
+          Math.max(60_000, added.length * 2_000),
+        );
+  for (const [index, twin] of added.entries()) {
+    sections.push({ command: `(twin #${twin.of.id} #${twin.id})`, lines: lists[index].lines });
+    const ports = readProbeWireList(lists[index]);
+    twin.inputs = ports?.inputs.map((input) => input.port) ?? [];
+    twin.outputs = ports?.outputs.map((output) => output.port) ?? [];
+  }
+  return { added, words, list };
 }
 
 async function v3Assumptions(sections) {
@@ -3694,7 +3772,7 @@ async function diagnostic(kind) {
 // `npm run capture-fixtures -- <name> ...` captures only the named scenarios (system info always runs first).
 const only = process.argv.slice(2);
 // Port-types plan decision D21: hours-long scenarios run only when named.
-const ON_REQUEST = new Set(['port-types', 'port-types-resume', 'port-types-sample']);
+const ON_REQUEST = new Set(['port-types', 'port-types-resume', 'port-types-sample', 'port-types-self']);
 const selected =
   only.length === 0
     ? scenarios.filter(([name]) => !ON_REQUEST.has(name))
