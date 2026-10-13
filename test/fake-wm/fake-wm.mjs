@@ -153,6 +153,37 @@ let previewUntil = 0;
 // (raw/v2-build-export-timing.txt l.29-41): they count as built only from the full build's late `Build started.`.
 // Assumed: only a full build that ends makes them built, and only a project switch makes them unbuilt again.
 let built = false;
+// Fact 93 (raw/build-not-built-timing.txt l.72-90 and l.167-181): after a full build, `debug devicetiming #<id>` shows
+// result rows for a device that built and `(no finished results)` for one that did not. These are the ids of the added
+// devices with a result. Fact 94 (raw/build-not-built.txt l.183): a full build purges every result first, so
+// `startFull` empties the set and the build's late `Build started.` fills it. River, Reach Scaling, and Perlin Curve
+// added from the console do not build (raw/river-failing-graph.txt); the captures time only a River, and every River
+// the fake holds was added from the console, so the fake stops at an added River and every added device downstream of
+// one (plan decision B6). Assumed: a disabled or bypassed device follows the same rule, a stopped full build records
+// none (its purge stands), a group build leaves the results alone, a full build started from the window does not
+// empty them first, and a project switch clears them.
+let results = new Set();
+const resultsOfFullBuild = () => {
+  const stopped = new Set(added.filter((device) => device.type === 'River').map((device) => device.id));
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const wire of wires) {
+      if (stopped.has(wire.from) && !stopped.has(wire.to)) {
+        stopped.add(wire.to);
+        grew = true;
+      }
+    }
+  }
+  return new Set(added.filter((device) => !stopped.has(device.id)).map((device) => device.id));
+};
+// raw/build-not-built-timing.txt l.73-76 and l.86-90, verbatim. Assumed: the fake does not model `scene resolution`,
+// so the result levels are the ones captured at 513.
+const TIMING_COLUMNS = `${'Device'.padEnd(33)}Prepare  Activate   Distrib     Total`;
+const TIMING_ROWS = ['129px', '257px', '513px'].map(
+  (level) => `${level.padEnd(37)}0ms       1ms       0ms       1ms\n`,
+);
+const TIMING_LEGEND =
+  "Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.";
 // The `.tmd` file that `project save` or `project open` named; templates resolve against its folder (fact 50).
 let savedPath;
 // FAKE_WM_LATE_TRAILER=1 holds an ended full build's sleep-allowed trailer until the next build start prints its
@@ -219,7 +250,10 @@ const endBuild = () => {
     trailer();
     later(() => {
       // Spec v2b fact 67: a group build does not make the outputs exportable.
-      if (ending.group === undefined) built = true;
+      if (ending.group === undefined) {
+        built = true;
+        results = resultsOfFullBuild();
+      }
       out(lateLine(ending));
     });
   } else {
@@ -237,6 +271,8 @@ const lateLine = (run) =>
     : `Building ${run.group.count} device(s) in group '${run.group.name}'\n`;
 // `build start`, or `group build` with its group: the same events (spec v2b fact 66).
 const startFull = (group) => {
+  // Fact 94: a full build purges every result before it starts; a group build leaves them (Assumed).
+  if (group === undefined) results = new Set();
   // Spec v2a section 3: a full build replaces a preview; raw/v2-build-concurrency.txt l.85-86 reads
   // `No build running.` during it.
   previewUntil = 0;
@@ -273,6 +309,7 @@ const switchTo = (next) => {
   wires = [];
   nextId = firstFreeId(next);
   built = false;
+  results = new Set();
   savedPath = undefined;
   sampleDisabled = new Set();
   snapshots = [];
@@ -390,6 +427,40 @@ const SHAPES = {
   Constant: {
     inputs: ['Primary Input'],
     parameters: [['Height', 'float', '0 m']],
+  },
+  // raw/v6b-param-set.txt l.39-45 and raw/enum-options.txt l.3571-3576: a new File Output's parameters, its format
+  // options in index order at l.3579-3673. raw/river-build-diag.txt l.38-41: its inputs. Assumed: like every fake
+  // device it lists one output, though World Machine lists none (l.42-43). `exportAlways` reads false (plan decision B7).
+  'Height Output': {
+    inputs: ['Primary Input', 'Metadata Input'],
+    parameters: [
+      ['filename', 'filename', '<project>_<name>_<res>.png'],
+      [
+        'format',
+        'enum',
+        'PNG (16bit)',
+        [
+          '8bit RAW',
+          '16bit RAW',
+          '32bit Float RAW',
+          'Terragen',
+          'Leveller',
+          'BT',
+          'PGM',
+          'Windows BMP (8bit)',
+          'TGA (8bit)',
+          'TIFF (16bit)',
+          'PNG (8bit)',
+          'PNG (16bit)',
+          'HFZ',
+          'OpenEXR (32bit)',
+          'OpenEXR (32bit RGB)',
+        ],
+      ],
+      ['exportAlways', 'bool', 'false'],
+      ['tiled', 'bool', 'true'],
+      ['writeButton', 'action', ''],
+    ],
   },
 };
 const OTHER_SHAPE = { inputs: ['Primary Input'], parameters: [] };
@@ -1019,9 +1090,29 @@ async function handle(line) {
     }
     return;
   }
+  const timing = /^debug devicetiming #(\d+)$/.exec(command);
+  if (timing) {
+    const ref = `#${timing[1]}`;
+    const device = findAdded(ref);
+    // Assumed: a device the fake does not model, the sample project's own included, gets the not-found error of the
+    // device commands; no capture times a missing device.
+    if (device === undefined) return void notFound(ref);
+    const rows = results.has(device.id) ? TIMING_ROWS.join('') : '  (no finished results)\n';
+    return void out(
+      `Build timing for '${device.name}' (${ref}), per result level:\n${TIMING_COLUMNS}\n${rows}${TIMING_LEGEND}\n`,
+    );
+  }
   if (command === 'export list') {
     // Fact 49, raw/v2-build-export.txt l.15-20. Assumed: a project without outputs prints the header and no rows.
-    const rows = project === 'empty' ? [] : EXPORT_ROWS;
+    // raw/build-not-built-timing.txt l.47-50: an added File Output is listed by name with its filename. Assumed: added
+    // outputs follow the project's own, in the order they were added; `export all` still writes only the project's
+    // own (plan decision B7).
+    const rows = [
+      ...(project === 'empty' ? [] : EXPORT_ROWS),
+      ...added
+        .filter((device) => device.type === 'Height Output')
+        .map((device) => [device.name, device.parameters.find((p) => p.name === 'filename')?.value ?? '']),
+    ];
     out(
       `Configured exports:\n${rows.map(([name, template]) => `  '${name.padEnd(20)}' -> ${template}\n`).join('')}\n`,
     );

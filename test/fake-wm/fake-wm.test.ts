@@ -1627,3 +1627,88 @@ describe('fake World Machine: lengths through the parameter editor (float-units 
     expect(await outputs(s, ['param get #1.Width'])).toEqual([['#1.Width = 8 km']]);
   });
 });
+
+describe('fake World Machine: build results (build-not-built design, facts 93 and 94)', () => {
+  const timing = (device: number, occurrence: number) =>
+    rawFrame('build-not-built-timing.txt', `debug devicetiming #${device}`, occurrence);
+  // raw/build-not-built-timing.txt l.79-82: a device without results, after its title.
+  const noResults = (name: string, id: number) => [
+    `Build timing for '${name}' (#${id}), per result level:`,
+    ...timing(2, 0).slice(1),
+  ];
+  // A full build of FAKE_WM_BUILD_MS 50 has ended and confirmed by then, as in the export tests above.
+  const ended = (ms = 300) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  it("lists a new File Output's parameters as raw/v6b-param-set.txt l.39-45 shows", async () => {
+    const s = session();
+    await s.execute(['project new blank force', 'device add File Output']);
+    const [listed] = await s.execute(['param list #1']);
+    expect(parseParamList(listed?.output ?? [])).toEqual(
+      parseParamList(rawFrame('v6b-param-set.txt', 'param list Height Output')),
+    );
+  });
+
+  it('refuses a File Output format index past its fifteen options (raw/enum-options.txt l.3582-3583)', async () => {
+    const s = session();
+    await s.execute(['project new blank force', 'device add File Output']);
+    expect(await outputs(s, ['param set "#1.format" 9999'])).toEqual([
+      ['Error: Error: Enum index out of range (0-14): 9999'],
+    ]);
+  });
+
+  it('lists an added File Output in export list with its filename (raw/build-not-built-timing.txt l.47-50)', async () => {
+    const s = session();
+    await s.execute([
+      'project new blank force',
+      'device add Gradient',
+      'device add River',
+      'device add File Output',
+      'param set #3.filename <WORK>/river-height.png',
+    ]);
+    const [listed] = await s.execute(['export list']);
+    expect(listed?.output).toEqual(rawFrame('build-not-built-timing.txt', 'export list'));
+  });
+
+  it('stops at an added River and the File Output after it, and times the Gradient (l.72-90)', async () => {
+    const s = session({ FAKE_WM_BUILD_MS: '50' });
+    await s.execute([
+      'project new blank force',
+      'device add Gradient',
+      'device add River',
+      'device add File Output',
+      'wire connect #1 #2.1',
+      'wire connect #2.1 #3',
+      'build start',
+    ]);
+    await ended();
+    expect(
+      await outputs(s, ['debug devicetiming #3', 'debug devicetiming #2', 'debug devicetiming #1']),
+    ).toEqual([timing(3, 0), timing(2, 0), timing(1, 0)]);
+  });
+
+  it('times every device of Gradient into File Output after a full build (l.167-181)', async () => {
+    const s = session({ FAKE_WM_BUILD_MS: '50' });
+    await s.execute([
+      'project new blank force',
+      'device add Gradient',
+      'device add File Output',
+      'wire connect #1 #2',
+      'build start',
+    ]);
+    await ended();
+    expect(await outputs(s, ['debug devicetiming #2', 'debug devicetiming #1'])).toEqual([
+      timing(2, 1),
+      timing(1, 1),
+    ]);
+  });
+
+  it('empties the results when a full build starts (fact 94)', async () => {
+    const s = session({ FAKE_WM_BUILD_MS: '400' });
+    await s.execute(['project new blank force', 'device add Gradient', 'build start']);
+    await ended(700);
+    expect(await outputs(s, ['debug devicetiming #1'])).toEqual([timing(1, 1)]);
+    expect((await outputs(s, ['build start', 'debug devicetiming #1']))[1]).toEqual(noResults('Gradient', 1));
+    await ended(700);
+    expect(await outputs(s, ['debug devicetiming #1'])).toEqual([timing(1, 1)]);
+  });
+});
