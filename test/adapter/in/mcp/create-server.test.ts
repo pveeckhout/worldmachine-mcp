@@ -1332,6 +1332,23 @@ describe('createMcpServer build and export tools (spec v2a section 4)', () => {
     expect(description('list_exports')).not.toContain('tiled');
   });
 
+  it.each([
+    'After a full build that finished within the wait, the result reports whether every output was built (outputsBuilt)',
+    'where building stopped (stoppedAt',
+    'outputsCheckError',
+    'preview, tiled, and group builds, and a running result, are not checked',
+  ])('describes the output check in build_project: %s', async (text) => {
+    const { tools } = await (await connect(deps())).listTools();
+    expect(tools.find((tool) => tool.name === 'build_project')?.description ?? '').toContain(text);
+  });
+
+  it('no longer says in build_project that World Machine does not report failed builds', async () => {
+    const { tools } = await (await connect(deps())).listTools();
+    expect(tools.find((tool) => tool.name === 'build_project')?.description ?? '').not.toContain(
+      'World Machine does not report failed builds',
+    );
+  });
+
   it('maps build_project arguments, with wait_seconds defaulting to 60 and the call signal passed on', async () => {
     const seen: BuildProjectCommand[] = [];
     const client = await connect(
