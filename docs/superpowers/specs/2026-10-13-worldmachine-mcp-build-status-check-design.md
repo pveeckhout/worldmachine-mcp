@@ -2,6 +2,7 @@
 
 Date: 2026-10-13
 Status: draft, awaiting review
+Revision 2 (2026-10-13): a separate switch counter (section 6), and an awaiting record whose run vanished with World Machine reports the results gone instead of clearing (section 3).
 Builds on: [build-not-built design](2026-10-13-worldmachine-mcp-build-not-built-design.md) (the output check, sections 4-6; facts 92-96) and [v2a design](2026-10-05-worldmachine-mcp-v2a-design.md) (`build_project`, `get_build_status`, the build tracker). Backlog: "`get_build_status` does not check the outputs" (docs/research/2026-10-05-plan1-backlog.md).
 
 ## 1. Purpose and scope
@@ -32,9 +33,10 @@ The server keeps one in-memory record, `LastFullBuild`, of the last full build `
 | `build_project` mode `full` returns `running` | `awaiting`, with the run's `startedAt` and the revision captured when the build started (equal to the revision at its end, section 2) |
 | `get_build_status`, record `awaiting`, `BuildPort.last()` has the same `startedAt` and has ended (finished or stopped), revision unchanged, session `ready` | the check runs (section 4), then `checked` |
 | as above, revision changed | `checked` with `outputsCheckError: "The project changed after the build ended; run build_project again."`, without reads |
-| as above, session not `ready` | `checked` with `outputsCheckError: "World Machine is not running; the results of that build are gone. Run build_project again."`, without reads |
-| `BuildPort.last()` is a different run, or none (a new build of any tracked mode, a new World Machine process, `forgetRun`) | cleared |
-| `bind()` to another project (open, create, close) | cleared |
+| `get_build_status`, record `awaiting`, and `BuildPort.last()` has no run (World Machine exited after the build; `forgetRun` drops only runs World Machine started), or the session is not `ready` | `checked` with `outputsCheckError: "World Machine is not running; the results of that build are gone. Run build_project again."`, without reads |
+| `BuildPort.last()` is a different run (a new build of any tracked mode, in this or a new World Machine process) | cleared |
+| record `checked` and `BuildPort.last()` has no run | unchanged: the result stays true of that build |
+| `bind()` to another project (open or create; the shutdown's close ends the process) | cleared |
 | any other call | unchanged; `get_build_status` repeats a `checked` result without reads |
 
 A full build ended by `stop_build` counts as ended and is checked, as in `build_project` (build-not-built design, section 3); its outputs usually report not built, and the hint says so.
@@ -68,7 +70,7 @@ The `build_project` description's sentence on a `running` result gains: `get_bui
 ## 6. Structure
 
 - Application: `OutputsChecker`, the check extracted from `BuildProjectService` with its error rule. `LastFullBuildRecord`, holding the record, with a pure transition core (section 3) and one instance shared by `BuildProjectService` and `GetBuildStatusService`, wired in `main.ts`.
-- Outbound ports: `BuildPort.last()` returns the tracker's last run, running or ended (`current()` keeps returning the running run only). `WorldMachineSessionPort.projectRevision()` returns a counter that `markDirty()` and a `bind()` to another project bump, and that a save does not. How a save's `bind()` is told apart is settled in the plan.
+- Outbound ports: `BuildPort.last()` returns the tracker's last run, running or ended (`current()` keeps returning the running run only). `WorldMachineSessionPort` gains two counters: `projectRevision()`, which `markDirty()` and a `bind()` to another project bump, and `projectSwitches()`, which only a `bind()` to another project bumps (it clears the record, section 3). A save bumps neither. How a save's `bind()` is told apart is settled in the plan.
 - Services: `BuildProjectService` writes the record after the wait. `GetBuildStatusService` resolves the record, runs `OutputsChecker` when a check is due, and maps the record to `lastFullBuild`.
 - MCP: `buildStatusViewSchema` admits `lastFullBuild`; both descriptions change (section 5).
 
@@ -102,7 +104,7 @@ sequenceDiagram
 
 - Record: every row of the section 3 table; two concurrent `get_build_status` calls share one check.
 - Session: the revision bumps on `markDirty`, open, create, and close, and not on save.
-- Services, with stub ports: an outlived build is checked once and repeated without a second read; an edit between the end and the check gives the "project changed" error without reads; a session not `ready` gives the "results are gone" error; a `WorldMachineError` is stored and any other error leaves the record `awaiting`; a new build clears the record; a build that finished within `build_project`'s wait is repeated by `get_build_status`; `build_project`'s results are unchanged.
+- Services, with stub ports: an outlived build is checked once and repeated without a second read; an edit between the end and the check gives the "project changed" error without reads; a session not `ready`, or an `awaiting` record whose run vanished with World Machine, gives the "results are gone" error while a `checked` record survives it; a `WorldMachineError` is stored and any other error leaves the record `awaiting`; a new build clears the record; a build that finished within `build_project`'s wait is repeated by `get_build_status`; `build_project`'s results are unchanged.
 - Through the fake World Machine: the River graph with a wait shorter than the fake's build gives `running`, then `get_build_status` after the end gives `outputsBuilt: false`, `notBuilt` the File Output, and `stoppedAt` the River; the plain graph gives `outputsBuilt: true`; an `update_device_parameters` call before `get_build_status` gives the "project changed" error.
 - MCP: the view schema admits `lastFullBuild`; the descriptions name the check.
 - Live (`WM_LIVE=1`, after the user approves the run): the River graph in a blank project, a full build with a wait shorter than the build, then `get_build_status`.
