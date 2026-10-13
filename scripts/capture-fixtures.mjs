@@ -15,6 +15,7 @@ import {
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
+import { acceptedAddWords, probeCommands, probeVerdict, readProbeWireList } from './port-type-probe.mjs';
 
 const bin = process.env.WORLD_MACHINE_BIN;
 if (!bin) {
@@ -1976,6 +1977,35 @@ const scenarios = [
     },
   ],
   [
+    // Port-types design section 3, port-types plan decision D12: every add and list, then three outputs probed checked
+    // and three lean, and the projected time of the full run in each mode, to state before asking for it. Ends closed.
+    'port-types-sample',
+    async () => {
+      const sections = [];
+      try {
+        await portTypes(sections, { sample: true });
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
+    // Port-types design section 3: which outputs every input accepts, for a generated catalog. Every accepted add word
+    // added (plan decision D22), and every output of one device per listed type against every input of the others, in
+    // one blank project; PORT_TYPES_LEAN=1 probes lean (plan decision D20). Ends closed.
+    'port-types',
+    async () => {
+      const sections = [];
+      try {
+        await portTypes(sections, { lean: process.env.PORT_TYPES_LEAN === '1' });
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
     // Backlog item 101: the scale between a float's internal value and its display unit. Every unit float of every
     // type of ENUM_TYPES read as added, at 1, and at 0.25, then re-read after the scene size changes to 12 and 4 km
     // and set to 1 again. Devices stay in one blank project. Ends closed.
@@ -3229,6 +3259,123 @@ async function enumOptions(sections) {
   sections.push(...(await run(['project close force'])));
 }
 
+/**
+ * Plan decisions D10, D11, and D20: one batch per source output against every input of every other device, each pair
+ * sent as probeCommands and read by probeVerdict (scripts/port-type-probe.mjs, Codex round 1 ruling S2), recorded as
+ * one `(probe ...)` section per output. Returns the pairs probed and the milliseconds taken.
+ */
+async function probeOutputs(sections, sources, targetsOf, lean) {
+  const started = Date.now();
+  let pairs = 0;
+  for (const source of sources) {
+    const from = `#${source.id}.${source.port}`;
+    const targets = targetsOf(source);
+    const sent = targets.map((target) => probeCommands(source, target, lean));
+    const batch = sent.flat();
+    try {
+      const answers = await run(batch, Math.max(60_000, batch.length * 1_000));
+      let at = 0;
+      const lines = targets.map((target, index) => {
+        const mine = answers.slice(at, at + sent[index].length);
+        at += sent[index].length;
+        return `#${target.id}.${target.port} ${probeVerdict(source, target, mine, lean)}`;
+      });
+      pairs += targets.length;
+      sections.push({ command: `(probe ${from})`, lines, unsolicited: answers[0]?.unsolicited });
+    } catch (error) {
+      sections.push({ command: `(probe ${from} stopped)`, lines: [scrub(error.message)] });
+    }
+  }
+  return { pairs, ms: Date.now() - started };
+}
+
+// Port-types plan decision D22: the words `device add` accepted in build 4067, read from their capture.
+const ADD_WORDS_CAPTURE = join('test', 'fixtures', 'wm-4067', 'raw', 'v3-rename-types.txt');
+
+/**
+ * Device list rows with their listed type (fact 81: the kind, or else the name). An empty project's answer, `No devices
+ * in the current project.` (raw/p2a-edge-cases.txt l.77), has no row and reads as none (Codex round 3 ruling).
+ */
+const listedDevices = (lines) =>
+  lines.flatMap((line) => {
+    const match = DEVICE_ROW.exec(line);
+    return match ? [{ id: Number(match[1]), name: match[2], type: match[3] ?? match[2] }] : [];
+  });
+
+/**
+ * Port-types design section 3 and plan decisions D10-D13, D20, and D22. In a new blank project every word `device add`
+ * accepted (raw/v3-rename-types.txt phase A) is added, and the device it gives is read from the device list (a word that
+ * shows no new device is recorded as not added); then every added device's ports are listed, after all adds. Then
+ * every output of the first device of each listed type is probed against every input of the other first devices
+ * (`probeOutputs`), checked unless `lean` (Codex round 1 ruling B1 addendum). `sample` probes only the first three
+ * outputs checked and the next three lean, and adds the projected time of the full run in each mode (plan decision
+ * D12), so the controller can choose the mode with the user.
+ */
+async function portTypes(sections, { sample = false, lean = false } = {}) {
+  const started = Date.now();
+  const words = acceptedAddWords(readFileSync(ADD_WORDS_CAPTURE, 'utf8'));
+  const listed = await run(['project new blank force', 'device list']);
+  sections.push(...listed);
+  const known = new Set(listedDevices(listed[1].lines).map((device) => device.id));
+  const added = [];
+  for (const word of words) {
+    try {
+      const add = await run([`device add ${word}`, 'device list']);
+      sections.push(...add);
+      const fresh = listedDevices(add[1].lines).filter((device) => !known.has(device.id));
+      for (const device of fresh) known.add(device.id);
+      if (fresh[0] === undefined) sections.push({ command: `(type ${word} not added)`, lines: add[0].lines });
+      else added.push({ ...fresh[0], inputs: [], outputs: [] });
+    } catch (error) {
+      sections.push({ command: `(type ${word} stopped)`, lines: [scrub(error.message)] });
+    }
+  }
+  // Plan decision D11: the ports after every add, so the parser sees every input still free before probing. A list
+  // that does not read completely leaves the device without ports here; the parser fails on it.
+  const lists = await run(
+    added.map((device) => `wire list #${device.id}`),
+    Math.max(60_000, added.length * 2_000),
+  );
+  sections.push(...lists);
+  for (const [index, device] of added.entries()) {
+    const ports = readProbeWireList(lists[index]);
+    device.inputs = ports?.inputs.map((input) => input.port) ?? [];
+    device.outputs = ports?.outputs.map((output) => output.port) ?? [];
+  }
+  const listedMs = Date.now() - started;
+  // Codex round 1 ruling B1 addendum: one probed device per listed type, the first one added.
+  const probed = added.filter(
+    (device, index) => added.findIndex((other) => other.type === device.type) === index,
+  );
+  const sources = probed.flatMap((device) => device.outputs.map((port) => ({ ...device, port })));
+  const targetsOf = (source) =>
+    probed
+      .filter((device) => device.id !== source.id)
+      .flatMap((device) => device.inputs.map((port) => ({ ...device, port })));
+  const total = sources.reduce((sum, source) => sum + targetsOf(source).length, 0);
+  const timing = [
+    `words: ${words.length}, added: ${added.length}, listed types probed: ${probed.length}`,
+    `outputs: ${sources.length}, pairs: ${total}`,
+    `adding and listing: ${listedMs} ms`,
+  ];
+  const report = (mode, { pairs, ms }) => {
+    timing.push(`${mode}: ${pairs} pairs in ${ms} ms`);
+    if (sample && pairs > 0) {
+      timing.push(
+        `${mode}: projected probing of all pairs: ${Math.round(((ms / pairs) * total) / 60_000)} min`,
+      );
+    }
+  };
+  if (sample) {
+    report('checked', await probeOutputs(sections, sources.slice(0, 3), targetsOf, false));
+    report('lean', await probeOutputs(sections, sources.slice(3, 6), targetsOf, true));
+  } else {
+    report(lean ? 'lean' : 'checked', await probeOutputs(sections, sources, targetsOf, lean));
+  }
+  sections.push({ command: '(timing)', lines: timing });
+  sections.push(...(await run(['project close force'])));
+}
+
 async function v3Assumptions(sections) {
   const file = join(work, 'v3.tmd');
   sections.push(
@@ -3365,8 +3512,12 @@ async function diagnostic(kind) {
 
 // `npm run capture-fixtures -- <name> ...` captures only the named scenarios (system info always runs first).
 const only = process.argv.slice(2);
+// Port-types plan decision D21: hours-long scenarios run only when named.
+const ON_REQUEST = new Set(['port-types', 'port-types-sample']);
 const selected =
-  only.length === 0 ? scenarios : scenarios.filter(([name]) => name === 'system-info' || only.includes(name));
+  only.length === 0
+    ? scenarios.filter(([name]) => !ON_REQUEST.has(name))
+    : scenarios.filter(([name]) => name === 'system-info' || only.includes(name));
 
 function check(name, sections) {
   if (name === 'v1-result-before-next-error') {

@@ -5,7 +5,7 @@
 // Plain JavaScript because a Node script cannot import TypeScript from src/; enum-catalog.d.mts types it for tests.
 
 // src/domain/errors.ts LOG_LINE: World Machine's log lines land inside frames (raw/enum-options.txt l.183, l.449).
-const LOG_LINE = /^\[([A-Za-z]+)\s*\] /;
+export const LOG_LINE = /^\[([A-Za-z]+)\s*\] /;
 // src/adapter/out/worldmachine/parsers/system-info.ts VERSION (raw/system-info.txt l.3).
 const VERSION = /^\s*Version:\s+Build (\d+) '[^']*'\s*$/;
 // src/adapter/out/worldmachine/parsers/device-list.ts ROW: an id, the name, and an optional parenthesised kind.
