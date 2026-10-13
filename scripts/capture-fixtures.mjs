@@ -15,7 +15,14 @@ import {
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
-import { acceptedAddWords, probeCommands, probeVerdict, readProbeWireList } from './port-type-probe.mjs';
+import {
+  acceptedAddWords,
+  CRASHED,
+  crashedTarget,
+  probeCommands,
+  probeVerdict,
+  readProbeWireList,
+} from './port-type-probe.mjs';
 
 const bin = process.env.WORLD_MACHINE_BIN;
 if (!bin) {
@@ -33,8 +40,10 @@ const DEVICE_ROW = /^\s*#(\d+)\s+(.*?)(?:\s{2,}\(([^()]+)\))?\s*$/;
 // As src/adapter/out/worldmachine/parsers/param-list.ts: a name may have single spaces (raw/river-device.txt).
 const PARAM_ROW = /^\s{2}(\S(?:.*?\S)?)\s{2,}(\S+)(?:\s+(.*?))?\s*$/;
 
-const child = spawn('/bin/sh', ['-c', 'exec "$0" --cli 2>&1', bin], { stdio: ['pipe', 'pipe', 'ignore'] });
-const received = [];
+// Port-types design section 3, crashes and resumes: startWorldMachine() replaces the child after a crash, so these
+// hold the current one; handlers of an earlier child no longer touch them.
+let child;
+let received = [];
 let waiter;
 let failure;
 
@@ -44,20 +53,6 @@ const failWaiter = (error) => {
   waiter = undefined;
   current?.reject(error);
 };
-child.on('error', (error) => failWaiter(error));
-child.on('exit', (code, signal) =>
-  failWaiter(new Error(`World Machine exited (code ${code}, signal ${signal})`)),
-);
-child.stdin.on('error', () => {});
-
-createInterface({ input: child.stdout }).on('line', (line) => {
-  received.push(line);
-  if (waiter?.match(line)) {
-    const current = waiter;
-    waiter = undefined;
-    current.resolve();
-  }
-});
 
 function waitFor(match, ms, what) {
   if (failure) return Promise.reject(failure);
@@ -91,6 +86,86 @@ function scrub(line) {
 // attributed to the next batch's first command (backlog item 86).
 let consumed = 0;
 
+/**
+ * Starts World Machine with a fresh state, waits for its start-up, and moves `consumed` past the start-up log. Called
+ * once at the start, and again by the port-types capture after World Machine exited (port-types design section 3,
+ * crashes and resumes).
+ */
+async function startWorldMachine() {
+  const spawned = spawn('/bin/sh', ['-c', 'exec "$0" --cli 2>&1', bin], {
+    stdio: ['pipe', 'pipe', 'ignore'],
+  });
+  child = spawned;
+  received = [];
+  consumed = 0;
+  waiter = undefined;
+  failure = undefined;
+  const fail = (error) => {
+    if (child === spawned) failWaiter(error);
+  };
+  spawned.on('error', (error) => fail(error));
+  spawned.on('exit', (code, signal) => {
+    const error = new Error(`World Machine exited (code ${code}, signal ${signal})`);
+    // Lines still buffered in stdout can arrive after 'exit'; wait for its close (at most 2 s), so a rejected batch
+    // counts every end echo World Machine printed (port-types design section 3, crashes and resumes).
+    if (spawned.stdout.closed) return fail(error);
+    const timer = setTimeout(() => fail(error), 2_000);
+    spawned.stdout.once('close', () => {
+      clearTimeout(timer);
+      fail(error);
+    });
+  });
+  spawned.stdin.on('error', () => {});
+  createInterface({ input: spawned.stdout }).on('line', (line) => {
+    if (child !== spawned) return;
+    received.push(line);
+    if (waiter?.match(line)) {
+      const current = waiter;
+      waiter = undefined;
+      current.resolve();
+    }
+  });
+  await waitFor((line) => line.includes(READY), 120_000, 'startup');
+  // The start-up log is not part of any batch.
+  consumed = received.length;
+}
+
+/**
+ * The sections of one batch's commands read from `received[from...]`: the lines after the marker's answer, each up to
+ * its command's end echo. `completed` counts the end echoes that arrived, `end` is the index after the last one when
+ * all arrived.
+ */
+function readBatch(commands, from, marker, echo) {
+  const sections = commands.map((command) => ({ command, lines: [] }));
+  const unsolicited = [];
+  // -1 until the marker's answer; then the index of the command whose output the line belongs to.
+  let index = -1;
+  let end;
+  for (let at = from; at < received.length; at++) {
+    const line = received[at];
+    if (index === -1) {
+      if (line.startsWith(marker)) index = 0;
+      else if (!LICENCE.test(line)) unsolicited.push(scrub(line));
+      continue;
+    }
+    if (line.startsWith(echo(index))) {
+      index++;
+      if (index === commands.length) {
+        end = at + 1;
+        break;
+      }
+      continue;
+    }
+    if (!LICENCE.test(line)) sections[index].lines.push(scrub(line));
+  }
+  if (unsolicited.length > 0 && sections.length > 0) sections[0].unsolicited = unsolicited;
+  return { sections, completed: Math.max(index, 0), end };
+}
+
+/**
+ * Sends one batch and returns a section per command. A rejection carries `completed`, the number of commands whose end
+ * echo arrived, and `partial`, their sections read as on success (port-types design section 3, crashes and resumes).
+ */
 async function run(commands, ms = 60_000) {
   const from = consumed;
   const id = Math.random().toString(16).slice(2, 10);
@@ -105,31 +180,14 @@ async function run(commands, ms = 60_000) {
   const nudge = setInterval(() => child.stdin.write('\n'), 100);
   try {
     await waitFor((line) => line.startsWith(echo(commands.length - 1)), ms, `batch ${id}`);
+  } catch (error) {
+    const { sections, completed } = readBatch(commands, from, marker, echo);
+    throw Object.assign(error, { completed, partial: sections.slice(0, completed) });
   } finally {
     clearInterval(nudge);
   }
-  const sections = commands.map((command) => ({ command, lines: [] }));
-  const unsolicited = [];
-  // -1 until the marker's answer; then the index of the command whose output the line belongs to.
-  let index = -1;
-  for (let at = from; at < received.length; at++) {
-    const line = received[at];
-    if (index === -1) {
-      if (line.startsWith(marker)) index = 0;
-      else if (!LICENCE.test(line)) unsolicited.push(scrub(line));
-      continue;
-    }
-    if (line.startsWith(echo(index))) {
-      index++;
-      if (index === commands.length) {
-        consumed = at + 1;
-        break;
-      }
-      continue;
-    }
-    if (!LICENCE.test(line)) sections[index].lines.push(scrub(line));
-  }
-  if (unsolicited.length > 0) sections[0].unsolicited = unsolicited;
+  const { sections, end } = readBatch(commands, from, marker, echo);
+  if (end !== undefined) consumed = end;
   return sections;
 }
 
@@ -2006,6 +2064,24 @@ const scenarios = [
     },
   ],
   [
+    // Port-types design section 3, crashes and resumes: as `port-types`, probing only the output PORT_TYPES_FROM
+    // (`#<id>.<port>`) and the outputs after it, for a second transcript the catalog generator merges.
+    'port-types-resume',
+    async () => {
+      const sections = [];
+      try {
+        await portTypes(sections, {
+          lean: process.env.PORT_TYPES_LEAN === '1',
+          resume: true,
+          from: process.env.PORT_TYPES_FROM,
+        });
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
     // Backlog item 101: the scale between a float's internal value and its display unit. Every unit float of every
     // type of ENUM_TYPES read as added, at 1, and at 0.25, then re-read after the scene size changes to 12 and 4 km
     // and set to 1 again. Devices stay in one blank project. Ends closed.
@@ -3263,33 +3339,94 @@ async function enumOptions(sections) {
  * Plan decisions D10, D11, and D20: one batch per source output against every input of every other device, each pair
  * sent as probeCommands and read by probeVerdict (scripts/port-type-probe.mjs, Codex round 1 ruling S2), recorded as
  * one `(probe ...)` section per output. Returns the pairs probed, the milliseconds taken, and whether a batch stopped.
- * The first `(probe ... stopped)` section ends the loop: the catalog parser cannot produce a catalog after a stopped
- * section, and a full run takes hours, so the rest would be wasted.
+ * The first `(probe ... stopped)` section ends the loop: a full run takes hours, so the rest would be wasted.
+ * Port-types design section 3, crashes and resumes: when World Machine exits during a batch, the pairs whose commands
+ * all answered keep their verdicts, the pair in flight is `crashed`, and `crashes` (the run's add words, its first
+ * device list, and its restart count) restarts World Machine into the same devices; the source then continues after
+ * the crashed pair. A timeout, a failed restart, or a crash after MAX_RESTARTS stops as before.
  */
-async function probeOutputs(sections, sources, targetsOf, lean) {
+async function probeOutputs(sections, sources, targetsOf, lean, crashes) {
   const started = Date.now();
   let pairs = 0;
   for (const source of sources) {
     const from = `#${source.id}.${source.port}`;
     const targets = targetsOf(source);
-    const sent = targets.map((target) => probeCommands(source, target, lean));
-    const batch = sent.flat();
-    try {
-      const answers = await run(batch, Math.max(60_000, batch.length * 1_000));
+    const lines = [];
+    const unsolicited = [];
+    const stop = (messages) => {
+      sections.push({ command: `(probe ${from} stopped)`, lines: messages.map(scrub) });
+      return { pairs, ms: Date.now() - started, stopped: true };
+    };
+    const verdicts = (answered, sent, answers) => {
       let at = 0;
-      const lines = targets.map((target, index) => {
+      for (const [index, target] of answered.entries()) {
         const mine = answers.slice(at, at + sent[index].length);
         at += sent[index].length;
-        return `#${target.id}.${target.port} ${probeVerdict(source, target, mine, lean)}`;
-      });
-      pairs += targets.length;
-      sections.push({ command: `(probe ${from})`, lines, unsolicited: answers[0]?.unsolicited });
-    } catch (error) {
-      sections.push({ command: `(probe ${from} stopped)`, lines: [scrub(error.message)] });
-      return { pairs, ms: Date.now() - started, stopped: true };
+        lines.push(`#${target.id}.${target.port} ${probeVerdict(source, target, mine, lean)}`);
+      }
+      pairs += answered.length;
+      unsolicited.push(...(answers[0]?.unsolicited ?? []));
+    };
+    let next = 0;
+    while (next < targets.length) {
+      const rest = targets.slice(next);
+      const sent = rest.map((target) => probeCommands(source, target, lean));
+      const batch = sent.flat();
+      try {
+        verdicts(rest, sent, await run(batch, Math.max(60_000, batch.length * 1_000)));
+        next = targets.length;
+      } catch (error) {
+        const exited = child.exitCode !== null || child.signalCode !== null;
+        if (!exited || crashes.restarts === MAX_RESTARTS) return stop([error.message]);
+        const crashed = crashedTarget(sent, error.completed);
+        const answered = crashed ?? rest.length;
+        verdicts(rest.slice(0, answered), sent, error.partial);
+        const last = rest[answered] ?? rest[answered - 1];
+        if (crashed !== undefined) lines.push(`#${last.id}.${last.port} ${CRASHED}`);
+        crashes.restarts++;
+        let count;
+        try {
+          count = await restartWorldMachine(crashes);
+        } catch (restartError) {
+          return stop([error.message, restartError.message]);
+        }
+        if (count === undefined) {
+          return stop([error.message, 'restarted, but the device list differs from the first run']);
+        }
+        sections.push({
+          command: `(restarted after ${from} -> #${last.id}.${last.port})`,
+          lines: [scrub(error.message), `re-added ${count} devices, list unchanged`],
+        });
+        next += answered + 1;
+      }
     }
+    sections.push({
+      command: `(probe ${from})`,
+      lines,
+      unsolicited: unsolicited.length > 0 ? unsolicited : undefined,
+    });
   }
   return { pairs, ms: Date.now() - started, stopped: false };
+}
+
+// Port-types design section 3, crashes and resumes: a run stops at its sixth crash.
+const MAX_RESTARTS = 5;
+
+/**
+ * Port-types design section 3, crashes and resumes: starts World Machine again, makes a new blank project, and adds
+ * every word of the first run in the same order. Returns the number of devices listed when the list equals the first
+ * run's (ids and listed types), else undefined. Its batches are not recorded.
+ */
+async function restartWorldMachine({ words, devices }) {
+  await startWorldMachine();
+  await run(['project new blank force']);
+  const answers = await run(
+    [...words.map((word) => `device add ${word}`), 'device list'],
+    Math.max(60_000, words.length * 2_000),
+  );
+  const shown = (list) => list.map((device) => `#${device.id} ${device.type}`).join('\n');
+  const again = listedDevices(answers.at(-1).lines);
+  return shown(again) === shown(devices) ? again.length : undefined;
 }
 
 // Port-types plan decision D22: the words `device add` accepted in build 4067, read from their capture.
@@ -3312,11 +3449,12 @@ const listedDevices = (lines) =>
  * every output of the first device of each listed type is probed against every input of the other first devices
  * (`probeOutputs`), checked unless `lean` (Codex round 1 ruling B1 addendum). `sample` probes only the first three
  * outputs checked and the next three lean, and adds the projected time of the full run in each mode (plan decision
- * D12), so the controller can choose the mode with the user.
+ * D12), so the controller can choose the mode with the user. `resume` probes only the sources from the output `from`
+ * on (port-types design section 3, crashes and resumes).
  */
-async function portTypes(sections, { sample = false, lean = false } = {}) {
+async function portTypes(sections, { sample = false, lean = false, resume = false, from } = {}) {
   try {
-    await portTypesBody(sections, { sample, lean });
+    await portTypesBody(sections, { sample, lean, resume, from });
   } finally {
     // Every path ends closed, including a throw from the opening run, the wire-list batch, or a probe.
     try {
@@ -3327,18 +3465,22 @@ async function portTypes(sections, { sample = false, lean = false } = {}) {
   }
 }
 
-async function portTypesBody(sections, { sample, lean }) {
+async function portTypesBody(sections, { sample, lean, resume, from }) {
+  if (resume && !from) throw new Error('set PORT_TYPES_FROM=#<id>.<port>, the first output to probe');
   const started = Date.now();
   const words = acceptedAddWords(readFileSync(ADD_WORDS_CAPTURE, 'utf8'));
   const listed = await run(['project new blank force', 'device list']);
   sections.push(...listed);
-  const known = new Set(listedDevices(listed[1].lines).map((device) => device.id));
+  // Port-types design section 3, crashes and resumes: the last device list, which a restart has to give again.
+  let lastList = listedDevices(listed[1].lines);
+  const known = new Set(lastList.map((device) => device.id));
   const added = [];
   for (const word of words) {
     try {
       const add = await run([`device add ${word}`, 'device list']);
       sections.push(...add);
-      const fresh = listedDevices(add[1].lines).filter((device) => !known.has(device.id));
+      lastList = listedDevices(add[1].lines);
+      const fresh = lastList.filter((device) => !known.has(device.id));
       for (const device of fresh) known.add(device.id);
       if (fresh[0] === undefined) sections.push({ command: `(type ${word} not added)`, lines: add[0].lines });
       else added.push({ ...fresh[0], inputs: [], outputs: [] });
@@ -3367,7 +3509,10 @@ async function portTypesBody(sections, { sample, lean }) {
   const probed = added.filter(
     (device, index) => added.findIndex((other) => other.type === device.type) === index,
   );
-  const sources = probed.flatMap((device) => device.outputs.map((port) => ({ ...device, port })));
+  const outputs = probed.flatMap((device) => device.outputs.map((port) => ({ ...device, port })));
+  const first = resume ? outputs.findIndex((source) => `#${source.id}.${source.port}` === from) : 0;
+  if (first === -1) throw new Error(`PORT_TYPES_FROM=${from} is no probed output`);
+  const sources = outputs.slice(first);
   const targetsOf = (source) =>
     probed
       .filter((device) => device.id !== source.id)
@@ -3377,6 +3522,7 @@ async function portTypesBody(sections, { sample, lean }) {
     `words: ${words.length}, added: ${added.length}, listed types probed: ${probed.length}`,
     `outputs: ${sources.length}, pairs: ${total}`,
     `adding and listing: ${listedMs} ms`,
+    ...(resume ? [`from: ${from}`] : []),
   ];
   const report = (mode, { pairs, ms }) => {
     timing.push(`${mode}: ${pairs} pairs in ${ms} ms`);
@@ -3386,12 +3532,15 @@ async function portTypesBody(sections, { sample, lean }) {
       );
     }
   };
+  const crashes = { words, devices: lastList, restarts: 0 };
   if (sample) {
-    const checked = await probeOutputs(sections, sources.slice(0, 3), targetsOf, false);
+    const checked = await probeOutputs(sections, sources.slice(0, 3), targetsOf, false, crashes);
     report('checked', checked);
-    if (!checked.stopped) report('lean', await probeOutputs(sections, sources.slice(3, 6), targetsOf, true));
+    if (!checked.stopped) {
+      report('lean', await probeOutputs(sections, sources.slice(3, 6), targetsOf, true, crashes));
+    }
   } else {
-    report(lean ? 'lean' : 'checked', await probeOutputs(sections, sources, targetsOf, lean));
+    report(lean ? 'lean' : 'checked', await probeOutputs(sections, sources, targetsOf, lean, crashes));
   }
   sections.push({ command: '(timing)', lines: timing });
 }
@@ -3533,7 +3682,7 @@ async function diagnostic(kind) {
 // `npm run capture-fixtures -- <name> ...` captures only the named scenarios (system info always runs first).
 const only = process.argv.slice(2);
 // Port-types plan decision D21: hours-long scenarios run only when named.
-const ON_REQUEST = new Set(['port-types', 'port-types-sample']);
+const ON_REQUEST = new Set(['port-types', 'port-types-resume', 'port-types-sample']);
 const selected =
   only.length === 0
     ? scenarios.filter(([name]) => !ON_REQUEST.has(name))
@@ -3555,9 +3704,7 @@ function check(name, sections) {
 }
 
 try {
-  await waitFor((line) => line.includes(READY), 120_000, 'startup');
-  // The start-up log is not part of any batch.
-  consumed = received.length;
+  await startWorldMachine();
   let outDir;
   for (const [name, scenario] of selected) {
     const sections = await scenario();

@@ -128,3 +128,23 @@ export function probeVerdict(source, target, answers, lean) {
   const list = lean ? '' : ` wire list [${text(shown)}]`;
   return `error: connect [${text(connect)}]${list} disconnect [${sweep.map(text).join(' / ')}]`;
 }
+
+/**
+ * Port-types design section 3, crashes and resumes: the verdict of the pair whose command was in flight when World
+ * Machine exited. The catalog reads it as a hole (design section 4).
+ */
+export const CRASHED = 'crashed';
+
+/**
+ * Port-types design section 3, crashes and resumes: the index of the target in flight when a batch stopped, given the
+ * per-target command lists of the batch (`sent`, as probeOutputs builds them) and how many commands answered
+ * (`completed` end echoes); undefined when every command answered.
+ */
+export function crashedTarget(sent, completed) {
+  let end = 0;
+  for (const [index, commands] of sent.entries()) {
+    end += commands.length;
+    if (completed < end) return index;
+  }
+  return undefined;
+}

@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   acceptedAddWords,
+  CRASHED,
+  crashedTarget,
   INCOMPATIBLE,
   type ProbeSection,
   probeCommands,
@@ -168,5 +170,35 @@ describe('readProbeWireList (Codex round 1 ruling B3)', () => {
     expect(readProbeWireList(undefined)).toBeUndefined();
     expect(readProbeWireList(section("Error: Error: Device not found: '#2'"))).toBeUndefined();
     expect(readProbeWireList(section(...wireList().lines, 'Something else'))).toBeUndefined();
+  });
+});
+
+describe('crashedTarget (port-types design section 3, crashes and resumes)', () => {
+  // One batch as probeOutputs sends it: checked probes of #1.1 into #2's three inputs, then lean ones.
+  const sent = [
+    probeCommands(GRADIENT, TERRAIN, false),
+    probeCommands(GRADIENT, EXISTING_WATER, false),
+    probeCommands(GRADIENT, { id: 3, port: 1, inputs: [1, 2] }, false),
+  ];
+
+  it('names the first target when its first command was in flight', () => {
+    expect(crashedTarget(sent, 0)).toBe(0);
+  });
+
+  it('names the target whose middle command was in flight', () => {
+    // Targets 0 and 1 sent five commands each; target 2's are commands 10-13, its wire list is command 11.
+    expect(crashedTarget(sent, 11)).toBe(2);
+  });
+
+  it('names the next target when every command of the one before answered', () => {
+    expect(crashedTarget(sent, 5)).toBe(1);
+  });
+
+  it('names none when every command answered', () => {
+    expect(crashedTarget(sent, 14)).toBeUndefined();
+  });
+
+  it('records the in-flight pair as crashed, a hole for the catalog', () => {
+    expect(CRASHED).toBe('crashed');
   });
 });

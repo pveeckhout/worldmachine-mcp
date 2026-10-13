@@ -3,6 +3,8 @@ export type ProbeSection = { readonly lines: readonly string[] };
 export type ProbeSource = { readonly id: number; readonly name: string; readonly port: number };
 export type ProbeTarget = { readonly id: number; readonly port: number; readonly inputs: readonly number[] };
 export const INCOMPATIBLE: string;
+export const CRASHED: string;
+export function crashedTarget(sent: readonly (readonly string[])[], completed: number): number | undefined;
 export function acceptedAddWords(transcript: string): string[];
 export function readProbeWireList(
   section: ProbeSection | undefined,
