@@ -1,6 +1,7 @@
 // Parses the `enum-options` capture of scripts/capture-fixtures.mjs into the enum catalog of the enum-options design
 // (docs/superpowers/specs/2026-10-12-worldmachine-mcp-enum-options-design.md, section 3). One module for
 // scripts/build-enum-catalog.mjs and its tests, so the shipped catalog and its parity test read a transcript alike.
+// scripts/port-type-catalog.mjs reuses its transcript and system info readers (port-types plan decision D19).
 // Plain JavaScript because a Node script cannot import TypeScript from src/; enum-catalog.d.mts types it for tests.
 
 // src/domain/errors.ts LOG_LINE: World Machine's log lines land inside frames (raw/enum-options.txt l.183, l.449).
@@ -24,7 +25,7 @@ const ADD = /^device add (.+)$/;
 const STOPPED = /^\((type .* stopped|scenario stopped|delete .* failed)\)$/;
 
 /** Splits a transcript into its `>>> <command>` ... `<<<` sections; log lines and blank lines are dropped. */
-function transcriptSections(text) {
+export function transcriptSections(text) {
   const sections = [];
   let current;
   for (const line of text.split('\n')) {
@@ -41,7 +42,7 @@ function transcriptSections(text) {
 }
 
 /** The build a `system info` capture reports; exactly one Version line, as parsers/system-info.ts requires. */
-function buildOfSystemInfo(text) {
+export function buildOfSystemInfo(text) {
   const builds = text.split('\n').flatMap((line) => {
     const match = VERSION.exec(line);
     return match ? [Number(match[1])] : [];
