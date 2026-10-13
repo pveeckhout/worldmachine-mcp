@@ -36,7 +36,7 @@ type LengthItem = {
 };
 
 type Item = { readonly planned: PlannedSet } | { readonly length: LengthItem };
-/** A length item becomes a planned set once its scale is read, or a rejected outcome (Task 6, design section 4). */
+/** A length item becomes a planned set once its scale is read, or a rejected outcome (design section 4). */
 type Resolved =
   | { readonly planned: PlannedSet }
   /** `probed`: the item's probe was applied and undone, which leaves a redo entry that sets it to 1. */
@@ -182,7 +182,9 @@ export class WorldMachineParameterEditor implements ParameterEditPort {
    */
   async #probeScale(device: string, item: LengthItem): Promise<Resolved> {
     const probe = requireFrame((await this.#session.execute([item.probe]))[0]);
-    // Nothing was set, so this item's later steps, its undo among them, are skipped.
+    // Nothing was set, so this item's later steps, its undo among them, are skipped. A response with `Error:` counts
+    // as refused even when it also echoes `Set <ref> = 1`: v1 design section 6 holds that a command World Machine
+    // rejects with `Error:` changes nothing, and no capture shows both together.
     if (probe.errors.length > 0) {
       return { outcome: rejected(item, item.parameter.value, worldMachineText(probe.errors)) };
     }
@@ -310,7 +312,7 @@ function withRedoNote(item: Resolved): Resolved {
 }
 
 /**
- * Plan decisions P2 and P9: an item whose probe ran but whose value was not set. `requested` is the text its probe
+ * Plan decisions P2 and P9: an item whose value was not set after its probe, whether the probe was refused or ran. `requested` is the text its probe
  * sent. `given` and `scale` come only with `scale`, an item whose scale was read (design section 5).
  */
 function rejected(

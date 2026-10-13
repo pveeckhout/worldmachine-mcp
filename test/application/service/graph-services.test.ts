@@ -172,7 +172,7 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
             type: 'Gradient',
             enabled: true,
             bypassed: false,
-            // Float-units fact 89: the session starts with `project new default`, where 0.5 x 8 km shows as 4 km.
+            // Float-units facts 87 and 89: the session starts with `project new default`, where 0.5 x 8 km shows as 4 km.
             parameters: { Width: '4 km' },
             inputs: {},
           },
@@ -200,7 +200,7 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
         device: 'Ramp',
         id: 536,
         name: 'Width',
-        // Float-units fact 89: 0.5 x 8 km shows as 4 km in the default project.
+        // Float-units facts 87 and 89: 0.5 x 8 km shows as 4 km in the default project.
         from: '4 km',
         to: '0.5',
         comparable: false,
@@ -476,7 +476,7 @@ describe('apply_graph with device ids (spec v3 revision 6)', () => {
         device: 'Base',
         id: 538,
         name: 'Width',
-        // Float-units fact 89: 0.5 x 8 km shows as 4 km in the default project.
+        // Float-units facts 87 and 89: 0.5 x 8 km shows as 4 km in the default project.
         from: '4 km',
         to: '0.5',
         comparable: false,

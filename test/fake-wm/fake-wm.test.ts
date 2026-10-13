@@ -1494,6 +1494,8 @@ describe('fake World Machine: lengths in display units (float-units design facts
     await s.execute([
       'project new default force',
       'device add Gradient',
+      // The Direction set stands in for the captured `device add Gradient` step (raw/float-scale-undo-same.txt
+      // l.45-85): either way one earlier step sits below the set to the current value.
       'param set #536.Direction 3',
       // Width is already at 1 (8 km).
       'param set "#536.Width" 1',
