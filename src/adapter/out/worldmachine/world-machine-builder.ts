@@ -44,6 +44,10 @@ export class WorldMachineBuilder implements BuildPort {
     return run?.state === 'running' ? run : undefined;
   }
 
+  last(): BuildRun | undefined {
+    return this.#session.buildTracker()?.snapshot();
+  }
+
   async start(mode: BuildMode, group?: Group): Promise<void> {
     this.#session.assertAcceptingCalls();
     if (mode === 'preview') {

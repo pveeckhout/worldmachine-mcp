@@ -32,6 +32,7 @@ function buildFake(calls: string[], options: BuildFakeOptions = {}): BuildPort {
   const previews = [...(options.previews ?? [false])];
   return {
     current: () => run,
+    last: () => run,
     awaitStart: async () => undefined,
     start: async (mode, group) => {
       calls.push(group === undefined ? `start ${mode}` : `start ${mode} #${group.index}`);

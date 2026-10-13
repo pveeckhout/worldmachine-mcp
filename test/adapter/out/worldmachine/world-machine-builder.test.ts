@@ -128,6 +128,17 @@ describe('WorldMachineBuilder (spec v2a section 5)', () => {
     expect(build.current()).toBeUndefined();
   });
 
+  it('reports the last run, running or ended, while current() reports only a running one (build-status-check design section 6)', async () => {
+    const { build } = builder({ FAKE_WM_BUILD_MS: '300' });
+    expect(build.last()).toBeUndefined();
+    await build.start('full');
+    const run = build.last();
+    expect(run).toMatchObject({ mode: 'full', startedBy: 'server', state: 'running' });
+    expect(await build.waitForEnd('full', 5_000)).toBe(true);
+    expect(build.current()).toBeUndefined();
+    expect(build.last()).toEqual({ ...run, state: 'ended' });
+  });
+
   it('starts a tiled build and waits for its end (fact 48)', async () => {
     const { build, record } = builder({ FAKE_WM_BUILD_MS: '200' });
     await build.start('tiled');

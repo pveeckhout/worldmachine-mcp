@@ -10,6 +10,11 @@ export interface BuildPort {
   /** The running full or tiled build, from World Machine's build events; sends nothing and never launches. */
   current(): BuildRun | undefined;
   /**
+   * Build-status-check design section 6: the tracker's last full or tiled run, running or ended; undefined before the
+   * first one, after `forgetRun()`, and once World Machine exited (a new process has a new tracker). Sends nothing.
+   */
+  last(): BuildRun | undefined;
+  /**
    * Starts a build and waits for World Machine's confirmation, not for the end. Mode `group` takes the group the
    * caller resolved inside the same `exclusive()` action and sends its index (spec v2b section 4).
    */
