@@ -133,6 +133,11 @@ export class BuildProjectService implements BuildProjectCommandPort {
     let ended: boolean;
     try {
       ended = await this.#build.waitForEnd(mode, command.waitSeconds * 1_000, command.signal);
+    } catch (error) {
+      // The wait failed (for example CRASHED): the build was started, so the record names it with no result, and the
+      // earlier build's result must not stand in for it (build-status-check design section 3).
+      if (mode === 'full' && stamp !== undefined) this.#lastFullBuild.outlived(stamp);
+      throw error;
     } finally {
       clearInterval(ticker);
     }

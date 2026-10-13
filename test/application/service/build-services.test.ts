@@ -705,6 +705,32 @@ describe('get_build_status reports the last full build (build-status-check desig
     expect(g.calls).toEqual(['build status']);
   });
 
+  it('reports the results gone under the new build when its wait failed, not the earlier build\'s result', async () => {
+    let crash = false;
+    const f = building(
+      {
+        wait: async () => {
+          if (crash) throw new WorldMachineError('CRASHED', 'World Machine exited during the build');
+          return true;
+        },
+      },
+      {},
+      { unbuilt: [1] },
+    );
+    await f.service.buildProject({ mode: 'full', waitSeconds: 60 });
+    vi.setSystemTime(5_000);
+    crash = true;
+    const error = await failure(f.service.buildProject({ mode: 'full', waitSeconds: 60 }));
+    expect(error.code).toBe('CRASHED');
+    f.port.exit();
+    f.calls.length = 0;
+    expect((await f.status.getBuildStatus({})).lastFullBuild).toStrictEqual({
+      startedAt: '1970-01-01T00:00:05.000Z',
+      outputsCheckError: RESULTS_GONE,
+    });
+    expect(f.calls).toEqual(['build status']);
+  });
+
   it('stores a WorldMachineError of the check and repeats it without reads', async () => {
     const f = await outlived({ failure: new WorldMachineError('TIMEOUT', 'World Machine did not answer') });
     const failed = { startedAt: STARTED, outputsCheckError: 'World Machine did not answer' };
