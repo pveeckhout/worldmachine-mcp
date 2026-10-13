@@ -4,7 +4,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { FsPathPolicy } from '../../src/adapter/out/fs/path-policy.js';
+import { ENUM_CATALOG } from '../../src/adapter/out/worldmachine/enum-options.js';
 import { resolveExecutable } from '../../src/adapter/out/worldmachine/locator.js';
+import { throwIfFailed } from '../../src/adapter/out/worldmachine/raw-response.js';
 import { WorldMachineDeviceEditor } from '../../src/adapter/out/worldmachine/world-machine-device-editor.js';
 import { WorldMachineGraphReader } from '../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
 import { WorldMachineParameterEditor } from '../../src/adapter/out/worldmachine/world-machine-parameter-editor.js';
@@ -41,14 +43,15 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
     startProcess: (bin, signal, onSpawn) =>
       WorldMachineProcess.start({ bin, readyTimeoutMs: 120_000, logger, signal, onSpawn }),
   });
-  const reader = new WorldMachineGraphReader(session);
+  // Port-types plan decision D3: the shared reader and wire editor carry the shipped catalog and port types, as
+  // main.ts wires them.
+  const portTypes = new WorldMachinePortTypes(session, PORT_TYPE_CATALOG);
+  const reader = new WorldMachineGraphReader(session, ENUM_CATALOG, portTypes);
   const writer = new WorldMachineProjectWriter(session);
   const scene = new WorldMachineSceneEditor(session);
-  // Port-types plan decision D3: the live tests use the shipped catalog, as main.ts does.
-  const portTypes = new WorldMachinePortTypes(session, PORT_TYPE_CATALOG);
   const plan = new PlanGraphService(session, reader, portTypes);
   const devices = new WorldMachineDeviceEditor(session);
-  const wires = new WorldMachineWireEditor(session);
+  const wires = new WorldMachineWireEditor(session, portTypes);
   const apply = new ApplyGraphService(
     session,
     reader,
@@ -165,4 +168,41 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
     expect((await wires.disconnect({ device: `#${first}` }, { device: `#${second}` })).removed).toBe(true);
     expect((await reader.getDevice(`#${second}`)).inputs[0]?.source).toBeUndefined();
   }, 180_000);
+
+  // Port-types design section 8. The lowlands trial saw a File Output refuse a Water System (backlog l.104); no capture
+  // before raw/port-types.txt shows it.
+  it('reports a Water System wired into a File Output as a conflict and shows Create Water port types', async () => {
+    await session.ensureRunning();
+    throwIfFailed(await session.executeOne('project new blank force'));
+    const view = await plan.planGraph({
+      spec: {
+        version: 1,
+        devices: [
+          { name: 'Lake', type: 'Create Water' },
+          // raw/v3-rename-types.txt l.204-205: an accepted add word for a Height Output (B1 addendum ruling).
+          { name: 'Water Out', type: 'File Output', inputs: { '1': 'Lake.2' } },
+        ],
+      },
+    });
+    const water = portTypes.portsOfAdded('Create Water');
+    const fileOutput = portTypes.portsOf('Height Output');
+    expect(water?.outputs[1]?.name).toBe('Water System');
+    const accepted = fileOutput?.inputs[0]?.accepts.map((accepts) => accepts.name).join(', ');
+    expect(view.conflicts).toEqual([
+      {
+        entry: 'Water Out',
+        reason: `'Lake' output 2 (${water?.outputs[1]?.type.name}) cannot feed 'Water Out' input 1, which accepts ${accepted}`,
+      },
+    ]);
+    expect(view.uncheckedWires).toEqual([]);
+    const added = await devices.addDevice('Create Water');
+    const device = await reader.getDevice(`#${added.id}`);
+    expect(device.portTypes).toBe('catalogued');
+    expect(device.outputs.map((output) => output.type)).toEqual(
+      water?.outputs.map((output) => output.type.name),
+    );
+    expect(device.inputs.map((input) => input.accepts)).toEqual(
+      water?.inputs.map((input) => input.accepts.map((accepts) => accepts.name)),
+    );
+  }, 120_000);
 });
