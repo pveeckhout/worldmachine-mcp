@@ -1060,6 +1060,9 @@ describe('createMcpServer edit tools', () => {
     'setting the parameter to 1 and undoing that set',
     "World Machine's display rounding",
     'A plain number is always an internal value',
+    'an item whose scale was read reports given and scale',
+    'the probe marks the project unsaved even after its undo',
+    'when every length item is rejected after its probe, do not use redo before another edit',
   ])('describes lengths in update_device_parameters: %s', async (text) => {
     const { tools } = await (await connect(deps())).listTools();
     expect(tools.find((tool) => tool.name === 'update_device_parameters')?.description ?? '').toContain(text);
