@@ -1,15 +1,18 @@
+import type { PortTypeCatalogPort } from '../../../application/port/out/port-type-catalog-port.js';
 import type { WireEditPort } from '../../../application/port/out/wire-edit-port.js';
 import type { DeviceSummary, InputPort, OutputPort } from '../../../domain/device.js';
 import { listedName } from '../../../domain/device-name.js';
 import { WorldMachineError } from '../../../domain/errors.js';
 import type { WireConnection, WireDisconnection, WireEnd, WireEndpoint } from '../../../domain/graph-edit.js';
+import { type PortNames, refusalTypes, typedPorts } from '../../../domain/port-types.js';
 import { resolveWireSource, sharedNameClause, sourceCandidates } from '../../../domain/wire-source.js';
 import { buildCommand } from './command-builder.js';
 import { listAllDevices } from './device-lookup.js';
 import { findListedDevice, matchesListedName } from './device-reference.js';
 import { readBack, requireLine } from './edit-checks.js';
 import { parseWireList } from './parsers/wire-list.js';
-import { requireFrame, throwIfFailed } from './raw-response.js';
+import { type RawResponse, requireFrame, throwIfFailed } from './raw-response.js';
+import { NO_PORT_TYPES } from './world-machine-port-types.js';
 import type { WorldMachineSession } from './world-machine-session.js';
 
 /**
@@ -17,6 +20,12 @@ import type { WorldMachineSession } from './world-machine-session.js';
  * raw/v4-quoting.txt l.115-116; l.127-128 shows that it does not move on to a free input).
  */
 const DEFAULT_PORT = 1;
+
+/**
+ * raw/reach-scaling-inputs.txt l.604-605, raw/create-water-sea.txt l.194-195: World Machine's refusal of a wire
+ * between ports of other types (port-types design section 2).
+ */
+const INCOMPATIBLE = 'Error: Error: Failed to create connection (incompatible types?)';
 
 type WirePlan = {
   readonly source: WireEnd;
@@ -27,6 +36,10 @@ type WirePlan = {
   readonly listDestination: string;
   /** The destination's input is wired from the source device and port (v3 spec revision 6). */
   readonly present: boolean;
+  /** Port-types plan decision D9: the listed types (fact 81) and the destination's ports, for a refusal's text. */
+  readonly sourceType: string;
+  readonly destinationType: string;
+  readonly destinationPorts: PortNames;
 };
 
 const argument = (id: number, port: number | undefined): string =>
@@ -54,9 +67,12 @@ function checkPort(port: number | undefined): void {
 
 export class WorldMachineWireEditor implements WireEditPort {
   readonly #session: WorldMachineSession;
+  readonly #portTypes: PortTypeCatalogPort;
 
-  constructor(session: WorldMachineSession) {
+  /** `portTypes`: the types a refusal names (port-types design section 6); none unless main.ts passes the catalog. */
+  constructor(session: WorldMachineSession, portTypes: PortTypeCatalogPort = NO_PORT_TYPES) {
     this.#session = session;
+    this.#portTypes = portTypes;
   }
 
   async connect(source: WireEndpoint, destination: WireEndpoint): Promise<WireConnection> {
@@ -71,6 +87,9 @@ export class WorldMachineWireEditor implements WireEditPort {
     ]);
     const connected = requireFrame(responses[0]);
     const after = requireFrame(responses[1]);
+    // Port-types design section 6: no pre-check; World Machine decides, and its refusal gains the types.
+    if (connected.errors.some((line) => line.trimEnd() === INCOMPATIBLE))
+      throw await this.#incompatible(plan, connected);
     throwIfFailed(connected);
     this.#session.markDirty();
     // raw/p2b-graph-edits.txt l.22-23; with explicit ports raw/p2c-edits.txt l.108-109 (spec facts 26 and 34).
@@ -124,6 +143,39 @@ export class WorldMachineWireEditor implements WireEditPort {
     return { ...ends, removed: true };
   }
 
+  /**
+   * Port-types design section 6 and plan decision D9: World Machine's refusal, as throwIfFailed gives it, with
+   * `: output <p> is <type>; input <q> accepts <names>` appended when both ends are typed. The destination's ports are
+   * the plan's `wire list`; the source's come from one `wire list` read now, only when the destination's input is
+   * typed. A WorldMachineError of that read leaves the refusal as World Machine gave it.
+   */
+  async #incompatible(plan: WirePlan, connected: RawResponse): Promise<WorldMachineError> {
+    const refusal = (types: string) =>
+      new WorldMachineError(
+        'WM_COMMAND_FAILED',
+        `World Machine rejected "${connected.command}"${types}`,
+        connected.errors.join('\n'),
+      );
+    const input = typedPorts(
+      plan.destinationPorts,
+      this.#portTypes.portsOf(plan.destinationType),
+    )?.inputs.find((candidate) => candidate.port === plan.destination.port);
+    if (input === undefined) return refusal('');
+    let sourcePorts: PortNames;
+    try {
+      const listed = await this.#session.executeOne(buildCommand(['wire', 'list', `#${plan.source.id}`]));
+      throwIfFailed(listed);
+      sourcePorts = parseWireList(listed.output);
+    } catch (error) {
+      if (error instanceof WorldMachineError) return refusal('');
+      throw error;
+    }
+    const output = typedPorts(sourcePorts, this.#portTypes.portsOf(plan.sourceType))?.outputs.find(
+      (candidate) => candidate.port === plan.source.port,
+    );
+    return refusal(output === undefined ? '' : refusalTypes(output, input));
+  }
+
   /** `device list`, the destination's `wire list`, and the candidates' when needed, all before any change. */
   async #plan(source: WireEndpoint, destination: WireEndpoint): Promise<WirePlan> {
     checkPort(source.port);
@@ -134,7 +186,8 @@ export class WorldMachineWireEditor implements WireEditPort {
     const listDestination = buildCommand(['wire', 'list', `#${to.id}`]);
     const before = await this.#session.executeOne(listDestination);
     throwIfFailed(before);
-    const inputs = parseWireList(before.output).inputs;
+    const listedPorts = parseWireList(before.output);
+    const inputs = listedPorts.inputs;
     const destinationEnd: WireEnd = { id: to.id, name: to.name, port: destination.port ?? DEFAULT_PORT };
     const input = inputs.find((candidate) => candidate.port === destinationEnd.port);
     if (input === undefined) {
@@ -154,6 +207,9 @@ export class WorldMachineWireEditor implements WireEditPort {
       destinationArgument: argument(to.id, destination.port),
       listDestination,
       present: await this.#present(devices, to, input, sourceEnd),
+      sourceType: from.kind ?? from.name,
+      destinationType: to.kind ?? to.name,
+      destinationPorts: listedPorts,
     };
   }
 

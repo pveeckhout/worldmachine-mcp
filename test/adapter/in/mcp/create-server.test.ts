@@ -359,6 +359,13 @@ describe('createMcpServer', () => {
     expect(tools.find((tool) => tool.name === 'get_device')?.description ?? '').toContain(text);
   });
 
+  it('describes port types in connect_devices (port-types design section 6)', async () => {
+    const { tools } = await (await connect(deps())).listTools();
+    expect(tools.find((tool) => tool.name === 'connect_devices')?.description ?? '').toContain(
+      "Port types are not checked before connecting; when World Machine refuses a wire as incompatible types and both devices have catalogued port types (see get_device), the error names the output's type and the types the input accepts.",
+    );
+  });
+
   it('passes plan_id and keep_snapshot to apply_graph, keep_snapshot false by default', async () => {
     const commands: unknown[] = [];
     const client = await connect(

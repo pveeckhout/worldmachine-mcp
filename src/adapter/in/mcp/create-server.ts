@@ -374,7 +374,7 @@ export function createMcpServer(deps: McpDependencies): McpServer {
     {
       title: 'Connect devices',
       description:
-        "Connect an output port of the source device to an input port of the destination device. Ports are 1-based and default to 1. A wire that already exists is left alone (created: false). When the destination's input shows the source's name and several devices share that name, their connections are read to tell which one feeds it, and the call is refused, naming their ids, when that cannot be told. World Machine refuses an input that is already connected to another output; disconnect that wire first.",
+        "Connect an output port of the source device to an input port of the destination device. Ports are 1-based and default to 1. A wire that already exists is left alone (created: false). When the destination's input shows the source's name and several devices share that name, their connections are read to tell which one feeds it, and the call is refused, naming their ids, when that cannot be told. World Machine refuses an input that is already connected to another output; disconnect that wire first. Port types are not checked before connecting; when World Machine refuses a wire as incompatible types and both devices have catalogued port types (see get_device), the error names the output's type and the types the input accepts.",
       inputSchema: wireInputSchema,
       outputSchema: connectDevicesViewSchema,
       annotations: IDEMPOTENT_COMMAND,

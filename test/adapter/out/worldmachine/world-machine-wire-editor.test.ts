@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { NO_PORT_TYPES } from '../../../../src/adapter/out/worldmachine/world-machine-port-types.js';
 import { WorldMachineWireEditor } from '../../../../src/adapter/out/worldmachine/world-machine-wire-editor.js';
-import { scriptedSession } from '../../../support/scripted-session.js';
+import type { PortTypeCatalogPort } from '../../../../src/application/port/out/port-type-catalog-port.js';
+import { syntheticPortTypes } from '../../../support/port-types.js';
+import { type Reply, scriptedSession } from '../../../support/scripted-session.js';
 
 // raw/p2b-graph-edits.txt l.17-19.
 const DEVICES = [
@@ -647,5 +650,92 @@ describe('WorldMachineWireEditor.disconnect', () => {
     });
     expect(s.batches).toEqual([['device list'], ['wire list #2'], ['wire disconnect #1 #2', 'wire list #2']]);
     expect(s.dirtyMarks()).toBe(1);
+  });
+});
+
+describe('WorldMachineWireEditor.connect on an incompatible-types refusal (port-types design section 6)', () => {
+  // raw/create-water-sea.txt l.194-195: the refusal of a Gradient on Create Water's Existing Water.
+  const INCOMPATIBLE = 'Error: Error: Failed to create connection (incompatible types?)';
+  // The rows of raw/create-water-sea.txt l.187-191 with small ids: a Gradient and a Create Water.
+  const WATER_DEVICES = [
+    'Devices (2 total):',
+    '  #1     Gradient                ',
+    '  #2     Create Water            ',
+  ];
+  // raw/create-water.txt l.122-133, nothing connected.
+  const CREATE_WATER_FREE = [
+    "Connections for '#2':",
+    '  Inputs:',
+    '    [1] Terrain      <- (none)',
+    '    [2] Existing Water <- (none)',
+    '    [3] Precipitation Map <- (none)',
+    '  Outputs:',
+    '    [1] Terrain      -> (none)',
+    '    [2] Water System -> (none)',
+    '    [3] Tributary Mask -> (none)',
+    '    [4] Lake Mask    -> (none)',
+  ];
+  // raw/p2a-edge-cases.txt l.38-42: a Gradient's ports.
+  const GRADIENT_PORTS = [
+    "Connections for '#1':",
+    '  Inputs:',
+    '  Outputs:',
+    '    [1] Primary Output -> (none)',
+  ];
+  const REFUSED = 'World Machine rejected "wire connect #1 #2.2"';
+
+  /** The plan's reads, then the refused connect and its read-back; `extra` scripts the source's wire list. */
+  const refused = (extra: Readonly<Record<string, readonly Reply[]>> = {}) =>
+    scriptedSession({
+      'device list': [{ output: WATER_DEVICES }],
+      'wire list #2': [{ output: CREATE_WATER_FREE }, { output: CREATE_WATER_FREE }],
+      'wire connect #1 #2.2': [{ errors: [INCOMPATIBLE] }],
+      ...extra,
+    });
+  const connectGradient = (s: ReturnType<typeof scriptedSession>, portTypes: PortTypeCatalogPort) =>
+    new WorldMachineWireEditor(s.session, portTypes).connect({ device: '#1' }, { device: '#2', port: 2 });
+
+  it('names the output type and what the input accepts when both ends are typed', async () => {
+    const s = refused({ 'wire list #1': [{ output: GRADIENT_PORTS }] });
+    await expect(connectGradient(s, syntheticPortTypes)).rejects.toMatchObject({
+      code: 'WM_COMMAND_FAILED',
+      message: `${REFUSED}: output 1 is heightfield; input 2 accepts water system`,
+      worldMachineMessage: INCOMPATIBLE,
+    });
+    expect(s.batches).toEqual([
+      ['device list'],
+      ['wire list #2'],
+      ['wire connect #1 #2.2', 'wire list #2'],
+      ['wire list #1'],
+    ]);
+    expect(s.dirtyMarks()).toBe(0);
+  });
+
+  it('keeps the refusal as it was when the source is untyped (an older version, Review Focus 3)', async () => {
+    const older = [...GRADIENT_PORTS.slice(0, 3), '    [1] Height       -> (none)'];
+    const s = refused({ 'wire list #1': [{ output: older }] });
+    const error = await connectGradient(s, syntheticPortTypes).catch((caught: unknown) => caught);
+    expect(error).toMatchObject({ message: REFUSED, worldMachineMessage: INCOMPATIBLE });
+    // Controller ruling: the message is the untyped refusal exactly, nothing appended.
+    expect((error as Error).message).toBe(REFUSED);
+  });
+
+  it('reads nothing more when the destination is untyped', async () => {
+    const s = refused();
+    await expect(connectGradient(s, NO_PORT_TYPES)).rejects.toMatchObject({
+      message: REFUSED,
+      worldMachineMessage: INCOMPATIBLE,
+    });
+    expect(s.batches).toEqual([['device list'], ['wire list #2'], ['wire connect #1 #2.2', 'wire list #2']]);
+  });
+
+  it("keeps World Machine's refusal when the source's wire list fails (plan decision D9)", async () => {
+    // Any error line: the read fails, which is all this test needs.
+    const s = refused({ 'wire list #1': [{ errors: ["Error: Error: Output port not found on '#1'"] }] });
+    await expect(connectGradient(s, syntheticPortTypes)).rejects.toMatchObject({
+      code: 'WM_COMMAND_FAILED',
+      message: REFUSED,
+      worldMachineMessage: INCOMPATIBLE,
+    });
   });
 });
