@@ -1,0 +1,23 @@
+{
+  "Combiner.Primary Output": "heightfield or bitmap",
+  "Add Noise.Primary Output": "heightfield",
+  "Adjust Color.Primary Output": "bitmap",
+  "Adjust Curve.Parameter Output": "curve",
+  "Curve Chooser.Parameter Output": "curve (no composite)",
+  "Automation Variable.Parameter Output": "automation variable",
+  "VDM Primitive.Primary Output": "VDM surface",
+  "VDM Noise.Primary Output": "VDM noise surface",
+  "Checkpoint.Checkpoint Output": "pass-through",
+  "Composite Type.Waiting...": "composite",
+  "Construct Parameter.Parameter Output": "parameter",
+  "Control Device.Parameter Output": "transform",
+  "Create Normals.Primary Output": "normal map",
+  "Create Water.Water System": "water system",
+  "Crop & Transform.Primary Output": "cropped",
+  "File Input.File Metadata": "file metadata",
+  "Select by ID.Primary Output": "ID map",
+  "Layers.Primary Output": "layered",
+  "Material.Primary Output": "material",
+  "Meshify.Primary Output": "mesh",
+  "Reach Scaling.River Scaling": "river scaling"
+}

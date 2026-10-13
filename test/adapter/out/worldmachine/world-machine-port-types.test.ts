@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   attachPortTypes,
   NO_PORT_TYPES,
+  PORT_TYPE_CATALOG,
   WorldMachinePortTypes,
 } from '../../../../src/adapter/out/worldmachine/world-machine-port-types.js';
 import type { DeviceDetail } from '../../../../src/domain/device.js';
+import { wireCompatibility } from '../../../../src/domain/port-types.js';
 import { SYNTHETIC_CATALOG, statusOn, syntheticPortTypes } from '../../../support/port-types.js';
 
 const HEIGHTFIELD = { id: 'o1', name: 'heightfield' };
@@ -130,5 +132,30 @@ describe('attachPortTypes (port-types design section 6)', () => {
     expect(attachPortTypes({ ...CREATE_WATER, portTypes: 'catalogued' }, undefined)).toStrictEqual(
       CREATE_WATER,
     );
+  });
+});
+
+describe('the shipped port-type catalog agrees with earlier captures (port-types plan decision D17)', () => {
+  const shipped = new WorldMachinePortTypes(statusOn(4067), PORT_TYPE_CATALOG);
+  // Every connect between console-added devices in raw/create-water-sea.txt (#536 and #542 Create Water, #537-539
+  // Height Output from `device add File Output`, #540 Gradient, #541 Select Height), and two of
+  // raw/reach-scaling-inputs.txt (#536 Reach Scaling, #537 Perlin Curve, #543 Shapes).
+  it.each<[string, number, string, number, 'compatible' | 'incompatible', string]>([
+    ['Create Water', 1, 'Height Output', 1, 'compatible', 'raw/create-water-sea.txt l.113-114'],
+    ['Create Water', 3, 'Height Output', 1, 'compatible', 'raw/create-water-sea.txt l.116-117'],
+    ['Create Water', 4, 'Height Output', 1, 'compatible', 'raw/create-water-sea.txt l.119-120'],
+    ['Gradient', 1, 'Create Water', 2, 'incompatible', 'raw/create-water-sea.txt l.194-195'],
+    ['Gradient', 1, 'Select Height', 1, 'compatible', 'raw/create-water-sea.txt l.240-241'],
+    ['Select Height', 1, 'Create Water', 2, 'incompatible', 'raw/create-water-sea.txt l.243-244'],
+    ['Create Water', 2, 'Create Water', 2, 'compatible', 'raw/create-water-sea.txt l.276-277'],
+    ['Perlin Curve', 1, 'Reach Scaling', 1, 'compatible', 'raw/reach-scaling-inputs.txt l.96-97'],
+    ['Shapes', 1, 'Reach Scaling', 1, 'incompatible', 'raw/reach-scaling-inputs.txt l.604-605'],
+  ])('%s output %i into %s input %i is %s (%s)', (source, output, destination, input, expected) => {
+    expect(
+      wireCompatibility(
+        shipped.portsOf(source)?.outputs.find((port) => port.port === output),
+        shipped.portsOf(destination)?.inputs.find((port) => port.port === input),
+      ),
+    ).toBe(expected);
   });
 });

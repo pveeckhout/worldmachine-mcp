@@ -1,0 +1,2634 @@
+{
+  "build": 4067,
+  "outputClasses": {
+    "o1": "heightfield or bitmap",
+    "o2": "heightfield",
+    "o3": "bitmap",
+    "o4": "curve",
+    "o5": "automation variable",
+    "o6": "VDM surface",
+    "o7": "pass-through",
+    "o8": "composite",
+    "o9": "parameter",
+    "o10": "transform",
+    "o11": "normal map",
+    "o12": "water system",
+    "o13": "cropped",
+    "o14": "curve (no composite)",
+    "o15": "file metadata",
+    "o16": "VDM noise surface",
+    "o17": "ID map",
+    "o18": "layered",
+    "o19": "material",
+    "o20": "mesh",
+    "o21": "river scaling"
+  },
+  "inputClasses": {
+    "i1": ["o1", "o2", "o3", "o7", "o8", "o11", "o13", "o18"],
+    "i2": ["o1", "o2", "o7", "o8", "o13", "o18"],
+    "i3": ["o1", "o3", "o7", "o8", "o11", "o13", "o18"],
+    "i4": ["o4", "o7", "o8", "o14"],
+    "i5": ["o6", "o7", "o8", "o13", "o16"],
+    "i6": ["o1", "o2", "o7", "o8", "o13", "o17", "o18"],
+    "i7": ["o5", "o7", "o8", "o15"],
+    "i8": [
+      "o1",
+      "o2",
+      "o3",
+      "o4",
+      "o5",
+      "o6",
+      "o7",
+      "o8",
+      "o9",
+      "o10",
+      "o11",
+      "o12",
+      "o13",
+      "o14",
+      "o15",
+      "o16",
+      "o17",
+      "o18",
+      "o19",
+      "o20",
+      "o21"
+    ],
+    "i9": ["o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o13", "o18"],
+    "i10": ["o7", "o8", "o12"],
+    "i11": ["o1", "o2", "o7", "o13", "o18"],
+    "i12": ["o1", "o2", "o3", "o6", "o7", "o11", "o13", "o16", "o17", "o18", "o19"],
+    "i13": ["o1", "o2", "o3", "o7", "o11", "o13", "o18"],
+    "i14": ["o4", "o7", "o14"],
+    "i15": ["o1", "o2", "o7", "o8", "o12", "o13", "o18"],
+    "i16": ["o1", "o2", "o6", "o7", "o13", "o16", "o18"],
+    "i17": ["o7", "o13", "o17"],
+    "i18": ["o5", "o7", "o9"],
+    "i19": ["o1", "o2", "o3", "o7", "o11", "o13", "o18", "o19"],
+    "i20": ["o1", "o3", "o7", "o11", "o13", "o18"],
+    "i21": ["o7", "o13", "o18", "o19"],
+    "i22": ["o6", "o7", "o13", "o16"],
+    "i23": ["o1", "o2", "o3", "o7", "o11", "o13", "o17", "o18"],
+    "i24": ["o1", "o2", "o3", "o7", "o8", "o11", "o12", "o13", "o18", "o19", "o20"],
+    "i25": ["o7", "o21"],
+    "i26": ["o1", "o2", "o6", "o7", "o13", "o16", "o18", "o20"],
+    "i27": ["o1", "o3", "o7", "o11", "o13", "o18", "o19"],
+    "i28": ["o7", "o20"],
+    "i29": ["o7", "o8", "o12", "o20"],
+    "i30": ["o5", "o7", "o15"]
+  },
+  "types": {
+    "Combiner": {
+      "added": [
+        "Add",
+        "Average",
+        "Combiner",
+        "Differences",
+        "Max",
+        "Min",
+        "Minus",
+        "Multiply",
+        "Power",
+        "Root",
+        "Screen",
+        "Subtract"
+      ],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i1"
+        },
+        {
+          "port": 2,
+          "name": "Primary Input",
+          "class": "i1"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o1"
+        }
+      ]
+    },
+    "Add Noise": {
+      "added": ["Add Noise"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i2"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Adjust Color": {
+      "added": ["Adjust Color"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i3"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o3"
+        }
+      ]
+    },
+    "Adjust Curve": {
+      "added": ["Adjust Curve"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Parameter Input",
+          "class": "i4"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Parameter Output",
+          "class": "o4"
+        }
+      ]
+    },
+    "Advanced Perlin": {
+      "added": ["Advanced Perlin"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Shaping Guide",
+          "class": "i2"
+        },
+        {
+          "port": 2,
+          "name": "Distortion Guide",
+          "class": "i2"
+        },
+        {
+          "port": 3,
+          "name": "Persistence Guide",
+          "class": "i2"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Ambient Occlusion": {
+      "added": ["Ambient Occlusion"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i2"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "VDM Features": {
+      "added": ["Anisotropy", "Displacement", "Height", "Twist"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i5"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Automation Variable": {
+      "added": ["Automation Variable"],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Parameter Output",
+          "class": "o5"
+        }
+      ]
+    },
+    "Bake Lighting": {
+      "added": ["Bake Lighting", "Raytrace"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i2"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Lightmap Output",
+          "class": "o1"
+        }
+      ]
+    },
+    "VDM Detail Sifter": {
+      "added": ["Balance", "Extract", "High pass", "Preserve", "Relax", "Sharpen", "Smooth", "Unsharp"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i5"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o6"
+        }
+      ]
+    },
+    "Basic Noise": {
+      "added": ["Basic Noise"],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Bitmap Output": {
+      "added": ["Bitmap Output"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "RGB(A) Input",
+          "class": "i3"
+        },
+        {
+          "port": 2,
+          "name": "Alpha Input",
+          "class": "i2"
+        }
+      ],
+      "outputs": []
+    },
+    "Blur": {
+      "added": ["Blur"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i1"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o1"
+        }
+      ]
+    },
+    "VDM Repair Surface": {
+      "added": ["Border", "Fix", "Intersect", "Repair", "Self", "Surface"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i5"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o6"
+        },
+        {
+          "port": 2,
+          "name": "Repaired areas",
+          "class": "o2"
+        }
+      ]
+    },
+    "Radial Grad": {
+      "added": ["Box", "Circular", "Cone", "Diamond", "Pyramid", "Radial Grad", "Sine wave", "Sweep"],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Bias/Gain": {
+      "added": ["Brightness", "Contrast"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i1"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o1"
+        }
+      ]
+    },
+    "Height Output": {
+      "added": ["Byte", "File Output", "Grid", "Height Output", "Mask Output", "Terragen"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i6"
+        },
+        {
+          "port": 2,
+          "name": "Metadata Input",
+          "class": "i7"
+        }
+      ],
+      "outputs": []
+    },
+    "Channel Combiner": {
+      "added": ["Channel Combiner"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Red",
+          "class": "i2"
+        },
+        {
+          "port": 2,
+          "name": "Green",
+          "class": "i2"
+        },
+        {
+          "port": 3,
+          "name": "Blue",
+          "class": "i2"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o3"
+        }
+      ]
+    },
+    "Channel Splitter": {
+      "added": ["Channel Splitter"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i3"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Red",
+          "class": "o2"
+        },
+        {
+          "port": 2,
+          "name": "Green",
+          "class": "o2"
+        },
+        {
+          "port": 3,
+          "name": "Blue",
+          "class": "o2"
+        }
+      ]
+    },
+    "Checkpoint": {
+      "added": ["Checkpoint"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Checkpoint Input",
+          "class": "i8"
+        },
+        {
+          "port": 2,
+          "name": "Checkpoint Input",
+          "class": "i8"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Checkpoint Output",
+          "class": "o7"
+        },
+        {
+          "port": 2,
+          "name": "Checkpoint Output",
+          "class": "o7"
+        }
+      ]
+    },
+    "Chooser": {
+      "added": ["Chooser"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Input A",
+          "class": "i1"
+        },
+        {
+          "port": 2,
+          "name": "Input B",
+          "class": "i1"
+        },
+        {
+          "port": 3,
+          "name": "Control Mask",
+          "class": "i2"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o1"
+        }
+      ]
+    },
+    "Clamp": {
+      "added": ["Clamp", "Clip", "Rescale", "Restrict"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i2"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Cnoidal Curve": {
+      "added": ["Cnoidal Curve"],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Parameter Output",
+          "class": "o4"
+        }
+      ]
+    },
+    "Coast Erosion": {
+      "added": ["Coast Erosion", "Water"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i2"
+        },
+        {
+          "port": 2,
+          "name": "Hardness Map",
+          "class": "i2"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        },
+        {
+          "port": 2,
+          "name": "Water Map",
+          "class": "o2"
+        },
+        {
+          "port": 3,
+          "name": "Beach Map",
+          "class": "o2"
+        }
+      ]
+    },
+    "Code": {
+      "added": ["Code"],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o7"
+        }
+      ]
+    },
+    "Color": {
+      "added": ["Color"],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o3"
+        }
+      ]
+    },
+    "Colorizer": {
+      "added": ["Colorizer"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i2"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o3"
+        }
+      ]
+    },
+    "Compare maps": {
+      "added": ["Compare maps", "Equals"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Input A",
+          "class": "i2"
+        },
+        {
+          "port": 2,
+          "name": "Input B",
+          "class": "i2"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Composite Type": {
+      "added": ["Composite Type"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Waiting...",
+          "class": "i9"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Waiting...",
+          "class": "o8"
+        }
+      ]
+    },
+    "Constant": {
+      "added": ["Constant"],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Construct Parameter": {
+      "added": ["Construct Color", "Construct Parameter", "Construct Range"],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Parameter Output",
+          "class": "o9"
+        }
+      ]
+    },
+    "Expander": {
+      "added": [
+        "Contract",
+        "Convolution",
+        "Dilate",
+        "Expander",
+        "Grow",
+        "Maximum",
+        "Minimum",
+        "Morphological",
+        "Shrink"
+      ],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i2"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Control Device": {
+      "added": ["Control Device"],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Parameter Output",
+          "class": "o10"
+        }
+      ]
+    },
+    "Coordinate Generator": {
+      "added": [
+        "Coordinate",
+        "Coordinate Generator",
+        "Heading",
+        "Location",
+        "Placement",
+        "Rotate",
+        "Rotation"
+      ],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Transform Output",
+          "class": "o10"
+        }
+      ]
+    },
+    "Create Normals": {
+      "added": ["Create Normals", "Normalmap"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i2"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o11"
+        }
+      ]
+    },
+    "Create Water": {
+      "added": ["Create Water"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Terrain",
+          "class": "i2"
+        },
+        {
+          "port": 2,
+          "name": "Existing Water",
+          "class": "i10"
+        },
+        {
+          "port": 3,
+          "name": "Precipitation Map",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Terrain",
+          "class": "o2"
+        },
+        {
+          "port": 2,
+          "name": "Water System",
+          "class": "o12"
+        },
+        {
+          "port": 3,
+          "name": "Tributary Mask",
+          "class": "o2"
+        },
+        {
+          "port": 4,
+          "name": "Lake Mask",
+          "class": "o2"
+        }
+      ]
+    },
+    "Crop & Transform": {
+      "added": ["Crop & Transform"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i12"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o13"
+        }
+      ]
+    },
+    "Crystallize": {
+      "added": ["Crystallize"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i13"
+        },
+        {
+          "port": 2,
+          "name": "Cellular Sampler Input",
+          "class": "i13"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o1"
+        },
+        {
+          "port": 2,
+          "name": "Cell ID",
+          "class": "o2"
+        },
+        {
+          "port": 3,
+          "name": "Mask",
+          "class": "o2"
+        },
+        {
+          "port": 4,
+          "name": "Borders",
+          "class": "o2"
+        }
+      ]
+    },
+    "Curve Chooser": {
+      "added": ["Curve Chooser"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Parameter Input",
+          "class": "i14"
+        },
+        {
+          "port": 2,
+          "name": "Parameter Input",
+          "class": "i14"
+        },
+        {
+          "port": 3,
+          "name": "Parameter Input",
+          "class": "i14"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Parameter Output",
+          "class": "o14"
+        }
+      ]
+    },
+    "Curve Combiner": {
+      "added": ["Curve Combiner"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Parameter Input",
+          "class": "i14"
+        },
+        {
+          "port": 2,
+          "name": "Parameter Input",
+          "class": "i14"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Parameter Output",
+          "class": "o14"
+        }
+      ]
+    },
+    "Curves": {
+      "added": ["Curves"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i13"
+        },
+        {
+          "port": 2,
+          "name": "External Curve Input",
+          "class": "i14"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o1"
+        }
+      ]
+    },
+    "Dissolve": {
+      "added": ["Dissolve"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Scalar Generator": {
+      "added": [
+        "Distance",
+        "Elevation",
+        "Float",
+        "Number",
+        "Parameter",
+        "Scalar",
+        "Scalar Generator",
+        "Value"
+      ],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Parameter Output",
+          "class": "o9"
+        }
+      ]
+    },
+    "Distortion Generator": {
+      "added": ["Distortion Generator"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Angle",
+          "class": "i11"
+        },
+        {
+          "port": 2,
+          "name": "Distance",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Distortion Output",
+          "class": "o10"
+        }
+      ]
+    },
+    "Equalizer": {
+      "added": ["Equalizer", "Exponential", "Histogram", "Normal"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        },
+        {
+          "port": 2,
+          "name": "Histogram Input",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Erosion": {
+      "added": ["Erosion"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        },
+        {
+          "port": 2,
+          "name": "Hardness Map",
+          "class": "i11"
+        },
+        {
+          "port": 3,
+          "name": "Sediment Removal Mask",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        },
+        {
+          "port": 2,
+          "name": "Flow Map",
+          "class": "o2"
+        },
+        {
+          "port": 3,
+          "name": "Wear Map",
+          "class": "o2"
+        },
+        {
+          "port": 4,
+          "name": "Deposition Map",
+          "class": "o2"
+        }
+      ]
+    },
+    "File Input": {
+      "added": ["File Input"],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o1"
+        },
+        {
+          "port": 2,
+          "name": "Extents Mask",
+          "class": "o2"
+        },
+        {
+          "port": 3,
+          "name": "File Metadata",
+          "class": "o15"
+        }
+      ]
+    },
+    "Flipper": {
+      "added": ["Flipper"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i13"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o1"
+        }
+      ]
+    },
+    "Flow Restructure": {
+      "added": ["Flow Restructure"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        },
+        {
+          "port": 2,
+          "name": "Drainage Input",
+          "class": "i15"
+        },
+        {
+          "port": 3,
+          "name": "Synthesis Guide",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "VDM Noise": {
+      "added": ["Fractal", "Perlin"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Existing surface",
+          "class": "i16"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o16"
+        }
+      ]
+    },
+    "Gamma": {
+      "added": ["Gamma"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i13"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o1"
+        }
+      ]
+    },
+    "Gradient": {
+      "added": ["Gradient"],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Height Slices": {
+      "added": ["Height Slices"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        },
+        {
+          "port": 2,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Instance Scattering": {
+      "added": ["Instance Scattering"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "World Input",
+          "class": "i13"
+        },
+        {
+          "port": 2,
+          "name": "Placement Mask",
+          "class": "i11"
+        },
+        {
+          "port": 3,
+          "name": "Object Input",
+          "class": "i13"
+        },
+        {
+          "port": 4,
+          "name": "Object Mask",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "World Output",
+          "class": "o1"
+        },
+        {
+          "port": 2,
+          "name": "World Mask",
+          "class": "o2"
+        },
+        {
+          "port": 3,
+          "name": "Object ID",
+          "class": "o2"
+        }
+      ]
+    },
+    "Instance Tiling": {
+      "added": ["Instance Tiling", "Localspace", "Tile"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Object Input",
+          "class": "i13"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Placement Output",
+          "class": "o1"
+        },
+        {
+          "port": 2,
+          "name": "Cell ID",
+          "class": "o2"
+        }
+      ]
+    },
+    "Select by ID": {
+      "added": ["Integer", "Mask"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "ID Map",
+          "class": "i17"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o17"
+        }
+      ]
+    },
+    "Integer Equals": {
+      "added": ["Integer Equals"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Parameter Input",
+          "class": "i18"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Parameter Output",
+          "class": "o9"
+        }
+      ]
+    },
+    "Integer Generator": {
+      "added": ["Integer Generator"],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Parameter Output",
+          "class": "o9"
+        }
+      ]
+    },
+    "Inverter": {
+      "added": ["Inverter"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i13"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o1"
+        }
+      ]
+    },
+    "Invert Parameter": {
+      "added": ["Invert Parameter"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Parameter Input",
+          "class": "i18"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Parameter Output",
+          "class": "o9"
+        }
+      ]
+    },
+    "Layers": {
+      "added": ["Layers"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Layer 1",
+          "class": "i19"
+        },
+        {
+          "port": 2,
+          "name": "Mask 1",
+          "class": "i11"
+        },
+        {
+          "port": 3,
+          "name": "Layer 2",
+          "class": "i19"
+        },
+        {
+          "port": 4,
+          "name": "Mask 2",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o18"
+        },
+        {
+          "port": 2,
+          "name": "Composite Mask",
+          "class": "o2"
+        },
+        {
+          "port": 3,
+          "name": "Mask 1",
+          "class": "o2"
+        },
+        {
+          "port": 4,
+          "name": "Mask 2",
+          "class": "o2"
+        }
+      ]
+    },
+    "Shapes": {
+      "added": ["Layout Generator", "Shapes"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Terrain Input",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        },
+        {
+          "port": 2,
+          "name": "Shape Mask",
+          "class": "o2"
+        }
+      ]
+    },
+    "Levels": {
+      "added": ["Levels"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i13"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o1"
+        }
+      ]
+    },
+    "Library Input": {
+      "added": ["Library Input"],
+      "inputs": [],
+      "outputs": []
+    },
+    "Library Output": {
+      "added": ["Library Output"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Add Output...",
+          "class": "i8"
+        }
+      ],
+      "outputs": []
+    },
+    "Macro": {
+      "added": ["Macro"],
+      "inputs": [],
+      "outputs": []
+    },
+    "Manipulate Spatial": {
+      "added": ["Manipulate Spatial"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Parameter",
+          "class": "i18"
+        },
+        {
+          "port": 2,
+          "name": "Replacement map",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Spatial parameter",
+          "class": "o9"
+        },
+        {
+          "port": 2,
+          "name": "Parameter only",
+          "class": "o9"
+        },
+        {
+          "port": 3,
+          "name": "Extract map",
+          "class": "o2"
+        }
+      ]
+    },
+    "Masked View": {
+      "added": ["Masked View"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i19"
+        },
+        {
+          "port": 2,
+          "name": "Alpha mask",
+          "class": "i11"
+        }
+      ],
+      "outputs": []
+    },
+    "Material": {
+      "added": ["Material"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Diffuse",
+          "class": "i20"
+        },
+        {
+          "port": 2,
+          "name": "Normalmap",
+          "class": "i20"
+        },
+        {
+          "port": 3,
+          "name": "Height",
+          "class": "i11"
+        },
+        {
+          "port": 4,
+          "name": "Ambient Occlusion",
+          "class": "i11"
+        },
+        {
+          "port": 5,
+          "name": "Roughness",
+          "class": "i11"
+        },
+        {
+          "port": 6,
+          "name": "Metal",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o19"
+        }
+      ]
+    },
+    "Texture Weightmap": {
+      "added": ["Material Map", "Normalize", "Texture Weightmap"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Raw Mask 1",
+          "class": "i11"
+        },
+        {
+          "port": 2,
+          "name": "Raw Mask 2",
+          "class": "i11"
+        },
+        {
+          "port": 3,
+          "name": "Raw Mask 3",
+          "class": "i11"
+        },
+        {
+          "port": 4,
+          "name": "Raw Mask 4",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Corrected Mask 1",
+          "class": "o2"
+        },
+        {
+          "port": 2,
+          "name": "Corrected Mask 2",
+          "class": "o2"
+        },
+        {
+          "port": 3,
+          "name": "Corrected Mask 3",
+          "class": "o2"
+        },
+        {
+          "port": 4,
+          "name": "Corrected Mask 4",
+          "class": "o2"
+        }
+      ]
+    },
+    "Material Output": {
+      "added": ["Material Output"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i21"
+        }
+      ],
+      "outputs": []
+    },
+    "VDM to HF+Cliff": {
+      "added": ["Mesh", "Overhang"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i22"
+        },
+        {
+          "port": 2,
+          "name": "Cliff-mesh mask",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Base Heightfield",
+          "class": "o2"
+        },
+        {
+          "port": 2,
+          "name": "Cliff mesh",
+          "class": "o20"
+        },
+        {
+          "port": 3,
+          "name": "Cliff mask",
+          "class": "o2"
+        },
+        {
+          "port": 4,
+          "name": "VDM->WS transform",
+          "class": "o10"
+        }
+      ]
+    },
+    "Meshify": {
+      "added": ["Meshify"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i15"
+        },
+        {
+          "port": 2,
+          "name": "Force Full Resolution",
+          "class": "i15"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o20"
+        },
+        {
+          "port": 2,
+          "name": "High Res Normalmap",
+          "class": "o11"
+        }
+      ]
+    },
+    "Mesh Output": {
+      "added": ["Mesh Output"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        },
+        {
+          "port": 2,
+          "name": "Mesh Mask",
+          "class": "i11"
+        }
+      ],
+      "outputs": []
+    },
+    "Mimic": {
+      "added": ["Mimic"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Terrain to Modify",
+          "class": "i11"
+        },
+        {
+          "port": 2,
+          "name": "Reference Input",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Ramp": {
+      "added": ["Mirror", "Offset", "Ramp"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Multi Chooser": {
+      "added": ["Multi Chooser"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Control Input",
+          "class": "i11"
+        },
+        {
+          "port": 2,
+          "name": "Input 1 (Low)",
+          "class": "i19"
+        },
+        {
+          "port": 3,
+          "name": "Input 2",
+          "class": "i19"
+        },
+        {
+          "port": 4,
+          "name": "Input 3",
+          "class": "i19"
+        },
+        {
+          "port": 5,
+          "name": "Input 4 (High)",
+          "class": "i19"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o18"
+        },
+        {
+          "port": 2,
+          "name": "Mask 1",
+          "class": "o2"
+        },
+        {
+          "port": 3,
+          "name": "Mask 2",
+          "class": "o2"
+        },
+        {
+          "port": 4,
+          "name": "Mask 3",
+          "class": "o2"
+        },
+        {
+          "port": 5,
+          "name": "Mask 4",
+          "class": "o2"
+        }
+      ]
+    },
+    "Normal Combiner": {
+      "added": ["Normal Combiner"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Base Normal",
+          "class": "i20"
+        },
+        {
+          "port": 2,
+          "name": "Detail Normal",
+          "class": "i20"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o11"
+        }
+      ]
+    },
+    "Overlay View": {
+      "added": ["Overlay View"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i16"
+        },
+        {
+          "port": 2,
+          "name": "Overlay Input",
+          "class": "i23"
+        }
+      ],
+      "outputs": []
+    },
+    "Parameter Arithmetic": {
+      "added": ["Parameter Arithmetic"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Parameter Input",
+          "class": "i18"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Parameter Output",
+          "class": "o9"
+        }
+      ]
+    },
+    "Perlin Curve": {
+      "added": ["Perlin Curve"],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Parameter Output",
+          "class": "o14"
+        }
+      ]
+    },
+    "Pull-up": {
+      "added": ["Pull-up"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Reference Input",
+          "class": "i8"
+        },
+        {
+          "port": 2,
+          "name": "Over-ride Input",
+          "class": "i8"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o7"
+        }
+      ]
+    },
+    "Reach Scaling": {
+      "added": ["Reach Scaling"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Alignment",
+          "class": "i14"
+        },
+        {
+          "port": 2,
+          "name": "Bankfull Width",
+          "class": "i14"
+        },
+        {
+          "port": 3,
+          "name": "Thalweg Undulation",
+          "class": "i14"
+        },
+        {
+          "port": 4,
+          "name": "Thalweg Curvature",
+          "class": "i14"
+        },
+        {
+          "port": 5,
+          "name": "Left Valley Wall",
+          "class": "i14"
+        },
+        {
+          "port": 6,
+          "name": "Right Valley Wall",
+          "class": "i14"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "River Scaling",
+          "class": "o21"
+        }
+      ]
+    },
+    "Report Color": {
+      "added": ["Report Color"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i20"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Average color",
+          "class": "o9"
+        },
+        {
+          "port": 2,
+          "name": "Lightest color",
+          "class": "o9"
+        },
+        {
+          "port": 3,
+          "name": "Darkest color",
+          "class": "o9"
+        },
+        {
+          "port": 4,
+          "name": "Average luminosity",
+          "class": "o9"
+        },
+        {
+          "port": 5,
+          "name": "Value range",
+          "class": "o9"
+        }
+      ]
+    },
+    "Report Extents": {
+      "added": ["Report Extents"],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Extent Width",
+          "class": "o9"
+        },
+        {
+          "port": 2,
+          "name": "Extent Height",
+          "class": "o9"
+        },
+        {
+          "port": 3,
+          "name": "Left Bound",
+          "class": "o9"
+        },
+        {
+          "port": 4,
+          "name": "Right Bound",
+          "class": "o9"
+        },
+        {
+          "port": 5,
+          "name": "Bottom Bound",
+          "class": "o9"
+        },
+        {
+          "port": 6,
+          "name": "Top Bound",
+          "class": "o9"
+        },
+        {
+          "port": 7,
+          "name": "Resolution",
+          "class": "o9"
+        },
+        {
+          "port": 8,
+          "name": "Detail Scale",
+          "class": "o9"
+        },
+        {
+          "port": 9,
+          "name": "sealevel",
+          "class": "o9"
+        }
+      ]
+    },
+    "Report Height": {
+      "added": ["Report Height"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Average Height",
+          "class": "o9"
+        },
+        {
+          "port": 2,
+          "name": "Max Height",
+          "class": "o9"
+        },
+        {
+          "port": 3,
+          "name": "Min Height",
+          "class": "o9"
+        }
+      ]
+    },
+    "Report Placement": {
+      "added": ["Report Placement"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i24"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o10"
+        }
+      ]
+    },
+    "Report Presence": {
+      "added": ["Report Presence"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i8"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Passthrough Output",
+          "class": "o7"
+        },
+        {
+          "port": 2,
+          "name": "Primary Output",
+          "class": "o9"
+        }
+      ]
+    },
+    "River": {
+      "added": ["River"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Terrain Input",
+          "class": "i11"
+        },
+        {
+          "port": 2,
+          "name": "River Parameters",
+          "class": "i25"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        },
+        {
+          "port": 2,
+          "name": "Bankfull Depth",
+          "class": "o2"
+        },
+        {
+          "port": 3,
+          "name": "Valley Mask",
+          "class": "o2"
+        },
+        {
+          "port": 4,
+          "name": "Channel Mask",
+          "class": "o2"
+        },
+        {
+          "port": 5,
+          "name": "Meanderbelt Mask",
+          "class": "o2"
+        },
+        {
+          "port": 6,
+          "name": "GCS Covariance",
+          "class": "o10"
+        }
+      ]
+    },
+    "Route Chooser": {
+      "added": ["Route Chooser"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Choice Input",
+          "class": "i8"
+        },
+        {
+          "port": 2,
+          "name": "Choice Input",
+          "class": "i8"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o7"
+        }
+      ]
+    },
+    "Router": {
+      "added": ["Router"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i8"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Default",
+          "class": "o7"
+        },
+        {
+          "port": 2,
+          "name": "Default",
+          "class": "o7"
+        }
+      ]
+    },
+    "Scalar Clamp": {
+      "added": ["Scalar Clamp"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Parameter Input",
+          "class": "i18"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Parameter Output",
+          "class": "o9"
+        }
+      ]
+    },
+    "Scalar Combiner": {
+      "added": ["Scalar Combiner"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Parameter Input",
+          "class": "i18"
+        },
+        {
+          "port": 2,
+          "name": "Parameter Input",
+          "class": "i18"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Parameter Output",
+          "class": "o9"
+        }
+      ]
+    },
+    "Scene Object": {
+      "added": ["Scene Object"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Geometry",
+          "class": "i26"
+        },
+        {
+          "port": 2,
+          "name": "Material",
+          "class": "i27"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o10"
+        }
+      ]
+    },
+    "Scene Output": {
+      "added": ["Scene Output"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Terrain Mesh",
+          "class": "i28"
+        },
+        {
+          "port": 2,
+          "name": "Terrain Material",
+          "class": "i27"
+        },
+        {
+          "port": 3,
+          "name": "Water",
+          "class": "i29"
+        },
+        {
+          "port": 4,
+          "name": "Terrain Occlusion",
+          "class": "i11"
+        },
+        {
+          "port": 5,
+          "name": "Terrain Normals",
+          "class": "i20"
+        }
+      ],
+      "outputs": []
+    },
+    "Scene View": {
+      "added": ["Scene View"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        },
+        {
+          "port": 2,
+          "name": "Texture Input",
+          "class": "i20"
+        },
+        {
+          "port": 3,
+          "name": "Water Input",
+          "class": "i11"
+        }
+      ],
+      "outputs": []
+    },
+    "Select Aspect": {
+      "added": ["Select Aspect"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Terrain input",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Facing amount",
+          "class": "o2"
+        },
+        {
+          "port": 2,
+          "name": "Surface angle",
+          "class": "o2"
+        }
+      ]
+    },
+    "Select Color": {
+      "added": ["Select color", "Select Color"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i20"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Select Convexity": {
+      "added": ["Select Convexity"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Select Height": {
+      "added": ["Select Height"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Select Roughness": {
+      "added": ["Select Roughness"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Select Slope": {
+      "added": ["Select Slope"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Select Wetness": {
+      "added": ["Select Wetness"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        },
+        {
+          "port": 2,
+          "name": "Water Input",
+          "class": "i10"
+        },
+        {
+          "port": 3,
+          "name": "Precipitation Map",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Topographic Wetness",
+          "class": "o2"
+        }
+      ]
+    },
+    "Simple Displacement": {
+      "added": ["Simple Displacement"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        },
+        {
+          "port": 2,
+          "name": "Distortion Amount",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Simple Transform": {
+      "added": ["Simple Transform"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Sinusoidal Curve": {
+      "added": ["Sinusoidal Curve"],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Parameter Output",
+          "class": "o14"
+        }
+      ]
+    },
+    "Snow": {
+      "added": ["Snow"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        },
+        {
+          "port": 2,
+          "name": "Snowfall Intensity",
+          "class": "i11"
+        },
+        {
+          "port": 3,
+          "name": "Snowmelt Intensity",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        },
+        {
+          "port": 2,
+          "name": "Snow Depth",
+          "class": "o2"
+        }
+      ]
+    },
+    "VDM Primitive": {
+      "added": ["Sphere", "Square", "Squircle"],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o6"
+        }
+      ]
+    },
+    "Strata": {
+      "added": ["Strata"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        },
+        {
+          "port": 2,
+          "name": "Strata Layers",
+          "class": "o2"
+        },
+        {
+          "port": 3,
+          "name": "Strata Exposure",
+          "class": "o2"
+        }
+      ]
+    },
+    "Switch": {
+      "added": ["Switch"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i8"
+        },
+        {
+          "port": 2,
+          "name": "Optional input",
+          "class": "i8"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o7"
+        }
+      ]
+    },
+    "Thermal Weathering": {
+      "added": ["Talus", "Thermal weathering", "Thermal Weathering"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        },
+        {
+          "port": 2,
+          "name": "Talus Depth",
+          "class": "o2"
+        },
+        {
+          "port": 3,
+          "name": "Talus Age",
+          "class": "o2"
+        }
+      ]
+    },
+    "Tap": {
+      "added": ["Tap"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i8"
+        },
+        {
+          "port": 2,
+          "name": "Override Channel",
+          "class": "i8"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o7"
+        },
+        {
+          "port": 2,
+          "name": "Extract Channel",
+          "class": "o7"
+        }
+      ]
+    },
+    "Terrace": {
+      "added": ["Terrace"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i11"
+        },
+        {
+          "port": 2,
+          "name": "Terrace Modulation",
+          "class": "i11"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    },
+    "Text Output": {
+      "added": ["Text Output"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Text Input",
+          "class": "i30"
+        }
+      ],
+      "outputs": []
+    },
+    "Tiled File Input": {
+      "added": ["Tiled File Input"],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o1"
+        },
+        {
+          "port": 2,
+          "name": "Alpha Mask",
+          "class": "o2"
+        }
+      ]
+    },
+    "Tint": {
+      "added": ["Tint"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i20"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o3"
+        }
+      ]
+    },
+    "Type Filter": {
+      "added": ["Type Filter"],
+      "inputs": [
+        {
+          "port": 1,
+          "name": "Primary Input",
+          "class": "i8"
+        }
+      ],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Heightfield",
+          "class": "o2"
+        }
+      ]
+    },
+    "Voronoi": {
+      "added": ["Voronoi"],
+      "inputs": [],
+      "outputs": [
+        {
+          "port": 1,
+          "name": "Primary Output",
+          "class": "o2"
+        }
+      ]
+    }
+  }
+}

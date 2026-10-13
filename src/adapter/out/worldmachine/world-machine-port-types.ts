@@ -2,6 +2,7 @@ import type { PortTypeCatalogPort } from '../../../application/port/out/port-typ
 import type { WorldMachineSessionPort } from '../../../application/port/out/world-machine-session-port.js';
 import type { DeviceDetail } from '../../../domain/device.js';
 import { type CataloguedPorts, type PortClass, typedPorts } from '../../../domain/port-types.js';
+import shipped from './port-types.4067.json' with { type: 'json' };
 
 /** A catalogued port: its number and name as `wire list` shows them, and its class id. */
 export type PortTypeCatalogEntry = { readonly port: number; readonly name: string; readonly class: string };
@@ -25,8 +26,11 @@ export type PortTypeCatalog = {
   readonly types: Readonly<Record<string, PortTypeCatalogType>>;
 };
 
-/** Port-types plan decision D2: no catalog until the build 4067 capture exists, so every device is untyped. */
-export const PORT_TYPE_CATALOG: PortTypeCatalog | undefined = undefined;
+/**
+ * The catalog shipped with the server: raw/port-types*.txt of build 4067 (the full run, its resume, and the twin run),
+ * named by scripts/port-type-names.4067.json.
+ */
+export const PORT_TYPE_CATALOG: PortTypeCatalog | undefined = shipped;
 
 /** Port types of nothing: the default of the reader and the wire editor (port-types plan decision D3). */
 export const NO_PORT_TYPES: PortTypeCatalogPort = { portsOf: () => undefined, portsOfAdded: () => undefined };

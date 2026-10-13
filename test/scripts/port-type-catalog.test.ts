@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parsePortTypeCatalog } from '../../scripts/port-type-catalog.mjs';
+import { PORT_TYPE_CATALOG } from '../../src/adapter/out/worldmachine/world-machine-port-types.js';
 
 const systemInfo = readFileSync(new URL('../fixtures/wm-4067/raw/system-info.txt', import.meta.url), 'utf8');
 
@@ -601,5 +602,22 @@ describe('scripts/build-port-type-catalog.mjs (port-types design section 4, plan
     expect(result.status).toBe(1);
     expect(result.stdout).toBe('');
     expect(result.stderr).toContain('system-info.txt');
+  });
+});
+
+describe('the shipped port-type catalog (port-types design section 4)', () => {
+  const transcripts = ['port-types.txt', 'port-types-resume.txt', 'port-types-self.txt'].map((file) =>
+    readFileSync(new URL(`../fixtures/wm-4067/raw/${file}`, import.meta.url), 'utf8'),
+  );
+  const names = JSON.parse(
+    readFileSync(new URL('../../scripts/port-type-names.4067.json', import.meta.url), 'utf8'),
+  ) as Record<string, string>;
+
+  it('is exactly what raw/port-types*.txt (the full run, its resume, and the twin run) and the names map parse to (parity)', () => {
+    expect(PORT_TYPE_CATALOG).toStrictEqual(parsePortTypeCatalog(transcripts, systemInfo, names));
+  });
+
+  it('is the catalog of build 4067', () => {
+    expect(PORT_TYPE_CATALOG?.build).toBe(4067);
   });
 });
