@@ -410,8 +410,29 @@ describe('WorldMachineParameterEditor', () => {
     await expect(editor(s).updateParameters('#1', { Width: '500 m', Direction: 3 })).rejects.toMatchObject({
       code: 'UNEXPECTED_OUTPUT',
       message:
-        "Could not confirm that the scale probe of 'Width' on #1 'Gradient' was undone: expected '8 km', read " +
-        "'8 km'. The parameter may be left at 1; check it with get_device and revert with undo. Nothing else was set.",
+        "World Machine did not confirm the undo of the scale probe of 'Width' on #1 'Gradient' (no 'Undo performed.'): " +
+        "read at 1 '8 km', expected '8 km', read after the undo '8 km'. The undo was not confirmed and the parameter " +
+        'may be left at 1; check it with get_device and revert with undo. Nothing else was set.',
+    });
+    expect(s.batches).toHaveLength(4);
+    expect(s.dirtyMarks()).toBe(1);
+  });
+
+  it('lets an unconfirmed undo win over a read at 1 that is not a length', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: DEVICES }],
+      'param list #1': [{ output: GRADIENT_PARAMS }],
+      'param set #1.Width 1': [{ output: ['Set #1.Width = 1'] }],
+      // Assumed reads, as in the other not-a-length cases; the undo prints nothing.
+      'param get #1.Width': [{ output: ['#1.Width = 1.0'] }, { output: ['#1.Width = 1.0'] }],
+      'project undo': [{ output: [] }],
+    });
+    await expect(editor(s).updateParameters('#1', { Width: '500 m' })).rejects.toMatchObject({
+      code: 'UNEXPECTED_OUTPUT',
+      message:
+        "World Machine did not confirm the undo of the scale probe of 'Width' on #1 'Gradient' (no 'Undo performed.'): " +
+        "read at 1 '1.0', expected '8 km', read after the undo '1.0'. The undo was not confirmed and the parameter " +
+        'may be left at 1; check it with get_device and revert with undo. Nothing else was set.',
     });
     expect(s.batches).toHaveLength(4);
     expect(s.dirtyMarks()).toBe(1);
@@ -432,7 +453,11 @@ describe('WorldMachineParameterEditor', () => {
     });
     await expect(editor(s).updateParameters('#1', { Width: '500 m' })).rejects.toMatchObject({
       code: 'UNEXPECTED_OUTPUT',
-      message: expect.stringContaining("expected '8 km', read 'Error: Error: Read failed'"),
+      message:
+        "The undo of the scale probe of 'Width' on #1 'Gradient' was confirmed, but the parameter does not read its " +
+        "listed value: read at 1 '8 km', expected '8 km', read after the undo 'Error: Error: Read failed'. The undo " +
+        'may have reverted a step this call did not make; check the device with get_device before undoing anything. ' +
+        'Nothing else was set.',
     });
     expect(s.batches).toHaveLength(4);
   });
@@ -487,7 +512,7 @@ describe('WorldMachineParameterEditor', () => {
     ).rejects.toMatchObject({
       code: 'UNEXPECTED_OUTPUT',
       message: expect.stringContaining(
-        "'Bankfull Depth' on #536 'River' was undone: expected '2 m', read '8 km'",
+        "read at 1 '8 km', expected '2 m', read after the undo '8 km'. The undo may have reverted a step this call did not make",
       ),
     });
     expect(s.batches.slice(2)).toEqual([

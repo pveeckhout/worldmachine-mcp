@@ -189,7 +189,13 @@ export class WorldMachineParameterEditor implements ParameterEditPort {
     // as UNEXPECTED_OUTPUT would hide those codes.
     const responses = await this.#session.execute([item.get, UNDO, item.get]);
     const atOne = requireFrame(responses[0]);
-    const restored = requireRestored(device, item, requireFrame(responses[1]), requireFrame(responses[2]));
+    const restored = requireRestored(
+      device,
+      item,
+      atOne,
+      requireFrame(responses[1]),
+      requireFrame(responses[2]),
+    );
     const read = readingOf(atOne, item.reference);
     const metres = read === undefined ? undefined : parseLength(read);
     if (read !== undefined && metres !== undefined && metres !== 0) return lengthResolved(item, read, metres);
@@ -218,18 +224,37 @@ function requireProbeSet(device: string, item: LengthItem, probe: RawResponse): 
 
 /**
  * Design section 4, steps 3 and 4: the undo printed its confirmation and the parameter reads its listed value again
- * (plan decision P6). Otherwise the call fails before anything else is set. Returns the value read.
+ * (plan decision P6). Otherwise the call fails before anything else is set, in one of the two ways the design
+ * separates, because they call for opposite advice. Returns the value read.
  */
-function requireRestored(device: string, item: LengthItem, undo: RawResponse, after: RawResponse): string {
+function requireRestored(
+  device: string,
+  item: LengthItem,
+  atOne: RawResponse,
+  undo: RawResponse,
+  after: RawResponse,
+): string {
   const restored = readingOf(after, item.reference);
   const undone = undo.errors.length === 0 && undo.output.includes(UNDONE);
   if (undone && restored === item.parameter.value) return restored;
+  const readings =
+    `read at 1 '${readingOf(atOne, item.reference) ?? shown(atOne)}', expected '${item.parameter.value}', ` +
+    `read after the undo '${restored ?? shown(after)}'`;
+  const name = `'${item.parameter.name}' on ${device}`;
+  if (!undone) {
+    throw new WorldMachineError(
+      'UNEXPECTED_OUTPUT',
+      `World Machine did not confirm the undo of the scale probe of ${name} (no '${UNDONE}'): ${readings}. ` +
+        'The undo was not confirmed and the parameter may be left at 1; check it with get_device and revert with ' +
+        'undo. Nothing else was set.',
+      worldMachineText([...undo.errors, ...undo.output]),
+    );
+  }
   throw new WorldMachineError(
     'UNEXPECTED_OUTPUT',
-    `Could not confirm that the scale probe of '${item.parameter.name}' on ${device} was undone: expected ` +
-      `'${item.parameter.value}', read '${restored ?? shown(after)}'. The parameter may be left at 1; check it ` +
-      'with get_device and revert with undo. Nothing else was set.',
-    undone ? undefined : worldMachineText([...undo.errors, ...undo.output]),
+    `The undo of the scale probe of ${name} was confirmed, but the parameter does not read its listed value: ` +
+      `${readings}. The undo may have reverted a step this call did not make; check the device with get_device ` +
+      'before undoing anything. Nothing else was set.',
   );
 }
 
