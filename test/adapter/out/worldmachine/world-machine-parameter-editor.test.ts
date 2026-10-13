@@ -39,6 +39,9 @@ const RIVER_LENGTHS = [
   '  Bankfull Width            float     10 m',
 ];
 
+// Design section 4, last paragraph: appended when every item is rejected after an applied probe.
+const REDO_NOTE = "; do not use redo before another edit, it would set 'Width' to 1";
+
 const editor = (s: ReturnType<typeof scriptedSession>) => new WorldMachineParameterEditor(s.session);
 
 describe('WorldMachineParameterEditor', () => {
@@ -569,7 +572,7 @@ describe('WorldMachineParameterEditor', () => {
           requested: '1',
           outcome: 'rejected',
           value: '8 km',
-          worldMachineMessage: `could not read the scale of 'Width': it read '${read}' at 1`,
+          worldMachineMessage: `could not read the scale of 'Width': it read '${read}' at 1${REDO_NOTE}`,
         },
       ]);
       expect(s.batches.slice(2)).toEqual([
@@ -594,7 +597,7 @@ describe('WorldMachineParameterEditor', () => {
       outcome: 'rejected',
       requested: '1',
       value: '8 km',
-      worldMachineMessage: 'Error: Error: Read failed',
+      worldMachineMessage: `Error: Error: Read failed${REDO_NOTE}`,
     });
   });
 
@@ -615,12 +618,75 @@ describe('WorldMachineParameterEditor', () => {
         requested: '1',
         outcome: 'rejected',
         value: '8 km',
-        worldMachineMessage: "could not read the scale of 'Width': it read '' at 1",
+        worldMachineMessage: `could not read the scale of 'Width': it read '' at 1${REDO_NOTE}`,
       },
     ]);
     expect(s.batches.slice(2)).toEqual([
       ['param set #1.Width 1'],
       ['param get #1.Width', 'project undo', 'param get #1.Width'],
     ]);
+  });
+  describe('the redo entry a probe leaves (design section 4, last paragraph)', () => {
+    const NOTE = REDO_NOTE;
+    // 5e-324 m, the smallest double: in range for validation, but 5e-324 / 8000 is 0.
+    const tiny = `0.${'0'.repeat(323)}5 m`;
+    const probed = {
+      'device list': [{ output: DEVICES }],
+      'param list #1': [{ output: GRADIENT_PARAMS }],
+      'param set #1.Width 1': [{ output: ['Set #1.Width = 1'] }],
+      'param get #1.Width': [{ output: ['#1.Width = 8 km'] }, { output: ['#1.Width = 8 km'] }],
+      'project undo': [{ output: ['Undo performed.'] }],
+    };
+
+    it('tells the client not to redo when every item was rejected after an applied probe', async () => {
+      const s = scriptedSession(probed);
+      const update = await editor(s).updateParameters('#1', { Width: tiny });
+      expect(update.parameters).toEqual([
+        {
+          name: 'Width',
+          type: 'float',
+          requested: '1',
+          outcome: 'rejected',
+          value: '8 km',
+          worldMachineMessage: `the length is out of range at a scale of '8 km'${NOTE}`,
+          given: tiny,
+          scale: '8 km',
+        },
+      ]);
+      expect(s.batches.slice(2)).toHaveLength(2);
+    });
+
+    it('adds the note to an item whose read at 1 was not a length', async () => {
+      const s = scriptedSession({
+        ...probed,
+        'param get #1.Width': [{ output: ['#1.Width = 1.0'] }, { output: ['#1.Width = 8 km'] }],
+      });
+      const update = await editor(s).updateParameters('#1', { Width: '500 m' });
+      expect(update.parameters[0]?.worldMachineMessage).toBe(
+        `could not read the scale of 'Width': it read '1.0' at 1${NOTE}`,
+      );
+    });
+
+    it('adds no note when another item is still set, since that set clears the redo entry', async () => {
+      const s = scriptedSession({
+        ...probed,
+        'param set #1.Direction 3': [{ output: ['Set #1.Direction = 3'] }],
+        'param get #1.Direction': [{ output: ['#1.Direction = 3'] }],
+      });
+      const update = await editor(s).updateParameters('#1', { Width: tiny, Direction: 3 });
+      expect(update.parameters[0]?.worldMachineMessage).toBe(
+        "the length is out of range at a scale of '8 km'",
+      );
+    });
+
+    it('adds no note when the only probe was refused, since nothing was applied', async () => {
+      const s = scriptedSession({
+        'device list': [{ output: DEVICES }],
+        'param list #1': [{ output: GRADIENT_PARAMS }],
+        'param set #1.Width 1': [{ errors: ["Error: Error: Invalid value for '#1.Width'"] }],
+      });
+      const update = await editor(s).updateParameters('#1', { Width: '500 m' });
+      expect(update.parameters[0]?.worldMachineMessage).toBe("Error: Error: Invalid value for '#1.Width'");
+    });
   });
 });

@@ -37,7 +37,10 @@ type LengthItem = {
 
 type Item = { readonly planned: PlannedSet } | { readonly length: LengthItem };
 /** A length item becomes a planned set once its scale is read, or a rejected outcome (Task 6, design section 4). */
-type Resolved = { readonly planned: PlannedSet } | { readonly outcome: ParameterOutcome };
+type Resolved =
+  | { readonly planned: PlannedSet }
+  /** `probed`: the item's probe was applied and undone, which leaves a redo entry that sets it to 1. */
+  | { readonly outcome: ParameterOutcome; readonly probed?: true };
 
 // Spec fact 37: undo reverts one `param set` per call.
 const UNDO_HINT =
@@ -134,6 +137,9 @@ export class WorldMachineParameterEditor implements ParameterEditPort {
       );
     }
     const planned = resolved.flatMap((item) => ('planned' in item ? [item.planned] : []));
+    // Design section 4, last paragraph: with no item to send, no `param set` follows the probes, so their redo
+    // entries stay. The console cannot clear one, so each item rejected after its probe says so.
+    const settled = planned.length === 0 ? resolved.map(withRedoNote) : resolved;
     // One batch, each `param set` followed by a `param get` of the same parameter (spec section 7). World Machine
     // runs the rest of a batch after a failing command (V2), so every item gets its outcome.
     const responses =
@@ -141,7 +147,7 @@ export class WorldMachineParameterEditor implements ParameterEditPort {
         ? []
         : await this.#session.execute(planned.flatMap((item) => [item.set, item.get]));
     let next = 0;
-    const results = resolved.map((item) => {
+    const results = settled.map((item) => {
       if ('outcome' in item) return item;
       const frame = {
         item: item.planned,
@@ -202,7 +208,7 @@ export class WorldMachineParameterEditor implements ParameterEditPort {
     const message =
       (read === undefined && atOne.errors.length > 0 ? worldMachineText(atOne.errors) : undefined) ??
       `could not read the scale of '${item.parameter.name}': it read '${read ?? shown(atOne)}' at 1`;
-    return { outcome: rejected(item, restored, message) };
+    return { outcome: rejected(item, restored, message), probed: true };
   }
 }
 
@@ -273,6 +279,7 @@ function lengthResolved(item: LengthItem, scale: string, scaleMetres: number): R
         `the length is out of range at a scale of '${scale}'`,
         scale,
       ),
+      probed: true,
     };
   }
   return {
@@ -283,6 +290,21 @@ function lengthResolved(item: LengthItem, scale: string, scaleMetres: number): R
       set: buildCommand(['param', 'set', item.word], text),
       get: item.get,
       length: { given: item.given, scale },
+    },
+  };
+}
+
+/** Design section 4, last paragraph: what the client must know when an applied, undone probe is the last edit. */
+function withRedoNote(item: Resolved): Resolved {
+  if (!('outcome' in item) || item.probed !== true) return item;
+  const { outcome } = item;
+  const note = `do not use redo before another edit, it would set '${outcome.name}' to 1`;
+  return {
+    ...item,
+    outcome: {
+      ...outcome,
+      worldMachineMessage:
+        outcome.worldMachineMessage === undefined ? note : `${outcome.worldMachineMessage}; ${note}`,
     },
   };
 }
