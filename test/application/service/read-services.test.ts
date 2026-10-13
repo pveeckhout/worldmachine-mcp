@@ -26,6 +26,7 @@ const device: DeviceDetail = {
   parameters: [],
   inputs: [],
   outputs: [],
+  portTypes: 'unknown',
 };
 
 const session: WorldMachineSessionPort = {

@@ -148,6 +148,7 @@ const detailOf = (
   parameters: [],
   inputs,
   outputs: [],
+  portTypes: 'unknown',
 });
 
 // raw/v2-build-export.txt l.15-20 and fixtures/wm-4067/device-list.txt l.2, l.11, l.12, and l.16: the default project's

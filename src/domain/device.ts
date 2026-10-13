@@ -17,12 +17,20 @@ export type Parameter = {
 
 export type PortLink = { readonly device: string; readonly port: number };
 
-export type InputPort = { readonly port: number; readonly name: string; readonly source?: PortLink };
+export type InputPort = {
+  readonly port: number;
+  readonly name: string;
+  readonly source?: PortLink;
+  /** The names of the output classes this input accepts; set only by the World Machine adapter (port-types section 6). */
+  readonly accepts?: readonly string[];
+};
 
 export type OutputPort = {
   readonly port: number;
   readonly name: string;
   readonly targets: readonly PortLink[];
+  /** Its output class's name; set only by the World Machine adapter (port-types design section 6). */
+  readonly type?: string;
 };
 
 export type DeviceDetail = {
@@ -36,4 +44,9 @@ export type DeviceDetail = {
   readonly outputs: readonly OutputPort[];
   /** Why enum rows have no options, one entry per distinct reason (enum-options design section 4). */
   readonly enumOptionsNote?: readonly string[];
+  /**
+   * Port-types design section 6: whether the ports carry catalogued types. Every device view says one or the other
+   * (Codex round 1 ruling S1); the World Machine adapter sets it.
+   */
+  readonly portTypes: 'catalogued' | 'unknown';
 };

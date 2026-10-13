@@ -15,6 +15,7 @@ const detail = (id: number, name: string, inputs: InputPort[] = []): DeviceDetai
   parameters: [],
   inputs,
   outputs: [{ port: 1, name: 'Primary Output', targets: [] }],
+  portTypes: 'unknown',
 });
 const from = (port: number, device: string): InputPort => ({
   port,

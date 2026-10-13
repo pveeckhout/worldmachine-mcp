@@ -108,6 +108,10 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
     );
   });
 
+  it('reports portTypes unknown for a device it reads (port-types design section 6, Codex round 1 ruling S1)', async () => {
+    expect((await reader().reader.getDevice('#35')).portTypes).toBe('unknown');
+  });
+
   it('reads a device by name', async () => {
     expect((await reader().reader.getDevice('Erosion')).id).toBe(35);
   });

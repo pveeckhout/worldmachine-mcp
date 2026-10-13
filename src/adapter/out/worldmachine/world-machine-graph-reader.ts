@@ -62,7 +62,14 @@ export class WorldMachineGraphReader implements ProjectGraphReadPort {
     // Enum-options design section 4. The build is read after the batch: the batch starts World Machine when it was
     // not running, and only a start reads `system info` (world-machine-session.ts).
     return attachEnumOptions(
-      { id, ...detail, parameters: parseParamList(params.output), ...parseWireList(wires.output) },
+      {
+        id,
+        ...detail,
+        parameters: parseParamList(params.output),
+        ...parseWireList(wires.output),
+        // Port-types design section 6: untyped until plan Task 5 attaches the catalog's types.
+        portTypes: 'unknown',
+      },
       this.#session.status().systemInfo?.build,
       this.#catalog,
     );

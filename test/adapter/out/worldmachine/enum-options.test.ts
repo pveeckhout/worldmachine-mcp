@@ -30,6 +30,7 @@ const device = (type: string, parameters: Parameter[]): DeviceDetail => ({
   parameters,
   inputs: [],
   outputs: [],
+  portTypes: 'unknown',
 });
 
 describe('attachEnumOptions (enum-options design section 4)', () => {

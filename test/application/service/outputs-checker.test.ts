@@ -17,6 +17,7 @@ const HEIGHT_OUTPUT: DeviceDetail = {
   parameters: [],
   inputs: [],
   outputs: [],
+  portTypes: 'unknown',
 };
 
 /** One configured output, #1, built when `built` lists it; `built` as an Error is thrown by the timing read. */

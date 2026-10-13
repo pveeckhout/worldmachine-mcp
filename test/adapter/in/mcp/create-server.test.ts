@@ -82,6 +82,7 @@ function deps(overrides: Partial<McpDependencies> = {}): McpDependencies {
           parameters: [],
           inputs: [],
           outputs: [],
+          portTypes: 'unknown',
         },
         session: READY,
       }),
@@ -793,6 +794,7 @@ describe('createMcpServer with parser output from the wm-4067 fixtures', () => {
     ...parseDeviceInfo(fixtureLines('device-info-erosion.txt')),
     parameters: parseParamList(fixtureLines('param-list-erosion.txt')),
     ...parseWireList(fixtureLines('wire-list-erosion.txt')),
+    portTypes: 'unknown',
   };
   const scene = parseSceneShow(fixtureLines('scene-show.txt'));
   const devices = parseDeviceList(fixtureLines('device-list.txt'));
@@ -854,6 +856,7 @@ describe('createMcpServer with parser output from the wm-4067 fixtures', () => {
       { port: 2, name: 'Primary Input' },
     ],
     outputs: [{ port: 1, name: 'Primary Output', targets: [] }],
+    portTypes: 'unknown',
   };
 
   // One test per case, so a failure of the first does not hide the second (round ruling 4).
@@ -871,6 +874,15 @@ describe('createMcpServer with parser output from the wm-4067 fixtures', () => {
     const result = await client.callTool({ name: 'get_device', arguments: { device: '#1' } });
     expect(result.isError).toBeFalsy();
     expect(result.structuredContent).toEqual({ device, session: READY });
+  });
+
+  it('refuses a get_device view without portTypes (port-types design section 6, Codex round 1 ruling S1)', async () => {
+    const { portTypes: _omitted, ...device } = erosion;
+    const client = await connect(
+      deps({ getDevice: { getDevice: async () => ({ device, session: READY }) as never } }),
+    );
+    const result = await client.callTool({ name: 'get_device', arguments: { device: '#35' } });
+    expect(result.isError).toBe(true);
   });
 
   it('returns get_scene with the parsed scene as structured content', async () => {

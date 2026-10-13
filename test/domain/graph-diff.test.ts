@@ -13,6 +13,7 @@ function detail(id: number, name: string, type: string, extra: Partial<DeviceDet
     parameters: [],
     inputs: [],
     outputs: [],
+    portTypes: 'unknown',
     ...extra,
   };
 }

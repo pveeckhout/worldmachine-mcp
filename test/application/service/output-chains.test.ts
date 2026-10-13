@@ -21,6 +21,7 @@ const detail = (
   parameters: [],
   inputs,
   outputs,
+  portTypes: 'unknown',
 });
 const fed = (port: number, device: string, sourcePort = 1): InputPort => ({
   port,

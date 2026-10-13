@@ -947,6 +947,8 @@ describe('fake World Machine: parameters and wires of added devices (spec v3 sec
       ],
       inputs: [],
       outputs: [{ port: 1, name: 'Primary Output', targets: [] }],
+      // Port-types plan decision D3: the reader types nothing unless main.ts passes the shipped catalog.
+      portTypes: 'unknown',
     });
     expect((await reader.getDevice('#2')).inputs).toEqual([
       { port: 1, name: 'Primary Input' },

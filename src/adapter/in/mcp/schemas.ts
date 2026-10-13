@@ -120,6 +120,7 @@ const deviceDetailSchema = z.strictObject({
     }) satisfies z.ZodType<OutputPort>,
   ),
   enumOptionsNote: z.array(z.string()).optional(),
+  portTypes: z.enum(['catalogued', 'unknown']),
 }) satisfies z.ZodType<DeviceDetail>;
 
 const sceneSchema = z.strictObject({
