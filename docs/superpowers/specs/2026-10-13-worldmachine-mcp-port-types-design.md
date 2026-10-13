@@ -31,6 +31,12 @@ A new scenario `port-types` in `scripts/capture-fixtures.mjs`, run live once per
 3. For every output port and every input port of a different device, `wire connect <src>.<p> <dst>.<q>`. A connect that succeeds is followed by `wire disconnect` of the same wire before the next attempt; a refusal must be the exact `incompatible types?` line, and any other answer is recorded as an error for that pair.
 4. The project is closed with `project close force` at the end.
 
+Crashes and resumes (amendment 2026-10-14, after the full run of build 4067 crashed World Machine with SIGSEGV while probing output #185.1, 157 of 173 outputs done):
+
+- When World Machine exits during a probe batch, the pairs whose commands all answered keep their verdicts, and the pair whose command was in flight is recorded as `crashed`. The capture starts World Machine again, makes a new blank project, adds every word again, checks that the device list equals the first one (ids and types), records a `(restarted …)` section, and continues with the next pair. A run stops after 5 restarts.
+- A `crashed` pair is a hole, like a pair on one device: its cell is unknown and no class rests on it.
+- The scenario `port-types-resume`, with `PORT_TYPES_FROM=#<id>.<port>`, probes only that output and the outputs after it, into `raw/port-types-resume.txt`. The generator reads every transcript given. All of them must list the same devices and ports. A pair probed in two transcripts must have the same verdict. A `(probe … stopped)` section leaves its output unprobed in that transcript, so another transcript has to probe it.
+
 The plan measures the time of a sample of types before the full run and states the expected duration to the user when asking to run it.
 
 ## 4. The catalog
@@ -40,6 +46,7 @@ The plan measures the time of a sample of types before the full run and states t
 - An output class is a set of output ports with the same row (the same inputs accept them); an input class is a set of input ports with the same column. The catalog stores, per device type, its input and output ports in order (number and name) with their class, and per input class the output classes it accepts.
 - A pair on the same device is never probed (one instance per type), so its cell is unknown: rows and columns are compared ignoring unknown cells, and the accepts relation between two classes comes from the probed pairs. A port whose row or column matches two classes that differ elsewhere fails the generation, so a hole never decides a class.
 - A pair recorded as an error (step 3) fails the generation, so no catalog rests on an unexplained answer.
+- Several transcripts of one build (section 3, crashes and resumes) are merged before classes are formed; an output that no transcript probed completely fails the generation.
 - Names: `scripts/port-type-names.4067.json` maps a representative port (`<type>.<output port name>`) to a name, such as `heightfield` or `water system`. A class without an entry is named by its first port in catalog order, `like <type> <port name>`. A map entry that names no output port, or two entries for one class, fail the generation. An input class is described by the names of the output classes it accepts.
 
 ## 5. When types apply
