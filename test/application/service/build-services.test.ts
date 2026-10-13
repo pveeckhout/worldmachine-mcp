@@ -763,6 +763,25 @@ describe('get_build_status reports the last full build (build-status-check desig
     expect(f.calls).toEqual(['build status']);
   });
 
+  it('records a full build that ended inside its own start and repeats it without reads (fact 47)', async () => {
+    const f = building({}, {}, { unbuilt: [1] });
+    // The end arrives in the frame of the start command: current() has no run, last() holds the ended one.
+    const start = f.port.start;
+    (f.port as { start: typeof start }).start = async (mode, group) => {
+      await start(mode, group);
+      f.port.end();
+    };
+    expect(await f.service.buildProject({ mode: 'full', waitSeconds: 60 })).toMatchObject(NOT_BUILT);
+    f.calls.length = 0;
+    expect(await f.status.getBuildStatus({})).toStrictEqual({
+      build: null,
+      previewRunning: false,
+      lastFullBuild: { startedAt: STARTED, ...NOT_BUILT },
+      session: SAVED,
+    });
+    expect(f.calls).toEqual(['build status']);
+  });
+
   it('leaves the record alone when build_project is cancelled while it queued for exclusive()', async () => {
     const f = building({}, {}, { unbuilt: [1] });
     await f.service.buildProject({ mode: 'full', waitSeconds: 60 });

@@ -111,8 +111,9 @@ export class BuildProjectService implements BuildProjectCommandPort {
       const revision = session.projectRevision();
       const switches = session.projectSwitches();
       await this.#build.start(mode, group);
-      // Plan decision D9: the run the record names in its World Machine process, none when no run is visible.
-      const run = this.#build.current()?.startedAt;
+      // Plan decision D9: the run the record names in its World Machine process, none when no run is visible. last(),
+      // not current(): a build can end inside start's own frame (fact 47), and last() still holds that ended run.
+      const run = this.#build.last()?.startedAt;
       const stamp =
         run === undefined
           ? undefined
