@@ -395,6 +395,16 @@ export const buildProjectViewSchema = z.strictObject({
   session: sessionSummarySchema,
 }) satisfies z.ZodType<BuildProjectView>;
 
+// Build-status-check design section 5: build_project's fields, for the run that startedAt names (plan decision D13).
+const lastFullBuildSchema = z.strictObject({
+  startedAt: z.iso.datetime(),
+  outputsBuilt: z.boolean().optional(),
+  notBuilt: z.array(unbuiltOutputSchema).optional(),
+  stoppedAt: z.array(stoppedDeviceSchema).optional(),
+  hint: z.string().optional(),
+  outputsCheckError: z.string().optional(),
+});
+
 export const buildStatusViewSchema = z.strictObject({
   build: z
     .strictObject({
@@ -405,6 +415,7 @@ export const buildStatusViewSchema = z.strictObject({
     })
     .nullable(),
   previewRunning: z.boolean(),
+  lastFullBuild: lastFullBuildSchema.optional(),
   session: sessionSummarySchema,
 }) satisfies z.ZodType<BuildStatusView>;
 

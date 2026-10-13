@@ -1259,6 +1259,61 @@ describe('createMcpServer edit tools', () => {
     expect(result.isError).toBe(true);
   });
 
+  it('admits lastFullBuild in get_build_status (build-status-check design section 5)', async () => {
+    const lastFullBuild = {
+      startedAt: '2026-10-13T09:30:00.000Z',
+      outputsBuilt: false,
+      notBuilt: [{ id: 3, name: 'Height Output' }],
+      stoppedAt: [{ id: 2, name: 'River', type: 'River', enabled: true, bypassed: false }],
+      hint: NOT_BUILT_HINT,
+    };
+    const client = await connect(
+      deps({
+        getBuildStatus: {
+          getBuildStatus: async () => ({ build: null, previewRunning: false, lastFullBuild, session: READY }),
+        },
+      }),
+    );
+    const result = await client.callTool({ name: 'get_build_status', arguments: {} });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toMatchObject({ lastFullBuild });
+  });
+
+  it('admits a lastFullBuild that holds outputsCheckError in get_build_status (design section 3)', async () => {
+    const lastFullBuild = {
+      startedAt: '2026-10-13T09:30:00.000Z',
+      outputsCheckError: 'The project changed after the build ended; run build_project again.',
+    };
+    const client = await connect(
+      deps({
+        getBuildStatus: {
+          getBuildStatus: async () => ({ build: null, previewRunning: false, lastFullBuild, session: READY }),
+        },
+      }),
+    );
+    const result = await client.callTool({ name: 'get_build_status', arguments: {} });
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toMatchObject({ lastFullBuild });
+  });
+
+  it('refuses a lastFullBuild without startedAt in get_build_status', async () => {
+    const client = await connect(
+      deps({
+        getBuildStatus: {
+          getBuildStatus: async () =>
+            ({
+              build: null,
+              previewRunning: false,
+              lastFullBuild: { outputsBuilt: true, notBuilt: [], stoppedAt: [] },
+              session: READY,
+            }) as unknown as Awaited<ReturnType<McpDependencies['getBuildStatus']['getBuildStatus']>>,
+        },
+      }),
+    );
+    const result = await client.callTool({ name: 'get_build_status', arguments: {} });
+    expect(result.isError).toBe(true);
+  });
+
   it.each([
     ['configure_scene', { resolution: 1.5 }],
     ['configure_scene', { size_km: { width: 0, height: 4 } }],
