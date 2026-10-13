@@ -21,17 +21,23 @@ const WIRE_LIST = /^wire list #(\d+)$/;
 const NOT_ADDED = /^\(type (.+) not added\)$/;
 // Plan decision D11: one section per output port, one verdict line per input of every other device.
 const PROBE = /^\(probe #(\d+)\.(\d+)\)$/;
-const VERDICT = /^#(\d+)\.(\d+) (connected|refused(?: stray(?: #\d+\.\d+)+)?|error: .*)$/;
-// Plan decision D13: a type, a probe, or the whole scenario that threw is recorded as its own section.
-const STOPPED = /^\((type .* stopped|probe .* stopped|scenario stopped)\)$/;
+// Design section 3, crashes and resumes: `crashed` is the pair in flight when World Machine exited, a hole.
+const VERDICT = /^#(\d+)\.(\d+) (connected|refused(?: stray(?: #\d+\.\d+)+)?|crashed|error: .*)$/;
+// Plan decision D13: a type or the whole scenario that threw is recorded as its own section.
+const STOPPED = /^\((type .* stopped|scenario stopped)\)$/;
+// Design section 3, crashes and resumes: a probe that threw leaves its output unprobed in that transcript.
+const PROBE_STOPPED = /^\(probe .* stopped\)$/;
 
 /** A port for messages: `'<type>.<name>'`. */
 const named = (port) => `'${port.device.type}.${port.name}'`;
 /** Design section 4: a class without a names entry is named by its first port in catalog order. */
 const like = (portClass) => `like ${portClass.members[0].device.type} ${portClass.members[0].name}`;
 
-/** One `(probe #<id>.<port>)` section (plan decision D11): a verdict per input of every other device. */
-function readProbe(command, lines, sourceId, port, devices, cells) {
+/**
+ * One `(probe #<id>.<port>)` section (plan decision D11): a verdict per input of every other device, into `verdicts`
+ * as `connected`, `refused`, or `crashed`.
+ */
+function readProbe(command, lines, sourceId, port, devices, verdicts) {
   if (!devices.get(sourceId)?.outputs?.some((output) => output.port === port)) {
     throw new Error(`${command}: not an output of a listed device`);
   }
@@ -48,8 +54,8 @@ function readProbe(command, lines, sourceId, port, devices, cells) {
     // Codex round 1 ruling B2: a refusal that left a wire contradicts design section 2, so it fails as well.
     if (verdict[3].startsWith('refused stray')) throw new Error(`${pair}: ${verdict[3]}`);
     const key = `${sourceId}.${port}>${verdict[1]}.${verdict[2]}`;
-    if (cells.has(key)) throw new Error(`${pair}: probed twice`);
-    cells.set(key, verdict[3] === 'connected');
+    if (verdicts.has(key)) throw new Error(`${pair}: probed twice`);
+    verdicts.set(key, verdict[3]);
   }
 }
 
@@ -132,16 +138,11 @@ function classNames(outputClasses, outputs, names) {
 }
 
 /**
- * The catalog `{ build, outputClasses, inputClasses, types }` of a `port-types` transcript and the `system info`
- * capture of the same build, the classes named by `names` (design section 4, plan decisions D4 and D14). A type is keyed by its new device's listed type
- * (fact 81: the kind in its `device list` row, or else its name), with every `device add` word that gave it (`added`,
- * Codex round 1 ruling B1) and its ports in `wire list` order with their class ids.
- * A pair on one device was never probed, so its cell is unknown and ignored. A stopped step, an error answer, a
- * refusal recorded with a stray wire, a gap, or a port that matches two classes throws, so the catalog never rests on
- * a hole.
+ * One `port-types` transcript: its added devices by id, in transcript order, `{ id, type, word, inputs, outputs }`
+ * with ports from their wire list, and its verdicts by `<output id>.<port>><input id>.<port>`. A stopped type or
+ * scenario, an error answer, a refusal recorded with a stray wire, or a pair probed twice throws.
  */
-export function parsePortTypeCatalog(transcript, systemInfo, names = {}) {
-  const build = buildOfSystemInfo(systemInfo);
+function readTranscript(transcript) {
   /** Ids to listed types of the last `device list`. */
   let listed = new Map();
   /** The `device add` whose device has to show up in the next `device list`, or be recorded as not added. */
@@ -150,10 +151,10 @@ export function parsePortTypeCatalog(transcript, systemInfo, names = {}) {
   let blank = false;
   /** Added devices by id, in transcript order: `{ id, type, word, inputs, outputs }`, ports from their wire list. */
   const devices = new Map();
-  /** `<output id>.<port>><input id>.<port>` to true (connected) or false (refused). */
-  const cells = new Map();
+  const verdicts = new Map();
   for (const { command, lines } of transcriptSections(transcript)) {
     if (STOPPED.test(command)) throw new Error(`the capture did not complete: ${command}`);
+    if (PROBE_STOPPED.test(command)) continue;
     const add = ADD.exec(command);
     if (add) {
       if (adding !== undefined)
@@ -224,14 +225,66 @@ export function parsePortTypeCatalog(transcript, systemInfo, names = {}) {
       continue;
     }
     const probe = PROBE.exec(command);
-    if (probe) readProbe(command, lines, probe[1], Number(probe[2]), devices, cells);
+    if (probe) readProbe(command, lines, probe[1], Number(probe[2]), devices, verdicts);
   }
   if (adding !== undefined)
     throw new Error(`device add ${adding.word}: no new device and no not-added record`);
-  const all = [...devices.values()];
-  for (const device of all) {
+  for (const device of devices.values()) {
     if (device.inputs === undefined) throw new Error(`#${device.id} '${device.type}': no wire list`);
   }
+  return { devices, verdicts };
+}
+
+/** A device for messages: id, listed type, add word, and ports, as compared across transcripts. */
+const described = (device) => {
+  const ports = (list) =>
+    list.length === 0 ? 'none' : list.map(({ port, name }) => `${port} ${name}`).join(', ');
+  return `#${device.id} '${device.type}' (device add ${device.word}) inputs ${ports(device.inputs)} outputs ${ports(device.outputs)}`;
+};
+
+/**
+ * The catalog `{ build, outputClasses, inputClasses, types }` of the `port-types` transcripts of one build and the
+ * `system info` capture of that build, the classes named by `names` (design section 4, plan decisions D4 and D14). A
+ * type is keyed by its new device's listed type (fact 81: the kind in its `device list` row, or else its name), with
+ * every `device add` word that gave it (`added`, Codex round 1 ruling B1) and its ports in `wire list` order with their
+ * class ids.
+ * Design section 3, crashes and resumes: every transcript must list the same devices and ports, a pair probed in two
+ * transcripts must have one verdict, and a stopped probe leaves its output to another transcript.
+ * A pair on one device was never probed, and a crashed pair has no answer, so their cells are unknown and ignored. A
+ * stopped step, an error answer, a refusal recorded with a stray wire, a gap, or a port that matches two classes
+ * throws, so the catalog never rests on a hole.
+ */
+export function parsePortTypeCatalog(transcripts, systemInfo, names = {}) {
+  const build = buildOfSystemInfo(systemInfo);
+  const read = transcripts.map(readTranscript);
+  const [{ devices }] = read;
+  const first = [...devices.values()].map(described);
+  for (const [index, other] of read.entries()) {
+    const shown = [...other.devices.values()].map(described);
+    const at = [...Array(Math.max(first.length, shown.length)).keys()].find((i) => shown[i] !== first[i]);
+    if (at !== undefined) {
+      throw new Error(
+        `transcript ${index + 1}: ${shown[at] ?? 'no device'} where transcript 1 has ${first[at] ?? 'no device'}`,
+      );
+    }
+  }
+  /** `<output id>.<port>><input id>.<port>` to its verdict in every transcript that probed it. */
+  const verdicts = new Map();
+  for (const other of read) {
+    for (const [key, verdict] of other.verdicts) {
+      if ((verdicts.get(key) ?? verdict) !== verdict) {
+        throw new Error(`#${key.replace('>', ' -> #')}: probed differently`);
+      }
+      verdicts.set(key, verdict);
+    }
+  }
+  /** The answered pairs: true (connected) or false (refused). */
+  const cells = new Map(
+    [...verdicts].flatMap(([key, verdict]) =>
+      verdict === 'crashed' ? [] : [[key, verdict === 'connected']],
+    ),
+  );
+  const all = [...devices.values()];
   // B1 addendum ruling: only the first device of each listed type is probed; every other word that gave the type is
   // in `added` when its device shows the same port names, and fails the generation otherwise.
   const catalogued = all.filter(
@@ -247,7 +300,7 @@ export function parsePortTypeCatalog(transcript, systemInfo, names = {}) {
       throw new Error(`type '${device.type}': '${device.word}' gives other ports than '${probed.word}'`);
     }
   }
-  for (const key of cells.keys()) {
+  for (const key of verdicts.keys()) {
     const [from, to] = key.split('>').map((ref) => ref.split('.')[0]);
     if (!catalogued.some((device) => device.id === from) || !catalogued.some((device) => device.id === to)) {
       throw new Error(`#${key.replace('>', ' -> #')}: a device that is not the probed one of its type`);
@@ -261,21 +314,22 @@ export function parsePortTypeCatalog(transcript, systemInfo, names = {}) {
   const inputs = portsOf('inputs');
   for (const output of outputs) {
     for (const input of inputs) {
-      if (output.device !== input.device && !cells.has(`${output.key}>${input.key}`)) {
+      if (output.device !== input.device && !verdicts.has(`${output.key}>${input.key}`)) {
         throw new Error(`#${output.key} -> #${input.key}: not probed`);
       }
     }
   }
+  // Design section 4: a pair on one device and a crashed pair are left out, so they never decide a class.
   const rowOf = (output) =>
     new Map(
       inputs
-        .filter((input) => input.device !== output.device)
+        .filter((input) => cells.has(`${output.key}>${input.key}`))
         .map((input) => [input.key, cells.get(`${output.key}>${input.key}`)]),
     );
   const columnOf = (input) =>
     new Map(
       outputs
-        .filter((output) => output.device !== input.device)
+        .filter((output) => cells.has(`${output.key}>${input.key}`))
         .map((output) => [output.key, cells.get(`${output.key}>${input.key}`)]),
     );
   const outputClasses = classify(outputs, rowOf, 'o', 'output');

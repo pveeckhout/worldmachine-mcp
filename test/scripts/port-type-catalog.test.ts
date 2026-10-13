@@ -52,6 +52,8 @@ const MIXER: Device = {
 const SINK: Device = { id: 5, type: 'Sink', inputs: MIXER_PORTS, outputs: [] };
 const DEVICES: readonly Device[] = [HEIGHT, WATER, MASK, MIXER, SINK];
 
+/** Whether the output `#<id>.<port>` is probed in a transcript. */
+type Outputs = (from: string) => boolean;
 /** A pair's verdict line text; undefined leaves the pair out. */
 type Verdict = (pair: string) => string | undefined;
 const PAIR = /^#(\d+)\.(\d+)>#(\d+)\.(\d+)$/;
@@ -104,13 +106,14 @@ const added = (devices: readonly Device[]) => [
  * Design section 3 step 3 as plan decision D11 records it: a section per output, a line per other input, among the
  * first device of each listed type only (B1 addendum ruling).
  */
-const probed = (devices: readonly Device[], verdict: Verdict) => {
+const probed = (devices: readonly Device[], verdict: Verdict, outputs: Outputs = () => true) => {
   const firsts = devices.filter(
     (device, index) => devices.findIndex((other) => other.type === device.type) === index,
   );
   return firsts.flatMap((source) =>
-    source.outputs.map((_output, output) => {
+    source.outputs.flatMap((_output, output) => {
       const from = `#${source.id}.${output + 1}`;
+      if (!outputs(from)) return [];
       const lines = firsts
         .filter((target) => target.id !== source.id)
         .flatMap((target) =>
@@ -120,16 +123,23 @@ const probed = (devices: readonly Device[], verdict: Verdict) => {
             return answer === undefined ? [] : [`${to} ${answer}`];
           }),
         );
-      return section(`(probe ${from})`, lines);
+      return [section(`(probe ${from})`, lines)];
     }),
   );
 };
-/** Steps 1-3, the step-2 wire lists after every add (plan decision D11), and the close. */
-const transcript = (devices: readonly Device[] = DEVICES, verdict: Verdict = plainFor(devices)) =>
+/**
+ * Steps 1-3, the step-2 wire lists after every add (plan decision D11), and the close; `outputs` picks the probed
+ * outputs, as a transcript that stopped or resumed (design section 3, crashes and resumes) holds only some.
+ */
+const transcript = (
+  devices: readonly Device[] = DEVICES,
+  verdict: Verdict = plainFor(devices),
+  outputs: Outputs = () => true,
+) =>
   [
     ...added(devices),
     ...devices.map((device) => wireList(device)),
-    ...probed(devices, verdict),
+    ...probed(devices, verdict, outputs),
     section('project close force'),
   ].join('\n');
 
@@ -155,14 +165,14 @@ const CATALOG = {
 
 describe('parsePortTypeCatalog (port-types design section 4)', () => {
   it('finds three output classes and an input class that accepts two of them', () => {
-    expect(parsePortTypeCatalog(transcript(), systemInfo)).toEqual(CATALOG);
+    expect(parsePortTypeCatalog([transcript()], systemInfo)).toEqual(CATALOG);
   });
 
   it('records every add word of a type, probing only its first device (Codex round 1 ruling B1 and addendum)', () => {
     // raw/v3-rename-types.txt l.23-24 and l.204-205: Anisotropy adds a VDM Features, File Output a Height Output;
     // here a synthetic `Blender` adds a Mixer, whose ports are listed and not probed.
     const blender: Device = { ...MIXER, id: 6, word: 'Blender' };
-    expect(parsePortTypeCatalog(transcript([...DEVICES, blender]), systemInfo)).toEqual({
+    expect(parsePortTypeCatalog([transcript([...DEVICES, blender])], systemInfo)).toEqual({
       ...CATALOG,
       types: { ...CATALOG.types, Mixer: { ...CATALOG.types.Mixer, added: ['Mixer', 'Blender'] } },
     });
@@ -170,14 +180,14 @@ describe('parsePortTypeCatalog (port-types design section 4)', () => {
 
   it('fails on an add word whose device shows other port names (Codex round 1 ruling B1 addendum)', () => {
     const blender: Device = { ...MIXER, id: 6, word: 'Blender', inputs: ['Height In', 'Water In'] };
-    expect(() => parsePortTypeCatalog(transcript([...DEVICES, blender]), systemInfo)).toThrow(
+    expect(() => parsePortTypeCatalog([transcript([...DEVICES, blender])], systemInfo)).toThrow(
       "type 'Mixer': 'Blender' gives other ports than 'Mixer'",
     );
   });
 
   it('fails on a refusal recorded with a stray wire (design section 2, Codex round 1 ruling B2)', () => {
     const stray: Verdict = (pair) => (pair === '#1.1>#4.2' ? 'refused stray #4.1' : plain(pair));
-    expect(() => parsePortTypeCatalog(transcript(DEVICES, stray), systemInfo)).toThrow(
+    expect(() => parsePortTypeCatalog([transcript(DEVICES, stray)], systemInfo)).toThrow(
       '#1.1 -> #4.2: refused stray #4.1',
     );
   });
@@ -196,34 +206,37 @@ describe('parsePortTypeCatalog (port-types design section 4)', () => {
     const text = [...sections, ...DEVICES.map((device) => wireList(device)), ...probed(DEVICES, plain)].join(
       '\n',
     );
-    expect(parsePortTypeCatalog(text, systemInfo)).toEqual(CATALOG);
+    expect(parsePortTypeCatalog([text], systemInfo)).toEqual(CATALOG);
   });
 
   it('fails on a pair recorded as an error (design section 4)', () => {
     const error: Verdict = (pair) =>
       pair === '#1.1>#4.1' ? 'error: connect [Error: Error: Unexpected]' : plain(pair);
-    expect(() => parsePortTypeCatalog(transcript(DEVICES, error), systemInfo)).toThrow(
+    expect(() => parsePortTypeCatalog([transcript(DEVICES, error)], systemInfo)).toThrow(
       '#1.1 -> #4.1: connect [Error: Error: Unexpected]',
     );
   });
 
   it('fails on a pair of two devices that was not probed (plan decision D13)', () => {
     const gap: Verdict = (pair) => (pair === '#2.1>#5.3' ? undefined : plain(pair));
-    expect(() => parsePortTypeCatalog(transcript(DEVICES, gap), systemInfo)).toThrow(
+    expect(() => parsePortTypeCatalog([transcript(DEVICES, gap)], systemInfo)).toThrow(
       '#2.1 -> #5.3: not probed',
     );
   });
 
-  it('fails when the capture stopped (plan decision D13)', () => {
-    const text = `${transcript()}\n${section('(probe #4.1 stopped)', ['timed out waiting for batch 1a2b3c4d'])}`;
-    expect(() => parsePortTypeCatalog(text, systemInfo)).toThrow(
-      'the capture did not complete: (probe #4.1 stopped)',
-    );
-  });
+  it.each(['(type Mixer stopped)', '(scenario stopped)'])(
+    'fails when the capture recorded %s (plan decision D13)',
+    (command) => {
+      const text = `${transcript()}\n${section(command, ['timed out waiting for batch 1a2b3c4d'])}`;
+      expect(() => parsePortTypeCatalog([text], systemInfo)).toThrow(
+        `the capture did not complete: ${command}`,
+      );
+    },
+  );
 
   it('fails on an output whose known cells match two classes (design section 4)', () => {
     // Without Sink, every input Mixed could feed is on the Mixer itself, so its row is all unknown.
-    expect(() => parsePortTypeCatalog(transcript([HEIGHT, WATER, MASK, MIXER]), systemInfo)).toThrow(
+    expect(() => parsePortTypeCatalog([transcript([HEIGHT, WATER, MASK, MIXER])], systemInfo)).toThrow(
       /output 'Mixer\.Mixed' matches 3 classes/,
     );
   });
@@ -233,7 +246,7 @@ describe('parsePortTypeCatalog (port-types design section 4)', () => {
       wireList(MIXER),
       wireList(MIXER, new Map([[1, "'Height Source' [1]"]])),
     );
-    expect(() => parsePortTypeCatalog(text, systemInfo)).toThrow(
+    expect(() => parsePortTypeCatalog([text], systemInfo)).toThrow(
       'wire list #4: input 1 is wired before probing',
     );
   });
@@ -243,7 +256,7 @@ describe('parsePortTypeCatalog (port-types design section 4)', () => {
       deviceList([HEIGHT]),
       `${deviceList([HEIGHT]).slice(0, -3)}Something else\n<<<`,
     );
-    expect(() => parsePortTypeCatalog(text, systemInfo)).toThrow(
+    expect(() => parsePortTypeCatalog([text], systemInfo)).toThrow(
       "device list: unreadable row 'Something else'",
     );
   });
@@ -255,7 +268,7 @@ describe('parsePortTypeCatalog (port-types design section 4)', () => {
     'fails on a blank project whose first device list shows %s (Codex round 2 ruling 1, round 3 ruling)',
     (_label, lines) => {
       const text = transcript().replace(deviceList([]), section('device list', lines));
-      expect(() => parsePortTypeCatalog(text, systemInfo)).toThrow(
+      expect(() => parsePortTypeCatalog([text], systemInfo)).toThrow(
         "device list after project new blank force: not 'No devices in the current project.'",
       );
     },
@@ -263,7 +276,7 @@ describe('parsePortTypeCatalog (port-types design section 4)', () => {
 
   it('fails on a line printed between batches that is no log line (Codex round 2 ruling 1)', () => {
     const text = `${transcript()}\n${section('(printed between batches)', ['Something else'])}`;
-    expect(() => parsePortTypeCatalog(text, systemInfo)).toThrow(
+    expect(() => parsePortTypeCatalog([text], systemInfo)).toThrow(
       "(printed between batches): unexpected line 'Something else'",
     );
   });
@@ -274,11 +287,95 @@ describe('parsePortTypeCatalog (port-types design section 4)', () => {
       '[Info       ] Graph changed',
       '[Build Event] Prohibiting system sleep',
     ]);
-    expect(parsePortTypeCatalog(`${transcript()}\n${printed}`, systemInfo)).toEqual(CATALOG);
+    expect(parsePortTypeCatalog([`${transcript()}\n${printed}`], systemInfo)).toEqual(CATALOG);
   });
 
   it('takes the build only from the system info capture (design section 4)', () => {
-    expect(() => parsePortTypeCatalog(transcript(), '')).toThrow('expected one Version line, found 0');
+    expect(() => parsePortTypeCatalog([transcript()], '')).toThrow('expected one Version line, found 0');
+  });
+});
+
+/**
+ * Design section 3, crashes and resumes: the full build 4067 run crashed World Machine (SIGSEGV) while probing #185.1,
+ * so its outputs come from two transcripts. Synthetic transcripts of that shape; the exit message as the capture
+ * script records it (scripts/capture-fixtures.mjs startWorldMachine).
+ */
+describe('parsePortTypeCatalog of several transcripts (port-types design sections 3 and 4)', () => {
+  const early: Outputs = (from) => ['#1.1', '#2.1'].includes(from);
+  const late: Outputs = (from) => !early(from);
+  /** `(probe <from> stopped)` in place of each output `stopped` picks. */
+  const stoppedAt = (stopped: Outputs) =>
+    `${transcript(DEVICES, plain, (from) => !stopped(from))}\n${['#1.1', '#2.1', '#3.1', '#4.1']
+      .filter(stopped)
+      .map((from) => section(`(probe ${from} stopped)`, ['World Machine exited (code null, signal SIGSEGV)']))
+      .join('\n')}`;
+
+  it('gives the catalog of one transcript when two split the outputs', () => {
+    expect(
+      parsePortTypeCatalog([transcript(DEVICES, plain, early), transcript(DEVICES, plain, late)], systemInfo),
+    ).toEqual(CATALOG);
+  });
+
+  it('accepts a pair probed alike in two transcripts', () => {
+    expect(parsePortTypeCatalog([transcript(), transcript(DEVICES, plain, late)], systemInfo)).toEqual(
+      CATALOG,
+    );
+  });
+
+  it('fails when two transcripts list other devices', () => {
+    const blender: Device = { ...MIXER, id: 6, word: 'Blender' };
+    expect(() => parsePortTypeCatalog([transcript(), transcript([...DEVICES, blender])], systemInfo)).toThrow(
+      "transcript 2: #6 'Mixer' (device add Blender) inputs 1 Height In, 2 Water In, 3 Any In outputs 1 Mixed " +
+        'where transcript 1 has no device',
+    );
+  });
+
+  it('fails when two transcripts list other ports', () => {
+    const narrow: Device = { ...SINK, inputs: ['Height In', 'Water In'] };
+    expect(() =>
+      parsePortTypeCatalog([transcript(), transcript([HEIGHT, WATER, MASK, MIXER, narrow])], systemInfo),
+    ).toThrow(
+      "transcript 2: #5 'Sink' (device add Sink) inputs 1 Height In, 2 Water In outputs none where transcript 1 has " +
+        "#5 'Sink' (device add Sink) inputs 1 Height In, 2 Water In, 3 Any In outputs none",
+    );
+  });
+
+  it('fails on a pair two transcripts probed differently', () => {
+    const flipped: Verdict = (pair) => (pair === '#1.1>#4.1' ? 'refused' : plain(pair));
+    expect(() =>
+      parsePortTypeCatalog([transcript(), transcript(DEVICES, flipped, late)], systemInfo),
+    ).not.toThrow();
+    expect(() =>
+      parsePortTypeCatalog([transcript(), transcript(DEVICES, flipped, early)], systemInfo),
+    ).toThrow('#1.1 -> #4.1: probed differently');
+  });
+
+  it('accepts a stopped probe another transcript covers', () => {
+    expect(parsePortTypeCatalog([stoppedAt(late), transcript(DEVICES, plain, late)], systemInfo)).toEqual(
+      CATALOG,
+    );
+  });
+
+  it('fails on a stopped probe no transcript covers', () => {
+    expect(() => parsePortTypeCatalog([stoppedAt((from) => from === '#4.1')], systemInfo)).toThrow(
+      '#4.1 -> #5.1: not probed',
+    );
+  });
+
+  it('leaves a crashed pair a hole that decides no class (design section 4)', () => {
+    // As the same-device hole test above: with Mixed's pairs into Sink crashed, its row is all unknown.
+    const crashed: Verdict = (pair) => (pair.startsWith('#4.1>#5.') ? 'crashed' : plain(pair));
+    expect(() => parsePortTypeCatalog([transcript(DEVICES, crashed)], systemInfo)).toThrow(
+      /output 'Mixer\.Mixed' matches 3 classes/,
+    );
+  });
+
+  it('ignores a (restarted ...) section', () => {
+    const restarted = section('(restarted after #1.1 -> #4.2)', [
+      'World Machine exited (code null, signal SIGSEGV)',
+      're-added 5 devices, list unchanged',
+    ]);
+    expect(parsePortTypeCatalog([`${transcript()}\n${restarted}`], systemInfo)).toEqual(CATALOG);
   });
 });
 
@@ -296,7 +393,7 @@ const SPLITTER: Device = {
 describe('parsePortTypeCatalog names (port-types design section 4, plan decision D14)', () => {
   it('names a class by any of its ports and leaves the others to their first port', () => {
     expect(
-      parsePortTypeCatalog(transcript(), systemInfo, { 'Mixer.Mixed': 'heightfield' }).outputClasses,
+      parsePortTypeCatalog([transcript()], systemInfo, { 'Mixer.Mixed': 'heightfield' }).outputClasses,
     ).toEqual({
       o1: 'heightfield',
       o2: 'like Water Source Water',
@@ -306,13 +403,13 @@ describe('parsePortTypeCatalog names (port-types design section 4, plan decision
 
   it('fails on an entry that names no output port', () => {
     expect(() =>
-      parsePortTypeCatalog(transcript(), systemInfo, { 'Mixer.Height In': 'heightfield' }),
+      parsePortTypeCatalog([transcript()], systemInfo, { 'Mixer.Height In': 'heightfield' }),
     ).toThrow("names: 'Mixer.Height In' names no output port");
   });
 
   it('fails on two entries for one class', () => {
     expect(() =>
-      parsePortTypeCatalog(transcript(), systemInfo, {
+      parsePortTypeCatalog([transcript()], systemInfo, {
         'Height Source.Height': 'heightfield',
         'Mixer.Mixed': 'height',
       }),
@@ -321,7 +418,7 @@ describe('parsePortTypeCatalog names (port-types design section 4, plan decision
 
   it('fails on an entry that names ports of two classes', () => {
     const text = transcript([...DEVICES, SPLITTER]);
-    expect(() => parsePortTypeCatalog(text, systemInfo, { 'Splitter.Part': 'part' })).toThrow(
+    expect(() => parsePortTypeCatalog([text], systemInfo, { 'Splitter.Part': 'part' })).toThrow(
       "names: 'Splitter.Part' names ports of 2 classes",
     );
   });
@@ -330,16 +427,26 @@ describe('parsePortTypeCatalog names (port-types design section 4, plan decision
 const script = fileURLToPath(new URL('../../scripts/build-port-type-catalog.mjs', import.meta.url));
 const NAMES = { 'Height Source.Height': 'heightfield', 'Water Source.Water': 'water system' };
 
-/** Runs the script on the synthetic transcript in a fresh directory, beside `info` unless it is null (section 4). */
-function generate(names?: Readonly<Record<string, string>>, info: string | null = systemInfo) {
+/**
+ * Runs the script on the synthetic transcripts in a fresh directory, beside `info` unless it is null (section 4), the
+ * names map first so the script has to find it by its extension.
+ */
+function generate(
+  names?: Readonly<Record<string, string>>,
+  info: string | null = systemInfo,
+  transcripts: readonly string[] = [transcript()],
+) {
   const dir = mkdtempSync(join(tmpdir(), 'port-type-catalog-'));
   try {
-    writeFileSync(join(dir, 'port-types.txt'), transcript());
     if (info !== null) writeFileSync(join(dir, 'system-info.txt'), info);
-    const args = [script, join(dir, 'port-types.txt')];
+    const args = [script];
     if (names !== undefined) {
       writeFileSync(join(dir, 'names.json'), JSON.stringify(names));
       args.push(join(dir, 'names.json'));
+    }
+    for (const [index, text] of transcripts.entries()) {
+      writeFileSync(join(dir, `port-types-${index + 1}.txt`), text);
+      args.push(join(dir, `port-types-${index + 1}.txt`));
     }
     return spawnSync(process.execPath, args, { encoding: 'utf8' });
   } finally {
@@ -351,7 +458,7 @@ describe('scripts/build-port-type-catalog.mjs (port-types design section 4, plan
   it('prints the catalog the transcript, its system info, and the names map parse to', () => {
     const result = generate(NAMES);
     expect(result.status).toBe(0);
-    expect(JSON.parse(result.stdout)).toStrictEqual(parsePortTypeCatalog(transcript(), systemInfo, NAMES));
+    expect(JSON.parse(result.stdout)).toStrictEqual(parsePortTypeCatalog([transcript()], systemInfo, NAMES));
   });
 
   it('prints the fallback names without a names map', () => {
@@ -360,11 +467,24 @@ describe('scripts/build-port-type-catalog.mjs (port-types design section 4, plan
     expect(JSON.parse(result.stdout)).toStrictEqual(CATALOG);
   });
 
-  it('exits 2 with a usage line when no transcript is given', () => {
-    const result = spawnSync(process.execPath, [script], { encoding: 'utf8' });
+  it('merges every transcript given (design section 3, crashes and resumes)', () => {
+    const split = (outputs: Outputs) => transcript(DEVICES, plain, outputs);
+    const result = generate(NAMES, systemInfo, [
+      split((from) => from === '#1.1'),
+      split((from) => from !== '#1.1'),
+    ]);
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout)).toStrictEqual(parsePortTypeCatalog([transcript()], systemInfo, NAMES));
+  });
+
+  it.each([
+    ['no transcript is given', ['names.json']],
+    ['two names maps are given', ['port-types.txt', 'a.json', 'b.json']],
+  ])('exits 2 with a usage line when %s', (_label, args) => {
+    const result = spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' });
     expect(result.status).toBe(2);
     expect(result.stderr).toContain(
-      'usage: node scripts/build-port-type-catalog.mjs <transcript> [names.json]',
+      'usage: node scripts/build-port-type-catalog.mjs <transcript>... [names.json]',
     );
   });
 

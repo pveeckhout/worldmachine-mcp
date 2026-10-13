@@ -10,7 +10,7 @@ export type PortTypeCatalogData = {
   >;
 };
 export function parsePortTypeCatalog(
-  transcript: string,
+  transcripts: readonly string[],
   systemInfo: string,
   names?: Readonly<Record<string, string>>,
 ): PortTypeCatalogData;
