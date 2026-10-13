@@ -2,7 +2,7 @@ import type { ExportPort } from '../../src/application/port/out/export-port.js';
 import type { PathPolicyPort } from '../../src/application/port/out/path-policy-port.js';
 import type { ProjectGraphReadPort } from '../../src/application/port/out/project-graph-read-port.js';
 import type { WorldMachineSessionPort } from '../../src/application/port/out/world-machine-session-port.js';
-import type { DeviceSummary } from '../../src/domain/device.js';
+import type { DeviceDetail, DeviceSummary } from '../../src/domain/device.js';
 import { WorldMachineError } from '../../src/domain/errors.js';
 import type { ExportTarget } from '../../src/domain/output-template.js';
 import type { Scene } from '../../src/domain/scene.js';
@@ -58,6 +58,8 @@ export type ExportFakeOptions = {
   readonly devices?: readonly DeviceSummary[];
   /** Devices whose `exportAlways` is not confirmed off (fact 55, ruling P-FR-3). */
   readonly exportAlways?: readonly string[];
+  /** What `getDevice('#<id>')` returns (build-not-built design section 4); any other reference fails. */
+  readonly details?: readonly DeviceDetail[];
 };
 
 /**
@@ -102,7 +104,14 @@ export function exportFakes(options: ExportFakeOptions = {}) {
       calls.push('device list');
       return [...(options.devices ?? DEFAULT_DEVICES)];
     },
-    getDevice: unused,
+    getDevice: async (device) => {
+      calls.push(`device info ${device}`);
+      const detail = options.details?.find((candidate) => `#${candidate.id}` === device);
+      if (detail === undefined) {
+        throw new WorldMachineError('WM_COMMAND_FAILED', `World Machine rejected "device select ${device}"`);
+      }
+      return detail;
+    },
     getScene: async () => {
       calls.push('scene show');
       return SCENE_257;
