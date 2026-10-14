@@ -793,4 +793,69 @@ describe('a wire that closes a loop over the fake World Machine (spec fact 99)',
     expect(view.applied).toBe(1);
     expect(view.possibleLoops).toEqual(plan.possibleLoops);
   });
+
+  it('plans a loop through an unmanaged device as a conflict after reading downstream, and apply_graph refuses it before any change', async () => {
+    const w = wired();
+    const hill = (await w.devices.addDevice('Erosion', 'Hill')).id;
+    const ridge = (await w.devices.addDevice('Erosion', 'Ridge')).id;
+    const peak = (await w.devices.addDevice('Erosion', 'Peak')).id;
+    await w.wires.connect({ device: `#${hill}` }, { device: `#${ridge}` });
+    await w.wires.connect({ device: `#${ridge}` }, { device: `#${peak}` });
+    const spec: RawGraphSpec = {
+      version: 1,
+      devices: [{ name: 'Hill', type: 'Erosion', inputs: { '1': 'Peak' } }],
+    };
+    const before = w.record.lines().length;
+    const plan = await w.plan.planGraph({ spec });
+    // Phase one reads Hill and Peak; Ridge is unmanaged, and only the fourth phase reads it.
+    expect(
+      w.record
+        .lines()
+        .slice(before)
+        .filter((line) => line.startsWith('device select ')),
+    ).toEqual([`device select #${hill}`, `device select #${peak}`, `device select #${ridge}`]);
+    const reason =
+      "input 1 from 'Peak' output 1 would close a loop (Hill -> Ridge -> Peak); World Machine refuses a wire that closes a loop (fact 99)";
+    expect(plan.conflicts).toEqual([{ entry: 'Hill', reason }]);
+    const applying = w.record.lines().length;
+    const error = await failure(w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false }));
+    expect(error).toMatchObject({
+      code: 'REFUSED',
+      message: `The plan has conflicts; resolve them and plan again: Hill: ${reason}`,
+    });
+    expect(
+      w.record
+        .lines()
+        .slice(applying)
+        .filter((line) => CHANGES.test(line)),
+    ).toEqual([]);
+  });
+
+  it('lists a loop it cannot follow in possibleLoops, and apply_graph fails at the closing connect and rolls back', async () => {
+    const w = wired();
+    const [a = 0, b = 0, c = 0, d = 0] = [
+      (await w.devices.addDevice('Combiner')).id,
+      (await w.devices.addDevice('Combiner')).id,
+      (await w.devices.addDevice('Combiner')).id,
+      (await w.devices.addDevice('Combiner')).id,
+    ];
+    // a feeds c and b feeds d, each on input 1, so the plan cannot tell whether a reaches c; it does.
+    await w.wires.connect({ device: `#${a}` }, { device: `#${c}` });
+    await w.wires.connect({ device: `#${b}` }, { device: `#${d}` });
+    const spec: RawGraphSpec = {
+      version: 1,
+      devices: [{ name: 'first mix', id: a, type: 'Combiner', inputs: { '2': `#${c}` } }],
+    };
+    const plan = await w.plan.planGraph({ spec });
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.possibleLoops).toEqual([
+      "'first mix' input 2 from 'Combiner' output 1 may close a loop through 'Combiner', whose wires cannot be told apart",
+    ]);
+    const error = await failure(w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false }));
+    expect(error.code).toBe('APPLY_FAILED');
+    expect(error.details).toMatchObject({
+      failedStep: { code: 'WM_COMMAND_FAILED', worldMachineMessage: CYCLE },
+      rolledBack: true,
+    });
+  });
 });
