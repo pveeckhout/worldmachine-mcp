@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DeviceDetail, DeviceSummary, InputPort, PortLink } from '../../src/domain/device.js';
 import {
   canonicalJson,
+  downstreamIds,
   type GraphState,
   listedType,
   matchDevices,
@@ -1155,6 +1156,65 @@ describe('predictedSourceIds (unidentifiable-wires design section 3, revision 2)
     const graph = spec(devices, remove);
     expect(planGraph(graph, current).conflicts).toContainEqual({ entry: 'a mix', reason });
     expect(predictedSourceIds(graph, current.devices, current.details)).toEqual([]);
+  });
+});
+
+describe('downstreamIds (wire-loops design section 3, plan decision D6)', () => {
+  // Hill #1 feeds Ridge #2, which feeds both Twins; Twin #31 feeds Peak #3. Every device has output 1.
+  const hill = detail(1, 'Hill', 'Hill', { outputs: [output([{ device: 'Ridge', port: 1 }])] });
+  const ridge = detail(2, 'Ridge', 'Ridge', {
+    inputs: [{ port: 1, name: 'Primary Input', source: { device: 'Hill', port: 1 } }],
+    outputs: [output([{ device: 'Twin', port: 1 }])],
+  });
+  const twin = (id: number, targets: PortLink[] = []) =>
+    detail(id, 'Twin', 'Twin', {
+      inputs: [{ port: 1, name: 'Primary Input', source: { device: 'Ridge', port: 1 } }],
+      outputs: [output(targets)],
+    });
+  const peak = detail(3, 'Peak', 'Peak', { inputs: [{ port: 1, name: 'Primary Input' }] });
+  const rows = [row(1, 'Hill'), row(2, 'Ridge'), row(30, 'Twin'), row(31, 'Twin'), row(3, 'Peak')];
+  const hillFrom = (source: string) => spec([{ name: 'Hill', type: 'Hill', inputs: { '1': source } }]);
+  // Hill gets an input 1, so the spec's wire is one the plan makes.
+  const HILL = { ...hill, inputs: [{ port: 1, name: 'Primary Input' }] };
+
+  it('names, round by round, every unread device of each target name it reaches', () => {
+    const graph = hillFrom('Peak');
+    expect(downstreamIds(graph, rows, [HILL, peak])).toEqual([2]);
+    expect(downstreamIds(graph, rows, [HILL, peak, ridge])).toEqual([30, 31]);
+    expect(
+      downstreamIds(graph, rows, [HILL, peak, ridge, twin(30), twin(31, [{ device: 'Peak', port: 1 }])]),
+    ).toEqual([]);
+  });
+
+  it('starts from a destination whose wire changes only its source port', () => {
+    const twoOutputs = { ...peak, outputs: [output(), { port: 2, name: 'Second Output', targets: [] }] };
+    const fed = {
+      ...hill,
+      inputs: [{ port: 1, name: 'Primary Input', source: { device: 'Peak', port: 1 } }],
+    };
+    expect(downstreamIds(hillFrom('Peak.2'), rows, [fed, twoOutputs])).toEqual([2]);
+  });
+
+  it('names nothing for a spec without input wires', () => {
+    expect(downstreamIds(spec([{ name: 'Hill', type: 'Hill' }]), rows, [HILL])).toEqual([]);
+  });
+
+  it('neither takes nor follows a device the spec removes', () => {
+    const graph = spec([{ name: 'Hill', type: 'Hill', inputs: { '1': 'Peak' } }], ['Ridge']);
+    expect(downstreamIds(graph, rows, [HILL, peak, ridge])).toEqual([]);
+  });
+
+  it.each<[string, RawGraphDevice[], DeviceDetail]>([
+    ['a wire the plan refuses', [{ name: 'Hill', type: 'Hill', inputs: { '1': 'Nowhere' } }], HILL],
+    ['a self-wire (fact 98)', [{ name: 'Hill', type: 'Hill', inputs: { '1': 'Hill' } }], HILL],
+    [
+      'a wire the destination has already',
+      [{ name: 'Hill', type: 'Hill', inputs: { '1': 'Peak' } }],
+      { ...hill, inputs: [{ port: 1, name: 'Primary Input', source: { device: 'Peak', port: 1 } }] },
+    ],
+    ['a wire into a device the plan adds', [{ name: 'Mid', type: 'Erosion', inputs: { '1': 'Hill' } }], HILL],
+  ])('names nothing for %s', (_label, devices, start) => {
+    expect(downstreamIds(spec(devices), rows, [start, peak])).toEqual([]);
   });
 });
 

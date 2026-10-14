@@ -131,3 +131,67 @@ describe('readGraphState, third phase (unidentifiable-wires design section 3)', 
     expect(p.reads).toEqual(['#20', '#10', '#40', '#41']);
   });
 });
+
+describe('readGraphState, fourth phase (wire-loops design section 3)', () => {
+  /** `detail` with one input and output 1 listing `targets`. */
+  const feeding = (id: number, name: string, targets: string[], input?: string): DeviceDetail => ({
+    ...detail(id, name, [input === undefined ? { port: 1, name: 'Primary Input' } : from(1, input)]),
+    outputs: [{ port: 1, name: 'Primary Output', targets: targets.map((device) => ({ device, port: 1 })) }],
+  });
+
+  it('reads in rounds what the destinations reach downstream and every device of each name', async () => {
+    // Hill feeds Ridge, Ridge feeds a Twin (the line names both Twins), Twin #31 feeds Crest, Crest feeds Peak; Far
+    // is not reached.
+    const p = ports(
+      [
+        row(1, 'Hill'),
+        row(2, 'Ridge'),
+        row(30, 'Twin'),
+        row(31, 'Twin'),
+        row(5, 'Crest'),
+        row(3, 'Peak'),
+        row(4, 'Far'),
+      ],
+      [
+        feeding(1, 'Hill', ['Ridge']),
+        feeding(2, 'Ridge', ['Twin'], 'Hill'),
+        feeding(30, 'Twin', [], 'Ridge'),
+        feeding(31, 'Twin', ['Crest'], 'Ridge'),
+        feeding(5, 'Crest', ['Peak'], 'Twin'),
+        feeding(3, 'Peak', [], 'Crest'),
+        feeding(4, 'Far', []),
+      ],
+    );
+    const state = await readGraphState(
+      spec([{ name: 'Hill', type: 'Hill', inputs: { '1': 'Peak' } }]),
+      p.graph,
+      p.session,
+    );
+    expect(p.reads).toEqual(['#1', '#3', '#2', '#30', '#31', '#5']);
+    expect(state.details.map((device) => device.id)).toEqual([1, 3, 2, 30, 31, 5]);
+  });
+
+  it('reads nothing more for a spec without input wires', async () => {
+    const p = ports(
+      [row(1, 'Hill'), row(2, 'Ridge')],
+      [feeding(1, 'Hill', ['Ridge']), feeding(2, 'Ridge', [])],
+    );
+    await readGraphState(spec([{ name: 'Hill', type: 'Hill' }]), p.graph, p.session);
+    expect(p.reads).toEqual(['#1']);
+  });
+
+  it('starts only from the destinations, not from the wire sources', async () => {
+    // Hill is wired from Peak; Peak feeds Tail, which is downstream of the source only, so it stays unread.
+    const p = ports(
+      [row(1, 'Hill'), row(2, 'Ridge'), row(3, 'Peak'), row(7, 'Tail')],
+      [
+        feeding(1, 'Hill', ['Ridge']),
+        feeding(2, 'Ridge', [], 'Hill'),
+        feeding(3, 'Peak', ['Tail']),
+        feeding(7, 'Tail', [], 'Peak'),
+      ],
+    );
+    await readGraphState(spec([{ name: 'Hill', type: 'Hill', inputs: { '1': 'Peak' } }]), p.graph, p.session);
+    expect(p.reads).toEqual(['#1', '#3', '#2']);
+  });
+});

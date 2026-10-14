@@ -1,5 +1,6 @@
 import type { DeviceDetail } from '../../domain/device.js';
 import {
+  downstreamIds,
   type GraphState,
   predictedSourceIds,
   referencedDeviceIds,
@@ -14,8 +15,9 @@ import type { WorldMachineSessionPort } from '../port/out/world-machine-session-
  * (revision 6) of each unread device that shares its listed name with the current source of an input read in the
  * first phase, so planGraph can resolve that source, then (unidentifiable-wires design section 3) of each unread
  * device that has the predicted source name of a spec input wire when another predicted device has that name too,
- * so unidentifiableWires can resolve the wire after the apply. The binding is read last, after the reads have
- * started World Machine if it was not running.
+ * so unidentifiableWires can resolve the wire after the apply, then (wire-loops design section 3) in rounds of each
+ * unread device downstream of the destinations of the spec's input wires, so wireLoops can follow every path from
+ * them. The binding is read last, after the reads have started World Machine if it was not running.
  */
 export async function readGraphState(
   spec: GraphSpec,
@@ -29,6 +31,14 @@ export async function readGraphState(
   for (const id of sharedSourceIds(devices, details)) details.push(await graph.getDevice(`#${id}`));
   // Unidentifiable-wires design section 3: computed once, from the first two phases' details.
   for (const id of predictedSourceIds(spec, devices, details)) details.push(await graph.getDevice(`#${id}`));
+  // Wire-loops design section 3: a round per call, until one finds no unread device; each device is read once.
+  for (
+    let ids = downstreamIds(spec, devices, details);
+    ids.length > 0;
+    ids = downstreamIds(spec, devices, details)
+  ) {
+    for (const id of ids) details.push(await graph.getDevice(`#${id}`));
+  }
   const binding = session.status().session.binding;
   return { projectPath: binding?.kind === 'opened' ? binding.path : null, devices, details };
 }

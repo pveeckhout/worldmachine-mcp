@@ -135,20 +135,32 @@ export function sharedSourceIds(
 }
 
 /**
- * Unidentifiable-wires design section 3 (revision 2), the third read phase: the listed devices not yet read whose
- * listed name is the predicted source name of a spec input wire the plan does not refuse, when two or more predicted
- * devices have that name, so `unidentifiableWires` holds every candidate's outputs. The predicted devices are the
- * listed ones less those a remove entry names alone, plus the entries the plan adds, named as their entries. The
- * refusals restate planGraph's (unidentifiable-wires plan decision D14): an unusable destination or source entry, an
- * input port the destination lacks, a current wire on it whose source is ambiguous or unknown, a source that names no
- * device, several, or a removed one, and an output port the source lacks. Empty when no such name is shared.
+ * A spec input wire that planGraph plans: its existing destination and that destination's current input on the
+ * wire's port (both undefined for a device the plan adds), and the source's predicted listed name, existing id
+ * (undefined for a device the plan adds), and output port.
  */
-export function predictedSourceIds(
+type PlannableWire = {
+  readonly destination: DeviceDetail | undefined;
+  readonly current: InputPort | undefined;
+  readonly source: { readonly name: string; readonly id: number | undefined; readonly port: number };
+};
+
+/**
+ * The spec input wires planGraph does not refuse, in spec order, with the ids a remove entry names alone and the
+ * names of the entries the plan adds. The refusals restate planGraph's (unidentifiable-wires plan decision D14): an
+ * unusable destination or source entry, an input port the destination lacks, a current wire on it whose source is
+ * ambiguous or unknown, a source that names no device, several, or a removed one, and an output port the source
+ * lacks. A self-wire is left in: predictedSourceIds reads for it as before, and downstreamIds skips it.
+ */
+function plannableWires(
   spec: GraphSpec,
   devices: readonly DeviceSummary[],
   details: readonly DeviceDetail[],
-): number[] {
-  const read = new Set(details.map((detail) => detail.id));
+): {
+  readonly removed: ReadonlySet<number>;
+  readonly planned: readonly string[];
+  readonly wires: readonly PlannableWire[];
+} {
   const detailOf = (id: number): DeviceDetail | undefined => details.find((detail) => detail.id === id);
   const only = (reference: string): DeviceSummary | undefined => {
     const matches = matchDevices(devices, reference);
@@ -186,18 +198,14 @@ export function predictedSourceIds(
     entries.set(foldCase(device.name), entry);
   }
 
-  const planned = [...entries.values()].filter((entry) => entry.usable && entry.existing === undefined);
-  const holders = (name: string): number =>
-    devices.filter((device) => !removed.has(device.id) && device.name === name).length +
-    planned.filter((entry) => entry.name === name).length;
-  /** The listed name the source will have after the apply; undefined for a source the plan refuses. */
-  const sourceName = (source: GraphSource): string | undefined => {
+  /** The source after the apply: its listed name and existing id; undefined for a source the plan refuses. */
+  const sourceOf = (source: GraphSource): PlannableWire['source'] | undefined => {
     const own = entries.get(foldCase(source.device));
     let id: number;
     if (own !== undefined) {
       if (!own.usable) return undefined;
       // planGraph checks no port of a device it adds.
-      if (own.existing === undefined) return own.name;
+      if (own.existing === undefined) return { name: own.name, id: undefined, port: source.port };
       id = own.existing;
     } else {
       const match = only(source.device);
@@ -205,7 +213,8 @@ export function predictedSourceIds(
       id = match.id;
     }
     if (!detailOf(id)?.outputs.some((output) => output.port === source.port)) return undefined;
-    return devices.find((device) => device.id === id)?.name;
+    const name = devices.find((device) => device.id === id)?.name;
+    return name === undefined ? undefined : { name, id, port: source.port };
   };
 
   /**
@@ -223,25 +232,100 @@ export function predictedSourceIds(
     );
     return current.kind === 'ambiguous' || current.kind === 'unknown';
   };
-  const ids = new Set<number>();
+  const wires: PlannableWire[] = [];
   for (const device of spec.devices) {
     const entry = entries.get(foldCase(device.name));
     if (entry === undefined || !entry.usable) continue;
     const destination = entry.existing === undefined ? undefined : detailOf(entry.existing);
     for (const input of device.inputs) {
       if (input.source === null) continue;
+      let current: InputPort | undefined;
       if (destination !== undefined) {
-        const port = destination.inputs.find((candidate) => candidate.port === input.port);
-        if (port === undefined || unidentified(destination, port)) continue;
+        current = destination.inputs.find((candidate) => candidate.port === input.port);
+        if (current === undefined || unidentified(destination, current)) continue;
       }
-      const name = sourceName(input.source);
-      if (name === undefined || holders(name) < 2) continue;
-      for (const holder of devices) {
-        if (holder.name === name && !read.has(holder.id) && !removed.has(holder.id)) ids.add(holder.id);
-      }
+      const source = sourceOf(input.source);
+      if (source !== undefined) wires.push({ destination, current, source });
+    }
+  }
+  const planned = [...entries.values()].flatMap((entry) =>
+    entry.usable && entry.existing === undefined ? [entry.name] : [],
+  );
+  return { removed, planned, wires };
+}
+
+/**
+ * Unidentifiable-wires design section 3 (revision 2), the third read phase: the listed devices not yet read whose
+ * listed name is the predicted source name of a spec input wire the plan does not refuse (plannableWires), when two or
+ * more predicted devices have that name, so `unidentifiableWires` holds every candidate's outputs. The predicted
+ * devices are the listed ones less those a remove entry names alone, plus the entries the plan adds, named as their
+ * entries. Empty when no such name is shared.
+ */
+export function predictedSourceIds(
+  spec: GraphSpec,
+  devices: readonly DeviceSummary[],
+  details: readonly DeviceDetail[],
+): number[] {
+  const read = new Set(details.map((detail) => detail.id));
+  const { removed, planned, wires } = plannableWires(spec, devices, details);
+  const holders = (name: string): number =>
+    devices.filter((device) => !removed.has(device.id) && device.name === name).length +
+    planned.filter((entry) => entry === name).length;
+  const ids = new Set<number>();
+  for (const { source } of wires) {
+    if (holders(source.name) < 2) continue;
+    for (const holder of devices) {
+      if (holder.name === source.name && !read.has(holder.id) && !removed.has(holder.id)) ids.add(holder.id);
     }
   }
   return [...ids];
+}
+
+/**
+ * Wire-loops design section 3, the fourth read phase, one round: the listed devices not yet read that the output
+ * targets of read devices reach by listed name, starting from the existing destinations of the spec input wires the
+ * plan connects anew (wire-loops plan decision D6: a wire the plan refuses, a self-wire, a wire the destination has
+ * already, and a wire into a device the plan adds start nothing). Every listed device of a target's name is taken; a
+ * device a remove entry names alone is neither taken nor followed. readGraphState reads the ids and calls it again
+ * until it returns none.
+ */
+export function downstreamIds(
+  spec: GraphSpec,
+  devices: readonly DeviceSummary[],
+  details: readonly DeviceDetail[],
+): number[] {
+  const outputsOf = (id: number): readonly OutputPort[] | undefined =>
+    details.find((detail) => detail.id === id)?.outputs;
+  const { removed, wires } = plannableWires(spec, devices, details);
+  const starts = new Set<number>();
+  for (const { destination, current, source } of wires) {
+    if (destination === undefined || source.id === destination.id) continue;
+    const readable =
+      current !== undefined &&
+      sourceCandidates(current, devices).every((candidate) => outputsOf(candidate.id) !== undefined);
+    if (readable) {
+      const resolved = resolveWireSource(listedName(destination.name), current, devices, outputsOf);
+      if (resolved.kind === 'found' && resolved.id === source.id && resolved.port === source.port) continue;
+    }
+    starts.add(destination.id);
+  }
+  const seen = new Set<number>(starts);
+  const pending = [...starts];
+  const ids: number[] = [];
+  for (let id = pending.shift(); id !== undefined; id = pending.shift()) {
+    for (const output of outputsOf(id) ?? []) {
+      for (const target of output.targets) {
+        const name = listedName(target.device);
+        for (const device of devices) {
+          if (device.name !== name || seen.has(device.id) || removed.has(device.id)) continue;
+          seen.add(device.id);
+          if (outputsOf(device.id) === undefined) ids.push(device.id);
+          else pending.push(device.id);
+        }
+      }
+    }
+  }
+  return ids;
 }
 
 // Spec fact 79 (raw/v3-assumptions.txt l.435-548): `device info` reports the name `device add` gives a new device,
