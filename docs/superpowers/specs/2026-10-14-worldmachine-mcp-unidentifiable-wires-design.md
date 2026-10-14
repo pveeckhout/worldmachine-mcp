@@ -2,7 +2,7 @@
 
 Date: 2026-10-14
 Status: draft, awaiting review
-Builds on: [v3 design](2026-10-06-worldmachine-mcp-v3-design.md) revision 6 (`resolveWireSource`, fact 82, section 5) and the [port-types design](2026-10-13-worldmachine-mcp-port-types-design.md) (`uncheckedWires`, the pattern for a plan-view list that does not refuse). Backlog: docs/research/2026-10-05-plan1-backlog.md l.107.
+Builds on: [v3 design](2026-10-06-worldmachine-mcp-v3-design.md) revision 6 (`resolveWireSource`, fact 82, section 5) and the [port-types design](2026-10-13-worldmachine-mcp-port-types-design.md) (`uncheckedWires`, the pattern for a plan-view list that does not refuse). Backlog: docs/research/2026-10-05-plan1-backlog.md l.108.
 
 ## 1. Purpose and scope
 
@@ -37,7 +37,7 @@ The prediction needs the outputs of every existing device whose listed name a pr
 - `plan_graph`: the view gains `unidentifiableWires: string[]` (required, possibly empty). It adds no conflict.
 - `apply_graph`: unchanged in what it does; its view gains the same field, copied from the plan it applied (empty when it refused).
 - Descriptions: the `plan_graph` and `apply_graph` descriptions replace the sentence about a wiring a later plan cannot resolve with one sentence on `unidentifiableWires`; README likewise.
-- Backlog l.107 becomes `Done:`.
+- Backlog l.108 becomes `Done:`.
 
 ## 5. Structure
 
@@ -63,7 +63,7 @@ sequenceDiagram
 
 ## 6. Testing
 
-- Domain: two planned Combiner-into-Combiner pairs on input 1 are listed (both inputs); one pair is not; two pairs on different input numbers are not; an existing managed wire that a planned sibling pair makes ambiguous is listed; an input that is already a conflict is not listed; a `disconnect` step or a removed device that clears an ambiguity leaves it unlisted; a candidate that is planned is named `the planned '<entry>'`.
+- Domain: two Combiner-into-Combiner pairs on input 1 that the plan wires (existing Combiners managed by `id`) are listed (both inputs); one pair is not; two pairs on different input numbers are not; an existing managed wire that a planned sibling pair makes ambiguous is listed; an input that is already a conflict is not listed; a `disconnect` step or a removed device that clears an ambiguity leaves it unlisted; a candidate that is planned is named `the planned '<entry>'`.
 - Read phase: phase three reads exactly the unread existing devices of a shared predicted source name, and nothing for a spec without one.
 - Services and schemas: both views carry the field; apply copies its plan's list; a view without it is refused by the schema.
 - Fake World Machine, end to end: plan two Combiner pairs (warning listed), apply, plan again (the conflict of today), which pins what the warning predicts.
@@ -71,4 +71,6 @@ sequenceDiagram
 
 ## 7. Documentation
 
-README and the two descriptions as in section 4; backlog l.107 `Done:` with the commits.
+README and the two descriptions as in section 4; backlog l.108 `Done:` with the commits.
+
+Revision 1 (2026-10-14, plan drafting): an added device never shares its listed name with another device (entry names are unique, and an entry whose name an existing device has manages it), so a planned device is never a candidate and the Combiner pairs of section 6 are existing Combiners the spec manages by `id`; the `the planned '<entry>'` wording stays for completeness. The backlog item is l.108.
