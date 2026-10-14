@@ -215,6 +215,40 @@ describe('wireLoops hops (wire-loops plan decisions D2 to D5)', () => {
     ]);
   });
 
+  it('names a device by id when a same-named device is removed, as the plan names devices against the current state', () => {
+    // Pre-flight F4: the plan removes #6, so #5 is the only Combiner after the apply; the path still names #5 by id.
+    const result = loops(
+      [HILL_FROM_PEAK],
+      state([
+        node(1, 'Hill', [to('Combiner')]),
+        combiner(5, [to('Peak')], { 1: 'Hill' }),
+        combiner(6),
+        node(3, 'Peak', [], { 1: 'Combiner' }),
+      ]),
+      ['#6'],
+    );
+    expect(result.plan.steps.map((step) => step.op)).toEqual(['remove', 'connect']);
+    expect(result.conflicts).toEqual([
+      { entry: 'Hill', reason: closes("input 1 from 'Peak' output 1", 'Hill -> Combiner #5 -> Peak') },
+    ]);
+  });
+
+  it('follows a wire from a device the plan adds into an existing destination', () => {
+    // Task 3 review Minor 1: Mid is added from Ridge and Hill is wired from Mid, closing Hill -> Ridge -> Mid -> Hill.
+    const result = loops(
+      [
+        { name: 'Mid', type: 'Erosion', inputs: { '1': 'Ridge' } },
+        { name: 'Hill', type: 'Hill', inputs: { '1': 'Mid' } },
+      ],
+      CHAIN,
+    );
+    expect(result.plan.conflicts).toEqual([]);
+    expect(result.conflicts).toEqual([
+      { entry: 'Mid', reason: closes("input 1 from 'Ridge' output 1", 'Mid -> Hill -> Ridge') },
+      { entry: 'Hill', reason: closes("input 1 from 'Mid' output 1", 'Hill -> Ridge -> Mid') },
+    ]);
+  });
+
   it('reaches no device of the line name whose input shows another source name', () => {
     // Base feeds Twin #30, which feeds nothing; Twin #31 is fed by an Other and feeds Peak. Other #41 is listed and
     // not read, so only the name tells that Base does not feed Twin #31.
@@ -364,6 +398,27 @@ describe('wireLoops hops (wire-loops plan decisions D2 to D5)', () => {
         node(4, 'Erosion'),
         { ...peak, inputs: [{ port: 1, name: 'Primary Input', source: { device: 'Erosion', port: 2 } }] },
       ]),
+    );
+    expect(result.conflicts).toEqual([]);
+    expect(result.possibleLoops).toEqual([
+      "'Hill' input 1 from 'Peak' output 1 may close a loop through 'Erosion', whose wires cannot be told apart",
+    ]);
+  });
+
+  it('names the shared name of the first uncertain hop when a path has two', () => {
+    // Pre-flight F3: Erosion #4 and Mix #41 are listed and not read, so Erosion -> Mix and Mix -> Peak are both
+    // uncertain, the first through the Erosions' wires.
+    const result = loops(
+      [HILL_FROM_PEAK],
+      state(
+        [
+          node(1, 'Hill', [to('Erosion')]),
+          node(3, 'Erosion', [to('Mix')], { 1: 'Hill' }),
+          node(40, 'Mix', [to('Peak')], { 1: 'Erosion' }),
+          node(5, 'Peak', [], { 1: 'Mix' }),
+        ],
+        [row(4, 'Erosion'), row(41, 'Mix')],
+      ),
     );
     expect(result.conflicts).toEqual([]);
     expect(result.possibleLoops).toEqual([

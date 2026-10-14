@@ -130,6 +130,7 @@ export function wireLoops(
   /**
    * Wire-loops design section 2: a device as the plan names it, its entry or label when the spec manages it, its
    * listed name otherwise, followed by `#<id>` when several listed devices have that name (wire-loops plan decision D5).
+   * The plan names devices against the current state, so a same-named device the plan removes still counts.
    */
   const shown = ({ id, name }: Hop): string => {
     const managed = wiring.destinations.find((destination) => destination.id === id);
