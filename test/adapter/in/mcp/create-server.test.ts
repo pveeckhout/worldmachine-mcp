@@ -451,7 +451,9 @@ describe('createMcpServer', () => {
     expect(description('plan_graph')).toContain(
       'unidentifiableWires lists each wire into a managed device that the plan would leave unidentifiable',
     );
-    expect(description('plan_graph')).toContain('a later plan reports that input as a conflict');
+    expect(description('plan_graph')).toContain(
+      'a later plan reports that input as a conflict when the spec lists it and lists it in unidentifiableWires again otherwise',
+    );
     expect(description('plan_graph')).not.toContain('can itself create a wiring');
     expect(description('apply_graph')).toContain(
       "The result repeats the plan's unidentifiableWires, the wires into managed devices that a later plan cannot identify.",
