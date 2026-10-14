@@ -10,16 +10,26 @@ type PredictedOutput = { readonly port: number; readonly name: string; readonly 
 /** An input of a managed device after the apply; `kept` while it is the wire the device has now. */
 type PredictedInput = { readonly source: PortLink | undefined; readonly kept: boolean };
 
-/** A managed device: its spec entry, its id (below zero for a planned one), and its listed name after the apply. */
-type Destination = { readonly entry: string; readonly id: number; readonly name: string };
+/**
+ * A managed device: its spec entry, its id (below zero for a planned one), its listed name after the apply, and the
+ * input ports its entry lists.
+ */
+type Destination = {
+  readonly entry: string;
+  readonly id: number;
+  readonly name: string;
+  readonly listedPorts: ReadonlySet<number>;
+};
 
 /**
  * Unidentifiable-wires design section 2: the wires into managed devices that `resolveWireSource` would report as
  * ambiguous once `steps` are applied, so that a later plan could not identify them. Pure. Each entry reads
  * `'<entry>' input <q> from '<source name>' output <p>: <candidates> each list '<destination>' input <q>`, in spec
- * entry order, then input port (unidentifiable-wires plan decision D3). A wire the plan keeps and the current state
- * cannot identify is the plan's conflict already and is not listed (plan decision D2). Like planGraph, it throws for
- * a candidate whose outputs the state did not read: readGraphState's three phases read every one.
+ * entry order, then input port (unidentifiable-wires plan decision D3). A kept wire on an input the spec entry lists
+ * that the current state cannot identify is the plan's conflict already and is not listed (plan decision D2); a kept
+ * wire on an input the entry does not list is no conflict and is listed whenever the predicted state finds it
+ * ambiguous. Like planGraph, it throws for a candidate whose outputs the state did not read: readGraphState's three
+ * phases read every one.
  */
 export function unidentifiableWires(
   spec: GraphSpec,
@@ -103,7 +113,12 @@ export function unidentifiableWires(
     const ports = new Map<number, PredictedInput>();
     for (const input of detailOf(id)?.inputs ?? [])
       ports.set(input.port, { source: input.source, kept: true });
-    destinations.push({ entry: device.name, id, name });
+    destinations.push({
+      entry: device.name,
+      id,
+      name,
+      listedPorts: new Set(device.inputs.map((input) => input.port)),
+    });
     inputs.set(id, ports);
   }
   const set = (id: number, port: number, source: PortLink | undefined): void => {
@@ -173,8 +188,10 @@ export function unidentifiableWires(
     for (const [port, { source, kept }] of ports) {
       if (source === undefined) continue;
       const input: InputPort = { port, name: '', source };
-      // Plan decision D2: a kept wire the current state cannot identify is already the plan's conflict.
-      if (kept && current(destination.name, input).kind !== 'found') continue;
+      // Plan decision D2: a kept wire on an input the spec entry lists that the current state cannot identify is the
+      // plan's conflict already.
+      if (kept && destination.listedPorts.has(port) && current(destination.name, input).kind !== 'found')
+        continue;
       const predicted = resolveWireSource(destination.name, input, devices, predictedOutputsOf);
       if (predicted.kind !== 'ambiguous') continue;
       listed.push(

@@ -112,7 +112,7 @@ describe('unidentifiableWires (unidentifiable-wires design section 2)', () => {
     ]);
   });
 
-  it('does not list an input that is already a conflict, nor a kept wire the current state cannot identify', () => {
+  it('does not list an input that is already a conflict, but lists an unidentifiable wire on an unlisted input', () => {
     const { plan, wires } = predict(
       [mix('a mix', 20, { '1': '#10' }), mix('b mix', 21)],
       [
@@ -123,7 +123,31 @@ describe('unidentifiableWires (unidentifiable-wires design section 2)', () => {
       ],
     );
     expect(plan.conflicts.map((conflict) => conflict.entry)).toEqual(['a mix']);
-    expect(wires).toEqual([]);
+    expect(wires).toEqual([`'b mix' input 1 from 'Combiner' output 1: ${BOTH}`]);
+  });
+
+  it('lists again, on the plan after the apply, a wire it made unidentifiable on an input the spec does not list', () => {
+    const devices = [mix('a mix', 20), mix('b mix', 21, { '1': '#11' })];
+    const first = predict(devices, [
+      combiner(10, [C1]),
+      combiner(11),
+      combiner(20, [], { 1: 'Combiner' }),
+      combiner(21),
+    ]);
+    expect(first.wires).toEqual([
+      `'a mix' input 1 from 'Combiner' output 1: ${BOTH}`,
+      `'b mix' input 1 from 'Combiner' output 1: ${BOTH}`,
+    ]);
+    // The state that apply leaves: #11 now feeds #21 input 1, so #10 and #11 each list 'Combiner' input 1.
+    const second = predict(devices, [
+      combiner(10, [C1]),
+      combiner(11, [C1]),
+      combiner(20, [], { 1: 'Combiner' }),
+      combiner(21, [], { 1: 'Combiner' }),
+    ]);
+    expect(second.plan.conflicts.map((conflict) => conflict.entry)).toEqual(['b mix']);
+    expect(second.plan.steps).toEqual([]);
+    expect(second.wires).toEqual([`'a mix' input 1 from 'Combiner' output 1: ${BOTH}`]);
   });
 
   it('leaves unlisted an ambiguity that a disconnect step clears', () => {
