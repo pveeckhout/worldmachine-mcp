@@ -19,8 +19,6 @@ export type QuitAbort = { readonly graceMs: number; readonly termMs: number };
 export const RECOVERY_DIALOG_MS = 5_000;
 /** How long a start may wait on the recovery dialog before World Machine is closed. */
 export const RECOVERY_DIALOG_BOUND_MS = 600_000;
-/** How long a start waits, after a failed licence checkout, for World Machine to repair its activation or the user to activate it. */
-export const LICENCE_REPAIR_MS = 60_000;
 /** The grace a start that never became ready gives `system quit force` before World Machine is killed. */
 const START_QUIT_GRACE_MS = 2_000;
 const SESSION_CHECK = 'Checking for session and autosave files';
@@ -55,8 +53,6 @@ export type ProcessOptions = {
   readonly recoveryDialogMs?: number;
   /** Defaults to RECOVERY_DIALOG_BOUND_MS; tests shorten it. */
   readonly recoveryDialogBoundMs?: number;
-  /** Defaults to LICENCE_REPAIR_MS; tests shorten it. */
-  readonly licenceRepairMs?: number;
 };
 
 export class WorldMachineProcess implements CommandChannel {
@@ -137,28 +133,34 @@ export class WorldMachineProcess implements CommandChannel {
           if (isQuitAbort(reason)) return proc.quit(reason.graceMs, reason.termMs);
           return proc.quit(5_000);
         });
-      // A start that is merely slow is quit, not killed: every unclean exit queues one more crashed session (fact 73).
-      const timeOut = (ms: number) =>
-        fail(`World Machine did not become ready within ${ms} ms`, () => proc.quit(START_QUIT_GRACE_MS, 0));
-      let timer = setTimeout(() => timeOut(options.readyTimeoutMs), options.readyTimeoutMs);
-      // The recovery dialog's bound and the licence window each replace the readiness limit. Should both apply, the
-      // later deadline wins, so neither cuts the other short.
-      let extendedUntil: number | undefined;
-      const extend = (ms: number, expire: () => void) => {
-        const until = Date.now() + ms;
-        if (extendedUntil !== undefined && until <= extendedUntil) return;
-        extendedUntil = until;
-        clearTimeout(timer);
-        timer = setTimeout(expire, ms);
+      // Terminated, not quit: the activation dialog blocks a quit (fact 53).
+      const noLicence = () => {
+        if (settled) return;
+        options.logger.error(NO_LICENCE_LOG);
+        fail(NO_LICENCE_MESSAGE, undefined, false);
       };
+      // A failed checkout is often repaired by World Machine itself within seconds: it re-activates and checks out
+      // again (fact 97). The start waits for that, or for the user to activate in the dialog, but never past its
+      // deadline, so the START_FAILED still arrives inside a client's request timeout.
+      let checkoutFailed = false;
+      // A start that is merely slow is quit, not killed: every unclean exit queues one more crashed session (fact 73).
+      // After a failed checkout the deadline means no licence, wherever it came from: the readiness limit, or the
+      // recovery dialog's bound, which still replaces it because the user is answering that dialog.
+      const timeOut = (ms: number) => {
+        if (checkoutFailed) noLicence();
+        else
+          fail(`World Machine did not become ready within ${ms} ms`, () => proc.quit(START_QUIT_GRACE_MS, 0));
+      };
+      let timer = setTimeout(() => timeOut(options.readyTimeoutMs), options.readyTimeoutMs);
       // Fact 73: after the session check, World Machine prints nothing while its recovery dialog waits for the user.
       // The readiness limit gives way to the dialog's bound, and World Machine is left running for the user to answer.
       proc.#sessionCheckListener = () => {
         if (settled || dialogTimer !== undefined) return;
         dialogTimer = setTimeout(() => {
           if (settled) return;
+          clearTimeout(timer);
           const boundMs = options.recoveryDialogBoundMs ?? RECOVERY_DIALOG_BOUND_MS;
-          extend(boundMs, () => timeOut(boundMs));
+          timer = setTimeout(() => timeOut(boundMs), boundMs);
           for (const listener of proc.#recoveryDialogListeners) listener();
         }, options.recoveryDialogMs ?? RECOVERY_DIALOG_MS);
       };
@@ -174,19 +176,8 @@ export class WorldMachineProcess implements CommandChannel {
         );
       });
       proc.#exitListeners.push(() => fail('World Machine exited during startup'));
-      // Terminated, not quit: the activation dialog blocks a quit (fact 53).
-      const noLicence = () => {
-        if (settled) return;
-        options.logger.error(NO_LICENCE_LOG);
-        fail(NO_LICENCE_MESSAGE, undefined, false);
-      };
-      // A failed checkout is often repaired by World Machine itself within seconds: it re-activates and checks out
-      // again (live 2026-10-14). The start waits for that, or for the user to activate in the dialog, before failing.
-      let checkoutFailed = false;
       proc.#checkoutFailedListener = () => {
-        if (settled || checkoutFailed) return;
         checkoutFailed = true;
-        extend(options.licenceRepairMs ?? LICENCE_REPAIR_MS, noLicence);
       };
       // Handled on its line, before World Machine exits, so the licence message wins over 'exited during startup'.
       proc.#licensingFailureListener = noLicence;

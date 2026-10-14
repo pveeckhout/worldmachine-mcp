@@ -142,8 +142,8 @@ describe('stdio server', () => {
     await waitUntil(() => record.pids().length > 0 && !record.pids().some(isAlive), 3_000);
   });
 
-  // The server waits 60 s for an activation to be repaired and has no setting to shorten that, so this uses the
-  // dialog's Quit (fact 53), which fails at once.
+  // After a failed checkout the server waits until its fixed 45 s startup limit, which no setting shortens, so this
+  // uses the dialog's Quit (fact 53), which fails at once.
   it('fails fast with START_FAILED and no World Machine text when there is no licence and the user quits', async () => {
     const record = recorder();
     const client = await startServer({
