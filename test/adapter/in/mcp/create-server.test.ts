@@ -445,6 +445,19 @@ describe('createMcpServer', () => {
     expect(result.isError).toBe(true);
   });
 
+  it('describes unidentifiableWires on plan_graph and apply_graph, not the old warning', async () => {
+    const { tools } = await (await connect(deps())).listTools();
+    const description = (name: string) => tools.find((tool) => tool.name === name)?.description ?? '';
+    expect(description('plan_graph')).toContain(
+      'unidentifiableWires lists each wire into a managed device that the plan would leave unidentifiable',
+    );
+    expect(description('plan_graph')).toContain('a later plan reports that input as a conflict');
+    expect(description('plan_graph')).not.toContain('can itself create a wiring');
+    expect(description('apply_graph')).toContain(
+      "The result repeats the plan's unidentifiableWires, the wires into managed devices that a later plan cannot identify.",
+    );
+  });
+
   it('passes plan_id and keep_snapshot to apply_graph, keep_snapshot false by default', async () => {
     const commands: unknown[] = [];
     const client = await connect(
