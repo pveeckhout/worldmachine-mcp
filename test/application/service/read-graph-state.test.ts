@@ -171,6 +171,18 @@ describe('readGraphState, fourth phase (wire-loops design section 3)', () => {
     expect(state.details.map((device) => device.id)).toEqual([1, 3, 2, 30, 31, 5]);
   });
 
+  it('reads after the third phase', async () => {
+    // Task 3 review Minor 2: Hill is wired from Combiner #20, whose name #21 shares, so the third phase reads #21;
+    // Hill feeds Ridge, which the fourth phase reads.
+    const combiner = (id: number) => feeding(id, 'Combiner', []);
+    const p = ports(
+      [row(1, 'Hill'), row(20, 'Combiner'), row(21, 'Combiner'), row(2, 'Ridge')],
+      [feeding(1, 'Hill', ['Ridge']), combiner(20), combiner(21), feeding(2, 'Ridge', [], 'Hill')],
+    );
+    await readGraphState(spec([{ name: 'Hill', type: 'Hill', inputs: { '1': '#20' } }]), p.graph, p.session);
+    expect(p.reads).toEqual(['#1', '#20', '#21', '#2']);
+  });
+
   it('reads nothing more for a spec without input wires', async () => {
     const p = ports(
       [row(1, 'Hill'), row(2, 'Ridge')],

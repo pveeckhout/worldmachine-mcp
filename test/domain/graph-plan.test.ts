@@ -1195,6 +1195,15 @@ describe('downstreamIds (wire-loops design section 3, plan decision D6)', () => 
     expect(downstreamIds(hillFrom('Peak.2'), rows, [fed, twoOutputs])).toEqual([2]);
   });
 
+  it('starts from an existing destination whose wire comes from a device the plan adds', () => {
+    // Task 3 review Minor 1: Mid is added from Ridge and Hill is wired from Mid, so Hill is a start.
+    const graph = spec([
+      { name: 'Mid', type: 'Erosion', inputs: { '1': 'Ridge' } },
+      { name: 'Hill', type: 'Hill', inputs: { '1': 'Mid' } },
+    ]);
+    expect(downstreamIds(graph, rows, [HILL, ridge])).toEqual([30, 31]);
+  });
+
   it('names nothing for a spec without input wires', () => {
     expect(downstreamIds(spec([{ name: 'Hill', type: 'Hill' }]), rows, [HILL])).toEqual([]);
   });
