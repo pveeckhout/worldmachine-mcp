@@ -7,6 +7,7 @@ import {
   matchDevices,
   planGraph,
   planId,
+  predictedSourceIds,
   referencedDeviceIds,
   sharedSourceIds,
 } from '../../src/domain/graph-plan.js';
@@ -925,6 +926,143 @@ describe('matchDevices and referencedDeviceIds', () => {
     ];
     expect(sharedSourceIds(rows, read)).toEqual([1, 3]);
     expect(sharedSourceIds(rows, read.slice(1))).toEqual([]);
+  });
+});
+
+describe('predictedSourceIds (unidentifiable-wires design section 3, revision 2)', () => {
+  // Synthetic Combiners with the ports of raw/p2b-graph-edits.txt l.121-126: inputs 1 and 2, output 1.
+  const combiner = (id: number) =>
+    detail(id, 'Combiner', 'Combiner', {
+      inputs: [
+        { port: 1, name: 'Primary Input' },
+        { port: 2, name: 'Primary Input' },
+      ],
+    });
+  const read = [20, 21, 10, 11].map(combiner);
+  // #12 and Base are listed and not read.
+  const project = state(read, [row(12, 'Combiner'), row(30, 'Base')]);
+  const pairs = (remove?: string[]) =>
+    spec(
+      [
+        { name: 'a mix', id: 20, type: 'Combiner', inputs: { '1': '#10' } },
+        { name: 'b mix', id: 21, type: 'Combiner', inputs: { '1': '#11' } },
+      ],
+      remove,
+    );
+
+  it('names the unread devices of a spec source name that several predicted devices share', () => {
+    expect(predictedSourceIds(pairs(), project.devices, project.details)).toEqual([12]);
+  });
+
+  it('resolves a label to its device first, and names every unread holder of that name once', () => {
+    const graph = spec([
+      { name: 'left', id: 10, type: 'Combiner' },
+      { name: 'a mix', id: 20, type: 'Combiner', inputs: { '1': 'left', '2': 'LEFT' } },
+    ]);
+    const twoRead = state(
+      [combiner(20), combiner(10)],
+      [row(11, 'Combiner'), row(12, 'Combiner'), row(21, 'Combiner')],
+    );
+    expect(predictedSourceIds(graph, twoRead.devices, twoRead.details)).toEqual([11, 12, 21]);
+  });
+
+  it('leaves out a device the spec removes', () => {
+    expect(predictedSourceIds(pairs(['#12']), project.devices, project.details)).toEqual([]);
+  });
+
+  it('names nothing for a unique source name or a source that matches several devices', () => {
+    // Base is read, as phase one reads every unique source, so its output port exists and only its one holder stops it.
+    const withBase = state([...read, detail(30, 'Base', 'Gradient')], [row(12, 'Combiner')]);
+    const graph = spec([{ name: 'Eroded', type: 'Erosion', inputs: { '1': 'Base', '2': 'Combiner' } }]);
+    expect(predictedSourceIds(graph, withBase.devices, withBase.details)).toEqual([]);
+  });
+
+  it('names the unread holders of a source wired into a device the plan adds', () => {
+    // The Erosion matches no listed device, so the plan adds it and checks none of its ports.
+    const listed = state([combiner(10)], [row(11, 'Combiner'), row(12, 'Combiner')]);
+    const graph = spec([{ name: 'Eroded', type: 'Erosion', inputs: { '1': '#10' } }]);
+    expect(predictedSourceIds(graph, listed.devices, listed.details)).toEqual([11, 12]);
+  });
+
+  it('reads nothing for a destination whose current source is ambiguous (revision 2, currentSource)', () => {
+    // #40 and #41 are both named Old and both list 'Combiner' input 1; #20's input 1 shows 'Old'.
+    const old = (id: number) =>
+      detail(id, 'Old', 'Perlin Noise', { outputs: [output([{ device: 'Combiner', port: 1 }])] });
+    const fed = detail(20, 'Combiner', 'Combiner', {
+      inputs: [{ port: 1, name: 'Primary Input', source: { device: 'Old', port: 1 } }],
+    });
+    const current = state([fed, combiner(10), old(40), old(41)], [row(11, 'Combiner')]);
+    const graph = spec([{ name: 'a mix', id: 20, type: 'Combiner', inputs: { '1': '#10' } }]);
+    expect(planGraph(graph, current).conflicts).toEqual([
+      {
+        entry: 'a mix',
+        reason:
+          "input 1 is wired from 'Old', a name #40, #41 share, and #40, #41 each list 'Combiner' input 1 among their output targets; wire list names devices, so the wire's source cannot be identified",
+      },
+    ]);
+    expect(predictedSourceIds(graph, current.devices, current.details)).toEqual([]);
+  });
+
+  // #40 and #41 are both named Old and neither lists 'Combiner' input 1, so #20's current source is unknown; #11 is
+  // listed and not read.
+  const unknownSource = state(
+    [
+      detail(20, 'Combiner', 'Combiner', {
+        inputs: [{ port: 1, name: 'Primary Input', source: { device: 'Old', port: 1 } }],
+      }),
+      combiner(10),
+      detail(40, 'Old', 'Perlin Noise'),
+      detail(41, 'Old', 'Perlin Noise'),
+    ],
+    [row(11, 'Combiner')],
+  );
+
+  // Revision 2: a wire the plan refuses reads nothing; each case is a conflict of planGraph on the same spec.
+  it.each<[string, RawGraphDevice[], string[] | undefined, string, GraphState?]>([
+    [
+      'a source the spec removes',
+      [{ name: 'a mix', id: 20, type: 'Combiner', inputs: { '1': '#10' } }],
+      ['#10'],
+      "input source '#10' is in remove",
+    ],
+    [
+      'an unknown input port',
+      [{ name: 'a mix', id: 20, type: 'Combiner', inputs: { '3': '#10' } }],
+      undefined,
+      '#20 has no input port 3',
+    ],
+    [
+      'an unknown output port',
+      [{ name: 'a mix', id: 20, type: 'Combiner', inputs: { '1': '#10.2' } }],
+      undefined,
+      "#10 'Combiner' has no output port 2",
+    ],
+    [
+      'a source entry that is not usable',
+      [
+        { name: 'left', id: 10, type: 'Gradient' },
+        { name: 'a mix', id: 20, type: 'Combiner', inputs: { '1': 'left' } },
+      ],
+      undefined,
+      "input source 'left' is a managed device with a conflict",
+    ],
+    [
+      'a destination entry of another type',
+      [{ name: 'a mix', id: 20, type: 'Gradient', inputs: { '1': '#10' } }],
+      undefined,
+      "#20 has type 'Combiner', not 'Gradient'",
+    ],
+    [
+      'a destination whose current source is unknown',
+      [{ name: 'a mix', id: 20, type: 'Combiner', inputs: { '1': '#10' } }],
+      undefined,
+      "input 1 is wired from 'Old', a name #40, #41 share, and none of them lists 'Combiner' input 1 among its output targets; wire list names devices, so the wire's source cannot be identified",
+      unknownSource,
+    ],
+  ])('reads nothing for %s', (_label, devices, remove, reason, current = project) => {
+    const graph = spec(devices, remove);
+    expect(planGraph(graph, current).conflicts).toContainEqual({ entry: 'a mix', reason });
+    expect(predictedSourceIds(graph, current.devices, current.details)).toEqual([]);
   });
 });
 

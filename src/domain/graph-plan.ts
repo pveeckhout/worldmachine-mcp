@@ -131,6 +131,116 @@ export function sharedSourceIds(
   return [...ids];
 }
 
+/**
+ * Unidentifiable-wires design section 3 (revision 2), the third read phase: the listed devices not yet read whose
+ * listed name is the predicted source name of a spec input wire the plan does not refuse, when two or more predicted
+ * devices have that name, so `unidentifiableWires` holds every candidate's outputs. The predicted devices are the
+ * listed ones less those a remove entry names alone, plus the entries the plan adds, named as their entries. The
+ * refusals restate planGraph's (unidentifiable-wires plan decision D14): an unusable destination or source entry, an
+ * input port the destination lacks, a current wire on it whose source is ambiguous or unknown, a source that names no
+ * device, several, or a removed one, and an output port the source lacks. Empty when no such name is shared.
+ */
+export function predictedSourceIds(
+  spec: GraphSpec,
+  devices: readonly DeviceSummary[],
+  details: readonly DeviceDetail[],
+): number[] {
+  const read = new Set(details.map((detail) => detail.id));
+  const detailOf = (id: number): DeviceDetail | undefined => details.find((detail) => detail.id === id);
+  const only = (reference: string): DeviceSummary | undefined => {
+    const matches = matchDevices(devices, reference);
+    return matches.length === 1 ? matches[0] : undefined;
+  };
+  const removed = new Set(spec.remove.flatMap((entry) => only(entry)?.id ?? []));
+
+  // planGraph's managed entries: an id no device has, a name several devices share, a Combiner rename, a removed
+  // device, another type, or a device an earlier entry claimed makes an entry unusable.
+  type Entry = { readonly name: string; readonly existing?: number; readonly usable: boolean };
+  const existing = (device: GraphDevice, id: number): Entry => ({
+    name: device.name,
+    existing: id,
+    usable: !removed.has(id) && detailOf(id)?.type === listedType(device.type),
+  });
+  const entries = new Map<string, Entry>();
+  const claimed = new Set<number>();
+  for (const device of spec.devices) {
+    let entry: Entry;
+    const matches =
+      device.id === undefined
+        ? matchDevices(devices, device.name)
+        : devices.filter((listed) => listed.id === device.id);
+    const match = matches[0];
+    if (matches.length > 1 || (match === undefined && device.id !== undefined)) {
+      entry = { name: device.name, usable: false };
+    } else if (match === undefined) {
+      const defaultName = RENAME_IGNORED.get(device.type);
+      entry = { name: device.name, usable: defaultName === undefined || defaultName === device.name };
+    } else {
+      entry = existing(device, match.id);
+      if (claimed.has(match.id)) entry = { ...entry, usable: false };
+      claimed.add(match.id);
+    }
+    entries.set(foldCase(device.name), entry);
+  }
+
+  const planned = [...entries.values()].filter((entry) => entry.usable && entry.existing === undefined);
+  const holders = (name: string): number =>
+    devices.filter((device) => !removed.has(device.id) && device.name === name).length +
+    planned.filter((entry) => entry.name === name).length;
+  /** The listed name the source will have after the apply; undefined for a source the plan refuses. */
+  const sourceName = (source: GraphSource): string | undefined => {
+    const own = entries.get(foldCase(source.device));
+    let id: number;
+    if (own !== undefined) {
+      if (!own.usable) return undefined;
+      // planGraph checks no port of a device it adds.
+      if (own.existing === undefined) return own.name;
+      id = own.existing;
+    } else {
+      const match = only(source.device);
+      if (match === undefined || removed.has(match.id)) return undefined;
+      id = match.id;
+    }
+    if (!detailOf(id)?.outputs.some((output) => output.port === source.port)) return undefined;
+    return devices.find((device) => device.id === id)?.name;
+  };
+
+  /**
+   * True when planGraph's currentSource refuses the input: its current wire's source is ambiguous or unknown. A
+   * candidate the first two phases did not read leaves it to planGraph (it throws), so the wire reads on.
+   */
+  const unidentified = (destination: DeviceDetail, input: InputPort): boolean => {
+    if (sourceCandidates(input, devices).some((candidate) => detailOf(candidate.id) === undefined))
+      return false;
+    const current = resolveWireSource(
+      listedName(destination.name),
+      input,
+      devices,
+      (id) => detailOf(id)?.outputs,
+    );
+    return current.kind === 'ambiguous' || current.kind === 'unknown';
+  };
+  const ids = new Set<number>();
+  for (const device of spec.devices) {
+    const entry = entries.get(foldCase(device.name));
+    if (entry === undefined || !entry.usable) continue;
+    const destination = entry.existing === undefined ? undefined : detailOf(entry.existing);
+    for (const input of device.inputs) {
+      if (input.source === null) continue;
+      if (destination !== undefined) {
+        const port = destination.inputs.find((candidate) => candidate.port === input.port);
+        if (port === undefined || unidentified(destination, port)) continue;
+      }
+      const name = sourceName(input.source);
+      if (name === undefined || holders(name) < 2) continue;
+      for (const holder of devices) {
+        if (holder.name === name && !read.has(holder.id) && !removed.has(holder.id)) ids.add(holder.id);
+      }
+    }
+  }
+  return [...ids];
+}
+
 // Spec fact 79 (raw/v3-assumptions.txt l.435-548): `device info` reports the name `device add` gives a new device,
 // not the type it takes. Types missing here were captured reporting themselves (Gradient, Advanced Perlin) or are
 // assumed to; an unlisted exception shows up as a type conflict, which refuses the apply.

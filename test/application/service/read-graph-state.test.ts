@@ -76,3 +76,58 @@ describe('readGraphState (spec v3 section 5, revision 6)', () => {
     expect(state.projectPath).toBeNull();
   });
 });
+
+describe('readGraphState, third phase (unidentifiable-wires design section 3)', () => {
+  it('reads the unread devices of a shared predicted source name, after the first two phases', async () => {
+    // Combiners with input 1 (raw/p2b-graph-edits.txt l.121-126), so the spec's wires are ones the plan makes.
+    const combiners = [10, 11, 12, 20, 21].map((id) =>
+      detail(id, 'Combiner', [{ port: 1, name: 'Primary Input' }]),
+    );
+    const p = ports(
+      combiners.map((device) => row(device.id, device.name)),
+      combiners,
+    );
+    const state = await readGraphState(
+      spec([
+        { name: 'a mix', id: 20, type: 'Combiner', inputs: { '1': '#10' } },
+        { name: 'b mix', id: 21, type: 'Combiner', inputs: { '1': '#11' } },
+      ]),
+      p.graph,
+      p.session,
+    );
+    expect(p.reads).toEqual(['#20', '#21', '#10', '#11', '#12']);
+    expect(state.details.map((device) => device.id)).toEqual([20, 21, 10, 11, 12]);
+  });
+
+  it('reads nothing more for a spec whose source names are unique', async () => {
+    const p = ports(
+      [row(1, 'Base'), row(2, 'Eroded'), row(3, 'Other')],
+      [detail(1, 'Base'), detail(2, 'Eroded'), detail(3, 'Other')],
+    );
+    await readGraphState(
+      spec([{ name: 'Eroded', type: 'Eroded', inputs: { '1': 'Base' } }]),
+      p.graph,
+      p.session,
+    );
+    expect(p.reads).toEqual(['#2', '#1']);
+  });
+
+  it('reads no holder of the requested source when the current source is ambiguous (revision 2)', async () => {
+    // #40 and #41 are both named Old and both list 'Combiner' input 1, so #20's current source is a conflict.
+    const old = (id: number): DeviceDetail => ({
+      ...detail(id, 'Old'),
+      outputs: [{ port: 1, name: 'Primary Output', targets: [{ device: 'Combiner', port: 1 }] }],
+    });
+    const fed = detail(20, 'Combiner', [from(1, 'Old')]);
+    const p = ports(
+      [row(10, 'Combiner'), row(11, 'Combiner'), row(20, 'Combiner'), row(40, 'Old'), row(41, 'Old')],
+      [detail(10, 'Combiner'), detail(11, 'Combiner'), fed, old(40), old(41)],
+    );
+    await readGraphState(
+      spec([{ name: 'a mix', id: 20, type: 'Combiner', inputs: { '1': '#10' } }]),
+      p.graph,
+      p.session,
+    );
+    expect(p.reads).toEqual(['#20', '#10', '#40', '#41']);
+  });
+});

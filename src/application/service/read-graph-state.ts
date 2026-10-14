@@ -1,5 +1,10 @@
 import type { DeviceDetail } from '../../domain/device.js';
-import { type GraphState, referencedDeviceIds, sharedSourceIds } from '../../domain/graph-plan.js';
+import {
+  type GraphState,
+  predictedSourceIds,
+  referencedDeviceIds,
+  sharedSourceIds,
+} from '../../domain/graph-plan.js';
 import type { GraphSpec } from '../../domain/graph-spec.js';
 import type { ProjectGraphReadPort } from '../port/out/project-graph-read-port.js';
 import type { WorldMachineSessionPort } from '../port/out/world-machine-session-port.js';
@@ -7,8 +12,10 @@ import type { WorldMachineSessionPort } from '../port/out/world-machine-session-
 /**
  * Spec v3 section 5: `device list` once, then `get_device` of each device the spec references, by `#<id>`, then
  * (revision 6) of each unread device that shares its listed name with the current source of an input read in the
- * first phase, so planGraph can resolve that source. The binding is read last, after the reads have started World
- * Machine if it was not running.
+ * first phase, so planGraph can resolve that source, then (unidentifiable-wires design section 3) of each unread
+ * device that has the predicted source name of a spec input wire when another predicted device has that name too,
+ * so unidentifiableWires can resolve the wire after the apply. The binding is read last, after the reads have
+ * started World Machine if it was not running.
  */
 export async function readGraphState(
   spec: GraphSpec,
@@ -20,6 +27,8 @@ export async function readGraphState(
   for (const id of referencedDeviceIds(spec, devices)) details.push(await graph.getDevice(`#${id}`));
   // The second phase's ids are computed once, from the first phase's details.
   for (const id of sharedSourceIds(devices, details)) details.push(await graph.getDevice(`#${id}`));
+  // Unidentifiable-wires design section 3: computed once, from the first two phases' details.
+  for (const id of predictedSourceIds(spec, devices, details)) details.push(await graph.getDevice(`#${id}`));
   const binding = session.status().session.binding;
   return { projectPath: binding?.kind === 'opened' ? binding.path : null, devices, details };
 }
