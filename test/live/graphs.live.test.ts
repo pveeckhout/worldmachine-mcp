@@ -206,4 +206,37 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
       water?.inputs.map((input) => input.accepts.map((accepts) => accepts.name)),
     );
   }, 120_000);
+
+  // Unidentifiable-wires design section 6, live row: the fake scenario of graph-services.test.ts in a blank project.
+  it('warns of two Combiner pairs, applies them, and the next plan reports the conflict the warning predicted', async () => {
+    await session.ensureRunning();
+    throwIfFailed(await session.executeOne('project new blank force'));
+    const ids: number[] = [];
+    for (let added = 0; added < 4; added += 1) ids.push((await devices.addDevice('Combiner')).id);
+    const [a = 0, b = 0, c = 0, d = 0] = ids;
+    const spec: RawGraphSpec = {
+      version: 1,
+      devices: [
+        { name: 'a mix', id: c, type: 'Combiner', inputs: { '1': `#${a}` } },
+        { name: 'b mix', id: d, type: 'Combiner', inputs: { '1': `#${b}` } },
+      ],
+    };
+    const planned = await plan.planGraph({ spec });
+    expect(planned.conflicts).toEqual([]);
+    const each = `#${a}, #${b} each list 'Combiner' input 1`;
+    expect(planned.unidentifiableWires).toEqual([
+      `'a mix' input 1 from 'Combiner' output 1: ${each}`,
+      `'b mix' input 1 from 'Combiner' output 1: ${each}`,
+    ]);
+    const view = await apply.applyGraph({ spec, planId: planned.planId, keepSnapshot: false });
+    expect(view.applied).toBe(2);
+    expect(view.unidentifiableWires).toEqual(planned.unidentifiableWires);
+    const again = await plan.planGraph({ spec });
+    const reason = expect.stringContaining(`${each} among their output targets`);
+    expect(again.conflicts).toEqual([
+      { entry: 'a mix', reason },
+      { entry: 'b mix', reason },
+    ]);
+    expect(again.unidentifiableWires).toEqual([]);
+  }, 180_000);
 });
