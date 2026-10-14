@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import type { DeviceDetail, DeviceSummary, InputPort, OutputPort, Parameter, PortLink } from './device.js';
+import { currentWiring } from './current-wiring.js';
+import type { DeviceDetail, DeviceSummary, InputPort, Parameter, PortLink } from './device.js';
 import { foldCase, idOfReference, listedName } from './device-name.js';
 import type { ParameterValue } from './graph-edit.js';
 import type { GraphDevice, GraphSource, GraphSpec } from './graph-spec.js';
@@ -294,17 +295,17 @@ export function downstreamIds(
   devices: readonly DeviceSummary[],
   details: readonly DeviceDetail[],
 ): number[] {
-  const outputsOf = (id: number): readonly OutputPort[] | undefined =>
-    details.find((detail) => detail.id === id)?.outputs;
+  const {
+    outputsOf,
+    current: currentSourceOf,
+    readable: readableInput,
+  } = currentWiring({ devices, details });
   const { removed, wires } = plannableWires(spec, devices, details);
   const starts = new Set<number>();
   for (const { destination, current, source } of wires) {
     if (destination === undefined || source.id === destination.id) continue;
-    const readable =
-      current !== undefined &&
-      sourceCandidates(current, devices).every((candidate) => outputsOf(candidate.id) !== undefined);
-    if (readable) {
-      const resolved = resolveWireSource(listedName(destination.name), current, devices, outputsOf);
+    if (current !== undefined && readableInput(current)) {
+      const resolved = currentSourceOf(listedName(destination.name), current);
       if (resolved.kind === 'found' && resolved.id === source.id && resolved.port === source.port) continue;
     }
     starts.add(destination.id);
@@ -537,9 +538,7 @@ export function planWithCuts(
     return { device: own?.spec.name ?? labelOf(target.id) ?? target.name, id: target.id, port: source.port };
   };
 
-  /** The outputs of a device the state read; undefined for one it did not read. */
-  const outputsOf = (id: number): readonly OutputPort[] | undefined =>
-    state.details.find((candidate) => candidate.id === id)?.outputs;
+  const { outputsOf, current, readable } = currentWiring(state);
 
   /**
    * The device that feeds `input` of `destination`: undefined without a wire, null after a conflict when
@@ -553,7 +552,7 @@ export function planWithCuts(
     const source = input.source;
     if (source === undefined) return undefined;
     const destinationName = listedName(destination.name);
-    const resolved = resolveWireSource(destinationName, input, state.devices, outputsOf);
+    const resolved = current(destinationName, input);
     if (resolved.kind === 'none') return undefined;
     if (resolved.kind === 'found') {
       const id = resolved.id;
@@ -715,9 +714,6 @@ export function planWithCuts(
       step.op === 'disconnect' ? [`${step.source.id}.${step.source.port}>${step.id}.${step.port}`] : [],
     ),
   );
-  /** True when every listed device with `input`'s source name was read, so the resolver can run. */
-  const readable = (input: InputPort): boolean =>
-    sourceCandidates(input, state.devices).every((candidate) => outputsOf(candidate.id) !== undefined);
   /**
    * The device an output target line of removed device `from` names. Branch A: the one listed device of that name.
    * Otherwise the read devices of that name whose input `target.port` resolves to this output qualify. Branch B: the
@@ -735,7 +731,7 @@ export function planWithCuts(
         .find((read) => read.id === candidate.id)
         ?.inputs.find((own) => own.port === target.port);
       if (input === undefined || !readable(input)) return [];
-      const resolved = resolveWireSource(candidate.name, input, state.devices, outputsOf);
+      const resolved = current(candidate.name, input);
       return resolved.kind === 'found' && resolved.id === from && resolved.port === port
         ? [candidate.id]
         : [];
@@ -763,7 +759,7 @@ export function planWithCuts(
       if (source === undefined) continue;
       const text = wire(`${listedName(source.device)}.${source.port}`, name, input.port);
       // Ruling 6: an unidentified source of a removed device is shown, not a conflict.
-      const resolved = readable(input) ? resolveWireSource(name, input, state.devices, outputsOf) : undefined;
+      const resolved = readable(input) ? current(name, input) : undefined;
       if (resolved?.kind === 'found') {
         keep(`${resolved.id}.${resolved.port}>${id}.${input.port}`, text, { id: resolved.id });
       } else {

@@ -1,8 +1,8 @@
+import { currentWiring } from './current-wiring.js';
 import type { DeviceSummary, InputPort, OutputPort, PortLink } from './device.js';
 import { foldCase, matchesListedName } from './device-name.js';
 import { type GraphState, matchDevices, type PlanStep } from './graph-plan.js';
 import type { GraphSpec } from './graph-spec.js';
-import { resolveWireSource, sourceCandidates, type WireSource } from './wire-source.js';
 
 /** An output port of the predicted state; its target lines change as the steps apply. */
 type PredictedOutput = { readonly port: number; readonly name: string; readonly targets: PortLink[] };
@@ -47,7 +47,6 @@ export function predictWiring(
   steps: readonly PlanStep[],
 ): PredictedWiring {
   const detailOf = (id: number) => state.details.find((detail) => detail.id === id);
-  const currentOutputsOf = (id: number): readonly OutputPort[] | undefined => detailOf(id)?.outputs;
 
   // Devices: the listed ones less the removed ones, plus one per add step, with a placeholder id below zero
   // (unidentifiable-wires plan decision D5).
@@ -135,12 +134,7 @@ export function predictWiring(
     inputs.get(id)?.set(port, { source, kept: false });
   };
 
-  /** How the current state reads an input, as planGraph's currentSource does. */
-  const current = (destination: string, input: InputPort): WireSource =>
-    resolveWireSource(destination, input, state.devices, currentOutputsOf);
-  /** True when every listed device with `input`'s source name was read, so `current` can run. */
-  const readable = (input: InputPort): boolean =>
-    sourceCandidates(input, state.devices).every((candidate) => currentOutputsOf(candidate.id) !== undefined);
+  const { current, readable } = currentWiring(state);
 
   for (const step of steps) {
     switch (step.op) {

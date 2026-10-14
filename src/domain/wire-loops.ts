@@ -1,9 +1,9 @@
-import type { InputPort, OutputPort, PortLink } from './device.js';
+import { currentWiring } from './current-wiring.js';
+import type { InputPort, PortLink } from './device.js';
 import { listedName } from './device-name.js';
 import type { GraphState, PlanConflict, PlanStep } from './graph-plan.js';
 import type { GraphSpec } from './graph-spec.js';
 import { predictWiring } from './predicted-wiring.js';
-import { resolveWireSource, sourceCandidates } from './wire-source.js';
 
 /**
  * One hop along a predicted target line: the device it may reach and that device's listed name; `shared` is the
@@ -27,8 +27,7 @@ export function wireLoops(
 ): { readonly conflicts: readonly PlanConflict[]; readonly possibleLoops: readonly string[] } {
   const wiring = predictWiring(spec, state, steps);
   const nameOf = (id: number): string | undefined => wiring.devices.find((device) => device.id === id)?.name;
-  const currentOutputsOf = (id: number): readonly OutputPort[] | undefined =>
-    state.details.find((detail) => detail.id === id)?.outputs;
+  const { current, readable } = currentWiring(state);
 
   // Wire-loops plan decision D2: the input a connect step feeds has a known source, by id or add-step placeholder.
   const connects: {
@@ -88,14 +87,11 @@ export function wireLoops(
           const source = keptSourceOf(id, target.port);
           if (source === undefined || own === undefined || listedName(source.device) !== own) continue;
           const input: InputPort = { port: target.port, name: '', source };
-          const readable = sourceCandidates(input, state.devices).every(
-            (candidate) => currentOutputsOf(candidate.id) !== undefined,
-          );
-          if (!readable) {
+          if (!readable(input)) {
             hops.push({ id, name, shared: own });
             continue;
           }
-          const resolved = resolveWireSource(name, input, state.devices, currentOutputsOf);
+          const resolved = current(name, input);
           if (resolved.kind === 'found' && resolved.id === from) hops.push({ id, name, shared: undefined });
           else if (
             resolved.kind === 'unknown' ||

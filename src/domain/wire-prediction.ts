@@ -1,9 +1,10 @@
-import type { InputPort, OutputPort } from './device.js';
+import { currentWiring } from './current-wiring.js';
+import type { InputPort } from './device.js';
 import { listedName } from './device-name.js';
 import type { GraphState, PlanStep } from './graph-plan.js';
 import type { GraphSpec } from './graph-spec.js';
 import { predictWiring } from './predicted-wiring.js';
-import { resolveWireSource, type WireSource } from './wire-source.js';
+import { resolveWireSource } from './wire-source.js';
 
 /**
  * Unidentifiable-wires design section 2: the wires into managed devices that `resolveWireSource` would report as
@@ -21,11 +22,7 @@ export function unidentifiableWires(
   steps: readonly PlanStep[],
 ): string[] {
   const wiring = predictWiring(spec, state, steps);
-  const currentOutputsOf = (id: number): readonly OutputPort[] | undefined =>
-    state.details.find((detail) => detail.id === id)?.outputs;
-  /** How the current state reads an input, as planGraph's currentSource does. */
-  const current = (destination: string, input: InputPort): WireSource =>
-    resolveWireSource(destination, input, state.devices, currentOutputsOf);
+  const { current } = currentWiring(state);
   const candidate = (id: number): string => {
     const planned = wiring.plannedNames.get(id);
     return planned === undefined ? `#${id}` : `the planned '${planned}'`;
