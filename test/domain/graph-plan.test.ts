@@ -386,6 +386,33 @@ describe('planGraph (spec v3 section 5)', () => {
     });
   });
 
+  it('leaves a managed device out of unchanged when a remove takes its wire, at either end', () => {
+    expect(planGraph(spec([{ name: 'Eroded', type: 'Erosion' }], ['Old']), PROJECT)).toEqual({
+      conflicts: [],
+      steps: [{ op: 'remove', device: 'Old', id: 12, wiresRemoved: ['Old.1 -> Eroded.1'] }],
+      unchanged: [],
+    });
+    expect(planGraph(spec([{ name: 'Old', type: 'Perlin Noise' }], ['Eroded']), PROJECT)).toEqual({
+      conflicts: [],
+      steps: [{ op: 'remove', device: 'Eroded', id: 20, wiresRemoved: ['Old.1 -> Eroded.1'] }],
+      unchanged: [],
+    });
+  });
+
+  it('marks no managed device for a wire of a removed device that it cannot identify', () => {
+    const feeding = output([{ device: 'X', port: 1 }]);
+    const project = state([
+      detail(3, 'Combiner', 'Combiner', { outputs: [feeding] }),
+      detail(4, 'Combiner', 'Combiner', { outputs: [feeding] }),
+      detail(9, 'X', 'Erosion', {
+        inputs: [{ port: 1, name: 'Primary Input', source: { device: 'Combiner', port: 1 } }],
+      }),
+    ]);
+    const plan = planGraph(spec([{ name: 'c3', id: 3, type: 'Combiner' }], ['X']), project);
+    expect(plan.steps).toEqual([{ op: 'remove', device: 'X', id: 9, wiresRemoved: ['Combiner.1 -> X.1'] }]);
+    expect(plan.unchanged).toEqual(['c3']);
+  });
+
   it('plans only comparable: false steps after a simulated apply', () => {
     const graph = spec([
       {

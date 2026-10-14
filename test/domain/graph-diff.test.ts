@@ -130,4 +130,44 @@ describe('graphDiff (spec v3 section 6)', () => {
     ];
     expect(graphDiff(steps, { before: [eroded], after: [eroded], addedIds: new Map() })).toEqual([]);
   });
+
+  it('reports the input a remove cut on a managed device, after the devices the steps name', () => {
+    const old = detail(12, 'Old', 'Perlin Noise');
+    const was = detail(20, 'Eroded', 'Erosion', { inputs: [input(1, 'Old'), input(2, 'Old')] });
+    const is = detail(20, 'Eroded', 'Erosion', { inputs: [input(1), input(2)] });
+    const steps: PlanStep[] = [{ op: 'remove', device: 'Old', id: 12, wiresRemoved: [] }];
+    const cutInputs = [
+      { device: 'Eroded', id: 20, port: 1 },
+      { device: 'Eroded', id: 20, port: 2 },
+      { device: 'Eroded', id: 20, port: 1 },
+    ];
+    expect(graphDiff(steps, { before: [old, was], after: [is], addedIds: new Map(), cutInputs })).toEqual([
+      { device: 'Old', change: 'removed', before: { id: 12, type: 'Perlin Noise' } },
+      {
+        device: 'Eroded',
+        change: 'changed',
+        id: 20,
+        inputs: { '1': { before: 'Old.1', after: null }, '2': { before: 'Old.1', after: null } },
+      },
+    ]);
+  });
+
+  it('merges a cut input into the entry of a device a step names', () => {
+    const was = detail(20, 'Eroded', 'Erosion', { inputs: [input(1, 'Old')] });
+    const is = detail(20, 'Eroded', 'Erosion', { enabled: false, inputs: [input(1)] });
+    const steps: PlanStep[] = [
+      { op: 'remove', device: 'Old', id: 12, wiresRemoved: [] },
+      { op: 'set-enabled', device: 'Eroded', id: 20, from: true, to: false },
+    ];
+    const cutInputs = [{ device: 'Eroded', id: 20, port: 1 }];
+    expect(graphDiff(steps, { before: [was], after: [is], addedIds: new Map(), cutInputs })).toEqual([
+      {
+        device: 'Eroded',
+        change: 'changed',
+        id: 20,
+        enabled: { before: true, after: false },
+        inputs: { '1': { before: 'Old.1', after: null } },
+      },
+    ]);
+  });
 });

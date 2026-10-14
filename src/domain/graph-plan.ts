@@ -73,6 +73,9 @@ export type GraphPlan = {
   readonly unchanged: readonly string[];
 };
 
+/** An input of a managed device that a remove step's wire takes away; `device` is the entry's name or label. */
+export type CutInput = { readonly device: string; readonly id: number; readonly port: number };
+
 /** The listed devices a reference names: `#<id>` by id, a name regardless of case (spec fact 31). */
 export function matchDevices(devices: readonly DeviceSummary[], reference: string): DeviceSummary[] {
   const id = idOfReference(reference);
@@ -312,6 +315,18 @@ type Managed = { readonly spec: GraphDevice; readonly existing?: DeviceDetail; r
 
 /** Spec v3 section 5. Pure: the same spec and state always give the same plan. */
 export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
+  return planWithCuts(spec, state).plan;
+}
+
+/**
+ * planGraph, and the managed devices' inputs its remove steps cut: apply_graph reads those devices back so the diff
+ * shows the cut, also on a device no step names. Only wires the remove steps key by ids count; one keyed by its text
+ * marks nothing.
+ */
+export function planWithCuts(
+  spec: GraphSpec,
+  state: GraphState,
+): { readonly plan: GraphPlan; readonly cutInputs: readonly CutInput[] } {
   const conflicts: PlanConflict[] = [];
   const conflict = (entry: string, reason: string): void => void conflicts.push({ entry, reason });
   const detail = (id: number): DeviceDetail => {
@@ -649,11 +664,15 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
     // Branch C only when every device of that name was read: an unread sibling may be what the repeated line wires.
     return named.every((candidate) => outputsOf(candidate.id) !== undefined) ? qualifying[0] : undefined;
   };
+  /** The ids at the far end of each wire a remove step takes, with the input port when the far end is its target. */
+  const severed: { readonly id: number; readonly port?: number }[] = [];
   const removes: PlanStep[] = [...removed].map(([id, name]): PlanStep => {
     const device = detail(id);
     const wires = new Map<string, string>();
-    const keep = (key: string, text: string): void => {
-      if (!cut.has(key) && !wires.has(key)) wires.set(key, text);
+    const keep = (key: string, text: string, end?: { readonly id: number; readonly port?: number }): void => {
+      if (cut.has(key)) return;
+      if (!wires.has(key)) wires.set(key, text);
+      if (end !== undefined) severed.push(end);
     };
     for (const input of device.inputs) {
       const source = input.source;
@@ -661,14 +680,19 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
       const text = wire(`${listedName(source.device)}.${source.port}`, name, input.port);
       // Ruling 6: an unidentified source of a removed device is shown, not a conflict.
       const resolved = readable(input) ? resolveWireSource(name, input, state.devices, outputsOf) : undefined;
-      keep(resolved?.kind === 'found' ? `${resolved.id}.${resolved.port}>${id}.${input.port}` : text, text);
+      if (resolved?.kind === 'found') {
+        keep(`${resolved.id}.${resolved.port}>${id}.${input.port}`, text, { id: resolved.id });
+      } else {
+        keep(text, text);
+      }
     }
     for (const out of device.outputs) {
       const taken = new Set<string>();
       for (const target of out.targets) {
         const text = wire(`${name}.${out.port}`, listedName(target.device), target.port);
         const to = targetId(id, out.port, target, taken);
-        keep(to === undefined ? text : `${id}.${out.port}>${to}.${target.port}`, text);
+        if (to === undefined) keep(text, text);
+        else keep(`${id}.${out.port}>${to}.${target.port}`, text, { id: to, port: target.port });
       }
     }
     return { op: 'remove', device: name, id, wiresRemoved: [...wires.values()] };
@@ -677,8 +701,10 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
   const steps = [...disconnects, ...removes, ...adds, ...enables, ...bypasses, ...parameters, ...connects];
   // A remove step carries the removed device's listed name, which a label may equal (Review Focus 1).
   const touched = new Set(steps.flatMap((step) => (step.op === 'remove' ? [] : [foldCase(step.device)])));
-  // D13. A parameter or input-port conflict leaves its entry usable and adds no step; the entry is still not unchanged.
+  // D13. A parameter or input-port conflict leaves its entry usable and adds no step; the entry is still not unchanged,
+  // nor is one whose wire a remove step takes.
   const named = new Set(conflicts.map((found) => found.entry));
+  const severedIds = new Set(severed.map((end) => end.id));
   const unchanged = [
     ...managed
       .filter(
@@ -686,12 +712,19 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
           entry.usable &&
           entry.existing !== undefined &&
           !touched.has(foldCase(entry.spec.name)) &&
-          !named.has(entry.spec.name),
+          !named.has(entry.spec.name) &&
+          !severedIds.has(entry.existing.id),
       )
       .map((entry) => entry.spec.name),
     ...absent,
   ];
-  return { conflicts, steps, unchanged };
+  const cutInputs = severed.flatMap((end): CutInput[] => {
+    const entry = managed.find((candidate) => candidate.existing?.id === end.id);
+    return entry === undefined || end.port === undefined
+      ? []
+      : [{ device: entry.spec.name, id: end.id, port: end.port }];
+  });
+  return { plan: { conflicts, steps, unchanged }, cutInputs };
 }
 
 /** JSON with object keys sorted at every depth and undefined fields dropped, so equal data gives equal text. */

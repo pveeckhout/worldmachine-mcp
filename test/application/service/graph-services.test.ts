@@ -295,6 +295,28 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
     ]);
   });
 
+  it('shows the input a remove cuts on a managed device that no other step touches', async () => {
+    const w = wired();
+    await w.devices.addDevice('Gradient', 'Old');
+    await w.devices.addDevice('Combiner');
+    await w.wires.connect({ device: '#536' }, { device: '#537' });
+    const spec: RawGraphSpec = {
+      version: 1,
+      devices: [{ name: 'Combiner', type: 'Combiner' }],
+      remove: ['Old'],
+    };
+    const plan = await w.plan.planGraph({ spec });
+    expect(plan.steps).toEqual([
+      { op: 'remove', device: 'Old', id: 536, wiresRemoved: ['Old.1 -> Combiner.1'] },
+    ]);
+    expect(plan.unchanged).toEqual([]);
+    const view = await w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
+    expect(view.diff).toEqual([
+      { device: 'Old', change: 'removed', before: { id: 536, type: 'Gradient' } },
+      { device: 'Combiner', change: 'changed', id: 537, inputs: { '1': { before: 'Old.1', after: null } } },
+    ]);
+  });
+
   it('refuses a stale planId before taking a snapshot', async () => {
     const w = wired();
     const plan = await w.plan.planGraph({ spec: SPEC });

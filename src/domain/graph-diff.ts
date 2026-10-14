@@ -1,6 +1,6 @@
 import type { DeviceDetail, InputPort } from './device.js';
 import { foldCase, listedName } from './device-name.js';
-import type { PlanStep } from './graph-plan.js';
+import type { CutInput, PlanStep } from './graph-plan.js';
 
 export type Change<T> = { readonly before: T; readonly after: T };
 
@@ -39,6 +39,8 @@ export type AppliedDevices = {
   readonly after: readonly DeviceDetail[];
   /** The ids the adds returned, by `foldCase` of the spec name. */
   readonly addedIds: ReadonlyMap<string, number>;
+  /** The managed devices' inputs that remove steps cut (planWithCuts); each such device is in `after` too. */
+  readonly cutInputs?: readonly CutInput[];
 };
 
 /** An input's source as plan steps write it, `"<device>.<port>"`; null without a wire. */
@@ -52,7 +54,8 @@ const nonEmpty = (record: object): boolean => Object.keys(record).length > 0;
 
 /**
  * Spec v3 section 6: the devices the steps touched, read back. A parameter appears only when its read-back value
- * changed, and a changed device with no visible change is left out.
+ * changed, and a changed device with no visible change is left out. A managed device whose input a remove cut, and
+ * that no step names, follows the devices the steps name.
  */
 export function graphDiff(steps: readonly PlanStep[], devices: AppliedDevices): DiffEntry[] {
   const groups = new Map<string, PlanStep[]>();
@@ -60,6 +63,11 @@ export function graphDiff(steps: readonly PlanStep[], devices: AppliedDevices): 
     // Removed devices by id: two removed devices may share a name (fact 30).
     const key = step.op === 'remove' ? `#${step.id}` : foldCase(step.device);
     groups.set(key, [...(groups.get(key) ?? []), step]);
+  }
+  const cuts = new Map<string, CutInput[]>();
+  for (const cut of devices.cutInputs ?? []) {
+    const key = foldCase(cut.device);
+    cuts.set(key, [...(cuts.get(key) ?? []), cut]);
   }
   const entries: DiffEntry[] = [];
   for (const [key, own] of groups) {
@@ -105,45 +113,63 @@ export function graphDiff(steps: readonly PlanStep[], devices: AppliedDevices): 
       continue;
     }
     const id = own.flatMap((step) => ('id' in step && step.id !== undefined ? [step.id] : []))[0];
-    const before = byId(devices.before, id);
-    const after = byId(devices.after, id);
-    if (id === undefined || before === undefined || after === undefined) continue;
-    const enabled =
-      before.enabled === after.enabled ? undefined : { before: before.enabled, after: after.enabled };
-    const bypassed =
-      before.bypassed === after.bypassed ? undefined : { before: before.bypassed, after: after.bypassed };
-    const parameters = Object.fromEntries(
-      parameterNames.flatMap((name) => {
-        const was = before.parameters.find((parameter) => parameter.name === name)?.value;
-        const is = after.parameters.find((parameter) => parameter.name === name)?.value;
-        return was === undefined || is === undefined || was === is
-          ? []
-          : [[name, { before: was, after: is }]];
-      }),
-    );
-    const ports = [
-      ...new Set(
-        own.flatMap((step) => (step.op === 'connect' || step.op === 'disconnect' ? [step.port] : [])),
-      ),
-    ];
-    const inputs = Object.fromEntries(
-      ports.flatMap((port) => {
-        const was = sourceText(before.inputs.find((input) => input.port === port));
-        const is = sourceText(after.inputs.find((input) => input.port === port));
-        return was === is ? [] : [[String(port), { before: was, after: is }]];
-      }),
-    );
-    if (enabled === undefined && bypassed === undefined && !nonEmpty(parameters) && !nonEmpty(inputs))
-      continue;
-    entries.push({
-      device: first.device,
-      change: 'changed',
-      id,
-      ...(enabled === undefined ? {} : { enabled }),
-      ...(bypassed === undefined ? {} : { bypassed }),
-      ...(nonEmpty(parameters) ? { parameters } : {}),
-      ...(nonEmpty(inputs) ? { inputs } : {}),
-    });
+    const change = changed(first.device, id, own, cuts.get(key) ?? [], devices);
+    if (change !== undefined) entries.push(change);
+  }
+  for (const [key, own] of cuts) {
+    const first = own[0];
+    if (groups.has(key) || first === undefined) continue;
+    const change = changed(first.device, first.id, [], own, devices);
+    if (change !== undefined) entries.push(change);
   }
   return entries;
+}
+
+/** A managed device's visible changes: its steps' fields and ports, and the inputs a remove cut. */
+function changed(
+  device: string,
+  id: number | undefined,
+  own: readonly PlanStep[],
+  cut: readonly CutInput[],
+  devices: AppliedDevices,
+): DiffEntry | undefined {
+  const parameterNames = own.flatMap((step) => (step.op === 'set-parameter' ? [step.name] : []));
+  const before = byId(devices.before, id);
+  const after = byId(devices.after, id);
+  if (id === undefined || before === undefined || after === undefined) return undefined;
+  const enabled =
+    before.enabled === after.enabled ? undefined : { before: before.enabled, after: after.enabled };
+  const bypassed =
+    before.bypassed === after.bypassed ? undefined : { before: before.bypassed, after: after.bypassed };
+  const parameters = Object.fromEntries(
+    parameterNames.flatMap((name) => {
+      const was = before.parameters.find((parameter) => parameter.name === name)?.value;
+      const is = after.parameters.find((parameter) => parameter.name === name)?.value;
+      return was === undefined || is === undefined || was === is ? [] : [[name, { before: was, after: is }]];
+    }),
+  );
+  const ports = [
+    ...new Set([
+      ...own.flatMap((step) => (step.op === 'connect' || step.op === 'disconnect' ? [step.port] : [])),
+      ...cut.map((input) => input.port),
+    ]),
+  ];
+  const inputs = Object.fromEntries(
+    ports.flatMap((port) => {
+      const was = sourceText(before.inputs.find((input) => input.port === port));
+      const is = sourceText(after.inputs.find((input) => input.port === port));
+      return was === is ? [] : [[String(port), { before: was, after: is }]];
+    }),
+  );
+  if (enabled === undefined && bypassed === undefined && !nonEmpty(parameters) && !nonEmpty(inputs))
+    return undefined;
+  return {
+    device,
+    change: 'changed',
+    id,
+    ...(enabled === undefined ? {} : { enabled }),
+    ...(bypassed === undefined ? {} : { bypassed }),
+    ...(nonEmpty(parameters) ? { parameters } : {}),
+    ...(nonEmpty(inputs) ? { inputs } : {}),
+  };
 }

@@ -2,7 +2,14 @@ import type { DeviceDetail } from '../../domain/device.js';
 import { foldCase } from '../../domain/device-name.js';
 import { type ErrorCode, WorldMachineError, worldMachineText } from '../../domain/errors.js';
 import { type DiffEntry, graphDiff } from '../../domain/graph-diff.js';
-import { type GraphState, listedType, type PlanStep, planGraph, planId } from '../../domain/graph-plan.js';
+import {
+  type CutInput,
+  type GraphState,
+  listedType,
+  type PlanStep,
+  planId,
+  planWithCuts,
+} from '../../domain/graph-plan.js';
 import { type GraphSpec, validateGraphSpec } from '../../domain/graph-spec.js';
 import { unidentifiableWires } from '../../domain/wire-prediction.js';
 import type {
@@ -65,7 +72,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
           'The project or the spec changed since plan_graph returned this planId; call plan_graph again and show the new plan',
         );
       }
-      const plan = planGraph(spec, state);
+      const { plan, cutInputs } = planWithCuts(spec, state);
       // Port-types plan decision D8: plan_graph's type check, so a type conflict refuses before any change.
       const conflicts = [
         ...plan.conflicts,
@@ -138,7 +145,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
       }
       let diff: DiffEntry[];
       try {
-        diff = await this.#diff(plan.steps, state, added);
+        diff = await this.#diff(plan.steps, cutInputs, state, added);
       } catch (error) {
         if (!(error instanceof WorldMachineError)) throw error;
         if (error.code === 'TIMEOUT') throw lostAfterApply('TIMEOUT', error.message);
@@ -335,9 +342,13 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
     }
   }
 
-  /** Reads back every device a step touched that still exists, and diffs it with the state from before. */
+  /**
+   * Reads back every device a step touched that still exists, and each managed device whose input a remove cut, and
+   * diffs them with the state from before.
+   */
   async #diff(
     steps: readonly PlanStep[],
+    cutInputs: readonly CutInput[],
     state: GraphState,
     added: ReadonlyMap<string, number>,
   ): Promise<DiffEntry[]> {
@@ -348,9 +359,10 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
         step.op === 'add' ? added.get(foldCase(step.device)) : (step.id ?? added.get(foldCase(step.device)));
       if (id !== undefined) ids.add(id);
     }
+    for (const cut of cutInputs) ids.add(cut.id);
     const after: DeviceDetail[] = [];
     for (const id of ids) after.push(await this.#graph.getDevice(`#${id}`));
-    return graphDiff(steps, { before: state.details, after, addedIds: added });
+    return graphDiff(steps, { before: state.details, after, addedIds: added, cutInputs });
   }
 
   /** D16: false when the delete failed; the apply succeeded, so the result then names the snapshot still there. */
