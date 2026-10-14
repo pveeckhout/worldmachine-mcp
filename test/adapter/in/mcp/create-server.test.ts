@@ -390,7 +390,7 @@ describe('createMcpServer', () => {
   it.each([
     'A wire whose output port type the input does not accept is a conflict when both devices have catalogued port types',
     'a wire with an end whose port types are unknown is listed in uncheckedWires and not checked',
-    'a conflict can be one World Machine would accept once the device is fed; connect_devices makes such a wire',
+    'another fed combination rests on the unconnected device, and connect_devices can still try such a wire',
   ])('describes port types in plan_graph: %s', async (text) => {
     const { tools } = await (await connect(deps())).listTools();
     expect(tools.find((tool) => tool.name === 'plan_graph')?.description ?? '').toContain(text);
