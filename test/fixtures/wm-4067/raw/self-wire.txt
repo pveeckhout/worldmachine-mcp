@@ -1,0 +1,57 @@
+>>> project new blank force
+Created new blank project.
+[Info       ] Closing current project
+<<<
+>>> device add Erosion
+Added 'Erosion'
+<<<
+>>> device add Combiner
+Added 'Combiner'
+<<<
+>>> device list
+Devices (2 total):
+  #1     Erosion                 
+  #2     Combiner                
+<<<
+>>> wire list #1
+Connections for '#1':
+  Inputs:
+    [1] Primary Input <- (none)
+    [2] Hardness Map <- (none)
+    [3] Sediment Removal Mask <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+    [2] Flow Map     -> (none)
+    [3] Wear Map     -> (none)
+    [4] Deposition Map -> (none)
+<<<
+>>> wire connect #1.1 #1.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire list #1
+Connections for '#1':
+  Inputs:
+    [1] Primary Input <- (none)
+    [2] Hardness Map <- (none)
+    [3] Sediment Removal Mask <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+    [2] Flow Map     -> (none)
+    [3] Wear Map     -> (none)
+    [4] Deposition Map -> (none)
+<<<
+>>> wire connect #2.1 #2.2
+Error: Error: Failed to create connection (incompatible types?)
+<<<
+>>> wire list #2
+Connections for '#2':
+  Inputs:
+    [1] Primary Input <- (none)
+    [2] Primary Input <- (none)
+  Outputs:
+    [1] Primary Output -> (none)
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<
