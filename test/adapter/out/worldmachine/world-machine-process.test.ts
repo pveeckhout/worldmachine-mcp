@@ -26,16 +26,35 @@ afterEach(async () => {
   await Promise.all(started.splice(0).map((proc) => proc.terminate()));
 });
 
-async function start(extra: Record<string, string> = {}, bin = FAKE_WM, readyTimeoutMs = 5_000) {
+// The repaired-activation line the server logs; it avoids the licence word for the same reason.
+const REPAIRED_LOG = 'World Machine repaired its activation during startup.';
+
+async function start(
+  extra: Record<string, string> = {},
+  bin = FAKE_WM,
+  readyTimeoutMs = 5_000,
+  licenceRepairMs?: number,
+) {
   const logger = captureLogger();
-  const proc = await WorldMachineProcess.start({ bin, readyTimeoutMs, logger, env: fakeEnv(extra) });
+  const proc = await WorldMachineProcess.start({
+    bin,
+    readyTimeoutMs,
+    licenceRepairMs,
+    logger,
+    env: fakeEnv(extra),
+  });
   started.push(proc);
   return { proc, logger };
 }
 
-async function startFailure(extra: Record<string, string>, bin = FAKE_WM, readyTimeoutMs = 5_000) {
+async function startFailure(
+  extra: Record<string, string>,
+  bin = FAKE_WM,
+  readyTimeoutMs = 5_000,
+  licenceRepairMs?: number,
+) {
   try {
-    await start(extra, bin, readyTimeoutMs);
+    await start(extra, bin, readyTimeoutMs, licenceRepairMs);
   } catch (error) {
     return error as WorldMachineError;
   }
@@ -113,10 +132,15 @@ describe('WorldMachineProcess', () => {
     expect(error.worldMachineMessage).toBeUndefined();
   });
 
-  it('fails at once with a fixed message and no detail when World Machine has no licence', async () => {
+  it('fails with a fixed message and no detail when World Machine has no licence', async () => {
     const record = recorder();
     const began = Date.now();
-    const error = await startFailure({ FAKE_WM_UNLICENSED: '1', FAKE_WM_RECORD: record.path });
+    const error = await startFailure(
+      { FAKE_WM_UNLICENSED: '1', FAKE_WM_RECORD: record.path },
+      FAKE_WM,
+      5_000,
+      300,
+    );
     expect(error.code).toBe('START_FAILED');
     expect(error.message).toBe(NO_LICENCE);
     expect(error.worldMachineMessage).toBeUndefined();
@@ -130,12 +154,73 @@ describe('WorldMachineProcess', () => {
       WorldMachineProcess.start({
         bin: FAKE_WM,
         readyTimeoutMs: 5_000,
+        licenceRepairMs: 300,
         logger,
         env: fakeEnv({ FAKE_WM_UNLICENSED: '1' }),
       }),
     ).rejects.toThrow(NO_LICENCE);
     expect(logger.lines.filter((line) => line.startsWith('error:'))).toHaveLength(1);
     expect(logger.lines.filter((line) => line === `error: ${NO_LICENCE_LOG}`)).toHaveLength(1);
+  });
+
+  describe('when the licence checkout fails (live 2026-10-14: World Machine repairs its activation itself)', () => {
+    it('starts once World Machine has repaired it, and logs that once without a licence word', async () => {
+      // The repair outlasts the 1 s readiness limit, which gives way to the licence window.
+      const { proc, logger } = await start({ FAKE_WM_LICENCE_REPAIR: '1500' }, FAKE_WM, 1_000, 5_000);
+      expect(proc.exited).toBe(false);
+      expect(logger.lines.filter((line) => line === `info: ${REPAIRED_LOG}`)).toHaveLength(1);
+      // World Machine's own lines (wm-) go through the logger's licence filter; the server's lines need none.
+      const own = logger.lines.filter((line) => !line.startsWith('wm-'));
+      expect(own.filter((line) => /licen[cs]e/i.test(line))).toEqual([]);
+      expect(own.filter((line) => line.startsWith('error:'))).toEqual([]);
+    });
+
+    it('fails with the no-licence message when the window ends, not at the failed checkout', async () => {
+      const record = recorder();
+      const logger = captureLogger();
+      const starting = WorldMachineProcess.start({
+        bin: FAKE_WM,
+        readyTimeoutMs: 5_000,
+        licenceRepairMs: 600,
+        logger,
+        env: fakeEnv({ FAKE_WM_UNLICENSED: '1', FAKE_WM_RECORD: record.path }),
+        onSpawn: (proc) => started.push(proc),
+      });
+      let outcome: WorldMachineError | undefined;
+      const failed = starting.then(
+        () => {
+          throw new Error('expected start to fail');
+        },
+        (error: WorldMachineError) => {
+          outcome = error;
+        },
+      );
+      await waitUntil(() => logger.lines.some((line) => line.includes('License checkout failed')), 3_000);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      expect(outcome).toBeUndefined();
+      expect(record.pids().every(isAlive)).toBe(true);
+      await failed;
+      expect(outcome?.code).toBe('START_FAILED');
+      expect(outcome?.message).toBe(NO_LICENCE);
+      expect(outcome?.worldMachineMessage).toBeUndefined();
+      expect(logger.lines.filter((line) => line.startsWith('error:'))).toEqual([`error: ${NO_LICENCE_LOG}`]);
+      await waitUntil(() => record.pids().length > 0 && !record.pids().some(isAlive), 3_000);
+    });
+
+    it('fails at once with the no-licence message when the user quits the activation dialog', async () => {
+      const logger = captureLogger();
+      const began = Date.now();
+      await expect(
+        WorldMachineProcess.start({
+          bin: FAKE_WM,
+          readyTimeoutMs: 5_000,
+          logger,
+          env: fakeEnv({ FAKE_WM_UNLICENSED: 'quit' }),
+        }),
+      ).rejects.toMatchObject({ code: 'START_FAILED', message: NO_LICENCE, worldMachineMessage: undefined });
+      expect(Date.now() - began).toBeLessThan(3_000);
+      expect(logger.lines.filter((line) => line.startsWith('error:'))).toEqual([`error: ${NO_LICENCE_LOG}`]);
+    });
   });
 
   it('keeps unknown plain startup lines out of a readiness-timeout detail', async () => {

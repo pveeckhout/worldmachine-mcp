@@ -19,6 +19,8 @@ export type QuitAbort = { readonly graceMs: number; readonly termMs: number };
 export const RECOVERY_DIALOG_MS = 5_000;
 /** How long a start may wait on the recovery dialog before World Machine is closed. */
 export const RECOVERY_DIALOG_BOUND_MS = 600_000;
+/** How long a start waits, after a failed licence checkout, for World Machine to repair its activation or the user to activate it. */
+export const LICENCE_REPAIR_MS = 60_000;
 /** The grace a start that never became ready gives `system quit force` before World Machine is killed. */
 const START_QUIT_GRACE_MS = 2_000;
 const SESSION_CHECK = 'Checking for session and autosave files';
@@ -28,11 +30,14 @@ const DISPLAY_ERROR = /could not connect to display/i;
 const DISPLAY_HINT =
   ' World Machine could not open its window. Pass DISPLAY, WAYLAND_DISPLAY, XAUTHORITY, and XDG_RUNTIME_DIR in the MCP server environment (see README).';
 const LICENCE_CHECKOUT_FAILED = 'License Manager.Checkout: License checkout failed';
+// Fact 53: the user chose Quit in the activation dialog; World Machine exits with code 1.
+const LICENSING_FAILURE = 'Startup: Cannot launch World Machine due to licensing failure';
 const NO_LICENCE_MESSAGE =
   'World Machine has no valid licence on this machine. Start World Machine once outside the MCP and activate it, then retry.';
 // The logger drops every line that mentions a licence (spec section 8), so the logged copy avoids the word.
 const NO_LICENCE_LOG =
   'World Machine is not activated on this machine. Start World Machine once outside the MCP and activate it, then retry.';
+const REPAIRED_LOG = 'World Machine repaired its activation during startup.';
 // 'close' waits for stdout to drain; this bounds the wait if a grandchild keeps the pipe open.
 const STDIO_DRAIN_MS = 1_000;
 
@@ -50,6 +55,8 @@ export type ProcessOptions = {
   readonly recoveryDialogMs?: number;
   /** Defaults to RECOVERY_DIALOG_BOUND_MS; tests shorten it. */
   readonly recoveryDialogBoundMs?: number;
+  /** Defaults to LICENCE_REPAIR_MS; tests shorten it. */
+  readonly licenceRepairMs?: number;
 };
 
 export class WorldMachineProcess implements CommandChannel {
@@ -62,7 +69,8 @@ export class WorldMachineProcess implements CommandChannel {
   readonly #recent: string[] = [];
   readonly #exitPromise: Promise<void>;
   #readyListener: (() => void) | undefined;
-  #noLicenceListener: (() => void) | undefined;
+  #checkoutFailedListener: (() => void) | undefined;
+  #licensingFailureListener: (() => void) | undefined;
   #sessionCheckListener: (() => void) | undefined;
   #exited = false;
   #recoveredSession = false;
@@ -133,15 +141,24 @@ export class WorldMachineProcess implements CommandChannel {
       const timeOut = (ms: number) =>
         fail(`World Machine did not become ready within ${ms} ms`, () => proc.quit(START_QUIT_GRACE_MS, 0));
       let timer = setTimeout(() => timeOut(options.readyTimeoutMs), options.readyTimeoutMs);
+      // The recovery dialog's bound and the licence window each replace the readiness limit. Should both apply, the
+      // later deadline wins, so neither cuts the other short.
+      let extendedUntil: number | undefined;
+      const extend = (ms: number, expire: () => void) => {
+        const until = Date.now() + ms;
+        if (extendedUntil !== undefined && until <= extendedUntil) return;
+        extendedUntil = until;
+        clearTimeout(timer);
+        timer = setTimeout(expire, ms);
+      };
       // Fact 73: after the session check, World Machine prints nothing while its recovery dialog waits for the user.
       // The readiness limit gives way to the dialog's bound, and World Machine is left running for the user to answer.
       proc.#sessionCheckListener = () => {
         if (settled || dialogTimer !== undefined) return;
         dialogTimer = setTimeout(() => {
           if (settled) return;
-          clearTimeout(timer);
           const boundMs = options.recoveryDialogBoundMs ?? RECOVERY_DIALOG_BOUND_MS;
-          timer = setTimeout(() => timeOut(boundMs), boundMs);
+          extend(boundMs, () => timeOut(boundMs));
           for (const listener of proc.#recoveryDialogListeners) listener();
         }, options.recoveryDialogMs ?? RECOVERY_DIALOG_MS);
       };
@@ -157,17 +174,30 @@ export class WorldMachineProcess implements CommandChannel {
         );
       });
       proc.#exitListeners.push(() => fail('World Machine exited during startup'));
-      proc.#noLicenceListener = () => {
+      // Terminated, not quit: the activation dialog blocks a quit (fact 53).
+      const noLicence = () => {
         if (settled) return;
         options.logger.error(NO_LICENCE_LOG);
         fail(NO_LICENCE_MESSAGE, undefined, false);
       };
+      // A failed checkout is often repaired by World Machine itself within seconds: it re-activates and checks out
+      // again (live 2026-10-14). The start waits for that, or for the user to activate in the dialog, before failing.
+      let checkoutFailed = false;
+      proc.#checkoutFailedListener = () => {
+        if (settled || checkoutFailed) return;
+        checkoutFailed = true;
+        extend(options.licenceRepairMs ?? LICENCE_REPAIR_MS, noLicence);
+      };
+      // Handled on its line, before World Machine exits, so the licence message wins over 'exited during startup'.
+      proc.#licensingFailureListener = noLicence;
       proc.#readyListener = () => {
         if (settled) return;
         settle();
         proc.#readyListener = undefined;
-        proc.#noLicenceListener = undefined;
+        proc.#checkoutFailedListener = undefined;
+        proc.#licensingFailureListener = undefined;
         proc.#sessionCheckListener = undefined;
+        if (checkoutFailed) options.logger.info(REPAIRED_LOG);
         resolve(proc);
       };
       if (options.signal?.aborted) onAbort();
@@ -289,7 +319,8 @@ export class WorldMachineProcess implements CommandChannel {
     }
     const log = parseLogLine(line);
     if (log) {
-      if (log.text.includes(LICENCE_CHECKOUT_FAILED)) this.#noLicenceListener?.();
+      if (log.text.includes(LICENCE_CHECKOUT_FAILED)) this.#checkoutFailedListener?.();
+      if (log.text.includes(LICENSING_FAILURE)) this.#licensingFailureListener?.();
       this.#logger.worldMachine(log.level, log.text);
       if (log.text.includes(SESSION_CHECK)) this.#sessionCheckListener?.();
       if (log.text.includes(SESSION_ADOPTED) && this.#readyListener) this.#recoveredSession = true;

@@ -142,13 +142,15 @@ describe('stdio server', () => {
     await waitUntil(() => record.pids().length > 0 && !record.pids().some(isAlive), 3_000);
   });
 
-  it('fails fast with START_FAILED and no World Machine text when there is no licence', async () => {
+  // The server waits 60 s for an activation to be repaired and has no setting to shorten that, so this uses the
+  // dialog's Quit (fact 53), which fails at once.
+  it('fails fast with START_FAILED and no World Machine text when there is no licence and the user quits', async () => {
     const record = recorder();
     const client = await startServer({
       WORLD_MACHINE_BIN: FAKE_WM,
       WORLD_MACHINE_ALLOWED_ROOTS: mkdtempSync(join(tmpdir(), 'smoke-')),
       FAKE_WM_RECORD: record.path,
-      FAKE_WM_UNLICENSED: '1',
+      FAKE_WM_UNLICENSED: 'quit',
     });
     const began = Date.now();
     const list = await client.callTool({ name: 'list_devices', arguments: {} });

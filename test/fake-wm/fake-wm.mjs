@@ -38,21 +38,61 @@ if (startup === 'display') {
 }
 // Plain (non-log) lines printed during startup, for tests of which of them reach a START_FAILED detail.
 if (env.FAKE_WM_STARTUP_OUT) out(`${env.FAKE_WM_STARTUP_OUT}\n`);
-if (env.FAKE_WM_UNLICENSED === '1') {
+const unlicensed = env.FAKE_WM_UNLICENSED === '1' || env.FAKE_WM_UNLICENSED === 'quit';
+if (unlicensed) {
   // Spec fact 53 (live probe, build 4067, no licence): the checkout fails, a modal activation dialog opens, and the
-  // ready line never comes. The process stays alive until it is terminated.
+  // ready line never comes. The process stays alive until it is terminated. `quit`: the user chooses Quit in the
+  // dialog, so World Machine logs the licensing failure and exits with code 1.
   log('Error', 'License Manager.Checkout: License checkout failed for product wmpro');
   log('Error', 'License Manager.RLM Details: Wrong host for license (-4)');
   out('Wrong host (-193): _check_rehost(): No rehostable root dir\n');
   log('Info', 'Startup: License manager checkout (LICENSE_RESULT 3)');
   log('Info', 'Startup: License Activation');
+  if (env.FAKE_WM_UNLICENSED === 'quit') {
+    await sleep(200);
+    log('Info', 'Startup: Cannot launch World Machine due to licensing failure.');
+    exit(1);
+  }
+}
+// FAKE_WM_LICENCE_REPAIR=<ms>: World Machine repairs its own activation during startup, spread over that long. Source:
+// World Machine's own log, live 2026-10-14 (licence self-repair brief): the checkout fails twice, World Machine
+// re-activates and revokes its stale fulfilment, the third checkout succeeds, and startup goes on to the ready line.
+const licenceRepair = env.FAKE_WM_LICENCE_REPAIR;
+if (licenceRepair !== undefined) {
+  const step = () => sleep(Number(licenceRepair) / 3);
+  const config = '/fake-home/.config/WorldMachineCurrent/';
+  log('Info', `Startup: Initialize license manager (path ${config})`);
+  log('Error', 'License Manager.Checkout: License checkout failed for product wmpro');
+  log('Error', 'License Manager.RLM Details: Wrong host for license (-4)');
+  out('Wrong host (-193): rehostable not on reference hostid\n');
+  log('Info', 'Startup: License manager checkout (LICENSE_RESULT 3)');
+  await step();
+  log('Info', 'Startup: License Activation');
+  log('Info', 'License Manager.Activate: Reference hostID is (invalid)');
+  log('Warning', 'License Manager.Activate: Rehostable HostID already exists.');
+  log('Info', 'License Manager.Activate: Attempting activation with existing hostiD (rehost=fake)');
+  log('Info', 'License Manager.Activate: Activation successful (code 1)');
+  log('Info', `License Manager: Wrote license to file path (${config}worldmachine_license.lic)`);
+  log('Error', 'License Manager.Checkout: License checkout failed for product wmpro');
+  log('Error', 'License Manager.RLM Details: Wrong host for license (-4)');
+  out('Wrong host (-193): rehostable not on reference hostid\n');
+  await step();
+  log(
+    'Error',
+    'License Manager.Activate: Activation successful but license is invalid on this machine. Attempting hard revoke',
+  );
+  log('Info', 'License Manager.Revoke: Revoked existing fulfillment for this machine.');
+  log('Info', 'License Manager.Activate: Activation successful (code 0)');
+  log('Info', `License Manager: Wrote license to file path (${config}worldmachine_license.lic)`);
+  await step();
+  log('Info', 'License Manager.Checkout: License checkout successful (product wmpro)');
 }
 // FAKE_WM_RECOVERY_DIALOG=<ms>: the 'Recover crashed session' dialog (live probe, 2026-10-06) is open for that long
 // after the session check, then answered with OK; World Machine prints nothing while it is open. `never`: the dialog
 // is never answered and nothing is read from the console. Assumed: it ends when the console closes, so a failed test
 // leaves no process behind; the probe did not show what World Machine does then.
 const recoveryDialog = env.FAKE_WM_RECOVERY_DIALOG;
-if (startup === 'ok' && env.FAKE_WM_UNLICENSED !== '1' && recoveryDialog !== undefined) {
+if (startup === 'ok' && !unlicensed && recoveryDialog !== undefined) {
   log('Info', 'Checking for session and autosave files');
   if (recoveryDialog === 'never') {
     process.stdin.on('end', () => exit(0));
@@ -67,8 +107,7 @@ if (startup === 'ok' && env.FAKE_WM_UNLICENSED !== '1' && recoveryDialog !== und
   );
   log('Info', 'Open Project from file');
 }
-if (startup === 'ok' && env.FAKE_WM_UNLICENSED !== '1')
-  log('Info', 'Startup: Completed. Transferring control into event loop.');
+if (startup === 'ok' && !unlicensed) log('Info', 'Startup: Completed. Transferring control into event loop.');
 
 let hung = false;
 let dirty = env.FAKE_WM_DIRTY_AT_START === '1';
