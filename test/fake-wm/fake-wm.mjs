@@ -660,7 +660,21 @@ const wireList = (ref, device) => {
 // comes after the port checks. A refusal changes nothing (port-types design section 2, raw/reach-scaling-inputs.txt
 // l.604-638).
 const INCOMPATIBLE = 'Error: Error: Failed to create connection (incompatible types?)';
+const CYCLE = 'Error: Error: These ports cannot be connected as the result will create a cycle in the graph!';
 const waterSystemPort = (device, port) => device.type === 'Create Water' && port === 2;
+// Spec fact 99: whether `target` is reachable from `start` by following wires source -> destination, by device id.
+const reaches = (start, target) => {
+  const seen = new Set();
+  const pending = [start];
+  while (pending.length > 0) {
+    const id = pending.pop();
+    if (id === target) return true;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    for (const wire of wires) if (wire.from === id) pending.push(wire.to);
+  }
+  return false;
+};
 const typesFit = (source, fromPort, destination, toPort) =>
   waterSystemPort(source, fromPort) === waterSystemPort(destination, toPort);
 // raw/device-list-sample.txt: two spaces, "#<id>" padded to 7, the name padded to 24. A device whose name differs
@@ -1110,6 +1124,11 @@ async function handle(line) {
       (source === destination || !typesFit(source, from.port, destination, to.port))
     ) {
       return void process.stderr.write(`${INCOMPATIBLE}\n`);
+    }
+    // Spec fact 99 (raw/wire-cycles.txt l.31-32 and l.40-41): a wire that closes a loop is refused, whatever the
+    // ports. Assumed: it comes after the type check, as that check comes after the port checks.
+    if (verb === 'connect' && reaches(destination.id, source.id)) {
+      return void process.stderr.write(`${CYCLE}\n`);
     }
     // raw/p2b-graph-edits.txt l.22-23 and l.117-118, raw/p2c-edits.txt l.108-109: references without their port.
     const ends = `'${from.ref}' [${from.port}] -> '${to.ref}' [${to.port}]`;

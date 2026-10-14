@@ -688,3 +688,47 @@ describe('unidentifiable wires over the fake World Machine (unidentifiable-wires
     expect(again.unidentifiableWires).toEqual([]);
   });
 });
+
+describe('a wire that closes a loop over the fake World Machine (spec fact 99)', () => {
+  const CYCLE =
+    'Error: Error: These ports cannot be connected as the result will create a cycle in the graph!';
+
+  it('connect_devices fails with WM_COMMAND_FAILED carrying the cycle sentence', async () => {
+    const w = wired();
+    const a = (await w.devices.addDevice('Combiner')).id;
+    const b = (await w.devices.addDevice('Combiner')).id;
+    expect((await w.wires.connect({ device: `#${a}`, port: 1 }, { device: `#${b}`, port: 1 })).created).toBe(
+      true,
+    );
+    await expect(
+      w.wires.connect({ device: `#${b}`, port: 1 }, { device: `#${a}`, port: 2 }),
+    ).rejects.toMatchObject({
+      code: 'WM_COMMAND_FAILED',
+      message: `World Machine rejected "wire connect #${b}.1 #${a}.2"`,
+      // The sentence travels in worldMachineMessage, which the tool result passes on to the client.
+      worldMachineMessage: CYCLE,
+    });
+  });
+
+  it('apply_graph fails at the closing connect, rolls back, and carries the cycle sentence', async () => {
+    const w = wired();
+    const a = (await w.devices.addDevice('Combiner')).id;
+    const b = (await w.devices.addDevice('Combiner')).id;
+    const spec: RawGraphSpec = {
+      version: 1,
+      devices: [
+        { name: 'first mix', id: a, type: 'Combiner', inputs: { '2': 'second mix' } },
+        { name: 'second mix', id: b, type: 'Combiner', inputs: { '1': 'first mix' } },
+      ],
+    };
+    const plan = await w.plan.planGraph({ spec });
+    expect(plan.conflicts).toEqual([]);
+    const error = await failure(w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false }));
+    expect(error.code).toBe('APPLY_FAILED');
+    expect(error.details).toMatchObject({
+      failedStep: { code: 'WM_COMMAND_FAILED', worldMachineMessage: CYCLE },
+      rolledBack: true,
+    });
+    expect((await w.reader.listDevices()).map((device) => device.id)).toEqual(expect.arrayContaining([a, b]));
+  });
+});

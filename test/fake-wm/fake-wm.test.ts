@@ -1876,6 +1876,64 @@ describe('fake World Machine: port types (port-types design section 8)', () => {
     ]);
   });
 
+  // Fact 99 (raw/wire-cycles.txt, probed with Erosion, which the fake gives one input; Combiners have two): World Machine refuses a wire that closes a loop with its own sentence.
+  const CYCLE =
+    'Error: Error: These ports cannot be connected as the result will create a cycle in the graph!';
+  const NO_WIRE = [
+    "Connections for '#1':",
+    '  Inputs:',
+    '    [1] Primary Input <- (none)',
+    '    [2] Primary Input <- (none)',
+    '  Outputs:',
+    '    [1] Primary Output -> (none)',
+  ];
+
+  it('refuses a wire that closes a two-device loop and changes nothing (fact 99)', async () => {
+    const s = session();
+    await s.execute(['project new blank force', 'device add Combiner', 'device add Combiner']);
+    expect(await outputs(s, ['wire connect #1.1 #2.1', 'wire connect #2.1 #1.2', 'wire list #1'])).toEqual([
+      ["Connected '#1' [1] -> '#2' [1]"],
+      [CYCLE],
+      [
+        "Connections for '#1':",
+        '  Inputs:',
+        '    [1] Primary Input <- (none)',
+        '    [2] Primary Input <- (none)',
+        '  Outputs:',
+        "    [1] Primary Output -> 'Combiner' [1]",
+      ],
+    ]);
+  });
+
+  it('refuses a wire that closes a three-device loop and changes nothing (fact 99)', async () => {
+    const s = session();
+    await s.execute([
+      'project new blank force',
+      'device add Combiner',
+      'device add Combiner',
+      'device add Combiner',
+    ]);
+    expect(
+      await outputs(s, [
+        'wire connect #1.1 #2.1',
+        'wire connect #2.1 #3.1',
+        'wire connect #3.1 #1.2',
+        'wire list #1',
+      ]),
+    ).toEqual([
+      ["Connected '#1' [1] -> '#2' [1]"],
+      ["Connected '#2' [1] -> '#3' [1]"],
+      [CYCLE],
+      [...NO_WIRE.slice(0, 5), "    [1] Primary Output -> 'Combiner' [1]"],
+    ]);
+  });
+
+  it('keeps the self-wire answer of fact 98 ahead of the cycle sentence', async () => {
+    const s = session();
+    await s.execute(['project new blank force', 'device add Combiner']);
+    expect(await outputs(s, ['wire connect #1.1 #1.2'])).toEqual([[INCOMPATIBLE]]);
+  });
+
   it('lists the targets of each output of a device with several', async () => {
     const s = session();
     await s.execute(['project new blank force', 'device add Create Water', 'device add Combiner']);
