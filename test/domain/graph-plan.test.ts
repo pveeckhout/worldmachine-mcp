@@ -866,6 +866,57 @@ describe('planGraph with ids and the Combiner rule (spec v3 revision 6)', () => 
   });
 });
 
+describe('planGraph and a wire from a device into its own input (fact 98)', () => {
+  const selfWire = (port: number) =>
+    `input ${port} is wired from the device itself; World Machine refuses a wire from a device into its own input (fact 98)`;
+
+  it.each<[string, RawGraphDevice]>([
+    ['its name', { name: 'Eroded', type: 'Erosion', inputs: { '1': 'Eroded' } }],
+    ['its #<id>', { name: 'Eroded', type: 'Erosion', inputs: { '1': '#20' } }],
+    [
+      'the label of its entry with id',
+      { name: 'Renamed', id: 20, type: 'Erosion', inputs: { '1': 'Renamed' } },
+    ],
+    [
+      'its listed name from an entry with id',
+      { name: 'Renamed', id: 20, type: 'Erosion', inputs: { '1': 'Eroded' } },
+    ],
+  ])(
+    'refuses an existing device whose input names %s, planning no disconnect or connect',
+    (_label, entry) => {
+      const plan = planGraph(spec([entry]), PROJECT);
+      expect(plan.conflicts).toEqual([{ entry: entry.name, reason: selfWire(1) }]);
+      expect(plan.steps).toEqual([]);
+    },
+  );
+
+  it('refuses an added device whose input names its own entry, planning no connect', () => {
+    const plan = planGraph(spec([{ name: 'Base', type: 'Gradient', inputs: { '2': 'base' } }]), state([]));
+    expect(plan.conflicts).toEqual([{ entry: 'Base', reason: selfWire(2) }]);
+    expect(plan.steps).toEqual([{ op: 'add', device: 'Base', type: 'Gradient' }]);
+  });
+
+  it('wires one of two devices that share a name into the other', () => {
+    const twin = (id: number) =>
+      detail(id, 'Twin', 'Erosion', { inputs: [{ port: 1, name: 'Primary Input' }] });
+    const plan = planGraph(
+      spec([{ name: 'Second', id: 31, type: 'Erosion', inputs: { '1': '#30' } }]),
+      state([twin(30), twin(31)]),
+    );
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.steps).toEqual([
+      {
+        op: 'connect',
+        device: 'Second',
+        id: 31,
+        port: 1,
+        from: 'Twin.1',
+        source: { device: 'Twin', id: 30, port: 1 },
+      },
+    ]);
+  });
+});
+
 describe('matchDevices and referencedDeviceIds', () => {
   it('matches #<id> by id and names regardless of case', () => {
     const rows = [row(1, 'Noise'), row(2, 'NOISE'), row(3, 'Base')];

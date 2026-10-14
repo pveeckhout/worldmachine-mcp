@@ -78,6 +78,14 @@ export class WorldMachineWireEditor implements WireEditPort {
   async connect(source: WireEndpoint, destination: WireEndpoint): Promise<WireConnection> {
     const plan = await this.#plan(source, destination);
     const ends = { source: plan.source, destination: plan.destination };
+    // Spec fact 98: World Machine answers such a wire with its type refusal although the types fit, so it is refused
+    // here, with no port types, before any change.
+    if (plan.source.id === plan.destination.id) {
+      throw new WorldMachineError(
+        'REFUSED',
+        `#${plan.source.id} '${plan.source.name}' cannot wire its output ${plan.source.port} into its own input ${plan.destination.port}; World Machine refuses a wire from a device into its own input`,
+      );
+    }
     // An existing wire changes nothing (idempotent, spec section 7). An input wired from another device is sent, and
     // World Machine itself refuses it (fact 34).
     if (plan.present) return { ...ends, created: false };

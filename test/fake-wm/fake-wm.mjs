@@ -1103,7 +1103,12 @@ async function handle(line) {
     if (from.port < 1 || from.port > source.outputs.length) {
       return void process.stderr.write(`Error: Error: Output port not found on '${from.ref}'\n`);
     }
-    if (verb === 'connect' && !typesFit(source, from.port, destination, to.port)) {
+    // Spec fact 98: a wire from a device into its own input gets the type refusal, whatever the types. Assumed: it
+    // comes after the port checks, as the type check does.
+    if (
+      verb === 'connect' &&
+      (source === destination || !typesFit(source, from.port, destination, to.port))
+    ) {
       return void process.stderr.write(`${INCOMPATIBLE}\n`);
     }
     // raw/p2b-graph-edits.txt l.22-23 and l.117-118, raw/p2c-edits.txt l.108-109: references without their port.

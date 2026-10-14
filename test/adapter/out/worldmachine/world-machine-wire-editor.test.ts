@@ -366,6 +366,20 @@ describe('WorldMachineWireEditor.connect', () => {
     expect(s.dirtyMarks()).toBe(0);
   });
 
+  it('refuses a wire from a device into its own input and sends no wire connect (fact 98)', async () => {
+    const s = scriptedSession({
+      'device list': [{ output: DEVICES }],
+      'wire list #2': [{ output: COMBINER_FREE }],
+    });
+    await expect(editor(s).connect({ device: 'Combiner' }, { device: '#2', port: 2 })).rejects.toMatchObject({
+      code: 'REFUSED',
+      message:
+        "#2 'Combiner' cannot wire its output 1 into its own input 2; World Machine refuses a wire from a device into its own input",
+    });
+    expect(s.batches).toEqual([['device list'], ['wire list #2']]);
+    expect(s.dirtyMarks()).toBe(0);
+  });
+
   it('refuses a device the project does not list', async () => {
     const s = scriptedSession({ 'device list': [{ output: DEVICES }] });
     await expect(editor(s).connect({ device: 'Nope' }, { device: '#2' })).rejects.toMatchObject({

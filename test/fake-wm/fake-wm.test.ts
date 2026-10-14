@@ -1859,6 +1859,23 @@ describe('fake World Machine: port types (port-types design section 8)', () => {
     ]);
   });
 
+  // Fact 98: World Machine refuses a wire from a device into its own input with the type refusal.
+  it('refuses a wire from a device into its own input and changes nothing (fact 98)', async () => {
+    const s = session();
+    await s.execute(['project new blank force', 'device add Gradient', 'device add Combiner']);
+    expect(await outputs(s, ['wire connect #2.1 #2.2', 'wire list #2'])).toEqual([
+      [INCOMPATIBLE],
+      [
+        "Connections for '#2':",
+        '  Inputs:',
+        '    [1] Primary Input <- (none)',
+        '    [2] Primary Input <- (none)',
+        '  Outputs:',
+        '    [1] Primary Output -> (none)',
+      ],
+    ]);
+  });
+
   it('lists the targets of each output of a device with several', async () => {
     const s = session();
     await s.execute(['project new blank force', 'device add Create Water', 'device add Combiner']);

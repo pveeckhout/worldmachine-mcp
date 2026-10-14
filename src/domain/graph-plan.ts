@@ -478,6 +478,13 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
     return null;
   };
 
+  // Fact 98: World Machine refuses a wire from a device into its own input, with the answer it gives other types.
+  const selfWire = (owner: string, port: number): void =>
+    conflict(
+      owner,
+      `input ${port} is wired from the device itself; World Machine refuses a wire from a device into its own input (fact 98)`,
+    );
+
   const disconnects: PlanStep[] = [];
   const adds: PlanStep[] = [];
   const enables: PlanStep[] = [];
@@ -514,7 +521,10 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
       for (const input of device.inputs) {
         if (input.source === null) continue;
         const source = resolveSource(device.name, input.source);
-        if (source !== undefined) connects.push(connect(device.name, undefined, input.port, source));
+        if (source === undefined) continue;
+        // resolveSource names a device the plan adds by its entry, and entry names differ regardless of case.
+        if (source.id === undefined && source.device === device.name) selfWire(device.name, input.port);
+        else connects.push(connect(device.name, undefined, input.port, source));
       }
       continue;
     }
@@ -571,6 +581,10 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
       if (current === null) continue;
       const wanted = input.source === null ? null : resolveSource(device.name, input.source);
       if (wanted === undefined) continue;
+      if (wanted?.id === id) {
+        selfWire(device.name, input.port);
+        continue;
+      }
       if (
         current !== undefined &&
         wanted !== null &&
