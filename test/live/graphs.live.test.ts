@@ -239,4 +239,26 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
     ]);
     expect(again.unidentifiableWires).toEqual([]);
   }, 180_000);
+
+  // Wire-loops design section 6, live row: a two-device loop in a blank project.
+  it('reports a wire that closes a two-device loop as a conflict, and apply_graph refuses it before any change', async () => {
+    await session.ensureRunning();
+    throwIfFailed(await session.executeOne('project new blank force'));
+    const a = (await devices.addDevice('Combiner')).id;
+    const b = (await devices.addDevice('Combiner')).id;
+    expect((await wires.connect({ device: `#${a}` }, { device: `#${b}` })).created).toBe(true);
+    const spec: RawGraphSpec = {
+      version: 1,
+      devices: [{ name: 'first mix', id: a, type: 'Combiner', inputs: { '2': `#${b}` } }],
+    };
+    const planned = await plan.planGraph({ spec });
+    const reason = `input 2 from 'Combiner' output 1 would close a loop (first mix -> Combiner #${b}); World Machine refuses a wire that closes a loop (fact 99)`;
+    expect(planned.conflicts).toEqual([{ entry: 'first mix', reason }]);
+    expect(planned.possibleLoops).toEqual([]);
+    await expect(
+      apply.applyGraph({ spec, planId: planned.planId, keepSnapshot: false }),
+    ).rejects.toMatchObject({ code: 'REFUSED' });
+    const first = await reader.getDevice(`#${a}`);
+    expect(first.inputs.find((input) => input.port === 2)?.source).toBeUndefined();
+  }, 180_000);
 });
