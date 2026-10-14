@@ -491,6 +491,17 @@ describe('createMcpServer', () => {
     );
   });
 
+  it('describes loops on plan_graph and apply_graph (wire-loops design section 4)', async () => {
+    const { tools } = await (await connect(deps())).listTools();
+    const description = (name: string) => tools.find((tool) => tool.name === name)?.description ?? '';
+    expect(description('plan_graph')).toContain(
+      'A wire that would close a loop in the wiring after the apply is a conflict, since World Machine refuses it; a wire that may close one through devices whose wires cannot be told apart is listed in possibleLoops and refuses nothing.',
+    );
+    expect(description('apply_graph')).toContain(
+      "It also repeats the plan's possibleLoops; World Machine refuses such a wire if it does close a loop, and the apply then rolls back.",
+    );
+  });
+
   it('passes plan_id and keep_snapshot to apply_graph, keep_snapshot false by default', async () => {
     const commands: unknown[] = [];
     const client = await connect(
