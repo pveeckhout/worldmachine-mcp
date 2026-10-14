@@ -90,11 +90,13 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
         };
       }
       const snapshot = `${APPLY_SNAPSHOT_PREFIX}${id.slice(0, 12)}`;
-      // D15: a snapshot left by a rolled-back apply of the same plan blocks it, with a message saying what to do.
+      // D15: a snapshot left by a rolled-back apply of the same plan blocks it, with a message saying what to do. A
+      // `snapshot create` that throws after World Machine made the snapshot leaves one too, before any step ran, so
+      // the text names both origins and the snapshot is kept either way.
       if ((await this.#snapshots.list()).some((existing) => existing.name === snapshot)) {
         throw new WorldMachineError(
           'REFUSED',
-          `A snapshot named '${snapshot}' exists, left by an earlier apply_graph of this plan; inspect or restore it, then remove it with delete_snapshot before applying again`,
+          `A snapshot named '${snapshot}' already exists for this plan: an earlier apply_graph left it, or a snapshot create that failed made it before any step ran; inspect or restore it, then remove it with delete_snapshot before applying again`,
         );
       }
       await this.#snapshots.create(snapshot);

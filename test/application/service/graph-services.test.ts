@@ -358,8 +358,12 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
     await failure(w.apply.applyGraph({ spec: SPEC, planId: plan.planId, keepSnapshot: false }));
     const retry = await failure(w.apply.applyGraph({ spec: SPEC, planId: plan.planId, keepSnapshot: false }));
     expect(retry.code).toBe('REFUSED');
-    expect(retry.message).toContain(snapshotOf(plan.planId));
-    expect(retry.message).toContain('delete_snapshot');
+    // The text holds for a snapshot that a failed `snapshot create` made before any step ran, too.
+    expect(retry.message).toBe(
+      `A snapshot named '${snapshotOf(plan.planId)}' already exists for this plan: an earlier apply_graph left it, or ` +
+        'a snapshot create that failed made it before any step ran; inspect or restore it, then remove it with ' +
+        'delete_snapshot before applying again',
+    );
   });
 
   it('reports rolledBack: false when the restore fails', async () => {
