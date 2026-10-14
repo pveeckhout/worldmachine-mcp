@@ -41,8 +41,9 @@ export function wireLoops(
     if (step.op !== 'connect') continue;
     const to = wiring.idOf(step.device, step.id);
     const from = wiring.idOf(step.source.device, step.source.id);
-    // A type guard: planGraph gives every connect an existing id or a device its add step plans.
-    if (to === undefined || from === undefined) continue;
+    // A type guard: planGraph gives every connect an existing id or a device its add step plans. A self-wire has no
+    // step (fact 98's conflict); the guard keeps it out of the search should one be given.
+    if (to === undefined || from === undefined || to === from) continue;
     connects.push({ step, from, to });
     connected.set(`${to}.${step.port}`, from);
   }

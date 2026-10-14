@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DeviceDetail, DeviceSummary, PortLink } from '../../src/domain/device.js';
-import { type GraphState, planGraph } from '../../src/domain/graph-plan.js';
+import { type GraphState, type PlanStep, planGraph } from '../../src/domain/graph-plan.js';
 import { type RawGraphDevice, validateGraphSpec } from '../../src/domain/graph-spec.js';
 import { wireLoops } from '../../src/domain/wire-loops.js';
 
@@ -174,6 +174,27 @@ describe('wireLoops (wire-loops design section 2)', () => {
     expect(result.plan.steps).toEqual([]);
     expect(result.conflicts).toEqual([]);
     expect(result.possibleLoops).toEqual([]);
+  });
+
+  it('never searches a self-wire step, though a loop runs through its device', () => {
+    // planGraph makes no step for a self-wire (fact 98); this step is built by hand. Hill and Ridge feed each other.
+    const current = state([
+      node(1, 'Hill', [to('Ridge')], { 1: 'Ridge' }),
+      node(2, 'Ridge', [to('Hill')], { 1: 'Hill' }),
+    ]);
+    const graph = validateGraphSpec({
+      version: 1,
+      devices: [{ name: 'Hill', type: 'Hill', inputs: { '2': 'Hill' } }],
+    });
+    const step: PlanStep = {
+      op: 'connect',
+      device: 'Hill',
+      id: 1,
+      port: 2,
+      from: 'Hill.1',
+      source: { device: 'Hill', id: 1, port: 1 },
+    };
+    expect(wireLoops(graph, current, [step])).toEqual({ conflicts: [], possibleLoops: [] });
   });
 });
 
