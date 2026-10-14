@@ -630,6 +630,7 @@ export const planGraphViewSchema = z.strictObject({
   steps: z.array(planStepSchema),
   unchanged: z.array(z.string()),
   uncheckedWires: z.array(z.string()),
+  unidentifiableWires: z.array(z.string()),
   session: sessionSummarySchema,
 }) satisfies z.ZodType<PlanGraphView>;
 
@@ -669,5 +670,6 @@ export const applyGraphViewSchema = z.strictObject({
   snapshot: z.string().nullable(),
   diff: z.array(diffEntrySchema),
   diffError: z.string().optional(),
+  unidentifiableWires: z.array(z.string()),
   session: sessionSummarySchema,
 }) satisfies z.ZodType<ApplyGraphView>;

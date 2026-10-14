@@ -16,6 +16,8 @@ export type ApplyGraphView = {
   readonly diff: readonly DiffEntry[];
   /** Set when every step was applied but the result could not be read back; diff is then empty and the snapshot kept. */
   readonly diffError?: string;
+  /** Unidentifiable-wires design section 4: `unidentifiableWires` of the plan this call applied. */
+  readonly unidentifiableWires: readonly string[];
   readonly session: SessionSummary;
 };
 export type FailedStep = {

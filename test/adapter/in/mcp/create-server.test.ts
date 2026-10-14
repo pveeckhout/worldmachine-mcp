@@ -187,10 +187,19 @@ function deps(overrides: Partial<McpDependencies> = {}): McpDependencies {
         steps: [],
         unchanged: [],
         uncheckedWires: [],
+        unidentifiableWires: [],
         session: READY,
       }),
     },
-    applyGraph: { applyGraph: async () => ({ applied: 0, snapshot: null, diff: [], session: READY }) },
+    applyGraph: {
+      applyGraph: async () => ({
+        applied: 0,
+        snapshot: null,
+        diff: [],
+        unidentifiableWires: [],
+        session: READY,
+      }),
+    },
     currentSession: () => READY,
     logger: silentLogger(),
     ...overrides,
@@ -309,6 +318,7 @@ describe('createMcpServer', () => {
               steps: [],
               unchanged: [],
               uncheckedWires: [],
+              unidentifiableWires: [],
               session: READY,
             };
           },
@@ -338,6 +348,7 @@ describe('createMcpServer', () => {
               steps: [],
               unchanged: [],
               uncheckedWires: [],
+              unidentifiableWires: [],
               session: READY,
             };
           },
@@ -397,9 +408,40 @@ describe('createMcpServer', () => {
   });
 
   it('refuses a plan view without uncheckedWires (port-types design section 6)', async () => {
-    const view = { planId: PLAN_ID, conflicts: [], steps: [], unchanged: [], session: READY };
+    const view = {
+      planId: PLAN_ID,
+      conflicts: [],
+      steps: [],
+      unchanged: [],
+      unidentifiableWires: [],
+      session: READY,
+    };
     const client = await connect(deps({ planGraph: { planGraph: async () => view as never } }));
     const result = await client.callTool({ name: 'plan_graph', arguments: { spec: GRAPH_SPEC } });
+    expect(result.isError).toBe(true);
+  });
+
+  it('refuses a plan view without unidentifiableWires (unidentifiable-wires design section 4)', async () => {
+    const view = {
+      planId: PLAN_ID,
+      conflicts: [],
+      steps: [],
+      unchanged: [],
+      uncheckedWires: [],
+      session: READY,
+    };
+    const client = await connect(deps({ planGraph: { planGraph: async () => view as never } }));
+    const result = await client.callTool({ name: 'plan_graph', arguments: { spec: GRAPH_SPEC } });
+    expect(result.isError).toBe(true);
+  });
+
+  it('refuses an apply view without unidentifiableWires (unidentifiable-wires design section 4)', async () => {
+    const view = { applied: 0, snapshot: null, diff: [], session: READY };
+    const client = await connect(deps({ applyGraph: { applyGraph: async () => view as never } }));
+    const result = await client.callTool({
+      name: 'apply_graph',
+      arguments: { spec: GRAPH_SPEC, plan_id: PLAN_ID },
+    });
     expect(result.isError).toBe(true);
   });
 
@@ -410,7 +452,7 @@ describe('createMcpServer', () => {
         applyGraph: {
           applyGraph: async (command) => {
             commands.push(command);
-            return { applied: 0, snapshot: null, diff: [], session: READY };
+            return { applied: 0, snapshot: null, diff: [], unidentifiableWires: [], session: READY };
           },
         },
       }),
@@ -433,6 +475,7 @@ describe('createMcpServer', () => {
       steps: [{ op: 'set-bypassed', device: 'Base', to: true, toggle: true }],
       unchanged: [],
       uncheckedWires: [],
+      unidentifiableWires: [],
       session: READY,
     };
     const client = await connect(deps({ planGraph: { planGraph: async () => view as never } }));
@@ -471,6 +514,9 @@ describe('createMcpServer', () => {
       ],
       unchanged: ['Shape'],
       uncheckedWires: ["'Eroded' input 1"],
+      unidentifiableWires: [
+        "'Eroded' input 1 from 'Combiner' output 1: #536, #537 each list 'Erosion' input 1",
+      ],
       session: READY,
     } as const;
     const client = await connect(deps({ planGraph: { planGraph: async () => view } }));
@@ -506,6 +552,7 @@ describe('createMcpServer', () => {
           inputs: { '1': { before: 'Old.1', after: 'Base.1' } },
         },
       ],
+      unidentifiableWires: [],
       session: READY_DIRTY,
     } as const;
     const client = await connect(deps({ applyGraph: { applyGraph: async () => view } }));
@@ -522,6 +569,9 @@ describe('createMcpServer', () => {
       snapshot: 'apply_graph 3f9a12345678',
       diff: [],
       diffError: 'read failed',
+      unidentifiableWires: [
+        "'Eroded' input 1 from 'Combiner' output 1: #536, #537 each list 'Erosion' input 1",
+      ],
       session: READY_DIRTY,
     } as const;
     const client = await connect(deps({ applyGraph: { applyGraph: async () => view } }));
@@ -733,6 +783,7 @@ describe('createMcpServer', () => {
               steps: [],
               unchanged: [],
               uncheckedWires: [],
+              unidentifiableWires: [],
               session: READY,
             };
           },

@@ -4,6 +4,7 @@ import { type ErrorCode, WorldMachineError, worldMachineText } from '../../domai
 import { type DiffEntry, graphDiff } from '../../domain/graph-diff.js';
 import { type GraphState, listedType, type PlanStep, planGraph, planId } from '../../domain/graph-plan.js';
 import { type GraphSpec, validateGraphSpec } from '../../domain/graph-spec.js';
+import { unidentifiableWires } from '../../domain/wire-prediction.js';
 import type {
   ApplyFailureDetails,
   ApplyGraphCommand,
@@ -77,8 +78,16 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
           `The plan has conflicts; resolve them and plan again: ${listed}`,
         );
       }
+      // Unidentifiable-wires design section 4: the list of the plan this call applies, in every view it returns.
+      const unidentifiable = unidentifiableWires(spec, state, plan.steps);
       if (plan.steps.length === 0) {
-        return { applied: 0, snapshot: null, diff: [], session: this.#session.status().session };
+        return {
+          applied: 0,
+          snapshot: null,
+          diff: [],
+          unidentifiableWires: unidentifiable,
+          session: this.#session.status().session,
+        };
       }
       const snapshot = `${APPLY_SNAPSHOT_PREFIX}${id.slice(0, 12)}`;
       // D15: a snapshot left by a rolled-back apply of the same plan blocks it, with a message saying what to do.
@@ -139,6 +148,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
           snapshot,
           diff: [],
           diffError: error.message,
+          unidentifiableWires: unidentifiable,
           session: this.#session.status().session,
         };
       }
@@ -151,6 +161,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
         applied: plan.steps.length,
         snapshot: kept ? snapshot : null,
         diff,
+        unidentifiableWires: unidentifiable,
         session: this.#session.status().session,
       };
     });

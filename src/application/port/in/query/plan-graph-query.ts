@@ -10,6 +10,8 @@ export type PlanGraphView = {
   readonly unchanged: readonly string[];
   /** Port-types design section 6: the planned wires with an untyped end, as `'<destination>' input <port>`. */
   readonly uncheckedWires: readonly string[];
+  /** Unidentifiable-wires design section 4: the wires into managed devices a later plan could not identify. */
+  readonly unidentifiableWires: readonly string[];
   readonly session: SessionSummary;
 };
 export interface PlanGraphQueryPort {

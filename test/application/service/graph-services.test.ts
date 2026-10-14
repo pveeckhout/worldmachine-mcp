@@ -109,6 +109,7 @@ describe('PlanGraphService (spec v3 sections 3 and 5)', () => {
       unchanged: [],
       // Port-types plan decision D2: no catalog, so the planned wire is unchecked.
       uncheckedWires: ["'Combiner' input 1"],
+      unidentifiableWires: [],
       session: expect.objectContaining({ state: 'ready' }),
     });
     expect(w.record.lines().filter((line) => CHANGES.test(line))).toEqual([]);
@@ -206,6 +207,7 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
           },
         },
       ],
+      unidentifiableWires: [],
       session: expect.objectContaining({ dirty: true }),
     });
     expect(await w.snapshots.list()).toEqual([]);
@@ -419,6 +421,7 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
       applied: 0,
       snapshot: null,
       diff: [],
+      unidentifiableWires: [],
       session: expect.objectContaining({ state: 'ready' }),
     });
     expect(w.record.lines().filter((line) => line.startsWith('snapshot'))).toEqual([]);
@@ -618,5 +621,31 @@ describe('port types over the fake World Machine (port-types design section 8)',
       code: 'WM_COMMAND_FAILED',
       message: `World Machine rejected "wire connect #${lake.id}.2 #${mix.id}": output 2 is water system; input 1 accepts heightfield`,
     });
+  });
+});
+
+describe('unidentifiable wires over the fake World Machine (unidentifiable-wires design section 6)', () => {
+  /** Adds `count` Combiners; the fake's sample project holds none, so they are the only devices named Combiner. */
+  async function combiners(w: ReturnType<typeof wired>, count: number): Promise<number[]> {
+    const ids: number[] = [];
+    for (let added = 0; added < count; added += 1) ids.push((await w.devices.addDevice('Combiner')).id);
+    return ids;
+  }
+  /** Two pairs: the first two Combiners each feed input 1 of one of the next two. */
+  const pairs = ([a = 0, b = 0, c = 0, d = 0]: number[]): RawGraphSpec => ({
+    version: 1,
+    devices: [
+      { name: 'a mix', id: c, type: 'Combiner', inputs: { '1': `#${a}` } },
+      { name: 'b mix', id: d, type: 'Combiner', inputs: { '1': `#${b}` } },
+    ],
+  });
+
+  it('carries the list of the plan apply_graph applied', async () => {
+    const w = wired();
+    const spec = pairs(await combiners(w, 4));
+    const plan = await w.plan.planGraph({ spec });
+    expect(plan.unidentifiableWires).toHaveLength(2);
+    const view = await w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
+    expect(view.unidentifiableWires).toEqual(plan.unidentifiableWires);
   });
 });

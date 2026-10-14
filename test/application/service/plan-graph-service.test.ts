@@ -54,7 +54,39 @@ describe('PlanGraphService port types (port-types design section 6)', () => {
       },
     ]);
     expect(view.uncheckedWires).toEqual(["'Combiner' input 2"]);
+    expect(view.unidentifiableWires).toEqual([]);
     // Plan decision D7: the conflicting wire keeps its step.
     expect(view.steps.filter((step) => step.op === 'connect')).toHaveLength(2);
+  });
+});
+
+describe('PlanGraphService unidentifiable wires (unidentifiable-wires design section 4)', () => {
+  // Four unwired Combiners, #10, #11, #20, and #21, in the shape of COMBINER.
+  const ids = [10, 11, 20, 21];
+  const combiners: ProjectGraphReadPort = {
+    ...graph,
+    listDevices: async () => ids.map((id) => ({ id, name: 'Combiner', enabled: true, bypassed: false })),
+    getDevice: async (device) => {
+      const id = ids.find((candidate) => `#${candidate}` === device);
+      if (id === undefined) throw new Error(`unexpected read of ${device}`);
+      return { ...COMBINER, id };
+    },
+  };
+
+  it('lists both inputs of two Combiner pairs on input 1 and adds no conflict', async () => {
+    const view = await new PlanGraphService(session, combiners, syntheticPortTypes).planGraph({
+      spec: {
+        version: 1,
+        devices: [
+          { name: 'a mix', id: 20, type: 'Combiner', inputs: { '1': '#10' } },
+          { name: 'b mix', id: 21, type: 'Combiner', inputs: { '1': '#11' } },
+        ],
+      },
+    });
+    expect(view.conflicts).toEqual([]);
+    expect(view.unidentifiableWires).toEqual([
+      "'a mix' input 1 from 'Combiner' output 1: #10, #11 each list 'Combiner' input 1",
+      "'b mix' input 1 from 'Combiner' output 1: #10, #11 each list 'Combiner' input 1",
+    ]);
   });
 });

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ApplyGraphService } from '../../../src/application/service/apply-graph-service.js';
+import { PlanGraphService } from '../../../src/application/service/plan-graph-service.js';
+import type { DeviceDetail } from '../../../src/domain/device.js';
 import { WorldMachineError } from '../../../src/domain/errors.js';
 import { planId } from '../../../src/domain/graph-plan.js';
 import { type RawGraphSpec, validateGraphSpec } from '../../../src/domain/graph-spec.js';
@@ -167,6 +169,7 @@ describe('ApplyGraphService robustness', () => {
       snapshot: `apply_graph ${id.slice(0, 12)}`,
       diff: [],
       diffError: 'read failed',
+      unidentifiableWires: [],
       session: { state: 'ready' },
     });
     expect(calls.filter((call) => call.startsWith('remove'))).toEqual([]);
@@ -359,5 +362,79 @@ describe('ApplyGraphService port types (port-types design section 6, plan decisi
         "The plan has conflicts; resolve them and plan again: Combiner: 'Lake' output 2 (water system) cannot feed 'Combiner' input 1, which accepts heightfield",
     });
     expect(calls).toEqual([]);
+  });
+});
+
+describe('ApplyGraphService unidentifiable wires (unidentifiable-wires design section 4)', () => {
+  it("carries the plan's list in a view whose diff cannot be read", async () => {
+    // Four unwired Combiners in the shape of raw/p2b-graph-edits.txt l.121-126; the diff read after the steps fails.
+    const ids = [10, 11, 20, 21];
+    const combiner = (id: number): DeviceDetail => ({
+      id,
+      name: 'Combiner',
+      type: 'Combiner',
+      enabled: true,
+      bypassed: false,
+      parameters: [],
+      inputs: [
+        { port: 1, name: 'Primary Input' },
+        { port: 2, name: 'Primary Input' },
+      ],
+      outputs: [{ port: 1, name: 'Primary Output', targets: [] }],
+      portTypes: 'unknown',
+    });
+    let applied = false;
+    const session = {
+      status: () => ({
+        executable: null,
+        session: { state: 'ready', binding: { kind: 'fresh' }, dirty: false } as SessionSummary,
+        generation: 1,
+      }),
+      exclusive: <T>(action: () => Promise<T>) => action(),
+    };
+    const graph = {
+      listDevices: async () => ids.map((id) => ({ id, name: 'Combiner', enabled: true, bypassed: false })),
+      getDevice: async (reference: string) => {
+        if (applied) throw new WorldMachineError('WM_COMMAND_FAILED', 'read failed');
+        return combiner(Number(reference.slice(1)));
+      },
+    };
+    const wires = {
+      connect: async () => {
+        applied = true;
+        return {};
+      },
+    };
+    const snapshots = {
+      list: async () => [],
+      create: async (name: string) => ({ index: 0, name }),
+      remove: async () => ({}),
+    };
+    const portTypes = { portsOf: () => undefined, portsOfAdded: () => undefined };
+    const stub = <T>(value: unknown): T => value as T;
+    const spec: RawGraphSpec = {
+      version: 1,
+      devices: [
+        { name: 'a mix', id: 20, type: 'Combiner', inputs: { '1': '#10' } },
+        { name: 'b mix', id: 21, type: 'Combiner', inputs: { '1': '#11' } },
+      ],
+    };
+    const plan = await new PlanGraphService(
+      stub<ConstructorParameters<typeof PlanGraphService>[0]>(session),
+      stub<ConstructorParameters<typeof PlanGraphService>[1]>(graph),
+      stub<ConstructorParameters<typeof PlanGraphService>[2]>(portTypes),
+    ).planGraph({ spec });
+    expect(plan.unidentifiableWires).toHaveLength(2);
+    const view = await new ApplyGraphService(
+      stub<ConstructorParameters<typeof ApplyGraphService>[0]>(session),
+      stub<ConstructorParameters<typeof ApplyGraphService>[1]>(graph),
+      stub<ConstructorParameters<typeof ApplyGraphService>[2]>({}),
+      stub<ConstructorParameters<typeof ApplyGraphService>[3]>(wires),
+      stub<ConstructorParameters<typeof ApplyGraphService>[4]>({}),
+      stub<ConstructorParameters<typeof ApplyGraphService>[5]>(snapshots),
+      stub<ConstructorParameters<typeof ApplyGraphService>[6]>(portTypes),
+    ).applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
+    expect(view).toMatchObject({ applied: 2, diffError: 'read failed' });
+    expect(view.unidentifiableWires).toEqual(plan.unidentifiableWires);
   });
 });

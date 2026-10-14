@@ -1,5 +1,6 @@
 import { planGraph, planId } from '../../domain/graph-plan.js';
 import { validateGraphSpec } from '../../domain/graph-spec.js';
+import { unidentifiableWires } from '../../domain/wire-prediction.js';
 import type { PlanGraphQuery, PlanGraphQueryPort, PlanGraphView } from '../port/in/query/plan-graph-query.js';
 import type { PortTypeCatalogPort } from '../port/out/port-type-catalog-port.js';
 import type { ProjectGraphReadPort } from '../port/out/project-graph-read-port.js';
@@ -31,6 +32,7 @@ export class PlanGraphService implements PlanGraphQueryPort {
       steps,
       unchanged,
       uncheckedWires: types.uncheckedWires,
+      unidentifiableWires: unidentifiableWires(spec, state, steps),
       session: this.#session.status().session,
     };
   }
