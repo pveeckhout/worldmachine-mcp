@@ -648,4 +648,43 @@ describe('unidentifiable wires over the fake World Machine (unidentifiable-wires
     const view = await w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
     expect(view.unidentifiableWires).toEqual(plan.unidentifiableWires);
   });
+
+  it('warns of two Combiner pairs, applies them, and the next plan reports the conflict the warning predicted', async () => {
+    const w = wired();
+    // #536-#539 are the pairs; #540 is an unmanaged Combiner the third read phase reads.
+    const [a = 0, b = 0, c = 0, d = 0, e = 0] = await combiners(w, 5);
+    const spec = pairs([a, b, c, d]);
+    const before = w.record.lines().length;
+    const plan = await w.plan.planGraph({ spec });
+    expect(
+      w.record
+        .lines()
+        .slice(before)
+        .filter((line) => line.startsWith('device select ')),
+    ).toEqual([
+      `device select #${c}`,
+      `device select #${d}`,
+      `device select #${a}`,
+      `device select #${b}`,
+      `device select #${e}`,
+    ]);
+    expect(plan.conflicts).toEqual([]);
+    const each = `#${a}, #${b} each list 'Combiner' input 1`;
+    expect(plan.unidentifiableWires).toEqual([
+      `'a mix' input 1 from 'Combiner' output 1: ${each}`,
+      `'b mix' input 1 from 'Combiner' output 1: ${each}`,
+    ]);
+    const view = await w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
+    expect(view.applied).toBe(2);
+    expect(view.unidentifiableWires).toEqual(plan.unidentifiableWires);
+    const again = await w.plan.planGraph({ spec });
+    const reason = `input 1 is wired from 'Combiner', a name #${a}, #${b}, #${c}, #${d}, #${e} share, and ${each} among their output targets; wire list names devices, so the wire's source cannot be identified`;
+    expect(again.conflicts).toEqual([
+      { entry: 'a mix', reason },
+      { entry: 'b mix', reason },
+    ]);
+    expect(again.steps).toEqual([]);
+    // Plan decision D2: a conflict is not listed twice.
+    expect(again.unidentifiableWires).toEqual([]);
+  });
 });
