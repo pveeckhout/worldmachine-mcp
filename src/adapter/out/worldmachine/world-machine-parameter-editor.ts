@@ -137,9 +137,6 @@ export class WorldMachineParameterEditor implements ParameterEditPort {
       );
     }
     const planned = resolved.flatMap((item) => ('planned' in item ? [item.planned] : []));
-    // Design section 4, last paragraph: with no item to send, no `param set` follows the probes, so their redo
-    // entries stay. The console cannot clear one, so each item rejected after its probe says so.
-    const settled = planned.length === 0 ? resolved.map(withRedoNote) : resolved;
     // One batch, each `param set` followed by a `param get` of the same parameter (spec section 7). World Machine
     // runs the rest of a batch after a failing command (V2), so every item gets its outcome.
     const responses =
@@ -147,7 +144,7 @@ export class WorldMachineParameterEditor implements ParameterEditPort {
         ? []
         : await this.#session.execute(planned.flatMap((item) => [item.set, item.get]));
     let next = 0;
-    const results = settled.map((item) => {
+    const results = resolved.map((item) => {
       if ('outcome' in item) return item;
       const frame = {
         item: item.planned,
@@ -160,10 +157,21 @@ export class WorldMachineParameterEditor implements ParameterEditPort {
     const applied = results.some((result) => 'set' in result && result.set.errors.length === 0);
     if (applied) this.#session.markDirty();
     try {
+      const outcomes = results.map((result) =>
+        'outcome' in result
+          ? { outcome: result.outcome, probed: result.probed === true }
+          : {
+              outcome: outcomeOf(result.item, result.set, result.get),
+              probed: result.item.length !== undefined,
+            },
+      );
+      // Design section 4, last paragraph: with no `param set` confirmed, none sent or World Machine rejected every
+      // one, nothing follows the probes' undo, so their redo entries stay. The console cannot clear one, so each
+      // item probed and not set says so.
       return {
         device: { id: target.id, name: target.name },
-        parameters: results.map((result) =>
-          'outcome' in result ? result.outcome : outcomeOf(result.item, result.set, result.get),
+        parameters: outcomes.map(({ outcome, probed }) =>
+          applied || !probed ? outcome : withRedoNote(outcome),
         ),
       };
     } catch (error) {
@@ -297,17 +305,12 @@ function lengthResolved(item: LengthItem, scale: string, scaleMetres: number): R
 }
 
 /** Design section 4, last paragraph: what the client must know when an applied, undone probe is the last edit. */
-function withRedoNote(item: Resolved): Resolved {
-  if (!('outcome' in item) || item.probed !== true) return item;
-  const { outcome } = item;
+function withRedoNote(outcome: ParameterOutcome): ParameterOutcome {
   const note = `do not use redo before another edit, it would set '${outcome.name}' to 1`;
   return {
-    ...item,
-    outcome: {
-      ...outcome,
-      worldMachineMessage:
-        outcome.worldMachineMessage === undefined ? note : `${outcome.worldMachineMessage}; ${note}`,
-    },
+    ...outcome,
+    worldMachineMessage:
+      outcome.worldMachineMessage === undefined ? note : `${outcome.worldMachineMessage}; ${note}`,
   };
 }
 

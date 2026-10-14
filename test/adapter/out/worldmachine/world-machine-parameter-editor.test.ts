@@ -679,6 +679,46 @@ describe('WorldMachineParameterEditor', () => {
       );
     });
 
+    it('tells the client not to redo when World Machine rejects every set after an applied probe', async () => {
+      const s = scriptedSession({
+        ...probed,
+        // Assumed: a rejected `param set` of an in-range value; no capture shows one.
+        'param set #1.Width 0.0625': [{ errors: ["Error: Error: Invalid value for '#1.Width'"] }],
+        'param get #1.Width': [
+          { output: ['#1.Width = 8 km'] },
+          { output: ['#1.Width = 8 km'] },
+          { output: ['#1.Width = 8 km'] },
+        ],
+      });
+      const update = await editor(s).updateParameters('#1', { Width: '500 m' });
+      expect(update.parameters).toEqual([
+        {
+          name: 'Width',
+          type: 'float',
+          requested: '0.0625',
+          outcome: 'rejected',
+          value: '8 km',
+          worldMachineMessage: `Error: Error: Invalid value for '#1.Width'${NOTE}`,
+          given: '500 m',
+          scale: '8 km',
+        },
+      ]);
+      expect(s.dirtyMarks()).toBe(1);
+    });
+
+    it('notes the probed item when World Machine rejects the set of every other item', async () => {
+      const s = scriptedSession({
+        ...probed,
+        'param set #1.Direction 3': [{ errors: ["Error: Error: Invalid value for '#1.Direction'"] }],
+        'param get #1.Direction': [{ output: ['#1.Direction = 0'] }],
+      });
+      const update = await editor(s).updateParameters('#1', { Width: tiny, Direction: 3 });
+      expect(update.parameters.map((parameter) => parameter.worldMachineMessage)).toEqual([
+        `the length is out of range at a scale of '8 km'${NOTE}`,
+        "Error: Error: Invalid value for '#1.Direction'",
+      ]);
+    });
+
     it('adds no note when the only probe was refused, since nothing was applied', async () => {
       const s = scriptedSession({
         'device list': [{ output: DEVICES }],
