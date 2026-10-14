@@ -235,10 +235,10 @@ describe('parsePortTypeCatalog (port-types design section 4)', () => {
     },
   );
 
-  it('fails on an output whose known cells match two classes (design section 4)', () => {
+  it('fails on an output whose row has no known cell, however many classes exist (design section 4)', () => {
     // Without Sink, every input Mixed could feed is on the Mixer itself, so its row is all unknown.
     expect(() => parsePortTypeCatalog([transcript([HEIGHT, WATER, MASK, MIXER])], systemInfo)).toThrow(
-      /output 'Mixer\.Mixed' matches 3 classes/,
+      "output 'Mixer.Mixed': no probed cell",
     );
   });
 
@@ -301,6 +301,15 @@ describe('parsePortTypeCatalog (port-types design section 4)', () => {
  * so its outputs come from two transcripts. Synthetic transcripts of that shape; the exit message as the capture
  * script records it (scripts/capture-fixtures.mjs startWorldMachine).
  */
+describe('parsePortTypeCatalog holes (port-types design section 4)', () => {
+  it('fails on a port whose row has no probed cell instead of letting it join a class', () => {
+    // Synthetic: no device has an input, so no pair exists and every output row is empty.
+    expect(() => parsePortTypeCatalog([transcript([HEIGHT, MASK])], systemInfo)).toThrow(
+      "output 'Height Source.Height': no probed cell",
+    );
+  });
+});
+
 describe('parsePortTypeCatalog of several transcripts (port-types design sections 3 and 4)', () => {
   const early: Outputs = (from) => ['#1.1', '#2.1'].includes(from);
   const late: Outputs = (from) => !early(from);
@@ -378,11 +387,11 @@ describe('parsePortTypeCatalog of several transcripts (port-types design section
     ).toThrow('#4.1 -> #5.1: probed differently');
   });
 
-  it('leaves a crashed pair a hole that decides no class (design section 4)', () => {
+  it('fails on an output whose only pairs crashed, since a hole decides no class (design section 4)', () => {
     // As the same-device hole test above: with Mixed's pairs into Sink crashed, its row is all unknown.
     const crashed: Verdict = (pair) => (pair.startsWith('#4.1>#5.') ? 'crashed' : plain(pair));
     expect(() => parsePortTypeCatalog([transcript(DEVICES, crashed)], systemInfo)).toThrow(
-      /output 'Mixer\.Mixed' matches 3 classes/,
+      "output 'Mixer.Mixed': no probed cell",
     );
   });
 
@@ -445,6 +454,21 @@ describe('parsePortTypeCatalog of twin probes (port-types design section 3, same
     const other = section(`(twin #8 #${TWIN})`, twinList({ ...RIVER, inputs: ['Water In'] }, TWIN));
     expect(() => parsePortTypeCatalog([transcript(SELF), self('refused', other)], systemInfo)).toThrow(
       `twin #${TWIN} of #8: other ports than its probed device`,
+    );
+  });
+
+  // Pins existing guards (Final review deferred minor 33): GREEN on the first run is expected.
+  it('fails on a twin of a device the capture did not probe', () => {
+    const text = self().replace(`(twin #8 #${TWIN})`, `(twin #99 #${TWIN})`);
+    expect(() => parsePortTypeCatalog([transcript(SELF), text], systemInfo)).toThrow(
+      `(twin #99 #${TWIN}): not a probed device`,
+    );
+  });
+
+  it('fails on a twin whose id is a listed device', () => {
+    const text = self().replace(`(twin #8 #${TWIN})`, '(twin #8 #1)');
+    expect(() => parsePortTypeCatalog([transcript(SELF), text], systemInfo)).toThrow(
+      '(twin #8 #1): not a new device',
     );
   });
 

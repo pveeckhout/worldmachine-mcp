@@ -88,6 +88,8 @@ function classify(ports, cellsOf, prefix, kind) {
     new Error(`${kind} ${named(port)} matches ${found.length} classes: ${found.map(like).join(', ')}`);
   for (const port of ports) {
     const cells = cellsOf(port);
+    // Design section 4: a hole never decides a class, so a port with no known cell has nothing to be classed by.
+    if (cells.size === 0) throw new Error(`${kind} ${named(port)}: no probed cell`);
     const found = matching(cells);
     if (found.length > 1) throw ambiguous(port, found);
     const portClass = found[0] ?? { id: `${prefix}${classes.length + 1}`, members: [], cells: new Map() };
