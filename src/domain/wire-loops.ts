@@ -65,8 +65,9 @@ export function wireLoops(
    * Wire-loops design section 2 (revision 1) and plan decision D2: the devices a target line of `from` reaches. Of the
    * devices of the line's name, one whose input a connect step feeds is reached, certainly, only from that step's
    * source. One whose input keeps a wire showing `from`'s name is reached certainly when the current state identifies
-   * `from` as its source, and uncertainly when the current state finds several candidates with `from` among them or
-   * when a device of `from`'s name was not read, since resolveWireSource never guesses (Codex round 1, B1).
+   * `from` as its source, and uncertainly when the current state finds several candidates with `from` among them, finds
+   * none (`unknown`, which identifies no other device), or when a device of `from`'s name was not read, since
+   * resolveWireSource never guesses (Codex round 1, B1).
    */
   const hopsCache = new Map<number, readonly Hop[]>();
   const hopsOf = (from: number): readonly Hop[] => {
@@ -96,7 +97,10 @@ export function wireLoops(
           }
           const resolved = resolveWireSource(name, input, state.devices, currentOutputsOf);
           if (resolved.kind === 'found' && resolved.id === from) hops.push({ id, name, shared: undefined });
-          else if (resolved.kind === 'ambiguous' && resolved.candidates.includes(from))
+          else if (
+            resolved.kind === 'unknown' ||
+            (resolved.kind === 'ambiguous' && resolved.candidates.includes(from))
+          )
             hops.push({ id, name, shared: own });
         }
       }

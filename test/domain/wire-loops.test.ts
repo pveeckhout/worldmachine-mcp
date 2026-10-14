@@ -352,6 +352,25 @@ describe('wireLoops hops (wire-loops plan decisions D2 to D5)', () => {
     ]);
   });
 
+  it('takes a hop as uncertain when no device of the source name lists the line its input shows (revision 1)', () => {
+    // An inconsistent read: Peak's input shows Erosion output 2, and neither Erosion lists Peak on an output 2, so the
+    // current state identifies no other device as Peak's source.
+    const peak = node(5, 'Peak');
+    const result = loops(
+      [HILL_FROM_PEAK],
+      state([
+        node(1, 'Hill', [to('Erosion')]),
+        node(3, 'Erosion', [to('Peak')], { 1: 'Hill' }),
+        node(4, 'Erosion'),
+        { ...peak, inputs: [{ port: 1, name: 'Primary Input', source: { device: 'Erosion', port: 2 } }] },
+      ]),
+    );
+    expect(result.conflicts).toEqual([]);
+    expect(result.possibleLoops).toEqual([
+      "'Hill' input 1 from 'Peak' output 1 may close a loop through 'Erosion', whose wires cannot be told apart",
+    ]);
+  });
+
   it('refuses a certain loop although an uncertain hop reaches its device first', () => {
     // #10 lists 'Combiner' input 1 (to #20, which #11 also could feed) before 'Gate' input 1; Gate feeds #20 input 2.
     const result = loops(
