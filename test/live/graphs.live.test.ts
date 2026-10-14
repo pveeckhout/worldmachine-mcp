@@ -191,9 +191,10 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
     expect(view.conflicts).toEqual([
       {
         entry: 'Water Out',
-        reason: `'Lake' output 2 (${water?.outputs[1]?.type.name}) cannot feed 'Water Out' input 1, which accepts ${accepted}`,
+        reason: `'Lake' output 2 (water system) cannot feed 'Water Out' input 1, which accepts ${accepted}`,
       },
     ]);
+    expect(accepted).not.toContain('water system');
     expect(view.uncheckedWires).toEqual([]);
     const added = await devices.addDevice('Create Water');
     const device = await reader.getDevice(`#${added.id}`);

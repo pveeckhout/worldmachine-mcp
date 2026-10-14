@@ -21,7 +21,7 @@ export type InputPort = {
   readonly port: number;
   readonly name: string;
   readonly source?: PortLink;
-  /** The names of the output classes this input accepts; set only by the World Machine adapter (port-types section 6). */
+  /** The names of the output classes this input accepts; set only by the World Machine adapter (port-types design section 6). */
   readonly accepts?: readonly string[];
 };
 
