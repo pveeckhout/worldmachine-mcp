@@ -18,6 +18,8 @@ export type ApplyGraphView = {
   readonly diffError?: string;
   /** Unidentifiable-wires design section 4: `unidentifiableWires` of the plan this call applied. */
   readonly unidentifiableWires: readonly string[];
+  /** Wire-loops design section 4: `possibleLoops` of the plan this call applied. */
+  readonly possibleLoops: readonly string[];
   readonly session: SessionSummary;
 };
 export type FailedStep = {

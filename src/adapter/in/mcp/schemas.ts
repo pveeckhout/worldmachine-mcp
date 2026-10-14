@@ -631,6 +631,7 @@ export const planGraphViewSchema = z.strictObject({
   unchanged: z.array(z.string()),
   uncheckedWires: z.array(z.string()),
   unidentifiableWires: z.array(z.string()),
+  possibleLoops: z.array(z.string()),
   session: sessionSummarySchema,
 }) satisfies z.ZodType<PlanGraphView>;
 
@@ -671,5 +672,6 @@ export const applyGraphViewSchema = z.strictObject({
   diff: z.array(diffEntrySchema),
   diffError: z.string().optional(),
   unidentifiableWires: z.array(z.string()),
+  possibleLoops: z.array(z.string()),
   session: sessionSummarySchema,
 }) satisfies z.ZodType<ApplyGraphView>;

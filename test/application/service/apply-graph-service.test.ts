@@ -170,6 +170,7 @@ describe('ApplyGraphService robustness', () => {
       diff: [],
       diffError: 'read failed',
       unidentifiableWires: [],
+      possibleLoops: [],
       session: { state: 'ready' },
     });
     expect(calls.filter((call) => call.startsWith('remove'))).toEqual([]);
@@ -436,5 +437,122 @@ describe('ApplyGraphService unidentifiable wires (unidentifiable-wires design se
     ).applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
     expect(view).toMatchObject({ applied: 2, diffError: 'read failed' });
     expect(view.unidentifiableWires).toEqual(plan.unidentifiableWires);
+  });
+});
+
+describe('ApplyGraphService loops (wire-loops design section 4)', () => {
+  const stub = <T>(value: unknown): T => value as T;
+  const session = {
+    status: () => ({
+      executable: null,
+      session: { state: 'ready', binding: { kind: 'fresh' }, dirty: false } as SessionSummary,
+      generation: 1,
+    }),
+    exclusive: <T>(action: () => Promise<T>) => action(),
+  };
+  /** Combiners in the shape of raw/p2b-graph-edits.txt l.121-126, each listing targets on input 1 and its source. */
+  const combiner = (id: number, targets: string[], source?: string): DeviceDetail => ({
+    id,
+    name: 'Combiner',
+    type: 'Combiner',
+    enabled: true,
+    bypassed: false,
+    parameters: [],
+    inputs: [
+      {
+        port: 1,
+        name: 'Primary Input',
+        ...(source === undefined ? {} : { source: { device: source, port: 1 } }),
+      },
+      { port: 2, name: 'Primary Input' },
+    ],
+    outputs: [{ port: 1, name: 'Primary Output', targets: targets.map((device) => ({ device, port: 1 })) }],
+    portTypes: 'unknown',
+  });
+  const spec: RawGraphSpec = {
+    version: 1,
+    devices: [{ name: 'first mix', id: 10, type: 'Combiner', inputs: { '2': '#20' } }],
+  };
+  const portTypes = { portsOf: () => undefined, portsOfAdded: () => undefined };
+
+  it('refuses a loop before any snapshot or change command', async () => {
+    // #10 feeds #20 on input 1, so #20 into #10 closes a loop.
+    const details = [combiner(10, ['Combiner']), combiner(20, [], 'Combiner')];
+    const calls: string[] = [];
+    const record = (name: string) => async () => {
+      calls.push(name);
+      return [];
+    };
+    const graph = {
+      listDevices: async () => details.map(({ id }) => ({ id, name: 'Combiner', enabled: true })),
+      getDevice: async (reference: string) => details.find((detail) => `#${detail.id}` === reference),
+    };
+    const state = { projectPath: null, devices: await graph.listDevices(), details };
+    const service = new ApplyGraphService(
+      stub<ConstructorParameters<typeof ApplyGraphService>[0]>(session),
+      stub<ConstructorParameters<typeof ApplyGraphService>[1]>(graph),
+      stub<ConstructorParameters<typeof ApplyGraphService>[2]>({ addDevice: record('add') }),
+      stub<ConstructorParameters<typeof ApplyGraphService>[3]>({ connect: record('connect') }),
+      stub<ConstructorParameters<typeof ApplyGraphService>[4]>({}),
+      stub<ConstructorParameters<typeof ApplyGraphService>[5]>({
+        list: record('snapshot list'),
+        create: record('snapshot create'),
+        remove: record('snapshot remove'),
+      }),
+      stub<ConstructorParameters<typeof ApplyGraphService>[6]>(portTypes),
+    );
+    const id = planId(validateGraphSpec(spec), state);
+    await expect(service.applyGraph({ spec, planId: id, keepSnapshot: false })).rejects.toMatchObject({
+      code: 'REFUSED',
+      message:
+        "The plan has conflicts; resolve them and plan again: first mix: input 2 from 'Combiner' output 1 would close a loop (first mix -> Combiner #20); World Machine refuses a wire that closes a loop (fact 99)",
+    });
+    expect(calls).toEqual([]);
+  });
+
+  it("carries the plan's possibleLoops in a view whose diff cannot be read", async () => {
+    // #10 feeds #21 and #11 feeds #20, each on input 1: the plan cannot tell whether #10 reaches #20.
+    const details = [
+      combiner(10, ['Combiner']),
+      combiner(11, ['Combiner']),
+      combiner(20, [], 'Combiner'),
+      combiner(21, [], 'Combiner'),
+    ];
+    let applied = false;
+    const graph = {
+      listDevices: async () => details.map(({ id }) => ({ id, name: 'Combiner', enabled: true })),
+      getDevice: async (reference: string) => {
+        if (applied) throw new WorldMachineError('WM_COMMAND_FAILED', 'read failed');
+        return details.find((detail) => `#${detail.id}` === reference);
+      },
+    };
+    const wires = {
+      connect: async () => {
+        applied = true;
+        return {};
+      },
+    };
+    const snapshots = {
+      list: async () => [],
+      create: async (name: string) => ({ index: 0, name }),
+      remove: async () => ({}),
+    };
+    const plan = await new PlanGraphService(
+      stub<ConstructorParameters<typeof PlanGraphService>[0]>(session),
+      stub<ConstructorParameters<typeof PlanGraphService>[1]>(graph),
+      stub<ConstructorParameters<typeof PlanGraphService>[2]>(portTypes),
+    ).planGraph({ spec });
+    expect(plan.possibleLoops).toHaveLength(1);
+    const view = await new ApplyGraphService(
+      stub<ConstructorParameters<typeof ApplyGraphService>[0]>(session),
+      stub<ConstructorParameters<typeof ApplyGraphService>[1]>(graph),
+      stub<ConstructorParameters<typeof ApplyGraphService>[2]>({}),
+      stub<ConstructorParameters<typeof ApplyGraphService>[3]>(wires),
+      stub<ConstructorParameters<typeof ApplyGraphService>[4]>({}),
+      stub<ConstructorParameters<typeof ApplyGraphService>[5]>(snapshots),
+      stub<ConstructorParameters<typeof ApplyGraphService>[6]>(portTypes),
+    ).applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
+    expect(view).toMatchObject({ applied: 1, diffError: 'read failed' });
+    expect(view.possibleLoops).toEqual(plan.possibleLoops);
   });
 });

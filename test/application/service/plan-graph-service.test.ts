@@ -55,6 +55,7 @@ describe('PlanGraphService port types (port-types design section 6)', () => {
     ]);
     expect(view.uncheckedWires).toEqual(["'Combiner' input 2"]);
     expect(view.unidentifiableWires).toEqual([]);
+    expect(view.possibleLoops).toEqual([]);
     // Plan decision D7: the conflicting wire keeps its step.
     expect(view.steps.filter((step) => step.op === 'connect')).toHaveLength(2);
   });
@@ -87,6 +88,131 @@ describe('PlanGraphService unidentifiable wires (unidentifiable-wires design sec
     expect(view.unidentifiableWires).toEqual([
       "'a mix' input 1 from 'Combiner' output 1: #10, #11 each list 'Combiner' input 1",
       "'b mix' input 1 from 'Combiner' output 1: #10, #11 each list 'Combiner' input 1",
+    ]);
+  });
+});
+
+describe('PlanGraphService loops (wire-loops design section 4)', () => {
+  /** Combiners in the shape of COMBINER, each listing the given output targets and input 1 source. */
+  const wired = (rows: readonly (readonly [number, string[], string?])[]): ProjectGraphReadPort => ({
+    ...graph,
+    listDevices: async () => rows.map(([id]) => ({ id, name: 'Combiner', enabled: true, bypassed: false })),
+    getDevice: async (device) => {
+      const found = rows.find(([id]) => `#${id}` === device);
+      if (found === undefined) throw new Error(`unexpected read of ${device}`);
+      const [id, targets, source] = found;
+      return {
+        ...COMBINER,
+        id,
+        inputs: [
+          {
+            port: 1,
+            name: 'Primary Input',
+            ...(source === undefined ? {} : { source: { device: source, port: 1 } }),
+          },
+          { port: 2, name: 'Primary Input' },
+        ],
+        outputs: [
+          {
+            port: 1,
+            name: 'Primary Output',
+            targets: targets.map((target) => ({ device: target, port: 1 })),
+          },
+        ],
+      };
+    },
+  });
+  const spec = (inputs: Record<string, string>): RawGraphSpec => ({
+    version: 1,
+    devices: [{ name: 'first mix', id: 10, type: 'Combiner', inputs }],
+  });
+
+  it('adds a loop conflict and lists no possible loop', async () => {
+    // #10 feeds #20 on input 1; the spec wires #20 into #10 input 2.
+    const view = await new PlanGraphService(
+      session,
+      wired([
+        [10, ['Combiner']],
+        [20, [], 'Combiner'],
+      ]),
+      syntheticPortTypes,
+    ).planGraph({ spec: spec({ '2': '#20' }) });
+    expect(view.conflicts).toEqual([
+      {
+        entry: 'first mix',
+        reason:
+          "input 2 from 'Combiner' output 1 would close a loop (first mix -> Combiner #20); World Machine refuses a wire that closes a loop (fact 99)",
+      },
+    ]);
+    expect(view.possibleLoops).toEqual([]);
+  });
+
+  it('lists a possible loop and adds no conflict', async () => {
+    // #10 feeds #20 and #11 feeds #21, each on input 1, so neither of #20 and #21 tells which of #10 and #11 feeds it.
+    const view = await new PlanGraphService(
+      session,
+      wired([
+        [10, ['Combiner']],
+        [11, ['Combiner']],
+        [20, [], 'Combiner'],
+        [21, [], 'Combiner'],
+      ]),
+      syntheticPortTypes,
+    ).planGraph({ spec: spec({ '2': '#20' }) });
+    expect(view.conflicts).toEqual([]);
+    expect(view.possibleLoops).toEqual([
+      "'first mix' input 2 from 'Combiner' output 1 may close a loop through 'Combiner', whose wires cannot be told apart",
+    ]);
+  });
+
+  it('lists a loop through an unread sibling of an id-bound start as possible, not a conflict (Codex round 1, B1)', async () => {
+    // #10 (managed by id) feeds Mid, which feeds Peak; Combiner #11 is listed and never read, so Mid's input, which
+    // shows 'Combiner', may come from #11 although Mid is one device's name.
+    const details: DeviceDetail[] = [
+      {
+        ...COMBINER,
+        id: 10,
+        outputs: [{ port: 1, name: 'Primary Output', targets: [{ device: 'Mid', port: 1 }] }],
+      },
+      {
+        ...COMBINER,
+        id: 5,
+        name: 'Mid',
+        type: 'Erosion',
+        inputs: [{ port: 1, name: 'Primary Input', source: { device: 'Combiner', port: 1 } }],
+        outputs: [{ port: 1, name: 'Primary Output', targets: [{ device: 'Peak', port: 1 }] }],
+      },
+      {
+        ...COMBINER,
+        id: 3,
+        name: 'Peak',
+        type: 'Erosion',
+        inputs: [{ port: 1, name: 'Primary Input', source: { device: 'Mid', port: 1 } }],
+      },
+    ];
+    const reads: string[] = [];
+    const sibling: ProjectGraphReadPort = {
+      ...graph,
+      listDevices: async () => [
+        { id: 10, name: 'Combiner', enabled: true, bypassed: false },
+        { id: 11, name: 'Combiner', enabled: true, bypassed: false },
+        { id: 5, name: 'Mid', enabled: true, bypassed: false },
+        { id: 3, name: 'Peak', enabled: true, bypassed: false },
+      ],
+      getDevice: async (device) => {
+        reads.push(device);
+        const found = details.find((detail) => `#${detail.id}` === device);
+        if (found === undefined) throw new Error(`unexpected read of ${device}`);
+        return found;
+      },
+    };
+    const view = await new PlanGraphService(session, sibling, syntheticPortTypes).planGraph({
+      spec: spec({ '2': 'Peak' }),
+    });
+    expect(reads).toEqual(['#10', '#3', '#5']);
+    expect(view.conflicts).toEqual([]);
+    expect(view.possibleLoops).toEqual([
+      "'first mix' input 2 from 'Peak' output 1 may close a loop through 'Combiner', whose wires cannot be told apart",
     ]);
   });
 });

@@ -1,5 +1,6 @@
 import { planGraph, planId } from '../../domain/graph-plan.js';
 import { validateGraphSpec } from '../../domain/graph-spec.js';
+import { wireLoops } from '../../domain/wire-loops.js';
 import { unidentifiableWires } from '../../domain/wire-prediction.js';
 import type { PlanGraphQuery, PlanGraphQueryPort, PlanGraphView } from '../port/in/query/plan-graph-query.js';
 import type { PortTypeCatalogPort } from '../port/out/port-type-catalog-port.js';
@@ -26,13 +27,16 @@ export class PlanGraphService implements PlanGraphQueryPort {
     const { conflicts, steps, unchanged } = planGraph(spec, state);
     // Port-types design section 6: after the reads, which started World Machine if needed (plan decision D6).
     const types = checkWireTypes(spec, state, steps, this.#portTypes);
+    // Wire-loops design section 4: a certain loop is a conflict, after the plan's and the type check's.
+    const loops = wireLoops(spec, state, steps);
     return {
       planId: planId(spec, state),
-      conflicts: [...conflicts, ...types.conflicts],
+      conflicts: [...conflicts, ...types.conflicts, ...loops.conflicts],
       steps,
       unchanged,
       uncheckedWires: types.uncheckedWires,
       unidentifiableWires: unidentifiableWires(spec, state, steps),
+      possibleLoops: loops.possibleLoops,
       session: this.#session.status().session,
     };
   }

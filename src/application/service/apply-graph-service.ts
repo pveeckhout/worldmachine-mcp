@@ -11,6 +11,7 @@ import {
   planWithCuts,
 } from '../../domain/graph-plan.js';
 import { type GraphSpec, validateGraphSpec } from '../../domain/graph-spec.js';
+import { wireLoops } from '../../domain/wire-loops.js';
 import { unidentifiableWires } from '../../domain/wire-prediction.js';
 import type {
   ApplyFailureDetails,
@@ -73,10 +74,13 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
         );
       }
       const { plan, cutInputs } = planWithCuts(spec, state);
-      // Port-types plan decision D8: plan_graph's type check, so a type conflict refuses before any change.
+      // Port-types plan decision D8: plan_graph's type check, so a type conflict refuses before any change; wire-loops
+      // design section 4: likewise a loop.
+      const loops = wireLoops(spec, state, plan.steps);
       const conflicts = [
         ...plan.conflicts,
         ...checkWireTypes(spec, state, plan.steps, this.#portTypes).conflicts,
+        ...loops.conflicts,
       ];
       if (conflicts.length > 0) {
         const listed = conflicts.map((conflict) => `${conflict.entry}: ${conflict.reason}`).join('; ');
@@ -93,6 +97,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
           snapshot: null,
           diff: [],
           unidentifiableWires: unidentifiable,
+          possibleLoops: loops.possibleLoops,
           session: this.#session.status().session,
         };
       }
@@ -158,6 +163,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
           diff: [],
           diffError: error.message,
           unidentifiableWires: unidentifiable,
+          possibleLoops: loops.possibleLoops,
           session: this.#session.status().session,
         };
       }
@@ -171,6 +177,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
         snapshot: kept ? snapshot : null,
         diff,
         unidentifiableWires: unidentifiable,
+        possibleLoops: loops.possibleLoops,
         session: this.#session.status().session,
       };
     });

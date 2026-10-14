@@ -110,6 +110,7 @@ describe('PlanGraphService (spec v3 sections 3 and 5)', () => {
       // Port-types plan decision D2: no catalog, so the planned wire is unchecked.
       uncheckedWires: ["'Combiner' input 1"],
       unidentifiableWires: [],
+      possibleLoops: [],
       session: expect.objectContaining({ state: 'ready' }),
     });
     expect(w.record.lines().filter((line) => CHANGES.test(line))).toEqual([]);
@@ -208,6 +209,7 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
         },
       ],
       unidentifiableWires: [],
+      possibleLoops: [],
       session: expect.objectContaining({ dirty: true }),
     });
     expect(await w.snapshots.list()).toEqual([]);
@@ -448,6 +450,7 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
       snapshot: null,
       diff: [],
       unidentifiableWires: [],
+      possibleLoops: [],
       session: expect.objectContaining({ state: 'ready' }),
     });
     expect(w.record.lines().filter((line) => line.startsWith('snapshot'))).toEqual([]);
@@ -736,7 +739,7 @@ describe('a wire that closes a loop over the fake World Machine (spec fact 99)',
     });
   });
 
-  it('apply_graph fails at the closing connect, rolls back, and carries the cycle sentence', async () => {
+  it('plan_graph reports the loop two new connects close and apply_graph refuses it before any change (wire-loops design section 6)', async () => {
     const w = wired();
     const a = (await w.devices.addDevice('Combiner')).id;
     const b = (await w.devices.addDevice('Combiner')).id;
@@ -748,13 +751,46 @@ describe('a wire that closes a loop over the fake World Machine (spec fact 99)',
       ],
     };
     const plan = await w.plan.planGraph({ spec });
-    expect(plan.conflicts).toEqual([]);
+    const closes = (wire: string, path: string) =>
+      `${wire} would close a loop (${path}); World Machine refuses a wire that closes a loop (fact 99)`;
+    expect(plan.conflicts).toEqual([
+      { entry: 'first mix', reason: closes("input 2 from 'second mix' output 1", 'first mix -> second mix') },
+      { entry: 'second mix', reason: closes("input 1 from 'first mix' output 1", 'second mix -> first mix') },
+    ]);
+    expect(plan.possibleLoops).toEqual([]);
+    const before = w.record.lines().length;
     const error = await failure(w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false }));
-    expect(error.code).toBe('APPLY_FAILED');
-    expect(error.details).toMatchObject({
-      failedStep: { code: 'WM_COMMAND_FAILED', worldMachineMessage: CYCLE },
-      rolledBack: true,
-    });
-    expect((await w.reader.listDevices()).map((device) => device.id)).toEqual(expect.arrayContaining([a, b]));
+    expect(error.code).toBe('REFUSED');
+    expect(
+      w.record
+        .lines()
+        .slice(before)
+        .filter((line) => CHANGES.test(line)),
+    ).toEqual([]);
+  });
+
+  it('carries the possibleLoops of the plan apply_graph applied (wire-loops design section 4)', async () => {
+    const w = wired();
+    const [a = 0, b = 0, c = 0, d = 0] = [
+      (await w.devices.addDevice('Combiner')).id,
+      (await w.devices.addDevice('Combiner')).id,
+      (await w.devices.addDevice('Combiner')).id,
+      (await w.devices.addDevice('Combiner')).id,
+    ];
+    // a feeds d and b feeds c, each on input 1, so the plan cannot tell whether a reaches c; it does not.
+    await w.wires.connect({ device: `#${a}` }, { device: `#${d}` });
+    await w.wires.connect({ device: `#${b}` }, { device: `#${c}` });
+    const spec: RawGraphSpec = {
+      version: 1,
+      devices: [{ name: 'first mix', id: a, type: 'Combiner', inputs: { '2': `#${c}` } }],
+    };
+    const plan = await w.plan.planGraph({ spec });
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.possibleLoops).toEqual([
+      "'first mix' input 2 from 'Combiner' output 1 may close a loop through 'Combiner', whose wires cannot be told apart",
+    ]);
+    const view = await w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
+    expect(view.applied).toBe(1);
+    expect(view.possibleLoops).toEqual(plan.possibleLoops);
   });
 });
