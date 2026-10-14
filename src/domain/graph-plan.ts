@@ -677,11 +677,16 @@ export function planGraph(spec: GraphSpec, state: GraphState): GraphPlan {
   const steps = [...disconnects, ...removes, ...adds, ...enables, ...bypasses, ...parameters, ...connects];
   // A remove step carries the removed device's listed name, which a label may equal (Review Focus 1).
   const touched = new Set(steps.flatMap((step) => (step.op === 'remove' ? [] : [foldCase(step.device)])));
-  // D13.
+  // D13. A parameter or input-port conflict leaves its entry usable and adds no step; the entry is still not unchanged.
+  const named = new Set(conflicts.map((found) => found.entry));
   const unchanged = [
     ...managed
       .filter(
-        (entry) => entry.usable && entry.existing !== undefined && !touched.has(foldCase(entry.spec.name)),
+        (entry) =>
+          entry.usable &&
+          entry.existing !== undefined &&
+          !touched.has(foldCase(entry.spec.name)) &&
+          !named.has(entry.spec.name),
       )
       .map((entry) => entry.spec.name),
     ...absent,

@@ -150,6 +150,19 @@ describe('planGraph (spec v3 section 5)', () => {
     expect(omitted).toEqual({ conflicts: [], steps: [], unchanged: ['Eroded'] });
   });
 
+  it('leaves an entry that a parameter or input-port conflict names out of unchanged', () => {
+    expect(planGraph(spec([{ name: 'Eroded', type: 'Erosion', parameters: { nope: 1 } }]), PROJECT)).toEqual({
+      conflicts: [{ entry: 'Eroded', reason: "#20 has no parameter 'nope'" }],
+      steps: [],
+      unchanged: [],
+    });
+    expect(planGraph(spec([{ name: 'Eroded', type: 'Erosion', inputs: { '9': null } }]), PROJECT)).toEqual({
+      conflicts: [{ entry: 'Eroded', reason: '#20 has no input port 9' }],
+      steps: [],
+      unchanged: [],
+    });
+  });
+
   it('plans set-bypassed for an added device only when bypassed is true, after set-enabled and before parameters', () => {
     const plan = planGraph(
       spec([
@@ -667,8 +680,9 @@ describe('planGraph with ids and the Combiner rule (spec v3 revision 6)', () => 
           },
         ],
         steps: [],
-        // As before revision 6: an entry whose only problem is an unidentified current source plans no step for it.
-        unchanged: ['p'],
+        // An entry whose only problem is an unidentified current source plans no step for it, and a conflict names it,
+        // so it is not unchanged either.
+        unchanged: [],
       },
     );
   });
