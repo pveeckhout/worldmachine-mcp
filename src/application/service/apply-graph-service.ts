@@ -279,13 +279,15 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
       snapshot,
     };
     const outcome =
-      error.code === 'CRASHED' || (lost && error.code !== 'TIMEOUT')
+      error.code === 'CRASHED'
         ? `World Machine crashed, so nothing was restored, and snapshot '${snapshot}' is gone with it: a snapshot lives only in memory until a save (fact 59).`
-        : error.code === 'TIMEOUT'
-          ? `World Machine did not answer in time and was stopped, so nothing was restored, and snapshot '${snapshot}' is gone with it: a snapshot lives only in memory until a save (fact 59).`
-          : rolledBack
-            ? `The project was restored to snapshot '${snapshot}', which is kept for inspection; remove it with delete_snapshot.`
-            : `The restore of snapshot '${snapshot}' could not be confirmed; restore it with restore_snapshot or in the World Machine window.`;
+        : error.code !== 'TIMEOUT' && lost
+          ? `World Machine restarted during the step (its session changed), so nothing was restored, and snapshot '${snapshot}' is gone with it: a snapshot lives only in memory until a save (fact 59).`
+          : error.code === 'TIMEOUT'
+            ? `World Machine did not answer in time and was stopped, so nothing was restored, and snapshot '${snapshot}' is gone with it: a snapshot lives only in memory until a save (fact 59).`
+            : rolledBack
+              ? `The project was restored to snapshot '${snapshot}', which is kept for inspection; remove it with delete_snapshot.`
+              : `The restore of snapshot '${snapshot}' could not be confirmed; restore it with restore_snapshot or in the World Machine window.`;
     return new WorldMachineError(
       'APPLY_FAILED',
       `Step ${index + 1} of ${total} (${step.op} '${step.device}') failed: ${error.message}. ${outcome}`,

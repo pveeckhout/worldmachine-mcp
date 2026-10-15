@@ -244,6 +244,32 @@ describe('ApplyGraphService robustness', () => {
     expect(result.calls.filter((call) => call.startsWith('restore'))).toEqual([]);
   });
 
+  it('words a non-crash step failure in a changed session as a restart, not a crash', async () => {
+    const built: { control?: { generation: number } } = {};
+    const result = build({
+      addDevice: async (type, count) => {
+        if (count === 2) {
+          if (built.control) built.control.generation += 1;
+          throw new WorldMachineError('WM_COMMAND_FAILED', 'nope');
+        }
+        return { id: 536, name: 'Ramp', kind: type, enabled: true };
+      },
+    });
+    built.control = result.control;
+    const error = (await failure(
+      result.service.applyGraph({ spec: SPEC, planId: result.id, keepSnapshot: false }),
+    )) as WorldMachineError;
+    expect(error.code).toBe('APPLY_FAILED');
+    expect(error.details).toMatchObject({
+      failedStep: { index: 1, code: 'WM_COMMAND_FAILED' },
+      rolledBack: false,
+    });
+    expect(error.message).toContain(
+      `World Machine restarted during the step (its session changed), so nothing was restored, and snapshot 'apply_graph ${result.id.slice(0, 12)}' is gone with it: a snapshot lives only in memory until a save (fact 59).`,
+    );
+    expect(error.message).not.toContain('crashed');
+  });
+
   it('rethrows a TIMEOUT from the diff read with the lost message', async () => {
     const { service, id } = build({ diffError: new WorldMachineError('TIMEOUT', 'too slow') });
     const error = (await failure(
