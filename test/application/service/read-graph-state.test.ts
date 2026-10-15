@@ -4,6 +4,7 @@ import type { WorldMachineSessionPort } from '../../../src/application/port/out/
 import { readGraphState } from '../../../src/application/service/read-graph-state.js';
 import type { DeviceDetail, DeviceSummary, InputPort } from '../../../src/domain/device.js';
 import { type RawGraphDevice, validateGraphSpec } from '../../../src/domain/graph-spec.js';
+import type { ProjectBinding } from '../../../src/domain/session.js';
 
 const row = (id: number, name: string): DeviceSummary => ({ id, name, enabled: true });
 const detail = (id: number, name: string, inputs: InputPort[] = []): DeviceDetail => ({
@@ -24,7 +25,11 @@ const from = (port: number, device: string): InputPort => ({
 });
 
 /** A graph port over fixed rows and details that records each `getDevice` reference, and a session on a new project. */
-function ports(devices: DeviceSummary[], details: DeviceDetail[]) {
+function ports(
+  devices: DeviceSummary[],
+  details: DeviceDetail[],
+  binding: ProjectBinding = { kind: 'fresh' },
+) {
   const reads: string[] = [];
   const graph = {
     listDevices: async () => devices,
@@ -38,7 +43,7 @@ function ports(devices: DeviceSummary[], details: DeviceDetail[]) {
   const session = {
     status: () => ({
       executable: null,
-      session: { state: 'ready', binding: { kind: 'fresh' }, dirty: false },
+      session: { state: 'ready', binding, dirty: false },
     }),
   } as unknown as WorldMachineSessionPort;
   return { reads, graph, session };
@@ -74,6 +79,17 @@ describe('readGraphState (spec v3 section 5, revision 6)', () => {
     expect(p.reads).toEqual(['#3', '#2', '#1']);
     expect(state.details.map((device) => device.id)).toEqual([3, 2, 1]);
     expect(state.projectPath).toBeNull();
+  });
+});
+
+describe('readGraphState projectPath', () => {
+  it('is the opened project path when the session has opened a project', async () => {
+    const p = ports([row(1, 'Base')], [detail(1, 'Base')], {
+      kind: 'opened',
+      path: '/projects/lowlands.tmd',
+    });
+    const state = await readGraphState(spec([{ name: 'Base', type: 'Base' }]), p.graph, p.session);
+    expect(state.projectPath).toBe('/projects/lowlands.tmd');
   });
 });
 
