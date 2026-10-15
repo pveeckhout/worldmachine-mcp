@@ -9,6 +9,7 @@ Revision 4 (2026-10-12): section 6 robustness: `diffError` when the result canno
 Revision 5 (2026-10-12): bypassed in device entries (set-bypassed step after set-enabled; restore reverts bypass, raw/bypass-restore.txt).
 Revision 6 (2026-10-12): `id` in device entries, so a spec can manage several Combiners; a Combiner entry needs its default name or an `id`; a wire source whose name several devices share is resolved through the candidates' output targets (fact 82), in the plan and in `connect_devices` and `disconnect_devices` (amends v1 section 7). Backlog, lowlands trial items 1 and 2.
 Revision 7 (2026-10-15): `rename` in device entries with `id`, a `rename` step after `remove`, and `name` in a `changed` diff entry; fact 100 (`snapshot restore` reverts renames, raw/v7-rename-restore.txt). Amends the Ownership rule of section 4 and the out-of-scope list of section 10.
+Revision 8 (2026-10-15): an optional top-level `scene` (name, origin_km, size_km, resolution of the current scene), planned as one `set-scene` step before every device step and shown as `scene` in the apply result; fact 101 (`snapshot restore` reverts all four, raw/v8-scene-restore.txt). Amends section 10.
 Builds on: [v1 design](2026-10-04-worldmachine-mcp-design.md) (facts 1-41 and 77, the edit tools of section 7, the errors of section 8), [v2a design](2026-10-05-worldmachine-mcp-v2a-design.md) (the build guard), and [v2b design](2026-10-06-worldmachine-mcp-v2b-design.md) (facts 57-61, the snapshot tools)
 
 ## 1. Purpose and scope
@@ -39,6 +40,7 @@ The facts used, facts 78-79 from the v3 capture:
 - Fact 81 (raw/v3-rename-types.txt): `device add <type>` accepts more than exact type names. Of 2846 candidate names, 205 added a device of one of 118 types: type names in any case (`Thermal weathering`), and also aliases and loose words that pick some other type (`Average` and `Subtract` add a Combiner, `Box` and `Sweep` a Radial Grad, `Byte` and `Terragen` a Height Output, `Water` a Coast Erosion). `apply_graph` therefore checks each added device's listed type (the kind in its `device list` row, or its name when the two are equal) against the spec type through fact 79's mapping, exactly as the type conflict compares; a mismatch fails the add step with `WM_COMMAND_FAILED`, before any rename, and the apply rolls back.
 - Fact 82 (revision 6): `wire list <device>` names the devices at both ends of a wire, never their ids. An input shows its source as `<- '<name>' [<output port>]` (raw/water-sea-erosion.txt l.481: `[1] Terrain <- 'Combiner' [1]`); an output shows each target as `-> '<name>' [<input port>]`, one per line, further targets on continuation lines (raw/default-updated.txt l.99-100, raw/v5-read-formats.txt l.45, raw/water-sea-erosion.txt l.164-166). When several devices share the source's name, the input alone does not say which one feeds it; the candidate whose output port lists the destination's name and input port does. A Combiner's own output targets use the same format: confirmed by the revision 6 live test on 2026-10-12 (test/live/graphs.live.test.ts, 5/5 passed).
 - Fact 100 (revision 7, raw/v7-rename-restore.txt): `snapshot restore` reverts a rename made after the snapshot, both of a device added before it (l.87, l.120: `Renamed Grad` back to `Gradient`) and of a device of the default project (l.70, l.103: `Renamed Orig` back to `Height Output`). A renamed device's `device list` row shows its type as the kind (`#1     Renamed Orig             (Height Output)`), as fact 81 describes. The wires are unchanged by the renames and by the restore (l.90-96, l.123-129).
+- Fact 101 (revision 8, raw/v8-scene-restore.txt): `snapshot restore` reverts the scene name, origin, size, and resolution set after the snapshot (l.17-48: `Probe Scene`, (1.50, -2.25), 6.00 x 5.00, 513 back to `Main Extents`, (4.00, 4.00), 12.00 x 12.00, 2049); fact 69 covered the resolution only. A value with a third decimal is shown rounded to two in the confirmation and in `scene show` (l.53-71: `scene size 6.125 6.005` shows `6.13 x 6.01`, `scene origin 0.333 0.335` shows `0.33, 0.34`); what World Machine keeps cannot be read back.
 
 ### Assumptions settled by capture
 
@@ -88,12 +90,18 @@ The `apply_graph` description says: plan first and show the plan to the user; a 
 - `enabled`, `bypassed`, `parameters`, and `inputs` are optional. What a device entry leaves out is left as it is. `bypassed` is a boolean that is set, not toggled (`set_device_bypassed` reads the state first); `device info` reports it even for a disabled device (fact 29).
 - `inputs` maps an input port number (as a string key) to a source, `"<device>"` or `"<device>.<outputPort>"` (port 1 when omitted), or to `null` for no wire. A source is a managed device's name or label, any device's name, or `#<id>`, looked up in that order. An input port the entry does not list is left alone.
 - `remove` lists device names (or `#<id>`) to delete. Deleting is never implied by absence.
+- `scene` (revision 8) is optional: the current scene's settings, with the fields and rules of `configure_scene` (v1 section 7): `name` (a non-empty string), `origin_km` (`{ x, y }`), `size_km` (`{ width, height }`, positive), and `resolution` (a positive whole number), each optional. A spec without `scene` plans exactly as before and reads no scene. The spec never switches, adds, or removes scenes:
+
+  ```json
+  { "version": 1, "scene": { "size_km": { "width": 8, "height": 8 }, "resolution": 1025 }, "devices": [] }
+  ```
 
 ### Validation (before any command)
 
 Refused with `REFUSED`, nothing sent:
 
 - `version` other than 1; more than 200 entries in `devices` plus `remove`;
+- revision 8: a `scene` with no field; an empty scene name; a size value that is not positive; a resolution that is not a positive whole number; an origin or size value that is not a plain decimal number or has more than two decimals, because World Machine shows two (fact 101) and a second plan could never match it;
 - a name that is empty, longer than 23 characters, starts or ends with a space, or has the form `#<n>`;
 - two `devices` entries whose names are equal regardless of case; a name in both `devices` and `remove`;
 - an `id` that is not a positive integer; two `devices` entries with the same `id`; an `id` whose `#<id>` is in `remove` (revision 6). Labels follow the name rules above, so a label is always a name World Machine keeps whole;
@@ -117,6 +125,7 @@ Revision 6: an entry without `id` whose type ignores a rename (fact 80: Combiner
 
 `planGraph(spec, state)` is a pure domain function (`src/domain/graph-plan.ts`). The services read `state` first:
 
+- revision 8: `scene show` once, before the device reads, when the spec has `scene`;
 - `listDevices()` once;
 - `getDevice(#<id>)` for every existing device an entry's `id`, a managed name, a `remove` entry, or an input source resolves to;
 - revision 6: then `getDevice(#<id>)` for every not yet read device that shares its listed name with the current source of an input read in the step before, so the source can be resolved (below). No extra read happens when every such name is unique.
@@ -131,6 +140,7 @@ Revision 6: an entry without `id` whose type ignores a rename (fact 80: Combiner
 
 A conflict makes `apply_graph` refuse. Each names the spec entry and the reason:
 
+- revision 8: the scene is locked (fact 38) and a `scene` field differs from it; the entry is `scene` and the reason says to unlock the scene in World Machine. A locked scene that matches the spec is no conflict;
 - a managed name, or a `remove` name, matches more than one device;
 - an entry's `id` matches no listed device (revision 6; such an entry never adds);
 - an entry without `id` whose type ignores a rename, named other than its default name, that matches no device (revision 6, section 4 Ownership);
@@ -152,14 +162,15 @@ For a device the plan adds, ports, parameter names, and the types of parameters 
 
 Steps run in this order, and within each group in spec order:
 
-1. `disconnect`: an input whose spec source differs from its current source, or whose spec value is `null` while a wire exists;
-2. `remove`: each `remove` entry that exists, with the wires it takes along (`wiresRemoved`); an entry that matches nothing is listed in `unchanged` as `already absent`;
-3. `rename` (revision 7): each entry with `rename: true` whose `name` differs from the listed name, compared with case, so a change of case alone is a rename. It runs after `remove`, because a device may take the name of a device the same apply removes, and before `add`, which cannot collide with it because two entries never share a name (section 4). The step is `{ "op": "rename", "device": "<label>", "id": <id>, "from": "<listed name>", "to": "<label>" }` and is sent as `device rename #<id> <name>` through `DeviceEditPort.renameDevice`, whose read-back of the `device list` row fails the step when the new name does not show. The predicted wiring of the unidentifiable-wires and wire-loops designs applies the step too: from it on, the device's predicted listed name is its label, and the wire texts that name it carry the new name (the output target lines of the sources that feed it, and the inputs of managed devices it feeds, where the current state identifies the wire);
-4. `add`: each managed device that does not exist, renamed to the spec name when its default name differs;
-5. `set-enabled`: when `enabled` differs from the current state;
-6. `set-bypassed`: when `bypassed` differs from the current bypass state, which is compared exactly (a second plan of the same spec plans nothing for it). A device the plan adds starts not bypassed, so it gets this step only when `bypassed` is `true`, as `set-enabled` is planned for an added device only when `enabled` is `false`. `snapshot restore` reverts bypass (raw/bypass-restore.txt), so a failed apply restores it;
-7. `set-parameter`: per parameter, when it differs or cannot be compared (below);
-8. `connect`: each input whose spec source is not its current source.
+1. `set-scene` (revision 8): one step when a `scene` field differs from `scene show`, `{ "op": "set-scene", "changes": { "<field>": { "from": <current>, "to": <spec> } } }` with only the differing fields (`name`, `originKm`, `sizeKm`, `resolution`). `name` and `resolution` are compared exactly, origin and size per value at two decimals. It runs first, since it depends on no device. It is sent through `SceneEditPort.configureScene` with the changed fields, which sends each setter, checks its confirmation (fact 27), and returns `scene show`; a returned value that does not match the step's `to` under the same comparison fails the step. When no field differs, `scene` is listed in `unchanged`;
+2. `disconnect`: an input whose spec source differs from its current source, or whose spec value is `null` while a wire exists;
+3. `remove`: each `remove` entry that exists, with the wires it takes along (`wiresRemoved`); an entry that matches nothing is listed in `unchanged` as `already absent`;
+4. `rename` (revision 7): each entry with `rename: true` whose `name` differs from the listed name, compared with case, so a change of case alone is a rename. It runs after `remove`, because a device may take the name of a device the same apply removes, and before `add`, which cannot collide with it because two entries never share a name (section 4). The step is `{ "op": "rename", "device": "<label>", "id": <id>, "from": "<listed name>", "to": "<label>" }` and is sent as `device rename #<id> <name>` through `DeviceEditPort.renameDevice`, whose read-back of the `device list` row fails the step when the new name does not show. The predicted wiring of the unidentifiable-wires and wire-loops designs applies the step too: from it on, the device's predicted listed name is its label, and the wire texts that name it carry the new name (the output target lines of the sources that feed it, and the inputs of managed devices it feeds, where the current state identifies the wire);
+5. `add`: each managed device that does not exist, renamed to the spec name when its default name differs;
+6. `set-enabled`: when `enabled` differs from the current state;
+7. `set-bypassed`: when `bypassed` differs from the current bypass state, which is compared exactly (a second plan of the same spec plans nothing for it). A device the plan adds starts not bypassed, so it gets this step only when `bypassed` is `true`, as `set-enabled` is planned for an added device only when `enabled` is `false`. `snapshot restore` reverts bypass (raw/bypass-restore.txt), so a failed apply restores it;
+8. `set-parameter`: per parameter, when it differs or cannot be compared (below);
+9. `connect`: each input whose spec source is not its current source.
 
 Disconnecting before connecting is required: an occupied input refuses a connect (fact 34).
 
@@ -195,7 +206,7 @@ A spec applied twice in a row therefore plans only its `comparable: false` steps
 }
 ```
 
-`planId` is the SHA-256, in hex, of a canonical JSON document holding the open project path, the validated spec, and every part of `state` the plan read (ids, names, types, enabled states, parameter rows, and input sources). Any change to those between `plan_graph` and `apply_graph` changes it.
+`planId` is the SHA-256, in hex, of a canonical JSON document holding the open project path, the validated spec, and every part of `state` the plan read (ids, names, types, enabled states, parameter rows, input sources, and, revision 8, the scene when the spec has `scene`). Any change to those between `plan_graph` and `apply_graph` changes it.
 
 ## 6. Applying
 
@@ -215,7 +226,7 @@ sequenceDiagram
   else
     A->>S: create 'apply_graph <12 hex>'
     loop each step
-      A->>E: disconnect, delete, rename, add, enable, param set, connect
+      A->>E: scene setters, disconnect, delete, rename, add, enable, param set, connect
     end
     alt a step fails
       A->>S: restore snapshot
@@ -273,6 +284,8 @@ After success, the referenced devices are read back:
 }
 ```
 
+Revision 8: the result has an optional `scene`, `{ "<field>": { "before": <value>, "after": <value> } }`, with each field whose value in the scene the `set-scene` step returned differs from the state's scene; it is left out when the plan had no `set-scene` step or nothing changed. A failed apply needs no scene work of its own: the restore reverts the scene (fact 101), and the read-back after a restore compares the scene too when the spec has `scene`.
+
 A `changed` entry carries `enabled` and `bypassed` as `{ before, after }` only when the read-back value changed, and (revision 7) `name` as `{ before, after }` when the listed name changed; a device whose only change is a rename is still listed. An input whose source the steps change between two devices whose read-back names are equal (fact 82: `wire list` names devices), for example a removed device and a device the same apply renames to its name, shows both sides by id in the spec's source form, `{ "before": "#13.1", "after": "#12.1" }` (revision 7 follow-up, 2026-10-15). Parameters appear in the diff only when their read-back value changed; a float set to the value it already had does not appear. `snapshot` is the kept snapshot's name when `keep_snapshot` is true, otherwise `null`.
 
 Added 2026-10-12: if the read-back fails with a `WorldMachineError` while World Machine is still the same healthy session, the apply still succeeded. The result then has `diff: []`, `diffError` (the error's message, without World Machine text), and the snapshot kept. On `TIMEOUT`, `CRASHED`, or a changed session, the call throws an error with the same code saying that all steps were applied but the result could not be read, and that the unsaved changes and snapshot are gone.
@@ -286,6 +299,7 @@ Added 2026-10-12: if the read-back fails with a `WorldMachineError` while World 
 - Revision 6: `src/domain/wire-source.ts` (`resolveWireSource`), used by `graph-plan.ts` and by the wire editor adapter (`world-machine-wire-editor.ts`). `planId` already covers every detail read, including the second-phase reads.
 - Revision 6, amending v1 section 7 (`connect_devices`, `disconnect_devices`, and the `REFUSED` row): when the destination's input shows the given source's own listed name and several devices share it, the wire editor runs `wire list #<id>` for each of them before any change and resolves the source. `found` and the given source: `connect` leaves the wire (`created: false`) and `disconnect` removes it. `found` and another device: `connect` sends (World Machine refuses the occupied input) and `disconnect` returns `removed: false` with nothing sent. `ambiguous` or `unknown`: `REFUSED`, naming the candidate ids, nothing sent. The checks after a change stay name-based, since an input holds one wire. An input that shows another name, or no wire, is not wired from the given source, exactly as before revision 6, whether or not that other name is shared.
 - Outbound ports unchanged: `ProjectGraphReadPort`, `DeviceEditPort`, `WireEditPort`, `ParameterEditPort`, `SnapshotPort`.
+- Revision 8: `ApplyGraphService` takes the existing `SceneEditPort` (the port `configure_scene` uses), and `readGraphState` reads the scene through the graph read port's `scene show` reader when the spec has `scene`. The schema gets `scene`, the plan step schema `set-scene`, and the apply view `scene`; the `plan_graph` and `apply_graph` descriptions show `scene?` in the spec shape. The fake World Machine's snapshot holds the scene (fact 101).
 - Revision 7: no new port or World Machine command. The plan's `rename` step uses `DeviceEditPort.renameDevice`, which `rename_device` already uses. Rollback needs no extra work, since a restore reverts renames (fact 100). The schema's description of `id` ("such an entry is never added or renamed") changes to say that it is renamed only with `rename: true`, and `rename` gets its own description.
 - `APPLY_FAILED` is added to the error codes (v1 section 8): "a step of `apply_graph` failed; effect: the apply snapshot was restored when `rolledBack` is true".
 
@@ -299,12 +313,16 @@ Added 2026-10-12: if the read-back fails with a `WorldMachineError` while World 
 - Revision 6: `resolveWireSource` for one candidate, one of several qualifying, chained Combiners that resolve, `ambiguous`, `unknown`, a name cut at 23 characters, and a port mismatch at either end; validation rows for `id`; planning rows for an entry with `id` (found, missing, type conflict, a label that differs from the listed name plans no rename), the Combiner rule (including the `Average` alias), the layered graph of section 5 with no conflicts, and `wiresRemoved` with two same-named targets; the second-phase reads (only unread candidates, none when names are unique); the wire editor's outcomes per case. The fake World Machine models a Combiner that ignores a rename and lists output targets of same-named devices before these tests are written. Through the fake: apply the layered graph, plan again, and see no steps other than `comparable: false` ones. Live, after the user approves the run: add two Combiners, apply a spec that binds them by `id`, plan again for no comparable steps, and disconnect a wire from one Combiner while the other exists; this also checks fact 82's assumption about a Combiner's output targets.
 - Revision 7: validation rows for `rename` without `id`, and `rename: false` with `id` (accepted, no step). Planning rows: a rename planned; a case-only rename; equal names plan nothing; the Combiner conflict, also with the `Average` alias, and a Combiner whose label is exactly its listed name (no step, no conflict); the name clash with a kept device, with another renamed entry (a swap), and no clash with a device in `remove`; a source that names the old listed name of a renamed device; the step order with `rename` between `remove` and `add`; a `connect` from a device renamed in the same apply. The fake World Machine's `snapshot restore` restores names before these tests are written. Through the fake: apply a rename and plan again for no `rename` step; a later step fails and the rollback restores the name (`rolledBack: true`); the diff's `name` entry. Live, after the user approves the run: in `graphs.live.test.ts`, apply a spec that renames an existing device by `id` and plan again for no `rename` step.
 
+- Revision 8: validation rows (an empty `scene`, three decimals in origin and in size, a size of 0, a resolution of 1.5 and of 0, an empty name); planning rows (each field differing alone, all equal so `unchanged` holds `scene`, a two-decimal value matched, a locked scene with and without a difference, `set-scene` first, the `planId` changing with the scene and unchanged for a spec without `scene`, no `scene show` sent for a spec without `scene`). Through the fake: apply a resolution and size change, plan again for no `set-scene`; a later step fails and the scene is restored (`rolledBack: true`); the apply view's `scene`. Live, after the user approves the run: apply `scene: { resolution: 513, size_km: { width: 8, height: 8 } }` to a new project and plan again for no `set-scene` step.
+
 ## 9. Documentation
 
 The README gets a section on `plan_graph` and `apply_graph` with the spec example of section 4, the ownership rule, the float rule, and rollback.
+
+Revision 8: that section gets a `scene` example, the two-decimal rule, and the locked-scene conflict.
 
 Revision 7: that section gets a `rename: true` example and the rule that a label is never sent to World Machine without it.
 
 ## 10. Out of scope
 
-Templates and spec files on disk, scene settings, groups, layout and device positions (`organize_devices` exists), spec versions other than 1, and exports or builds as part of an apply.
+Templates and spec files on disk, other scenes than the current one (switching, adding, or removing scenes), groups, layout and device positions (`organize_devices` exists), spec versions other than 1, and exports or builds as part of an apply.
