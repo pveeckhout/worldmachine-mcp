@@ -569,7 +569,7 @@ export const graphSpecSchema = z.strictObject({
     })
     .optional()
     .describe(
-      "Revision 8: the current scene's settings, as configure_scene takes them; origin and size in km with at most two decimals",
+      "The current scene's settings, as configure_scene takes them; origin and size in km with at most two decimals",
     ),
   devices: z.array(graphDeviceSchema),
   remove: z.array(z.string()).optional().describe('Device names or #<id> to delete; absence never deletes'),
