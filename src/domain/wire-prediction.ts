@@ -30,15 +30,15 @@ export function unidentifiableWires(
   const listed: string[] = [];
   for (const destination of wiring.destinations) {
     const ports = [...(wiring.inputsOf(destination.id) ?? [])].sort(([a], [b]) => a - b);
-    for (const [port, { source, kept }] of ports) {
+    for (const [port, { source, kept, currentSource }] of ports) {
       if (source === undefined) continue;
       const input: InputPort = { port, name: '', source };
       // Plan decision D2: a kept wire on an input the spec entry lists that the current state cannot identify is the
-      // plan's conflict already.
+      // plan's conflict already. A rename changes the text of a kept wire, so the current state reads its text now.
       if (
         kept &&
         destination.listedPorts.has(port) &&
-        current(destination.currentName, input).kind !== 'found'
+        current(destination.currentName, { ...input, source: currentSource ?? source }).kind !== 'found'
       )
         continue;
       const predicted = resolveWireSource(destination.name, input, wiring.devices, wiring.outputsOf);

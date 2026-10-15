@@ -445,3 +445,53 @@ describe('wireLoops hops (wire-loops plan decisions D2 to D5)', () => {
     expect(result.possibleLoops).toEqual([]);
   });
 });
+
+describe('wireLoops through a rename (spec v3 revision 7)', () => {
+  const ridges = (inputs: Record<string, string>): RawGraphDevice => ({
+    name: 'Ridges',
+    id: 12,
+    type: 'Mountain',
+    rename: true,
+    inputs,
+  });
+
+  it('refuses a loop through an unmanaged consumer whose wire shows the pre-rename name', () => {
+    // Mountain #12 feeds Blur #30, which shows its source as 'Mountain'; Ridges (#12) then takes Blur as a source.
+    const current = state([node(12, 'Mountain', [to('Blur')]), node(30, 'Blur', [], { 1: 'Mountain' })]);
+    const result = loops([ridges({ '1': 'Blur' })], current);
+    expect(result.plan.conflicts).toEqual([]);
+    expect(result.conflicts).toEqual([
+      { entry: 'Ridges', reason: closes("input 1 from 'Blur' output 1", 'Ridges -> Blur') },
+    ]);
+    expect(result.possibleLoops).toEqual([]);
+  });
+
+  it('keeps a hop certain into a renamed managed consumer whose wire the plan rewrote to the label', () => {
+    const current = state([node(12, 'Mountain', [to('Eroded')]), node(20, 'Eroded', [], { 1: 'Mountain' })]);
+    const result = loops(
+      [ridges({ '1': 'Eroded' }), { name: 'Eroded', id: 20, type: 'Eroded', inputs: { '1': 'Ridges' } }],
+      current,
+    );
+    expect(result.plan.conflicts).toEqual([]);
+    expect(result.conflicts).toEqual([
+      { entry: 'Ridges', reason: closes("input 1 from 'Eroded' output 1", 'Ridges -> Eroded') },
+    ]);
+    expect(result.possibleLoops).toEqual([]);
+  });
+
+  it('keeps a hop certain when the renamed device is the one a shared-name source feeds', () => {
+    // Ramp #3 feeds Mountain #12 and Ramp #4 feeds Other #40: the current state tells the two Ramps apart.
+    const current = state([
+      node(3, 'Ramp', [to('Mountain')]),
+      node(4, 'Ramp', [to('Other')]),
+      node(12, 'Mountain', [], { 1: 'Ramp' }),
+      node(40, 'Other', [], { 1: 'Ramp' }),
+    ]);
+    const result = loops([ridges({}), { name: 'r3', id: 3, type: 'Ramp', inputs: { '1': '#12' } }], current);
+    expect(result.plan.conflicts).toEqual([]);
+    expect(result.conflicts).toEqual([
+      { entry: 'r3', reason: closes("input 1 from 'Ridges' output 1", 'r3 -> Ridges') },
+    ]);
+    expect(result.possibleLoops).toEqual([]);
+  });
+});

@@ -348,6 +348,8 @@ describe('predictWiring with a rename (spec v3 revision 7)', () => {
     expect(wiring.devices.find((listed) => listed.id === 12)?.name).toBe('Ridges');
     expect(wiring.outputsOf(3)?.[0]?.targets).toEqual([{ device: 'Ridges', port: 1 }]);
     expect(wiring.inputsOf(20)?.get(1)?.source).toEqual({ device: 'Ridges', port: 1 });
+    // A rename changes the wire's text, not the wire: the input stays the one the device has now.
+    expect(wiring.inputsOf(20)?.get(1)?.kept).toBe(true);
     expect(wiring.destinations.map(({ entry, name, currentName }) => ({ entry, name, currentName }))).toEqual(
       [
         { entry: 'Ridges', name: 'Ridges', currentName: 'Mountain' },

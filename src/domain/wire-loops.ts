@@ -73,6 +73,9 @@ export function wireLoops(
     const cached = hopsCache.get(from);
     if (cached !== undefined) return cached;
     const own = nameOf(from);
+    // Revision 7: certainty comes from the current state, which knows `from` and each target by their names now; a
+    // wire's text shows either the name now or the label a rename gave. An added device has no name now.
+    const ownNow = state.devices.find((device) => device.id === from)?.name;
     const hops: Hop[] = [];
     for (const output of wiring.outputsOf(from) ?? []) {
       for (const target of output.targets) {
@@ -85,13 +88,19 @@ export function wireLoops(
             continue;
           }
           const source = keptSourceOf(id, target.port);
-          if (source === undefined || own === undefined || listedName(source.device) !== own) continue;
-          const input: InputPort = { port: target.port, name: '', source };
+          if (source === undefined || own === undefined) continue;
+          const shows = listedName(source.device);
+          if (shows !== own && shows !== ownNow) continue;
+          const input: InputPort = {
+            port: target.port,
+            name: '',
+            source: ownNow === undefined ? source : { ...source, device: ownNow },
+          };
           if (!readable(input)) {
             hops.push({ id, name, shared: own });
             continue;
           }
-          const resolved = current(name, input);
+          const resolved = current(state.devices.find((device) => device.id === id)?.name ?? name, input);
           if (resolved.kind === 'found' && resolved.id === from) hops.push({ id, name, shared: undefined });
           else if (
             resolved.kind === 'unknown' ||

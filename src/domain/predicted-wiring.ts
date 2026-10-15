@@ -7,8 +7,15 @@ import type { GraphSpec } from './graph-spec.js';
 /** An output port of the predicted state; its target lines change as the steps apply. */
 type PredictedOutput = { readonly port: number; readonly name: string; readonly targets: PortLink[] };
 
-/** An input of a managed device after the apply; `kept` while it is the wire the device has now. */
-export type PredictedInput = { readonly source: PortLink | undefined; readonly kept: boolean };
+/**
+ * An input of a managed device after the apply; `kept` while it is the wire the device has now. `currentSource` is the
+ * text `wire list` shows for that wire now (revision 7: a rename changes `source`, the text, not the wire).
+ */
+export type PredictedInput = {
+  readonly source: PortLink | undefined;
+  readonly kept: boolean;
+  readonly currentSource: PortLink | undefined;
+};
 
 /**
  * A managed device: its spec entry, its id (below zero for a planned one), its listed name after the apply, its listed
@@ -124,7 +131,7 @@ export function predictWiring(
     if (name === undefined) continue;
     const ports = new Map<number, PredictedInput>();
     for (const input of detailOf(id)?.inputs ?? [])
-      ports.set(input.port, { source: input.source, kept: true });
+      ports.set(input.port, { source: input.source, kept: true, currentSource: input.source });
     destinations.push({
       entry: device.name,
       id,
@@ -135,7 +142,7 @@ export function predictWiring(
     inputs.set(id, ports);
   }
   const set = (id: number, port: number, source: PortLink | undefined): void => {
-    inputs.get(id)?.set(port, { source, kept: false });
+    inputs.get(id)?.set(port, { source, kept: false, currentSource: undefined });
   };
 
   const { current, readable } = currentWiring(state);
@@ -159,7 +166,7 @@ export function predictWiring(
         }
         for (const destination of destinations) {
           for (const [port, predicted] of inputs.get(destination.id) ?? []) {
-            const source = predicted.source;
+            const source = predicted.currentSource;
             if (!predicted.kept || source === undefined) continue;
             const input: InputPort = { port, name: '', source };
             if (!readable(input)) continue;
@@ -188,13 +195,16 @@ export function predictWiring(
         }
         for (const destination of destinations) {
           for (const [port, predicted] of inputs.get(destination.id) ?? []) {
-            const source = predicted.source;
+            const source = predicted.currentSource;
             if (!predicted.kept || source === undefined) continue;
             const input: InputPort = { port, name: '', source };
             if (!readable(input)) continue;
             const resolved = current(destination.currentName, input);
             if (resolved.kind === 'found' && resolved.id === step.id)
-              set(destination.id, port, { device: step.to, port: source.port });
+              inputs.get(destination.id)?.set(port, {
+                ...predicted,
+                source: { device: step.to, port: source.port },
+              });
           }
         }
         break;
