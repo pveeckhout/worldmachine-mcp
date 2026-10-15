@@ -12,6 +12,8 @@ export type RawGraphDevice = {
   readonly enabled?: boolean;
   /** Omitted: bypass is left as it is. `device info` reports `Bypass: yes|no` (v3 spec revision 5). */
   readonly bypassed?: boolean;
+  /** Revision 7: with `id`, true renames the device to `name`; refused without `id`. */
+  readonly rename?: boolean;
   readonly parameters?: Readonly<Record<string, ParameterValue>>;
   readonly inputs?: Readonly<Record<string, string | null>>;
 };
@@ -34,6 +36,8 @@ export type GraphDevice = {
   readonly type: string;
   readonly enabled?: boolean;
   readonly bypassed?: boolean;
+  /** Revision 7: with `id`, true renames the device to `name`; refused without `id`. */
+  readonly rename?: boolean;
   /** In spec order. */
   readonly parameters: readonly GraphParameter[];
   /** Ascending by port. */
@@ -133,12 +137,18 @@ export function validateGraphSpec(raw: RawGraphSpec): GraphSpec {
       if (owner !== undefined) refuse(`'${owner}' and '${name}' both give id ${id}`);
       ids.set(id, name);
     }
+    if (entry.rename !== undefined && id === undefined) {
+      refuse(
+        `'${name}': rename needs an id; an entry without id is identified by its name, so give the id of the device to rename`,
+      );
+    }
     return {
       name,
       ...(id === undefined ? {} : { id }),
       type: entry.type,
       ...(entry.enabled === undefined ? {} : { enabled: entry.enabled }),
       ...(entry.bypassed === undefined ? {} : { bypassed: entry.bypassed }),
+      ...(entry.rename === undefined ? {} : { rename: entry.rename }),
       parameters: checkParameters(name, entry.parameters ?? {}),
       inputs: checkInputs(name, entry.inputs ?? {}),
     };

@@ -171,6 +171,16 @@ describe('validateGraphSpec (spec v3 section 4)', () => {
       base({ devices: [{ ...device('A'), id: 536 }], remove: ['#0536'] }),
       "'#0536' in remove is the id of 'A'",
     ],
+    [
+      'rename without id (revision 7)',
+      base({ devices: [{ name: 'Base', type: 'Advanced Perlin', rename: true }] }),
+      "'Base': rename needs an id; an entry without id is identified by its name, so give the id of the device to rename",
+    ],
+    [
+      'rename: false without id (revision 7, ruling R2)',
+      base({ devices: [{ name: 'Base', type: 'Advanced Perlin', rename: false }] }),
+      "'Base': rename needs an id; an entry without id is identified by its name, so give the id of the device to rename",
+    ],
     ['a label of the form #<n>', base({ devices: [{ ...device('#3'), id: 3 }] }), 'device id'],
   ])('refuses %s', (_label, raw, fragment) => {
     expect(refusal(raw)).toContain(fragment);
@@ -223,5 +233,18 @@ describe('parseSource (D9)', () => {
       inputs: [],
     });
     expect('id' in (spec.devices[1] ?? {})).toBe(false);
+  });
+
+  it('carries rename with an id and leaves it out when omitted (revision 7)', () => {
+    const spec = validateGraphSpec({
+      version: 1,
+      devices: [
+        { name: 'Ridges', id: 12, type: 'Advanced Perlin', rename: true },
+        { name: 'Kept', id: 13, type: 'Gradient', rename: false },
+        { name: 'Plain', id: 14, type: 'Gradient' },
+      ],
+    });
+    expect(spec.devices.map((device) => device.rename)).toEqual([true, false, undefined]);
+    expect('rename' in (spec.devices[2] ?? {})).toBe(false);
   });
 });
