@@ -587,8 +587,10 @@ const metresPerUnit = (scale) => (scale === 'horizontal' ? 8000 : verticalMetres
 const SHOWN_DIGITS = 4;
 const fourDigits = (value) => {
   if (value === 0) return '0';
-  // 100 digits are exact for every double a tie can come from: a tie is a short decimal, so any other double differs
-  // from it well inside 100 digits.
+  // `toExponential(99)` gives 100 significant digits, which is the double's exact expansion only for values of
+  // ordinary size (a double near the subnormals has up to about 767 significant digits). A tie is a short decimal, so
+  // for the lengths this fake shows any other double differs from it well inside 100 digits; for a value near the
+  // subnormals the rounding below can differ from an exact one.
   const [mantissa, exponent] = Math.abs(value).toExponential(99).split('e');
   const digits = mantissa.replace('.', '');
   let kept = BigInt(digits.slice(0, SHOWN_DIGITS));
