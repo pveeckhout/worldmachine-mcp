@@ -21,6 +21,11 @@ writeFileSync(join(outside, 'notes.txt'), '');
 symlinkSync(join(outside, 'secret.tmd'), join(root, 'link.tmd'));
 symlinkSync(outside, join(root, 'escape'));
 symlinkSync(root, join(base, 'root-link'));
+writeFileSync(join(root, 'nested', 'hills.json'), '{}');
+writeFileSync(join(outside, 'secret.json'), '{}');
+mkdirSync(join(root, 'folder.json'));
+symlinkSync(join(root, 'nested', 'hills.json'), join(root, 'link-in.json'));
+symlinkSync(join(outside, 'secret.json'), join(root, 'link-out.json'));
 symlinkSync(join(outside, 'notes.txt'), join(base, 'file-link'));
 
 async function codeOf(promise: Promise<unknown>): Promise<string> {
@@ -279,5 +284,42 @@ describe('FsPathPolicy project names that are dot segments (ruling P11-2)', () =
     expect(existing).toBe(`The project file name ${name} is not allowed.`);
     const save = await messageOf(policy.authorizeSaveTarget(join(root, name)));
     expect(save).toBe(`The project file name ${name} is not allowed.`);
+  });
+});
+
+describe('FsPathPolicy.authorizeExistingTemplate (templates design section 4)', () => {
+  const policy = new FsPathPolicy([root]);
+  const refusal = (input: string): string =>
+    `Not an existing .json template file inside the allowed roots: ${input}`;
+
+  it('returns the canonical path of a .json inside a root', async () => {
+    expect(await policy.authorizeExistingTemplate(join(root, 'nested', 'hills.json'))).toBe(
+      join(root, 'nested', 'hills.json'),
+    );
+  });
+
+  it('returns the canonical target of a symlink that stays inside the roots', async () => {
+    expect(await policy.authorizeExistingTemplate(join(root, 'link-in.json'))).toBe(
+      join(root, 'nested', 'hills.json'),
+    );
+  });
+
+  it.each([
+    ['outside every root', () => join(outside, 'secret.json')],
+    ['a symlink that points outside', () => join(root, 'link-out.json')],
+    ['a directory named like a template', () => join(root, 'folder.json')],
+    ['a non-.json file', () => join(root, 'nested', 'world.tmd')],
+    ['a missing file', () => join(root, 'missing.json')],
+  ])('refuses %s', async (_label, input) => {
+    const target = input();
+    expect(await codeOf(policy.authorizeExistingTemplate(target))).toBe('REFUSED');
+    expect(await messageOf(policy.authorizeExistingTemplate(target))).toBe(refusal(target));
+  });
+
+  it('refuses a relative path', async () => {
+    expect(await codeOf(policy.authorizeExistingTemplate('nested/hills.json'))).toBe('REFUSED');
+    expect(await messageOf(policy.authorizeExistingTemplate('nested/hills.json'))).toBe(
+      'Template paths must be absolute: nested/hills.json',
+    );
   });
 });

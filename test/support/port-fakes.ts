@@ -129,6 +129,7 @@ export function exportFakes(options: ExportFakeOptions = {}) {
   };
   const policy: PathPolicyPort = {
     authorizeExistingProject: unused,
+    authorizeExistingTemplate: unused,
     authorizeSaveTarget: unused,
     authorizeOutputPath: async (path) => {
       calls.push(`authorize ${path}`);

@@ -49,6 +49,29 @@ export class FsPathPolicy implements PathPolicyPort {
     return resolved;
   }
 
+  async authorizeExistingTemplate(input: string): Promise<string> {
+    const canonicalRoots = await this.#canonicalRoots();
+    if (!path.isAbsolute(input))
+      throw new WorldMachineError('REFUSED', `Template paths must be absolute: ${input}`);
+    const refused = new WorldMachineError(
+      'REFUSED',
+      `Not an existing .json template file inside the allowed roots: ${input}`,
+    );
+    let resolved: string;
+    try {
+      resolved = await realpath(input);
+    } catch {
+      throw refused;
+    }
+    if (!canonicalRoots.some((root) => isInside(resolved, root))) throw refused;
+    try {
+      if (path.extname(resolved).toLowerCase() !== '.json' || !(await stat(resolved)).isFile()) throw refused;
+    } catch {
+      throw refused;
+    }
+    return resolved;
+  }
+
   async authorizeSaveTarget(input: string): Promise<SaveTarget> {
     const refused = new WorldMachineError(
       'REFUSED',

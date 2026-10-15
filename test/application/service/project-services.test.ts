@@ -40,6 +40,9 @@ function fakes(session: SessionSummary, target: SaveTarget = { path: '/r/x.tmd',
       calls.push(`target:${p}`);
       return target;
     },
+    authorizeExistingTemplate: async () => {
+      throw new Error('not used by the project services');
+    },
     authorizeOutputPath: async () => {
       throw new Error('not used by the project services');
     },
