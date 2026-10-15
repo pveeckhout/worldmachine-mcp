@@ -1,4 +1,4 @@
-import { deviceNameProblem, foldCase, idOfReference } from './device-name.js';
+import { deviceNameProblem, foldCase, idOfReference, sceneNameProblem } from './device-name.js';
 import { WorldMachineError } from './errors.js';
 import type { ParameterValue } from './graph-edit.js';
 import { decimalText } from './parameter-values.js';
@@ -121,6 +121,8 @@ function checkScene(raw: RawGraphScene): GraphScene {
   if (name === undefined && origin === undefined && size === undefined && resolution === undefined)
     refuse('scene must give at least one of name, origin_km, size_km, and resolution');
   if (name === '') refuse('scene name must not be empty');
+  const nameProblem = name === undefined ? undefined : sceneNameProblem(name);
+  if (nameProblem !== undefined) refuse(`scene name must not ${nameProblem}`);
   if (resolution !== undefined && (!Number.isSafeInteger(resolution) || resolution < 1))
     refuse(`scene resolution must be a positive whole number, not ${resolution}`);
   return {

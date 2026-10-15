@@ -57,3 +57,28 @@ export function deviceNameProblem(name: string): string | undefined {
             ? `be longer than ${LISTED_NAME_LIMIT} characters`
             : undefined;
 }
+
+// The final-argument rules of buildCommand (adapter/out/worldmachine/command-builder.ts), copied so that the domain
+// does not import the adapter; a command-builder test pins the two in agreement.
+// biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting control characters is the purpose of this pattern
+const CONTROL = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;
+const RESERVED_PREFIX = '__end_';
+
+/**
+ * The rule a scene name breaks that `scene name <name>` cannot carry, completing "must not …"; undefined for a name
+ * the command builder accepts. Revision 8: a graph spec's scene follows configure_scene's rules, so validation
+ * refuses what the apply would refuse after its snapshot.
+ */
+export function sceneNameProblem(name: string): string | undefined {
+  return CONTROL.test(name)
+    ? 'contain control characters such as newlines'
+    : name.startsWith(RESERVED_PREFIX)
+      ? `start with the reserved prefix ${RESERVED_PREFIX}`
+      : /["'\\]/.test(name)
+        ? 'contain a quote, an apostrophe, or a backslash'
+        : name.trim() === ''
+          ? 'be blank'
+          : name !== name.trim()
+            ? 'start or end with whitespace'
+            : undefined;
+}

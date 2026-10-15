@@ -4,6 +4,7 @@ import {
   sentinel,
   sentinelEcho,
 } from '../../../../src/adapter/out/worldmachine/command-builder.js';
+import { sceneNameProblem } from '../../../../src/domain/device-name.js';
 import { WorldMachineError } from '../../../../src/domain/errors.js';
 
 function refused(action: () => unknown): WorldMachineError {
@@ -128,5 +129,39 @@ describe('sentinels', () => {
 
   it('keeps index 1 and index 10 distinguishable', () => {
     expect(sentinelEcho('ab12', 10).startsWith(sentinelEcho('ab12', 1))).toBe(false);
+  });
+});
+
+// The graph spec refuses a scene name with the domain's copy of the tail rules, so that apply_graph never meets a
+// name buildCommand refuses after the snapshot (revision 8). The two must agree on every sample.
+describe('sceneNameProblem agrees with buildCommand', () => {
+  it.each([
+    'Main Extents',
+    'Probe Scene',
+    "Pieter's map",
+    'The "Main" scene',
+    'back\\slash',
+    ' Main',
+    'Main ',
+    '   ',
+    '',
+    'a\nscene show',
+    'tab\there',
+    'del\u007f',
+    'c1\u0085',
+    'line\u2028separator',
+    'para\u2029separator',
+    '__end_x',
+    'x__end_',
+    'Main\u00a0',
+  ])('for %j', (name) => {
+    let builderRefuses = false;
+    try {
+      buildCommand(['scene', 'name'], name);
+    } catch (error) {
+      if (!(error instanceof WorldMachineError && error.code === 'REFUSED')) throw error;
+      builderRefuses = true;
+    }
+    expect(sceneNameProblem(name) !== undefined).toBe(builderRefuses);
   });
 });

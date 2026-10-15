@@ -193,6 +193,32 @@ describe('validateGraphSpec (spec v3 section 4)', () => {
     ],
     ['an empty scene name (revision 8)', base({ scene: { name: '' } }), 'scene name must not be empty'],
     [
+      'an apostrophe in a scene name (revision 8)',
+      base({ scene: { name: "Pieter's map" } }),
+      'scene name must not contain a quote, an apostrophe, or a backslash',
+    ],
+    [
+      'a double quote in a scene name (revision 8)',
+      base({ scene: { name: 'The "Main" scene' } }),
+      'scene name must not contain a quote, an apostrophe, or a backslash',
+    ],
+    [
+      'a leading space in a scene name (revision 8)',
+      base({ scene: { name: ' Main' } }),
+      'scene name must not start or end with whitespace',
+    ],
+    [
+      'a trailing space in a scene name (revision 8)',
+      base({ scene: { name: 'Main ' } }),
+      'scene name must not start or end with whitespace',
+    ],
+    ['a blank scene name (revision 8)', base({ scene: { name: '   ' } }), 'scene name must not be blank'],
+    [
+      'a newline in a scene name (revision 8)',
+      base({ scene: { name: 'a\nscene show' } }),
+      'scene name must not contain control characters such as newlines',
+    ],
+    [
       'a scene size of 0 (revision 8)',
       base({ scene: { size_km: { width: 0, height: 8 } } }),
       'scene size width must be positive, not 0',
@@ -309,5 +335,11 @@ describe('parseSource (D9)', () => {
       resolution: 513,
     });
     expect('scene' in validateGraphSpec({ version: 1, devices: [] })).toBe(false);
+  });
+
+  it('accepts a scene name with a space inside (revision 8)', () => {
+    expect(validateGraphSpec(base({ scene: { name: 'Probe Scene' } })).scene).toEqual({
+      name: 'Probe Scene',
+    });
   });
 });
