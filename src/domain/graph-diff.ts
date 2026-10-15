@@ -76,18 +76,22 @@ export function graphDiff(steps: readonly PlanStep[], devices: AppliedDevices): 
     const parameterNames = own.flatMap((step) => (step.op === 'set-parameter' ? [step.name] : []));
     if (first.op === 'remove') {
       const before = byId(devices.before, first.id);
-      if (before !== undefined) {
-        entries.push({
-          device: first.device,
-          change: 'removed',
-          before: { id: before.id, type: before.type },
-        });
+      if (before === undefined) {
+        throw new Error(
+          `graphDiff: removed device '${first.device}' (#${first.id}) is not in the state from before`,
+        );
       }
+      entries.push({ device: first.device, change: 'removed', before: { id: before.id, type: before.type } });
       continue;
     }
     if (own.some((step) => step.op === 'add')) {
-      const after = byId(devices.after, devices.addedIds.get(key));
-      if (after === undefined) continue;
+      const addedId = devices.addedIds.get(key);
+      if (addedId === undefined)
+        throw new Error(`graphDiff: added device '${first.device}' has no recorded id`);
+      const after = byId(devices.after, addedId);
+      if (after === undefined) {
+        throw new Error(`graphDiff: added device '${first.device}' (#${addedId}) was not read back`);
+      }
       entries.push({
         device: first.device,
         change: 'added',
@@ -136,7 +140,12 @@ function changed(
   const parameterNames = own.flatMap((step) => (step.op === 'set-parameter' ? [step.name] : []));
   const before = byId(devices.before, id);
   const after = byId(devices.after, id);
-  if (id === undefined || before === undefined || after === undefined) return undefined;
+  if (id === undefined) throw new Error(`graphDiff: changed device '${device}' has no id`);
+  if (before === undefined) {
+    throw new Error(`graphDiff: changed device '${device}' (#${id}) is not in the state from before`);
+  }
+  if (after === undefined)
+    throw new Error(`graphDiff: changed device '${device}' (#${id}) was not read back`);
   const enabled =
     before.enabled === after.enabled ? undefined : { before: before.enabled, after: after.enabled };
   const bypassed =

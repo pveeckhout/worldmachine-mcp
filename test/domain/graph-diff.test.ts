@@ -153,6 +153,7 @@ describe('graphDiff (spec v3 section 6)', () => {
   });
 
   it('merges a cut input into the entry of a device a step names', () => {
+    const old = detail(12, 'Old', 'Perlin Noise');
     const was = detail(20, 'Eroded', 'Erosion', { inputs: [input(1, 'Old')] });
     const is = detail(20, 'Eroded', 'Erosion', { enabled: false, inputs: [input(1)] });
     const steps: PlanStep[] = [
@@ -160,7 +161,8 @@ describe('graphDiff (spec v3 section 6)', () => {
       { op: 'set-enabled', device: 'Eroded', id: 20, from: true, to: false },
     ];
     const cutInputs = [{ device: 'Eroded', id: 20, port: 1 }];
-    expect(graphDiff(steps, { before: [was], after: [is], addedIds: new Map(), cutInputs })).toEqual([
+    expect(graphDiff(steps, { before: [old, was], after: [is], addedIds: new Map(), cutInputs })).toEqual([
+      { device: 'Old', change: 'removed', before: { id: 12, type: 'Perlin Noise' } },
       {
         device: 'Eroded',
         change: 'changed',
@@ -199,5 +201,58 @@ describe('graphDiff (spec v3 section 6)', () => {
     expect(graphDiff(steps, { before: [was], after: [is], addedIds: new Map() })).toEqual([
       { device: 'Eroded', change: 'changed', id: 20, inputs: { '1': { before: 'Old.1', after: null } } },
     ]);
+  });
+
+  describe('a missing id or detail throws', () => {
+    const connect: PlanStep = {
+      op: 'connect',
+      device: 'Eroded',
+      id: 20,
+      port: 1,
+      from: 'Base.1',
+      source: { device: 'Base', port: 1 },
+    };
+
+    it('names a removed device that is not in the state from before', () => {
+      const steps: PlanStep[] = [{ op: 'remove', device: 'Old', id: 12, wiresRemoved: [] }];
+      expect(() => graphDiff(steps, { before: [], after: [], addedIds: new Map() })).toThrow(
+        "graphDiff: removed device 'Old' (#12) is not in the state from before",
+      );
+    });
+
+    it('names an added device with no recorded id', () => {
+      const steps: PlanStep[] = [{ op: 'add', device: 'Base', type: 'Advanced Perlin' }];
+      expect(() => graphDiff(steps, { before: [], after: [], addedIds: new Map() })).toThrow(
+        "graphDiff: added device 'Base' has no recorded id",
+      );
+    });
+
+    it('names an added device that was not read back', () => {
+      const steps: PlanStep[] = [{ op: 'add', device: 'Base', type: 'Advanced Perlin' }];
+      expect(() => graphDiff(steps, { before: [], after: [], addedIds: new Map([['base', 536]]) })).toThrow(
+        "graphDiff: added device 'Base' (#536) was not read back",
+      );
+    });
+
+    it('names a changed device with no id', () => {
+      const steps: PlanStep[] = [{ ...connect, id: undefined } as unknown as PlanStep];
+      expect(() => graphDiff(steps, { before: [], after: [], addedIds: new Map() })).toThrow(
+        "graphDiff: changed device 'Eroded' has no id",
+      );
+    });
+
+    it('names a changed device missing from the state from before', () => {
+      const is = detail(20, 'Eroded', 'Erosion');
+      expect(() => graphDiff([connect], { before: [], after: [is], addedIds: new Map() })).toThrow(
+        "graphDiff: changed device 'Eroded' (#20) is not in the state from before",
+      );
+    });
+
+    it('names a changed device that was not read back', () => {
+      const was = detail(20, 'Eroded', 'Erosion');
+      expect(() => graphDiff([connect], { before: [was], after: [], addedIds: new Map() })).toThrow(
+        "graphDiff: changed device 'Eroded' (#20) was not read back",
+      );
+    });
   });
 });

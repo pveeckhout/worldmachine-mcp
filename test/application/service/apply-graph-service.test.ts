@@ -108,10 +108,21 @@ describe('ApplyGraphService robustness', () => {
     };
     const graph = {
       listDevices: async () => (restored ? (options.listAfterRestore ?? []) : []),
-      getDevice: async () => {
+      getDevice: async (reference: string) => {
         options.onDiffRead?.();
         if (options.diffError !== undefined) throw options.diffError;
-        return {};
+        // A device with the requested id: graphDiff throws for a device it cannot find.
+        return {
+          id: Number(reference.slice(1)),
+          name: 'Read',
+          type: 'Read',
+          enabled: true,
+          bypassed: false,
+          parameters: [],
+          inputs: [],
+          outputs: [],
+          portTypes: 'unknown',
+        };
       },
     };
     const snapshots = {
