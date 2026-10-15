@@ -50,6 +50,8 @@ export const MAX_GRAPH_ENTRIES = 200;
 
 /** A positive integer without leading zeros. */
 const PORT = /^[1-9]\d*$/;
+/** A positive integer without leading zeros that a number holds exactly. */
+const isPortNumber = (digits: string): boolean => PORT.test(digits) && Number.isSafeInteger(Number(digits));
 const DOTTED = /^(.*)\.(\d+)$/;
 
 /** Plan decision D9: a trailing `.<digits>` is the output port, 1 when there is none. */
@@ -58,7 +60,7 @@ export function parseSource(text: string): GraphSource | undefined {
   const device = dotted?.[1] ?? text;
   const port = dotted?.[2];
   if (device === '' || device !== device.trim()) return undefined;
-  if (port !== undefined && !PORT.test(port)) return undefined;
+  if (port !== undefined && !isPortNumber(port)) return undefined;
   return { device, port: port === undefined ? 1 : Number(port) };
 }
 

@@ -118,6 +118,11 @@ describe('validateGraphSpec (spec v3 section 4)', () => {
       '\'A\' input 1: source \'Shape.0\' is not "<device>" or "<device>.<port>"',
     ],
     [
+      'a source with an output port beyond the safe integers',
+      base({ devices: [{ ...device('A'), inputs: { '1': 'Src.99999999999999999999' } }] }),
+      '\'A\' input 1: source \'Src.99999999999999999999\' is not "<device>" or "<device>.<port>"',
+    ],
+    [
       'a source with a leading space',
       base({ devices: [{ ...device('A'), inputs: { '1': ' Shape' } }] }),
       '\'A\' input 1: source \' Shape\' is not "<device>" or "<device>.<port>"',
