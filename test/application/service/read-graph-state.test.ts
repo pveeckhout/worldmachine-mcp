@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import type { PortTypeCatalogPort } from '../../../src/application/port/out/port-type-catalog-port.js';
 import type { ProjectGraphReadPort } from '../../../src/application/port/out/project-graph-read-port.js';
 import type { WorldMachineSessionPort } from '../../../src/application/port/out/world-machine-session-port.js';
+import { PlanGraphService } from '../../../src/application/service/plan-graph-service.js';
 import { readGraphState } from '../../../src/application/service/read-graph-state.js';
 import type { DeviceDetail, DeviceSummary, InputPort } from '../../../src/domain/device.js';
 import { type RawGraphDevice, validateGraphSpec } from '../../../src/domain/graph-spec.js';
@@ -90,6 +92,35 @@ describe('readGraphState projectPath', () => {
     });
     const state = await readGraphState(spec([{ name: 'Base', type: 'Base' }]), p.graph, p.session);
     expect(state.projectPath).toBe('/projects/lowlands.tmd');
+  });
+});
+
+describe('readGraphState session (one status read per plan)', () => {
+  it('returns the session summary of the one status read it made', async () => {
+    const p = ports([row(1, 'Base')], [detail(1, 'Base')]);
+    let calls = 0;
+    const status = p.session.status.bind(p.session);
+    p.session.status = () => {
+      calls += 1;
+      return status();
+    };
+    const state = await readGraphState(spec([{ name: 'Base', type: 'Base' }]), p.graph, p.session);
+    expect(calls).toBe(1);
+    expect(state.session).toEqual({ state: 'ready', binding: { kind: 'fresh' }, dirty: false });
+  });
+
+  it('makes PlanGraphService read the status once per plan', async () => {
+    const p = ports([row(1, 'Base')], [detail(1, 'Base')]);
+    let calls = 0;
+    const status = p.session.status.bind(p.session);
+    p.session.status = () => {
+      calls += 1;
+      return status();
+    };
+    const service = new PlanGraphService(p.session, p.graph, {} as unknown as PortTypeCatalogPort);
+    const view = await service.planGraph({ spec: { version: 1, devices: [{ name: 'Base', type: 'Base' }] } });
+    expect(calls).toBe(1);
+    expect(view.session.state).toBe('ready');
   });
 });
 

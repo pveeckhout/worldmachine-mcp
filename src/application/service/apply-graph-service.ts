@@ -98,7 +98,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
           diff: [],
           unidentifiableWires: unidentifiable,
           possibleLoops: loops.possibleLoops,
-          session: this.#session.status().session,
+          session: state.session,
         };
       }
       const snapshot = `${APPLY_SNAPSHOT_PREFIX}${id.slice(0, 12)}`;

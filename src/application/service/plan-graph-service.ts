@@ -37,7 +37,7 @@ export class PlanGraphService implements PlanGraphQueryPort {
       uncheckedWires: types.uncheckedWires,
       unidentifiableWires: unidentifiableWires(spec, state, steps),
       possibleLoops: loops.possibleLoops,
-      session: this.#session.status().session,
+      session: state.session,
     };
   }
 }

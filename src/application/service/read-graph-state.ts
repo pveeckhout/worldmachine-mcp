@@ -7,6 +7,7 @@ import {
   sharedSourceIds,
 } from '../../domain/graph-plan.js';
 import type { GraphSpec } from '../../domain/graph-spec.js';
+import type { SessionSummary } from '../../domain/session.js';
 import type { ProjectGraphReadPort } from '../port/out/project-graph-read-port.js';
 import type { WorldMachineSessionPort } from '../port/out/world-machine-session-port.js';
 
@@ -23,7 +24,7 @@ export async function readGraphState(
   spec: GraphSpec,
   graph: ProjectGraphReadPort,
   session: WorldMachineSessionPort,
-): Promise<GraphState> {
+): Promise<GraphState & { readonly session: SessionSummary }> {
   const devices = await graph.listDevices();
   const details: DeviceDetail[] = [];
   for (const id of referencedDeviceIds(spec, devices)) details.push(await graph.getDevice(`#${id}`));
@@ -39,6 +40,13 @@ export async function readGraphState(
   ) {
     for (const id of ids) details.push(await graph.getDevice(`#${id}`));
   }
-  const binding = session.status().session.binding;
-  return { projectPath: binding?.kind === 'opened' ? binding.path : null, devices, details };
+  // The one status read of a plan: the caller reports this summary instead of reading the status again.
+  const summary = session.status().session;
+  const binding = summary.binding;
+  return {
+    projectPath: binding?.kind === 'opened' ? binding.path : null,
+    devices,
+    details,
+    session: summary,
+  };
 }
