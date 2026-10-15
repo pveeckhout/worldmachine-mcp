@@ -31,7 +31,7 @@ const shown = (value: unknown): string => (typeof value === 'number' ? String(va
 /**
  * Templates design section 2: fills `{ "$param": "<name>" }` references in the template's spec with the arguments or
  * the declared defaults, after checking the envelope, the declarations, the references, and the arguments. A file
- * without a `template` key is a plain spec. Pure; refuses with REFUSED naming `path`.
+ * without a `template` key is a plain spec, checked like a template with no parameters. Pure; refuses with REFUSED naming `path`.
  */
 export function fillTemplate(
   file: unknown,
@@ -42,13 +42,13 @@ export function fillTemplate(
     throw new WorldMachineError('REFUSED', `${path}: ${message}`);
   };
   if (!isObject(file)) return refuse('a template must be a JSON object');
-  if (!('template' in file)) {
-    for (const name of Object.keys(args)) refuse(`argument '${name}' is not a parameter of this template`);
-    return structuredClone(file);
+  // A file without a `template` key is a template without parameters, so its spec is the file itself.
+  const isTemplate = 'template' in file;
+  if (isTemplate) {
+    if (file.template !== 1) refuse(`template must be 1, not ${shown(file.template)}`);
+    if (!('spec' in file)) refuse('a template needs a spec');
   }
-  if (file.template !== 1) refuse(`template must be 1, not ${shown(file.template)}`);
-  if (!('spec' in file)) refuse('a template needs a spec');
-  const rawParameters = file.parameters ?? {};
+  const rawParameters = (isTemplate ? file.parameters : undefined) ?? {};
   if (!isObject(rawParameters)) return refuse('parameters must be an object');
 
   const declarations = new Map<string, Declaration>();
@@ -86,13 +86,13 @@ export function fillTemplate(
       const declared = declarations.get(name);
       if (declared === undefined) return refuse(`${at} refers to parameter '${name}', which is not declared`);
       used.add(name);
-      const argument = args[name] ?? declared.default;
+      const argument = Object.hasOwn(args, name) ? args[name] : declared.default;
       if (argument === undefined) return refuse(`parameter '${name}' needs an argument; it has no default`);
       return argument;
     }
     return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, fill(item, `${at}.${key}`)]));
   };
-  const filled = fill(file.spec, 'spec');
+  const filled = fill(isTemplate ? file.spec : file, 'spec');
   for (const name of declarations.keys()) {
     if (!used.has(name)) refuse(`parameter '${name}' is declared but no $param uses it`);
   }

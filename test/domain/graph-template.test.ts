@@ -173,4 +173,44 @@ describe('fillTemplate (templates design section 2)', () => {
       `${PATH}: argument 'a' must be a number, not Infinity`,
     );
   });
+
+  it('refuses a $param in a file without a template key', () => {
+    expect(refusal({ version: 1, devices: [], x: { $param: 'a' } })).toBe(
+      `${PATH}: spec.x refers to parameter 'a', which is not declared`,
+    );
+  });
+
+  it('fills a declared constructor from its default, not from Object.prototype', () => {
+    const file = {
+      template: 1,
+      parameters: { constructor: { type: 'string', default: 'd' } },
+      spec: { x: { $param: 'constructor' } },
+    };
+    expect(fillTemplate(file, {}, PATH)).toEqual({ x: 'd' });
+  });
+
+  it('refuses a declared toString with no default and no argument', () => {
+    const file = {
+      template: 1,
+      parameters: { toString: { type: 'string' } },
+      spec: { x: { $param: 'toString' } },
+    };
+    expect(refusal(file)).toBe(`${PATH}: parameter 'toString' needs an argument; it has no default`);
+  });
+
+  it('fills a declared __proto__ key from JSON.parse', () => {
+    const file = JSON.parse(
+      '{"template":1,"parameters":{"__proto__":{"type":"string","default":"d"}},"spec":{"x":{"$param":"__proto__"}}}',
+    );
+    expect(fillTemplate(file, {}, PATH)).toEqual({ x: 'd' });
+  });
+
+  it('keeps false and 0 arguments over defaults', () => {
+    const file = {
+      template: 1,
+      parameters: { on: { type: 'boolean', default: true }, n: { type: 'integer', default: 5 } },
+      spec: { on: { $param: 'on' }, n: { $param: 'n' } },
+    };
+    expect(fillTemplate(file, { on: false, n: 0 }, PATH)).toEqual({ on: false, n: 0 });
+  });
 });
