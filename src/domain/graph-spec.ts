@@ -85,9 +85,9 @@ function checkParameters(
   parameters: Readonly<Record<string, ParameterValue>>,
 ): GraphParameter[] {
   return Object.entries(parameters).map(([name, value]) => {
-    if (name === '') refuse(`'${device}' has a parameter with an empty name`);
+    if (name === '') refuse(`'${device}' parameter '': the name must not be empty`);
     // v2a section 6 (fact 55): exportAlways makes every full build write files.
-    if (name === 'exportAlways') refuse(`'${device}': exportAlways cannot be set`);
+    if (name === 'exportAlways') refuse(`'${device}' parameter 'exportAlways': cannot be set`);
     if (typeof value === 'number' && decimalText(value) === undefined) {
       refuse(`'${device}' parameter '${name}': expected a plain decimal number, not ${value}`);
     }
@@ -98,7 +98,8 @@ function checkParameters(
 function checkInputs(device: string, inputs: Readonly<Record<string, string | null>>): GraphInput[] {
   return Object.entries(inputs)
     .map(([key, text]) => {
-      if (!PORT.test(key)) refuse(`'${device}': input port '${key}' is not a positive whole number`);
+      if (!PORT.test(key) || !Number.isSafeInteger(Number(key)))
+        refuse(`'${device}': input port '${key}' is not a positive whole number`);
       if (text === null) return { port: Number(key), source: null };
       const source = parseSource(text);
       if (source === undefined) {

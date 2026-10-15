@@ -122,11 +122,20 @@ describe('validateGraphSpec (spec v3 section 4)', () => {
       base({ devices: [{ ...device('A'), inputs: { '1': ' Shape' } }] }),
       '\'A\' input 1: source \' Shape\' is not "<device>" or "<device>.<port>"',
     ],
-    ['an empty parameter name', base({ devices: [{ ...device('A'), parameters: { '': 1 } }] }), 'parameter'],
+    [
+      'an empty parameter name',
+      base({ devices: [{ ...device('A'), parameters: { '': 1 } }] }),
+      "'A' parameter '': the name must not be empty",
+    ],
     [
       'exportAlways',
       base({ devices: [{ ...device('A'), parameters: { exportAlways: false } }] }),
-      'exportAlways',
+      "'A' parameter 'exportAlways': cannot be set",
+    ],
+    [
+      'a port beyond the safe integers',
+      base({ devices: [{ ...device('A'), inputs: { '99999999999999999999': null } }] }),
+      "'A': input port '99999999999999999999' is not a positive whole number",
     ],
     [
       'an exponent number',
