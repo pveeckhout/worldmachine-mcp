@@ -15,11 +15,12 @@ export function failure(error: WorldMachineError, session: SessionSummary) {
       ? undefined
       : worldMachineText(error.worldMachineMessage.split('\n'));
   const payload = {
+    // Plan v3 decision D17: APPLY_FAILED's failedStep, completedSteps, rolledBack, and snapshot. First, so a details
+    // key cannot overwrite the code, the message, or the session.
+    ...(error.details ?? {}),
     code: error.code,
     message: error.message,
     ...(worldMachineMessage ? { worldMachineMessage } : {}),
-    // Plan v3 decision D17: APPLY_FAILED's failedStep, completedSteps, rolledBack, and snapshot.
-    ...(error.details ?? {}),
     session,
   };
   return { isError: true, content: [{ type: 'text' as const, text: JSON.stringify(payload) }] };
