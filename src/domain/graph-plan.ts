@@ -33,6 +33,13 @@ export type PlanStep =
       readonly id: number;
       readonly wiresRemoved: readonly string[];
     }
+  | {
+      readonly op: 'rename';
+      readonly device: string;
+      readonly id: number;
+      readonly from: string;
+      readonly to: string;
+    }
   | { readonly op: 'add'; readonly device: string; readonly type: string }
   | {
       readonly op: 'set-enabled';
@@ -362,6 +369,9 @@ const RENAME_IGNORED: ReadonlyMap<string, string> = new Map(
   ].map((type) => [type, 'Combiner']),
 );
 
+/** The listed types of the devices that ignore a rename (facts 80-81). */
+const IGNORES_RENAME: ReadonlySet<string> = new Set(RENAME_IGNORED.values());
+
 const TRUE_WORDS = new Set(['true', '1', 'yes', 'on']);
 const FALSE_WORDS = new Set(['false', '0', 'no', 'off']);
 const INTEGER = /^-?\d+$/;
@@ -485,7 +495,7 @@ export function planWithCuts(
 
   // Ruling 1: an entry without id may match the device another entry binds by id; one device gets one entry.
   const claimed = new Map<number, string>();
-  const managed: Managed[] = matched.map((entry) => {
+  const claimedEntries: Managed[] = matched.map((entry) => {
     // Codex round 1, ruling 3: an entry that matched a device claims it even when it has a conflict of its own, so a
     // later entry for that device is refused too; only the later entry becomes unusable here.
     if (entry.existing === undefined) return entry;
@@ -496,6 +506,37 @@ export function planWithCuts(
     }
     conflict(entry.spec.name, `#${entry.existing.id} is also managed by '${earlier}'`);
     return { ...entry, usable: false };
+  });
+
+  // Revision 7: an entry with rename: true renames its device to its label, when they differ with case. A Combiner
+  // ignores a rename (fact 80); a name another kept device has would leave two devices of one name (fact 32).
+  const renames = new Map<number, { readonly from: string; readonly to: string }>();
+  const managed: Managed[] = claimedEntries.map((entry) => {
+    const existing = entry.existing;
+    if (!entry.usable || existing === undefined || entry.spec.rename !== true) return entry;
+    const from = listedName(existing.name);
+    const to = entry.spec.name;
+    if (from === to) return entry;
+    if (IGNORES_RENAME.has(existing.type)) {
+      conflict(
+        to,
+        `World Machine ignores a rename of a ${existing.type}, so #${existing.id} keeps the name '${from}'; leave out rename or label the entry '${from}'`,
+      );
+      return { ...entry, usable: false };
+    }
+    const other = state.devices.find(
+      (device) =>
+        device.id !== existing.id && !removed.has(device.id) && foldCase(device.name) === foldCase(to),
+    );
+    if (other !== undefined) {
+      conflict(
+        to,
+        `#${other.id} is named '${other.name}' and stays; two devices of one name cannot be told apart by name, so rename it through another name first`,
+      );
+      return { ...entry, usable: false };
+    }
+    renames.set(existing.id, { from, to });
+    return entry;
   });
 
   const labelOf = (id: number): string | undefined =>
@@ -526,6 +567,15 @@ export function planWithCuts(
       }
       if (removed.has(only.id)) {
         conflict(owner, `input source '${source.device}' is in remove`);
+        return undefined;
+      }
+      // Revision 7: the old name resolves now, but not on the next plan.
+      const renamed = renames.get(only.id);
+      if (renamed !== undefined && idOfReference(source.device) === undefined) {
+        conflict(
+          owner,
+          `input source '${source.device}' is the current name of #${only.id}, which this apply renames to '${renamed.to}'; use '${renamed.to}'`,
+        );
         return undefined;
       }
       target = detail(only.id);
@@ -778,7 +828,23 @@ export function planWithCuts(
     return { op: 'remove', device: name, id, wiresRemoved: [...wires.values()] };
   });
 
-  const steps = [...disconnects, ...removes, ...adds, ...enables, ...bypasses, ...parameters, ...connects];
+  const renameSteps: PlanStep[] = [...renames].map(([id, { from, to }]) => ({
+    op: 'rename',
+    device: to,
+    id,
+    from,
+    to,
+  }));
+  const steps = [
+    ...disconnects,
+    ...removes,
+    ...renameSteps,
+    ...adds,
+    ...enables,
+    ...bypasses,
+    ...parameters,
+    ...connects,
+  ];
   // A remove step carries the removed device's listed name, which a label may equal (Review Focus 1).
   const touched = new Set(steps.flatMap((step) => (step.op === 'remove' ? [] : [foldCase(step.device)])));
   // D13. A parameter or input-port conflict leaves its entry usable and adds no step; the entry is still not unchanged,

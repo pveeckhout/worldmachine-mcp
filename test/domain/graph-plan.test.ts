@@ -1283,3 +1283,182 @@ describe('planId (spec v3 section 5)', () => {
     expect(other()).not.toBe(id);
   });
 });
+
+describe('planGraph with renames (spec v3 revision 7)', () => {
+  const MOUNTAIN = detail(12, 'Mountain', 'Advanced Perlin');
+
+  it('plans a rename between remove and add', () => {
+    const plan = planGraph(
+      spec(
+        [
+          { name: 'Ridges', id: 12, type: 'Advanced Perlin', rename: true },
+          { name: 'Base', type: 'Gradient' },
+        ],
+        ['Old'],
+      ),
+      state([MOUNTAIN, detail(30, 'Old', 'Gradient')]),
+    );
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.steps).toEqual([
+      { op: 'remove', device: 'Old', id: 30, wiresRemoved: [] },
+      { op: 'rename', device: 'Ridges', id: 12, from: 'Mountain', to: 'Ridges' },
+      { op: 'add', device: 'Base', type: 'Gradient' },
+    ]);
+    expect(plan.unchanged).toEqual([]);
+  });
+
+  it('plans a change of case as a rename', () => {
+    const plan = planGraph(
+      spec([{ name: 'mountain', id: 12, type: 'Advanced Perlin', rename: true }]),
+      state([MOUNTAIN]),
+    );
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.steps).toEqual([
+      { op: 'rename', device: 'mountain', id: 12, from: 'Mountain', to: 'mountain' },
+    ]);
+  });
+
+  it('plans nothing when the listed name is the label already', () => {
+    const plan = planGraph(
+      spec([{ name: 'Mountain', id: 12, type: 'Advanced Perlin', rename: true }]),
+      state([MOUNTAIN]),
+    );
+    expect(plan).toEqual({ conflicts: [], steps: [], unchanged: ['Mountain'] });
+  });
+
+  it('plans no rename without rename: true (Review Focus 1)', () => {
+    for (const rename of [false, undefined]) {
+      const plan = planGraph(
+        spec([
+          { name: 'Ridges', id: 12, type: 'Advanced Perlin', ...(rename === undefined ? {} : { rename }) },
+        ]),
+        state([MOUNTAIN]),
+      );
+      expect(plan).toEqual({ conflicts: [], steps: [], unchanged: ['Ridges'] });
+    }
+  });
+
+  it('refuses to rename a Combiner, and accepts one labelled Combiner (fact 80, Review Focus 2)', () => {
+    const project = state([detail(5, 'Combiner', 'Combiner')]);
+    expect(planGraph(spec([{ name: 'Mix', id: 5, type: 'Combiner', rename: true }]), project)).toEqual({
+      conflicts: [
+        {
+          entry: 'Mix',
+          reason:
+            "World Machine ignores a rename of a Combiner, so #5 keeps the name 'Combiner'; leave out rename or label the entry 'Combiner'",
+        },
+      ],
+      steps: [],
+      unchanged: [],
+    });
+    expect(planGraph(spec([{ name: 'Combiner', id: 5, type: 'Combiner', rename: true }]), project)).toEqual({
+      conflicts: [],
+      steps: [],
+      unchanged: ['Combiner'],
+    });
+  });
+
+  it('reports the type conflict for an alias type (ruling R1)', () => {
+    const plan = planGraph(
+      spec([{ name: 'Mix', id: 5, type: 'Average', rename: true }]),
+      state([detail(5, 'Combiner', 'Combiner')]),
+    );
+    expect(plan.conflicts).toEqual([{ entry: 'Mix', reason: "#5 has type 'Combiner', not 'Average'" }]);
+    expect(plan.steps).toEqual([]);
+  });
+
+  it('refuses a new name another kept device has, regardless of case', () => {
+    const plan = planGraph(
+      spec([{ name: 'ridges', id: 12, type: 'Advanced Perlin', rename: true }]),
+      state([MOUNTAIN, detail(13, 'Ridges', 'Gradient')]),
+    );
+    expect(plan.conflicts).toEqual([
+      {
+        entry: 'ridges',
+        reason:
+          "#13 is named 'Ridges' and stays; two devices of one name cannot be told apart by name, so rename it through another name first",
+      },
+    ]);
+    expect(plan.steps).toEqual([]);
+  });
+
+  it('refuses a swap of two names', () => {
+    const plan = planGraph(
+      spec([
+        { name: 'Valley', id: 12, type: 'Advanced Perlin', rename: true },
+        { name: 'Mountain', id: 14, type: 'Gradient', rename: true },
+      ]),
+      state([MOUNTAIN, detail(14, 'Valley', 'Gradient')]),
+    );
+    expect(plan.conflicts.map((found) => found.entry)).toEqual(['Valley', 'Mountain']);
+    expect(plan.steps).toEqual([]);
+  });
+
+  it('allows the name of a device the apply removes', () => {
+    const plan = planGraph(
+      spec([{ name: 'Ridges', id: 12, type: 'Advanced Perlin', rename: true }], ['#13']),
+      state([MOUNTAIN, detail(13, 'Ridges', 'Gradient')]),
+    );
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.steps).toEqual([
+      { op: 'remove', device: 'Ridges', id: 13, wiresRemoved: [] },
+      { op: 'rename', device: 'Ridges', id: 12, from: 'Mountain', to: 'Ridges' },
+    ]);
+  });
+
+  it('refuses a source that names the old name of a device the apply renames', () => {
+    const plan = planGraph(
+      spec([
+        { name: 'Ridges', id: 12, type: 'Advanced Perlin', rename: true },
+        { name: 'Eroded', type: 'Erosion', inputs: { '1': 'Mountain' } },
+      ]),
+      state([MOUNTAIN, detail(20, 'Eroded', 'Erosion', { inputs: [{ port: 1, name: 'Primary Input' }] })]),
+    );
+    expect(plan.conflicts).toEqual([
+      {
+        entry: 'Eroded',
+        reason:
+          "input source 'Mountain' is the current name of #12, which this apply renames to 'Ridges'; use 'Ridges'",
+      },
+    ]);
+  });
+
+  it('connects from a device it renames, by label and by #<id>', () => {
+    const project = state([
+      MOUNTAIN,
+      detail(20, 'Eroded', 'Erosion', {
+        inputs: [
+          { port: 1, name: 'Primary Input' },
+          { port: 2, name: 'Water input' },
+        ],
+      }),
+    ]);
+    const plan = planGraph(
+      spec([
+        { name: 'Ridges', id: 12, type: 'Advanced Perlin', rename: true },
+        { name: 'Eroded', type: 'Erosion', inputs: { '1': 'Ridges', '2': '#12' } },
+      ]),
+      project,
+    );
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.steps).toEqual([
+      { op: 'rename', device: 'Ridges', id: 12, from: 'Mountain', to: 'Ridges' },
+      {
+        op: 'connect',
+        device: 'Eroded',
+        id: 20,
+        port: 1,
+        from: 'Ridges.1',
+        source: { device: 'Ridges', id: 12, port: 1 },
+      },
+      {
+        op: 'connect',
+        device: 'Eroded',
+        id: 20,
+        port: 2,
+        from: 'Ridges.1',
+        source: { device: 'Ridges', id: 12, port: 1 },
+      },
+    ]);
+  });
+});

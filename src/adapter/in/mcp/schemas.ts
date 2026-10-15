@@ -596,6 +596,13 @@ const planStepSchema = z.discriminatedUnion('op', [
     id: z.number().int(),
     wiresRemoved: z.array(z.string()),
   }),
+  z.strictObject({
+    op: z.literal('rename'),
+    device: z.string(),
+    id: z.number().int(),
+    from: z.string(),
+    to: z.string(),
+  }),
   z.strictObject({ op: z.literal('add'), device: z.string(), type: z.string() }),
   z.strictObject({
     op: z.literal('set-enabled'),
