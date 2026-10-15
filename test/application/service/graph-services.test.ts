@@ -277,7 +277,7 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
     expect(again.unchanged).toEqual(['Slope']);
   });
 
-  it('rolls back a rename when a later step fails (fact 83)', async () => {
+  it('rolls back a rename when a later step fails (fact 100)', async () => {
     const w = wired({ FAKE_WM_PARAM_SET_ERROR_AT: '1' });
     await w.devices.addDevice('Gradient', 'Ramp');
     const spec: RawGraphSpec = {

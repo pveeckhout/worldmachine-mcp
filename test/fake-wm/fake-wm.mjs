@@ -718,7 +718,7 @@ const minuteStamp = () => {
   const two = (value) => String(value).padStart(2, '0');
   return `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())} ${two(now.getHours())}:${two(now.getMinutes())}`;
 };
-// What a snapshot holds of the fake's graph (fact 60). Spec v3 fact 78: parameter values and wires too; fact 83
+// What a snapshot holds of the fake's graph (fact 60). Spec v3 fact 78: parameter values and wires too; fact 100
 // (raw/v7-rename-restore.txt): names too, which the copied devices carry. Assumed: a restore also clears the
 // selection.
 const copyDevice = (device) => ({
