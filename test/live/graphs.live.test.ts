@@ -285,4 +285,21 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
     ]);
     expect((await plan.planGraph({ spec })).steps).toEqual([]);
   }, 120_000);
+
+  // Revision 8. The values differ from both defaults: the default project is 12 x 12 km at 2049, a blank one 8 x 8 km at 1024.
+  it('applies scene settings with the devices and plans no set-scene the second time (revision 8)', async () => {
+    await session.ensureRunning();
+    throwIfFailed(await session.executeOne('project new blank force'));
+    const spec: RawGraphSpec = {
+      version: 1,
+      scene: { resolution: 513, size_km: { width: 6, height: 6 } },
+      devices: [{ name: 'Scene Ramp', type: 'Gradient' }],
+    };
+    const view = await planAndApply(spec);
+    expect(view.scene).toMatchObject({
+      resolution: { after: 513 },
+      sizeKm: { after: { width: 6, height: 6 } },
+    });
+    expect((await plan.planGraph({ spec })).steps.filter((step) => step.op === 'set-scene')).toEqual([]);
+  }, 120_000);
 });

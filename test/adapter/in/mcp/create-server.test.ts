@@ -366,6 +366,10 @@ describe('createMcpServer', () => {
     const { tools } = await client.listTools();
     const description = (name: string) => tools.find((tool) => tool.name === name)?.description ?? '';
     expect(description('plan_graph')).toContain('{ name, id?, rename?, type, enabled?, bypassed?');
+    expect(description('plan_graph')).toContain(
+      '{ version: 1, scene?: { name?, origin_km?, size_km?, resolution? }, devices:',
+    );
+    expect(description('apply_graph')).toContain('The result shows the scene settings it changed in scene.');
     expect(description('plan_graph')).toContain('add_device and give its id');
     expect(description('apply_graph')).toContain('renamed to its name only with rename: true');
     for (const name of ['connect_devices', 'disconnect_devices']) {
