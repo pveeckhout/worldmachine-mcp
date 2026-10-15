@@ -1,0 +1,137 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (18 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Gradient                
+
+<<<
+>>> snapshot create rename-probe
+Created snapshot 'rename-probe'
+<<<
+>>> wire list #1
+Connections for '#1':
+  Inputs:
+    [1] Primary Input <- 'Thermal Weathering' [1]
+    [2] Metadata Input <- (none)
+  Outputs:
+
+<<<
+>>> device rename #536 Renamed Grad
+Renamed '#536' to 'Renamed Grad'
+<<<
+>>> device rename #1 Renamed Orig
+Renamed '#1' to 'Renamed Orig'
+<<<
+>>> device list
+Devices (18 total):
+  #1     Renamed Orig             (Height Output)
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Renamed Grad             (Gradient)
+
+<<<
+>>> wire list #1
+Connections for '#1':
+  Inputs:
+    [1] Primary Input <- 'Thermal Weathering' [1]
+    [2] Metadata Input <- (none)
+  Outputs:
+
+<<<
+>>> snapshot restore rename-probe
+Restored snapshot [#0] 'rename-probe'
+<<<
+>>> device list
+Devices (18 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #536   Gradient                
+
+<<<
+>>> wire list #1
+Connections for '#1':
+  Inputs:
+    [1] Primary Input <- 'Thermal Weathering' [1]
+    [2] Metadata Input <- (none)
+  Outputs:
+
+<<<
+>>> snapshot delete rename-probe
+Deleted snapshot [#0] 'rename-probe'
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<

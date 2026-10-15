@@ -2020,6 +2020,19 @@ const scenarios = [
     },
   ],
   [
+    // Revision 7: whether `snapshot restore` reverts renames, for apply_graph's rollback. Default project. Ends closed.
+    'v7-rename-restore',
+    async () => {
+      const sections = [];
+      try {
+        await renameRestore(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
     // Every enum parameter's options of every device type, for a generated catalog. Each type of ENUM_TYPES alone in a
     // new project: add, read its type (fact 79) and parameters, then per enum the current label, the range error, and
     // each index set and read back. A failing type is recorded and the next one runs. Ends closed.
@@ -3105,6 +3118,30 @@ async function v3RenameProbe(sections) {
   const second = await addNew('Combiner');
   await renameAndRead(second, 'Blend 2');
   sections.push(...(await run(['project close force'])));
+}
+
+// Revision 7 (renames in a spec): does `snapshot restore` revert a rename made after the snapshot? A device added
+// before the snapshot and a device of the default project are renamed, the second one wired; then restore and read.
+async function renameRestore(sections) {
+  const listed = await run(['project new default force', 'device list']);
+  sections.push(...listed);
+  const original = devices(listed[1].lines)[0];
+  if (original === undefined) throw new Error('the default project lists no device');
+  const gradient = await freshDevice(sections, 'Gradient');
+  sections.push(...(await run(['snapshot create rename-probe', `wire list #${original.id}`])));
+  sections.push(
+    ...(await run([
+      `device rename #${gradient.id} Renamed Grad`,
+      `device rename #${original.id} Renamed Orig`,
+      'device list',
+      `wire list #${original.id}`,
+      'snapshot restore rename-probe',
+      'device list',
+      `wire list #${original.id}`,
+      'snapshot delete rename-probe',
+      'project close force',
+    ])),
+  );
 }
 
 // The 118 device types `device add` accepted in raw/v3-rename-types.txt (phase A, l.1-620: 205 accepted words, 118
