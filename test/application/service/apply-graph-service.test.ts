@@ -60,6 +60,7 @@ describe('ApplyGraphService with a World Machine that exits between steps', () =
         portsOf: () => undefined,
         portsOfAdded: () => undefined,
       }),
+      stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
     );
     const id = planId(validateGraphSpec(SPEC), { projectPath: null, devices: [], details: [] });
     const error = await service.applyGraph({ spec: SPEC, planId: id, keepSnapshot: false }).then(
@@ -167,6 +168,7 @@ describe('ApplyGraphService robustness', () => {
         portsOf: () => undefined,
         portsOfAdded: () => undefined,
       }),
+      stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
     );
     const id = planId(validateGraphSpec(SPEC), { projectPath: null, devices: [], details: [] });
     return { service, calls, id, control };
@@ -410,6 +412,70 @@ describe('ApplyGraphService robustness', () => {
   });
 });
 
+describe('ApplyGraphService scene step (revision 8)', () => {
+  it('fails the step and restores when the scene reads back differently from what was set', async () => {
+    const calls: string[] = [];
+    const stub = <T>(value: unknown): T => value as T;
+    const scene = {
+      name: 'Main Extents',
+      index: 0,
+      count: 1,
+      originKm: { x: 4, y: 4 },
+      sizeKm: { width: 12, height: 12 },
+      resolution: 2049,
+      locked: false,
+    };
+    const spec: RawGraphSpec = { version: 1, scene: { resolution: 513 }, devices: [] };
+    const session = {
+      status: () => ({
+        executable: null,
+        generation: 1,
+        session: { state: 'ready', binding: { kind: 'fresh' }, dirty: false },
+      }),
+      exclusive: <T>(action: () => Promise<T>) => action(),
+    };
+    const graph = { listDevices: async () => [], getDevice: async () => ({}), getScene: async () => scene };
+    const snapshots = {
+      list: async () => [],
+      create: async (name: string) => ({ index: 0, name }),
+      restore: async (name: string) => {
+        calls.push(`restore ${name}`);
+        return { index: 0, name };
+      },
+    };
+    const scenes = {
+      configureScene: async () => {
+        calls.push('configure');
+        return { ...scene, resolution: 1025 };
+      },
+    };
+    const service = new ApplyGraphService(
+      stub<ConstructorParameters<typeof ApplyGraphService>[0]>(session),
+      stub<ConstructorParameters<typeof ApplyGraphService>[1]>(graph),
+      stub<ConstructorParameters<typeof ApplyGraphService>[2]>({}),
+      stub<ConstructorParameters<typeof ApplyGraphService>[3]>({}),
+      stub<ConstructorParameters<typeof ApplyGraphService>[4]>({}),
+      stub<ConstructorParameters<typeof ApplyGraphService>[5]>(snapshots),
+      stub<ConstructorParameters<typeof ApplyGraphService>[6]>(syntheticPortTypes),
+      stub<ConstructorParameters<typeof ApplyGraphService>[7]>(scenes),
+    );
+    const id = planId(validateGraphSpec(spec), { projectPath: null, devices: [], details: [], scene });
+    const error = await service.applyGraph({ spec, planId: id, keepSnapshot: false }).then(
+      () => {
+        throw new Error('the call succeeded');
+      },
+      (caught: unknown) => caught as WorldMachineError,
+    );
+    expect(error.code).toBe('APPLY_FAILED');
+    expect(error.details).toMatchObject({
+      failedStep: { index: 0, code: 'WM_COMMAND_FAILED' },
+      rolledBack: true,
+    });
+    expect(error.message).toContain('the scene');
+    expect(calls).toEqual(['configure', expect.stringMatching(/^restore apply_graph /)]);
+  });
+});
+
 describe('ApplyGraphService port types (port-types design section 6, plan decision D8)', () => {
   it('refuses a plan with an incompatible wire before any command', async () => {
     const calls: string[] = [];
@@ -443,6 +509,7 @@ describe('ApplyGraphService port types (port-types design section 6, plan decisi
       stub<ConstructorParameters<typeof ApplyGraphService>[4]>({}),
       stub<ConstructorParameters<typeof ApplyGraphService>[5]>({ list: record('snapshot list') }),
       syntheticPortTypes,
+      stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
     );
     const id = planId(validateGraphSpec(spec), { projectPath: null, devices: [], details: [] });
     await expect(service.applyGraph({ spec, planId: id, keepSnapshot: false })).rejects.toMatchObject({
@@ -522,6 +589,7 @@ describe('ApplyGraphService unidentifiable wires (unidentifiable-wires design se
       stub<ConstructorParameters<typeof ApplyGraphService>[4]>({}),
       stub<ConstructorParameters<typeof ApplyGraphService>[5]>(snapshots),
       stub<ConstructorParameters<typeof ApplyGraphService>[6]>(portTypes),
+      stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
     ).applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
     expect(view).toMatchObject({ applied: 2, diffError: 'read failed' });
     expect(view.unidentifiableWires).toEqual(plan.unidentifiableWires);
@@ -588,6 +656,7 @@ describe('ApplyGraphService loops (wire-loops design section 4)', () => {
         remove: record('snapshot remove'),
       }),
       stub<ConstructorParameters<typeof ApplyGraphService>[6]>(portTypes),
+      stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
     );
     const id = planId(validateGraphSpec(spec), state);
     await expect(service.applyGraph({ spec, planId: id, keepSnapshot: false })).rejects.toMatchObject({
@@ -639,6 +708,7 @@ describe('ApplyGraphService loops (wire-loops design section 4)', () => {
       stub<ConstructorParameters<typeof ApplyGraphService>[4]>({}),
       stub<ConstructorParameters<typeof ApplyGraphService>[5]>(snapshots),
       stub<ConstructorParameters<typeof ApplyGraphService>[6]>(portTypes),
+      stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
     ).applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
     expect(view).toMatchObject({ applied: 1, diffError: 'read failed' });
     expect(view.possibleLoops).toEqual(plan.possibleLoops);

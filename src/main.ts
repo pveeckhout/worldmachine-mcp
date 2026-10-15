@@ -152,7 +152,16 @@ const handle = serveStdio(() =>
     listGroups: new ListGroupsService(session, groups),
     setGroupEnabled: new SetGroupEnabledService(session, groups),
     planGraph: new PlanGraphService(session, reader, portTypes),
-    applyGraph: new ApplyGraphService(session, reader, devices, wires, parameters, snapshots, portTypes),
+    applyGraph: new ApplyGraphService(
+      session,
+      reader,
+      devices,
+      wires,
+      parameters,
+      snapshots,
+      portTypes,
+      scene,
+    ),
     currentSession: () => session.status().session,
   }),
 );

@@ -16,6 +16,7 @@ import {
   WorldMachinePortTypes,
 } from '../../../src/adapter/out/worldmachine/world-machine-port-types.js';
 import { WorldMachineProcess } from '../../../src/adapter/out/worldmachine/world-machine-process.js';
+import { WorldMachineSceneEditor } from '../../../src/adapter/out/worldmachine/world-machine-scene-editor.js';
 import { WorldMachineSession } from '../../../src/adapter/out/worldmachine/world-machine-session.js';
 import { WorldMachineSnapshotEditor } from '../../../src/adapter/out/worldmachine/world-machine-snapshot-editor.js';
 import { WorldMachineWireEditor } from '../../../src/adapter/out/worldmachine/world-machine-wire-editor.js';
@@ -68,6 +69,7 @@ function wired(extra: Record<string, string> = {}, catalog?: PortTypeCatalog) {
     new WorldMachineParameterEditor(session),
     snapshots,
     portTypes,
+    new WorldMachineSceneEditor(session),
   );
   return {
     record,
@@ -947,5 +949,64 @@ describe('a wire that closes a loop over the fake World Machine (spec fact 99)',
       failedStep: { code: 'WM_COMMAND_FAILED', worldMachineMessage: CYCLE },
       rolledBack: true,
     });
+  });
+});
+
+describe('ApplyGraphService scene settings (revision 8)', () => {
+  it('applies scene settings first, diffs them, and a second plan has no set-scene (revision 8)', async () => {
+    const w = wired();
+    const spec: RawGraphSpec = {
+      version: 1,
+      scene: { resolution: 513, size_km: { width: 8, height: 8 } },
+      devices: [{ name: 'Ramp', type: 'Gradient' }],
+    };
+    const plan = await w.plan.planGraph({ spec });
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.steps.map((step) => step.op)).toEqual(['set-scene', 'add']);
+    const view = await w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
+    expect(view.scene).toEqual({
+      sizeKm: { before: { width: 12, height: 12 }, after: { width: 8, height: 8 } },
+      resolution: { before: 2049, after: 513 },
+    });
+    const again = await w.plan.planGraph({ spec });
+    expect(again.steps).toEqual([]);
+    expect(again.unchanged).toEqual(['scene', 'Ramp']);
+  });
+
+  it('rolls back the scene when a later step fails (fact 101)', async () => {
+    const w = wired({ FAKE_WM_PARAM_SET_ERROR_AT: '1' });
+    const spec: RawGraphSpec = {
+      version: 1,
+      scene: { resolution: 513 },
+      devices: [{ name: 'Ramp', type: 'Gradient', parameters: { Width: 0.5 } }],
+    };
+    const plan = await w.plan.planGraph({ spec });
+    const error = await failure(w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false }));
+    expect(error.code).toBe('APPLY_FAILED');
+    expect(error.details).toMatchObject({ rolledBack: true });
+    expect(w.record.lines()).toContain('scene resolution 513');
+    expect((await w.reader.getScene()).resolution).toBe(2049);
+  });
+
+  it('reports a locked scene as a conflict and apply_graph sends nothing (revision 8)', async () => {
+    const w = wired({ FAKE_WM_SCENE_LOCKED: '1' });
+    const spec: RawGraphSpec = { version: 1, scene: { resolution: 513 }, devices: [] };
+    const plan = await w.plan.planGraph({ spec });
+    expect(plan.conflicts).toEqual([
+      {
+        entry: 'scene',
+        reason: "the scene is locked; unlock it in World Machine ('scene lock off') and plan again",
+      },
+    ]);
+    await failure(w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false }));
+    const sent = w.record.lines();
+    expect(sent.some((line) => line.startsWith('scene resolution'))).toBe(false);
+    expect(sent.some((line) => CHANGES.test(line))).toBe(false);
+  });
+
+  it('sends no scene show for a spec without scene (Review Focus 1)', async () => {
+    const w = wired();
+    await w.plan.planGraph({ spec: SPEC });
+    expect(w.record.lines()).not.toContain('scene show');
   });
 });

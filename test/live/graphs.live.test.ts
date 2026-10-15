@@ -60,6 +60,7 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
     new WorldMachineParameterEditor(session),
     new WorldMachineSnapshotEditor(session),
     portTypes,
+    new WorldMachineSceneEditor(session),
   );
   const names = async () => (await reader.listDevices()).map((device) => device.name);
   const planAndApply = async (spec: RawGraphSpec) => {

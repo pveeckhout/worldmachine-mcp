@@ -715,6 +715,14 @@ export const applyGraphViewSchema = z.strictObject({
   snapshot: z.string().nullable(),
   diff: z.array(diffEntrySchema),
   diffError: z.string().optional(),
+  scene: z
+    .strictObject({
+      name: changeOf(z.string()).optional(),
+      originKm: changeOf(z.strictObject({ x: z.number(), y: z.number() })).optional(),
+      sizeKm: changeOf(z.strictObject({ width: z.number(), height: z.number() })).optional(),
+      resolution: changeOf(z.number().int()).optional(),
+    })
+    .optional(),
   unidentifiableWires: z.array(z.string()),
   possibleLoops: z.array(z.string()),
   session: sessionSummarySchema,

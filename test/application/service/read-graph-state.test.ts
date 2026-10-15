@@ -6,6 +6,7 @@ import { PlanGraphService } from '../../../src/application/service/plan-graph-se
 import { readGraphState } from '../../../src/application/service/read-graph-state.js';
 import type { DeviceDetail, DeviceSummary, InputPort } from '../../../src/domain/device.js';
 import { type RawGraphDevice, validateGraphSpec } from '../../../src/domain/graph-spec.js';
+import type { Scene } from '../../../src/domain/scene.js';
 import type { ProjectBinding } from '../../../src/domain/session.js';
 
 const row = (id: number, name: string): DeviceSummary => ({ id, name, enabled: true });
@@ -33,7 +34,12 @@ function ports(
   binding: ProjectBinding = { kind: 'fresh' },
 ) {
   const reads: string[] = [];
+  const sceneReads: string[] = [];
   const graph = {
+    getScene: async () => {
+      sceneReads.push('scene show');
+      return SCENE;
+    },
     listDevices: async () => devices,
     getDevice: async (device: string) => {
       reads.push(device);
@@ -48,8 +54,18 @@ function ports(
       session: { state: 'ready', binding, dirty: false },
     }),
   } as unknown as WorldMachineSessionPort;
-  return { reads, graph, session };
+  return { reads, sceneReads, graph, session };
 }
+
+const SCENE: Scene = {
+  name: 'Main Extents',
+  index: 0,
+  count: 1,
+  originKm: { x: 4, y: 4 },
+  sizeKm: { width: 12, height: 12 },
+  resolution: 2049,
+  locked: false,
+};
 
 const spec = (devices: RawGraphDevice[]) => validateGraphSpec({ version: 1, devices });
 
@@ -252,5 +268,22 @@ describe('readGraphState, fourth phase (wire-loops design section 3)', () => {
     );
     await readGraphState(spec([{ name: 'Hill', type: 'Hill', inputs: { '1': 'Peak' } }]), p.graph, p.session);
     expect(p.reads).toEqual(['#1', '#3', '#2']);
+  });
+});
+
+describe('readGraphState scene (revision 8)', () => {
+  it('reads the scene once when the spec has scene, and puts it in the state', async () => {
+    const p = ports([], []);
+    const withScene = validateGraphSpec({ version: 1, scene: { resolution: 513 }, devices: [] });
+    const state = await readGraphState(withScene, p.graph, p.session);
+    expect(p.sceneReads).toEqual(['scene show']);
+    expect(state.scene).toEqual(SCENE);
+  });
+
+  it('never reads the scene for a spec without scene, and the state has no scene key', async () => {
+    const p = ports([], []);
+    const state = await readGraphState(spec([]), p.graph, p.session);
+    expect(p.sceneReads).toEqual([]);
+    expect('scene' in state).toBe(false);
   });
 });

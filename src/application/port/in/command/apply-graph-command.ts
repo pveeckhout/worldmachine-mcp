@@ -2,6 +2,7 @@ import type { ErrorCode } from '../../../../domain/errors.js';
 import type { DiffEntry } from '../../../../domain/graph-diff.js';
 import type { PlanStep } from '../../../../domain/graph-plan.js';
 import type { RawGraphSpec } from '../../../../domain/graph-spec.js';
+import type { SceneDiff } from '../../../../domain/scene-plan.js';
 import type { SessionSummary } from '../../../../domain/session.js';
 
 export type ApplyGraphCommand = {
@@ -20,6 +21,8 @@ export type ApplyGraphView = {
   readonly unidentifiableWires: readonly string[];
   /** Wire-loops design section 4: `possibleLoops` of the plan this call applied. */
   readonly possibleLoops: readonly string[];
+  /** Revision 8: the scene fields the apply changed; left out when none did. */
+  readonly scene?: SceneDiff;
   readonly session: SessionSummary;
 };
 export type FailedStep = {

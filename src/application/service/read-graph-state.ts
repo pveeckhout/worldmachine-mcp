@@ -18,13 +18,15 @@ import type { WorldMachineSessionPort } from '../port/out/world-machine-session-
  * device that has the predicted source name of a spec input wire when another predicted device has that name too,
  * so unidentifiableWires can resolve the wire after the apply, then (wire-loops design section 3) in rounds of each
  * unread device downstream of the destinations of the spec's input wires, so wireLoops can follow every path from
- * them. The binding is read last, after the reads have started World Machine if it was not running.
+ * them. Revision 8: `scene show` runs first, once, only when the spec has `scene`. The binding is read last, after the reads have started World Machine if it was not running.
  */
 export async function readGraphState(
   spec: GraphSpec,
   graph: ProjectGraphReadPort,
   session: WorldMachineSessionPort,
 ): Promise<GraphState & { readonly session: SessionSummary }> {
+  // Revision 8: `scene show` once, first, only when the spec has `scene`.
+  const scene = spec.scene === undefined ? undefined : await graph.getScene();
   const devices = await graph.listDevices();
   const details: DeviceDetail[] = [];
   for (const id of referencedDeviceIds(spec, devices)) details.push(await graph.getDevice(`#${id}`));
@@ -47,6 +49,7 @@ export async function readGraphState(
     projectPath: binding?.kind === 'opened' ? binding.path : null,
     devices,
     details,
+    ...(scene === undefined ? {} : { scene }),
     session: summary,
   };
 }

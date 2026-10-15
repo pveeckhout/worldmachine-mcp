@@ -11,6 +11,8 @@ import {
   planWithCuts,
 } from '../../domain/graph-plan.js';
 import { type GraphSpec, validateGraphSpec } from '../../domain/graph-spec.js';
+import type { Scene } from '../../domain/scene.js';
+import { sceneDiff, sceneMatches, sceneTargets } from '../../domain/scene-plan.js';
 import { wireLoops } from '../../domain/wire-loops.js';
 import { unidentifiableWires } from '../../domain/wire-prediction.js';
 import type {
@@ -23,6 +25,7 @@ import type { DeviceEditPort } from '../port/out/device-edit-port.js';
 import type { ParameterEditPort } from '../port/out/parameter-edit-port.js';
 import type { PortTypeCatalogPort } from '../port/out/port-type-catalog-port.js';
 import type { ProjectGraphReadPort } from '../port/out/project-graph-read-port.js';
+import type { SceneEditPort } from '../port/out/scene-edit-port.js';
 import type { SnapshotPort } from '../port/out/snapshot-port.js';
 import type { WireEditPort } from '../port/out/wire-edit-port.js';
 import type { SessionStatus, WorldMachineSessionPort } from '../port/out/world-machine-session-port.js';
@@ -42,6 +45,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
   readonly #parameters: ParameterEditPort;
   readonly #snapshots: SnapshotPort;
   readonly #portTypes: PortTypeCatalogPort;
+  readonly #scenes: SceneEditPort;
 
   constructor(
     session: WorldMachineSessionPort,
@@ -51,6 +55,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
     parameters: ParameterEditPort,
     snapshots: SnapshotPort,
     portTypes: PortTypeCatalogPort,
+    scenes: SceneEditPort,
   ) {
     this.#session = session;
     this.#graph = graph;
@@ -59,6 +64,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
     this.#parameters = parameters;
     this.#snapshots = snapshots;
     this.#portTypes = portTypes;
+    this.#scenes = scenes;
   }
 
   /**
@@ -117,6 +123,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
       await this.#snapshots.create(snapshot);
       const start = this.#session.status();
       const added = new Map<string, number>();
+      const applied: { scene?: Scene } = {};
       for (const [index, step] of plan.steps.entries()) {
         try {
           // A World Machine that exited between steps restarts silently on the next command, on another project.
@@ -126,7 +133,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
               'World Machine exited before this step; the remaining steps were not sent',
             );
           }
-          await this.#run(step, added);
+          await this.#run(step, added, applied);
         } catch (error) {
           if (!(error instanceof WorldMachineError)) {
             throw await this.#internalFailure(
@@ -151,6 +158,9 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
       if (!this.#sameSession(start)) {
         throw lostAfterApply('CRASHED', 'World Machine restarted after the last step');
       }
+      const changedScene =
+        state.scene === undefined || applied.scene === undefined ? {} : sceneDiff(state.scene, applied.scene);
+      const scene = Object.keys(changedScene).length === 0 ? {} : { scene: changedScene };
       let diff: DiffEntry[];
       try {
         diff = await this.#diff(plan.steps, cutInputs, state, added);
@@ -168,6 +178,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
           snapshot,
           diff: [],
           diffError: reason,
+          ...scene,
           unidentifiableWires: unidentifiable,
           possibleLoops: loops.possibleLoops,
           session: this.#session.status().session,
@@ -182,6 +193,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
         applied: plan.steps.length,
         snapshot: kept ? snapshot : null,
         diff,
+        ...scene,
         unidentifiableWires: unidentifiable,
         possibleLoops: loops.possibleLoops,
         session: this.#session.status().session,
@@ -190,7 +202,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
   }
 
   /** One step through the edit ports, every device as `#<id>`; `added` maps spec names to the ids adds returned. */
-  async #run(step: PlanStep, added: Map<string, number>): Promise<void> {
+  async #run(step: PlanStep, added: Map<string, number>, applied: { scene?: Scene }): Promise<void> {
     const ref = (device: string, id: number | undefined): string => {
       const resolved = id ?? added.get(foldCase(device));
       // planGraph orders adds before every step that uses the added device.
@@ -198,6 +210,19 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
       return `#${resolved}`;
     };
     switch (step.op) {
+      case 'set-scene': {
+        // Revision 8: configure_scene's port sends each setter and checks its confirmation (fact 27); the scene it
+        // returns must show what the step set, compared as the plan compares.
+        const scene = await this.#scenes.configureScene(sceneTargets(step.changes));
+        if (!sceneMatches(step.changes, scene)) {
+          throw new WorldMachineError(
+            'WM_COMMAND_FAILED',
+            `World Machine confirmed the scene settings, but scene show reads '${scene.name}', origin (${scene.originKm.x}, ${scene.originKm.y}) km, size ${scene.sizeKm.width} x ${scene.sizeKm.height} km, resolution ${scene.resolution}`,
+          );
+        }
+        applied.scene = scene;
+        return;
+      }
       case 'disconnect':
         await this.#wires.disconnect(
           { device: `#${step.source.id}`, port: step.source.port },
