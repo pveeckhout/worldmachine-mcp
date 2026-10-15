@@ -506,5 +506,39 @@ describe('wireLoops through a rename (spec v3 revision 7)', () => {
     const result = loops([ridges({ '1': '#30' })], current, ['#50']);
     expect(result.plan.conflicts).toEqual([]);
     expect(result.conflicts).toEqual([]);
+    expect(result.possibleLoops).toEqual([]);
+  });
+
+  // Combiners #5 and #6 each list 'Erosion' input 1; Erosions #20 and #21 each show 'Combiner': no wire is identified.
+  const COMBINERS_INTO_EROSIONS = state([
+    combiner(5, [to('Erosion')]),
+    combiner(6, [to('Erosion')]),
+    node(20, 'Erosion', [], { 1: 'Combiner' }),
+    node(21, 'Erosion', [], { 1: 'Combiner' }),
+  ]);
+  const mixFrom20: RawGraphDevice = { name: 'Mix', id: 5, type: 'Combiner', inputs: { '1': '#20' } };
+
+  it('lists a possible loop through a shared source name without a rename (control for final review I1)', () => {
+    const result = loops(
+      [{ name: 'Erosion A', id: 20, type: 'Erosion' }, mixFrom20],
+      COMBINERS_INTO_EROSIONS,
+    );
+    expect(result.plan.conflicts).toEqual([]);
+    expect(result.conflicts).toEqual([]);
+    expect(result.possibleLoops).toEqual([
+      "'Mix' input 1 from 'Erosion A' output 1 may close a loop through 'Combiner', whose wires cannot be told apart",
+    ]);
+  });
+
+  it('reaches a renamed device by the current name of a line the rename could not rewrite (final review I1)', () => {
+    const result = loops(
+      [{ name: 'Erosion A', id: 20, type: 'Erosion', rename: true }, mixFrom20],
+      COMBINERS_INTO_EROSIONS,
+    );
+    expect(result.plan.conflicts).toEqual([]);
+    expect(result.conflicts).toEqual([]);
+    expect(result.possibleLoops).toEqual([
+      "'Mix' input 1 from 'Erosion A' output 1 may close a loop through 'Erosion', whose wires cannot be told apart",
+    ]);
   });
 });

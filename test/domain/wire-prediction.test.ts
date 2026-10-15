@@ -402,4 +402,23 @@ describe('predictWiring with a rename (spec v3 revision 7)', () => {
       "'Ridges' input 1 from 'Perlin' output 1: #5, #6, #7 each list 'Ridges' input 1",
     ]);
   });
+  it('keeps the current name on a line the current state cannot identify, as the rename leaves it', () => {
+    // Combiners #5 and #6 each list 'Erosion' input 1; Erosions #20 and #21 each show 'Combiner'.
+    const state = stateOf([
+      device(5, 'Combiner', 'Combiner', undefined, [{ device: 'Erosion', port: 1 }]),
+      device(6, 'Combiner', 'Combiner', undefined, [{ device: 'Erosion', port: 1 }]),
+      device(20, 'Erosion', 'Erosion', 'Combiner'),
+      device(21, 'Erosion', 'Erosion', 'Combiner'),
+    ]);
+    const graph = validateGraphSpec({
+      version: 1,
+      devices: [{ name: 'Erosion A', id: 20, type: 'Erosion', rename: true }],
+    });
+    const plan = planGraph(graph, state);
+    expect(plan.conflicts).toEqual([]);
+    const wiring = predictWiring(graph, state, plan.steps);
+    expect(wiring.devices.find((listed) => listed.id === 20)?.name).toBe('Erosion A');
+    expect(wiring.outputsOf(5)?.[0]?.targets).toEqual([{ device: 'Erosion', port: 1 }]);
+    expect(wiring.outputsOf(6)?.[0]?.targets).toEqual([{ device: 'Erosion', port: 1 }]);
+  });
 });

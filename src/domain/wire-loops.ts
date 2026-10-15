@@ -61,6 +61,14 @@ export function wireLoops(
       ?.source;
   };
 
+  /** Revision 7: the devices the plan renames whose listed name now is `name`. */
+  const renamedFrom = (name: string): readonly number[] =>
+    steps.flatMap((step) =>
+      step.op === 'rename' && state.devices.find((device) => device.id === step.id)?.name === name
+        ? [step.id]
+        : [],
+    );
+
   /**
    * Wire-loops design section 2 (revision 1) and plan decision D2: the devices a target line of `from` reaches. Of the
    * devices of the line's name, one whose input a connect step feeds is reached, certainly, only from that step's
@@ -81,11 +89,20 @@ export function wireLoops(
     for (const output of wiring.outputsOf(from) ?? []) {
       for (const target of output.targets) {
         const name = listedName(target.device);
-        const named = wiring.devices.filter((device) => device.name === name);
-        for (const { id } of named) {
+        // Revision 7 (final review I1): a line the rename step could not rewrite keeps the current name, so it may
+        // also name a device the plan renames from it; that device is reached only uncertainly, through that name.
+        const candidates = [
+          ...wiring.devices
+            .filter((device) => device.name === name)
+            .map((device) => ({ id: device.id, name, line: undefined })),
+          ...renamedFrom(name).map((id) => ({ id, name: nameOf(id) ?? name, line: name })),
+        ];
+        for (const { id, name: listed, line } of candidates) {
+          const reach = (shared: string | undefined) =>
+            hops.push({ id, name: listed, shared: line ?? shared });
           const known = connected.get(`${id}.${target.port}`);
           if (known !== undefined) {
-            if (known === from) hops.push({ id, name, shared: undefined });
+            if (known === from) reach(undefined);
             continue;
           }
           const source = keptSourceOf(id, target.port);
@@ -93,16 +110,16 @@ export function wireLoops(
           if (listedName(source.device) !== ownNow) continue;
           const input: InputPort = { port: target.port, name: '', source };
           if (!readable(input)) {
-            hops.push({ id, name, shared: own });
+            reach(own);
             continue;
           }
-          const resolved = current(state.devices.find((device) => device.id === id)?.name ?? name, input);
-          if (resolved.kind === 'found' && resolved.id === from) hops.push({ id, name, shared: undefined });
+          const resolved = current(state.devices.find((device) => device.id === id)?.name ?? listed, input);
+          if (resolved.kind === 'found' && resolved.id === from) reach(undefined);
           else if (
             resolved.kind === 'unknown' ||
             (resolved.kind === 'ambiguous' && resolved.candidates.includes(from))
           )
-            hops.push({ id, name, shared: own });
+            reach(own);
         }
       }
     }
