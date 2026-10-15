@@ -476,6 +476,59 @@ describe('createMcpServer', () => {
     expect(result.isError).toBe(true);
   });
 
+  it('returns a rename step and a diff name change through the output schemas (revision 7)', async () => {
+    const rename = { op: 'rename', device: 'Ridges', id: 12, from: 'Mountain', to: 'Ridges' };
+    const planView = {
+      planId: PLAN_ID,
+      conflicts: [],
+      steps: [rename],
+      unchanged: [],
+      uncheckedWires: [],
+      unidentifiableWires: [],
+      possibleLoops: [],
+      session: READY,
+    };
+    const applyView = {
+      applied: 1,
+      snapshot: null,
+      diff: [{ device: 'Ridges', change: 'changed', id: 12, name: { before: 'Mountain', after: 'Ridges' } }],
+      unidentifiableWires: [],
+      possibleLoops: [],
+      session: READY,
+    };
+    const client = await connect(
+      deps({
+        planGraph: { planGraph: async () => planView as never },
+        applyGraph: { applyGraph: async () => applyView as never },
+      }),
+    );
+    const planned = await client.callTool({ name: 'plan_graph', arguments: { spec: GRAPH_SPEC } });
+    expect(planned.isError).toBeFalsy();
+    expect(planned.structuredContent).toMatchObject({ steps: [rename] });
+    const applied = await client.callTool({
+      name: 'apply_graph',
+      arguments: { spec: GRAPH_SPEC, plan_id: PLAN_ID },
+    });
+    expect(applied.isError).toBeFalsy();
+    expect(applied.structuredContent).toMatchObject({ diff: applyView.diff });
+  });
+
+  it('refuses a rename step without its new name (revision 7)', async () => {
+    const view = {
+      planId: PLAN_ID,
+      conflicts: [],
+      steps: [{ op: 'rename', device: 'Ridges', id: 12, from: 'Mountain' }],
+      unchanged: [],
+      uncheckedWires: [],
+      unidentifiableWires: [],
+      possibleLoops: [],
+      session: READY,
+    };
+    const client = await connect(deps({ planGraph: { planGraph: async () => view as never } }));
+    const result = await client.callTool({ name: 'plan_graph', arguments: { spec: GRAPH_SPEC } });
+    expect(result.isError).toBe(true);
+  });
+
   it('describes unidentifiableWires on plan_graph and apply_graph, not the old warning', async () => {
     const { tools } = await (await connect(deps())).listTools();
     const description = (name: string) => tools.find((tool) => tool.name === name)?.description ?? '';
