@@ -10,6 +10,7 @@ Revision 5 (2026-10-12): bypassed in device entries (set-bypassed step after set
 Revision 6 (2026-10-12): `id` in device entries, so a spec can manage several Combiners; a Combiner entry needs its default name or an `id`; a wire source whose name several devices share is resolved through the candidates' output targets (fact 82), in the plan and in `connect_devices` and `disconnect_devices` (amends v1 section 7). Backlog, lowlands trial items 1 and 2.
 Revision 7 (2026-10-15): `rename` in device entries with `id`, a `rename` step after `remove`, and `name` in a `changed` diff entry; fact 100 (`snapshot restore` reverts renames, raw/v7-rename-restore.txt). Amends the Ownership rule of section 4 and the out-of-scope list of section 10.
 Revision 8 (2026-10-15): an optional top-level `scene` (name, origin_km, size_km, resolution of the current scene), planned as one `set-scene` step before every device step and shown as `scene` in the apply result; fact 101 (`snapshot restore` reverts all four, raw/v8-scene-restore.txt). Amends section 10.
+Revision 9 (2026-10-15): `plan_graph` and `apply_graph` also take a template file with typed parameters instead of an inline spec; see [graph templates design](2026-10-15-worldmachine-mcp-graph-templates-design.md). Amends section 10.
 Builds on: [v1 design](2026-10-04-worldmachine-mcp-design.md) (facts 1-41 and 77, the edit tools of section 7, the errors of section 8), [v2a design](2026-10-05-worldmachine-mcp-v2a-design.md) (the build guard), and [v2b design](2026-10-06-worldmachine-mcp-v2b-design.md) (facts 57-61, the snapshot tools)
 
 ## 1. Purpose and scope
@@ -325,4 +326,4 @@ Revision 7: that section gets a `rename: true` example and the rule that a label
 
 ## 10. Out of scope
 
-Templates and spec files on disk, other scenes than the current one (switching, adding, or removing scenes), groups, layout and device positions (`organize_devices` exists), spec versions other than 1, and exports or builds as part of an apply.
+Listing or saving templates (revision 9 reads them only), other scenes than the current one (switching, adding, or removing scenes), groups, layout and device positions (`organize_devices` exists), spec versions other than 1, and exports or builds as part of an apply.
