@@ -560,6 +560,17 @@ const graphDeviceSchema = z.strictObject({
 
 export const graphSpecSchema = z.strictObject({
   version: z.number().describe('Must be 1'),
+  scene: z
+    .strictObject({
+      name: z.string().optional(),
+      origin_km: z.strictObject({ x: z.number(), y: z.number() }).optional(),
+      size_km: z.strictObject({ width: z.number(), height: z.number() }).optional(),
+      resolution: z.number().optional(),
+    })
+    .optional()
+    .describe(
+      "Revision 8: the current scene's settings, as configure_scene takes them; origin and size in km with at most two decimals",
+    ),
   devices: z.array(graphDeviceSchema),
   remove: z.array(z.string()).optional().describe('Device names or #<id> to delete; absence never deletes'),
 }) satisfies z.ZodType<RawGraphSpec>;

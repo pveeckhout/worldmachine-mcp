@@ -186,6 +186,42 @@ describe('validateGraphSpec (spec v3 section 4)', () => {
       "'Base': rename needs an id; an entry without id is identified by its name, so give the id of the device to rename",
     ],
     ['a label of the form #<n>', base({ devices: [{ ...device('#3'), id: 3 }] }), 'device id'],
+    [
+      'an empty scene (revision 8)',
+      base({ scene: {} }),
+      'scene must give at least one of name, origin_km, size_km, and resolution',
+    ],
+    ['an empty scene name (revision 8)', base({ scene: { name: '' } }), 'scene name must not be empty'],
+    [
+      'a scene size of 0 (revision 8)',
+      base({ scene: { size_km: { width: 0, height: 8 } } }),
+      'scene size width must be positive, not 0',
+    ],
+    [
+      'a scene resolution of 1.5 (revision 8)',
+      base({ scene: { resolution: 1.5 } }),
+      'scene resolution must be a positive whole number, not 1.5',
+    ],
+    [
+      'a scene resolution of 0 (revision 8)',
+      base({ scene: { resolution: 0 } }),
+      'scene resolution must be a positive whole number, not 0',
+    ],
+    [
+      'three decimals in a scene size (revision 8, fact 101)',
+      base({ scene: { size_km: { width: 6.125, height: 8 } } }),
+      'scene size width must be a plain decimal number with at most two decimals, not 6.125',
+    ],
+    [
+      'three decimals in a scene origin (revision 8, fact 101)',
+      base({ scene: { origin_km: { x: 0, y: 0.333 } } }),
+      'scene origin y must be a plain decimal number with at most two decimals, not 0.333',
+    ],
+    [
+      'a float error in a scene origin (Review Focus 2)',
+      base({ scene: { origin_km: { x: 0.1 + 0.2, y: 0 } } }),
+      'scene origin x must be a plain decimal number with at most two decimals, not 0.30000000000000004',
+    ],
   ])('refuses %s', (_label, raw, fragment) => {
     expect(refusal(raw)).toContain(fragment);
   });
@@ -250,5 +286,28 @@ describe('parseSource (D9)', () => {
     });
     expect(spec.devices.map((device) => device.rename)).toEqual([true, false, undefined]);
     expect('rename' in (spec.devices[2] ?? {})).toBe(false);
+  });
+
+  it('carries the scene with camelCase fields and leaves it out when omitted (revision 8)', () => {
+    const spec = validateGraphSpec({
+      version: 1,
+      devices: [],
+      scene: {
+        name: 'Main',
+        origin_km: { x: -2.25, y: 4 },
+        size_km: { width: 6.13, height: 8 },
+        resolution: 1025,
+      },
+    });
+    expect(spec.scene).toEqual({
+      name: 'Main',
+      originKm: { x: -2.25, y: 4 },
+      sizeKm: { width: 6.13, height: 8 },
+      resolution: 1025,
+    });
+    expect(validateGraphSpec({ version: 1, devices: [], scene: { resolution: 513 } }).scene).toEqual({
+      resolution: 513,
+    });
+    expect('scene' in validateGraphSpec({ version: 1, devices: [] })).toBe(false);
   });
 });
