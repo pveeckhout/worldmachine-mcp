@@ -4,9 +4,11 @@ import type { PlanStep } from '../../../../domain/graph-plan.js';
 import type { RawGraphSpec } from '../../../../domain/graph-spec.js';
 import type { SceneDiff } from '../../../../domain/scene-plan.js';
 import type { SessionSummary } from '../../../../domain/session.js';
+import type { GraphTemplateRef } from '../query/plan-graph-query.js';
 
 export type ApplyGraphCommand = {
-  readonly spec: RawGraphSpec;
+  readonly spec?: RawGraphSpec;
+  readonly template?: GraphTemplateRef;
   readonly planId: string;
   readonly keepSnapshot: boolean;
 };

@@ -615,7 +615,13 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       outputSchema: planGraphViewSchema,
       annotations: READ_ONLY,
     },
-    ({ spec }) => respond(deps, 'plan_graph', () => deps.planGraph.planGraph({ spec })),
+    ({ spec, template }) =>
+      respond(deps, 'plan_graph', () =>
+        deps.planGraph.planGraph({
+          ...(spec === undefined ? {} : { spec }),
+          ...(template === undefined ? {} : { template }),
+        }),
+      ),
   );
 
   server.registerTool(
@@ -628,9 +634,14 @@ export function createMcpServer(deps: McpDependencies): McpServer {
       outputSchema: applyGraphViewSchema,
       annotations: DESTRUCTIVE,
     },
-    ({ spec, plan_id, keep_snapshot }) =>
+    ({ spec, template, plan_id, keep_snapshot }) =>
       respond(deps, 'apply_graph', () =>
-        deps.applyGraph.applyGraph({ spec, planId: plan_id, keepSnapshot: keep_snapshot ?? false }),
+        deps.applyGraph.applyGraph({
+          ...(spec === undefined ? {} : { spec }),
+          ...(template === undefined ? {} : { template }),
+          planId: plan_id,
+          keepSnapshot: keep_snapshot ?? false,
+        }),
       ),
   );
 

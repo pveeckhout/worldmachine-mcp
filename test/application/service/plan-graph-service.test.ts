@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import type { GraphTemplatePort } from '../../../src/application/port/out/graph-template-port.js';
 import type { ProjectGraphReadPort } from '../../../src/application/port/out/project-graph-read-port.js';
 import type { WorldMachineSessionPort } from '../../../src/application/port/out/world-machine-session-port.js';
 import { PlanGraphService } from '../../../src/application/service/plan-graph-service.js';
 import type { DeviceDetail } from '../../../src/domain/device.js';
 import type { RawGraphSpec } from '../../../src/domain/graph-spec.js';
 import { statusOn, syntheticPortTypes } from '../../support/port-types.js';
+
+const NO_TEMPLATES: GraphTemplatePort = {
+  load: async () => {
+    throw new Error('no template in this test');
+  },
+};
 
 // raw/p2b-graph-edits.txt l.121-126: a Combiner's ports, here the existing #536.
 const COMBINER: DeviceDetail = {
@@ -46,7 +53,9 @@ const SPEC: RawGraphSpec = {
 
 describe('PlanGraphService port types (port-types design section 6)', () => {
   it('adds the conflict of an incompatible wire and lists a wire with an untyped end', async () => {
-    const view = await new PlanGraphService(session, graph, syntheticPortTypes).planGraph({ spec: SPEC });
+    const view = await new PlanGraphService(session, graph, syntheticPortTypes, NO_TEMPLATES).planGraph({
+      spec: SPEC,
+    });
     expect(view.conflicts).toEqual([
       {
         entry: 'Combiner',
@@ -75,7 +84,7 @@ describe('PlanGraphService unidentifiable wires (unidentifiable-wires design sec
   };
 
   it('lists both inputs of two Combiner pairs on input 1 and adds no conflict', async () => {
-    const view = await new PlanGraphService(session, combiners, syntheticPortTypes).planGraph({
+    const view = await new PlanGraphService(session, combiners, syntheticPortTypes, NO_TEMPLATES).planGraph({
       spec: {
         version: 1,
         devices: [
@@ -136,6 +145,7 @@ describe('PlanGraphService loops (wire-loops design section 4)', () => {
         [20, [], 'Combiner'],
       ]),
       syntheticPortTypes,
+      NO_TEMPLATES,
     ).planGraph({ spec: spec({ '2': '#20' }) });
     expect(view.conflicts).toEqual([
       {
@@ -158,6 +168,7 @@ describe('PlanGraphService loops (wire-loops design section 4)', () => {
         [21, [], 'Combiner'],
       ]),
       syntheticPortTypes,
+      NO_TEMPLATES,
     ).planGraph({ spec: spec({ '2': '#20' }) });
     expect(view.conflicts).toEqual([]);
     expect(view.possibleLoops).toEqual([
@@ -206,7 +217,7 @@ describe('PlanGraphService loops (wire-loops design section 4)', () => {
         return found;
       },
     };
-    const view = await new PlanGraphService(session, sibling, syntheticPortTypes).planGraph({
+    const view = await new PlanGraphService(session, sibling, syntheticPortTypes, NO_TEMPLATES).planGraph({
       spec: spec({ '2': 'Peak' }),
     });
     expect(reads).toEqual(['#10', '#3', '#5']);

@@ -338,6 +338,42 @@ describe('createMcpServer', () => {
     expect(description).toContain('bypassed is set, not toggled');
   });
 
+  it('passes a graph template to plan_graph, rejects unknown template keys, and returns the filled spec', async () => {
+    const queries: unknown[] = [];
+    const filled = { version: 1, devices: [{ name: 'Ramp', type: 'Gradient' }] };
+    const client = await connect(
+      deps({
+        planGraph: {
+          planGraph: async (query) => {
+            queries.push(query);
+            return {
+              planId: PLAN_ID,
+              conflicts: [],
+              steps: [],
+              unchanged: [],
+              uncheckedWires: [],
+              unidentifiableWires: [],
+              possibleLoops: [],
+              spec: filled,
+              session: READY,
+            };
+          },
+        },
+      }),
+    );
+    const template = { path: '/x.json', parameters: { a: 1 } };
+    const ok = await client.callTool({ name: 'plan_graph', arguments: { template } });
+    expect(ok.isError).toBeFalsy();
+    expect(queries).toEqual([{ template }]);
+    expect((ok.structuredContent as { spec?: unknown }).spec).toEqual(filled);
+    const bad = await client.callTool({
+      name: 'plan_graph',
+      arguments: { template: { path: '/x.json', extra: 1 } },
+    });
+    expect(bad.isError).toBe(true);
+    expect(queries).toHaveLength(1);
+  });
+
   it('accepts id in a graph spec device and describes ids and shared wire sources (revision 6)', async () => {
     const specs: unknown[] = [];
     const client = await connect(

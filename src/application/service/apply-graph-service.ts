@@ -22,6 +22,7 @@ import type {
   ApplyGraphView,
 } from '../port/in/command/apply-graph-command.js';
 import type { DeviceEditPort } from '../port/out/device-edit-port.js';
+import type { GraphTemplatePort } from '../port/out/graph-template-port.js';
 import type { ParameterEditPort } from '../port/out/parameter-edit-port.js';
 import type { PortTypeCatalogPort } from '../port/out/port-type-catalog-port.js';
 import type { ProjectGraphReadPort } from '../port/out/project-graph-read-port.js';
@@ -30,6 +31,7 @@ import type { SnapshotPort } from '../port/out/snapshot-port.js';
 import type { WireEditPort } from '../port/out/wire-edit-port.js';
 import type { SessionStatus, WorldMachineSessionPort } from '../port/out/world-machine-session-port.js';
 import { readGraphState } from './read-graph-state.js';
+import { resolveGraphSpec } from './resolve-graph-spec.js';
 import { checkWireTypes } from './wire-types.js';
 
 /** What a step names in a message: its device, or the scene (revision 8). */
@@ -46,6 +48,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
   readonly #snapshots: SnapshotPort;
   readonly #portTypes: PortTypeCatalogPort;
   readonly #scenes: SceneEditPort;
+  readonly #templates: GraphTemplatePort;
 
   constructor(
     session: WorldMachineSessionPort,
@@ -56,6 +59,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
     snapshots: SnapshotPort,
     portTypes: PortTypeCatalogPort,
     scenes: SceneEditPort,
+    templates: GraphTemplatePort,
   ) {
     this.#session = session;
     this.#graph = graph;
@@ -65,15 +69,18 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
     this.#snapshots = snapshots;
     this.#portTypes = portTypes;
     this.#scenes = scenes;
+    this.#templates = templates;
   }
 
   /**
    * Spec v3 section 6, in one exclusive section (which also refuses while a build runs, v2a section 4): plan again,
    * refuse a stale or conflicting plan, apply under a snapshot, restore it when a step fails.
    */
-  applyGraph(command: ApplyGraphCommand): Promise<ApplyGraphView> {
+  async applyGraph(command: ApplyGraphCommand): Promise<ApplyGraphView> {
+    // Templates design section 3: a template is loaded and filled before the exclusive section, as a plan's is.
+    const { spec: raw } = await resolveGraphSpec(command, this.#templates);
     return this.#session.exclusive(async () => {
-      const spec = validateGraphSpec(command.spec);
+      const spec = validateGraphSpec(raw);
       const state = await readGraphState(spec, this.#graph, this.#session);
       const id = planId(spec, state);
       if (id !== command.planId) {

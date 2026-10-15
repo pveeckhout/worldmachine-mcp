@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { FsGraphTemplateLoader } from '../../src/adapter/out/fs/graph-template-loader.js';
 import { FsPathPolicy } from '../../src/adapter/out/fs/path-policy.js';
 import { ENUM_CATALOG } from '../../src/adapter/out/worldmachine/enum-options.js';
 import { resolveExecutable } from '../../src/adapter/out/worldmachine/locator.js';
@@ -49,7 +50,8 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
   const reader = new WorldMachineGraphReader(session, ENUM_CATALOG, portTypes);
   const writer = new WorldMachineProjectWriter(session);
   const scene = new WorldMachineSceneEditor(session);
-  const plan = new PlanGraphService(session, reader, portTypes);
+  const templates = new FsGraphTemplateLoader(new FsPathPolicy([liveRoot]));
+  const plan = new PlanGraphService(session, reader, portTypes, templates);
   const devices = new WorldMachineDeviceEditor(session);
   const wires = new WorldMachineWireEditor(session, portTypes);
   const apply = new ApplyGraphService(
@@ -61,6 +63,7 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
     new WorldMachineSnapshotEditor(session),
     portTypes,
     new WorldMachineSceneEditor(session),
+    templates,
   );
   const names = async () => (await reader.listDevices()).map((device) => device.name);
   const planAndApply = async (spec: RawGraphSpec) => {

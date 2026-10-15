@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { GraphTemplatePort } from '../../../src/application/port/out/graph-template-port.js';
 import { ApplyGraphService } from '../../../src/application/service/apply-graph-service.js';
 import { PlanGraphService } from '../../../src/application/service/plan-graph-service.js';
 import type { DeviceDetail } from '../../../src/domain/device.js';
@@ -7,6 +8,12 @@ import { planId } from '../../../src/domain/graph-plan.js';
 import { type RawGraphSpec, validateGraphSpec } from '../../../src/domain/graph-spec.js';
 import type { SessionSummary } from '../../../src/domain/session.js';
 import { syntheticPortTypes } from '../../support/port-types.js';
+
+const NO_TEMPLATES: GraphTemplatePort = {
+  load: async () => {
+    throw new Error('no template in this test');
+  },
+};
 
 const SPEC: RawGraphSpec = {
   version: 1,
@@ -61,6 +68,7 @@ describe('ApplyGraphService with a World Machine that exits between steps', () =
         portsOfAdded: () => undefined,
       }),
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
+      NO_TEMPLATES,
     );
     const id = planId(validateGraphSpec(SPEC), { projectPath: null, devices: [], details: [] });
     const error = await service.applyGraph({ spec: SPEC, planId: id, keepSnapshot: false }).then(
@@ -169,6 +177,7 @@ describe('ApplyGraphService robustness', () => {
         portsOfAdded: () => undefined,
       }),
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
+      NO_TEMPLATES,
     );
     const id = planId(validateGraphSpec(SPEC), { projectPath: null, devices: [], details: [] });
     return { service, calls, id, control };
@@ -458,6 +467,7 @@ describe('ApplyGraphService scene step (revision 8)', () => {
       stub<ConstructorParameters<typeof ApplyGraphService>[5]>(snapshots),
       stub<ConstructorParameters<typeof ApplyGraphService>[6]>(syntheticPortTypes),
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>(scenes),
+      NO_TEMPLATES,
     );
     const id = planId(validateGraphSpec(spec), { projectPath: null, devices: [], details: [], scene });
     const error = await service.applyGraph({ spec, planId: id, keepSnapshot: false }).then(
@@ -521,6 +531,7 @@ describe('ApplyGraphService scene step (revision 8)', () => {
       stub<ConstructorParameters<typeof ApplyGraphService>[5]>(snapshots),
       stub<ConstructorParameters<typeof ApplyGraphService>[6]>(syntheticPortTypes),
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>(scenes),
+      NO_TEMPLATES,
     );
     const id = planId(validateGraphSpec(spec), { projectPath: null, devices: [], details: [], scene });
     const view = await service.applyGraph({ spec, planId: id, keepSnapshot: false });
@@ -569,6 +580,7 @@ describe('ApplyGraphService port types (port-types design section 6, plan decisi
       stub<ConstructorParameters<typeof ApplyGraphService>[5]>({ list: record('snapshot list') }),
       syntheticPortTypes,
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
+      NO_TEMPLATES,
     );
     const id = planId(validateGraphSpec(spec), { projectPath: null, devices: [], details: [] });
     await expect(service.applyGraph({ spec, planId: id, keepSnapshot: false })).rejects.toMatchObject({
@@ -638,6 +650,7 @@ describe('ApplyGraphService unidentifiable wires (unidentifiable-wires design se
       stub<ConstructorParameters<typeof PlanGraphService>[0]>(session),
       stub<ConstructorParameters<typeof PlanGraphService>[1]>(graph),
       stub<ConstructorParameters<typeof PlanGraphService>[2]>(portTypes),
+      NO_TEMPLATES,
     ).planGraph({ spec });
     expect(plan.unidentifiableWires).toHaveLength(2);
     const view = await new ApplyGraphService(
@@ -649,6 +662,7 @@ describe('ApplyGraphService unidentifiable wires (unidentifiable-wires design se
       stub<ConstructorParameters<typeof ApplyGraphService>[5]>(snapshots),
       stub<ConstructorParameters<typeof ApplyGraphService>[6]>(portTypes),
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
+      NO_TEMPLATES,
     ).applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
     expect(view).toMatchObject({ applied: 2, diffError: 'read failed' });
     expect(view.unidentifiableWires).toEqual(plan.unidentifiableWires);
@@ -716,6 +730,7 @@ describe('ApplyGraphService loops (wire-loops design section 4)', () => {
       }),
       stub<ConstructorParameters<typeof ApplyGraphService>[6]>(portTypes),
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
+      NO_TEMPLATES,
     );
     const id = planId(validateGraphSpec(spec), state);
     await expect(service.applyGraph({ spec, planId: id, keepSnapshot: false })).rejects.toMatchObject({
@@ -757,6 +772,7 @@ describe('ApplyGraphService loops (wire-loops design section 4)', () => {
       stub<ConstructorParameters<typeof PlanGraphService>[0]>(session),
       stub<ConstructorParameters<typeof PlanGraphService>[1]>(graph),
       stub<ConstructorParameters<typeof PlanGraphService>[2]>(portTypes),
+      NO_TEMPLATES,
     ).planGraph({ spec });
     expect(plan.possibleLoops).toHaveLength(1);
     const view = await new ApplyGraphService(
@@ -768,6 +784,7 @@ describe('ApplyGraphService loops (wire-loops design section 4)', () => {
       stub<ConstructorParameters<typeof ApplyGraphService>[5]>(snapshots),
       stub<ConstructorParameters<typeof ApplyGraphService>[6]>(portTypes),
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
+      NO_TEMPLATES,
     ).applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
     expect(view).toMatchObject({ applied: 1, diffError: 'read failed' });
     expect(view.possibleLoops).toEqual(plan.possibleLoops);

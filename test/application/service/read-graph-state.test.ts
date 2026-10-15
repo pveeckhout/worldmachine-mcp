@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { GraphTemplatePort } from '../../../src/application/port/out/graph-template-port.js';
 import type { PortTypeCatalogPort } from '../../../src/application/port/out/port-type-catalog-port.js';
 import type { ProjectGraphReadPort } from '../../../src/application/port/out/project-graph-read-port.js';
 import type { WorldMachineSessionPort } from '../../../src/application/port/out/world-machine-session-port.js';
@@ -8,6 +9,12 @@ import type { DeviceDetail, DeviceSummary, InputPort } from '../../../src/domain
 import { type RawGraphDevice, validateGraphSpec } from '../../../src/domain/graph-spec.js';
 import type { Scene } from '../../../src/domain/scene.js';
 import type { ProjectBinding } from '../../../src/domain/session.js';
+
+const NO_TEMPLATES: GraphTemplatePort = {
+  load: async () => {
+    throw new Error('no template in this test');
+  },
+};
 
 const row = (id: number, name: string): DeviceSummary => ({ id, name, enabled: true });
 const detail = (id: number, name: string, inputs: InputPort[] = []): DeviceDetail => ({
@@ -133,7 +140,12 @@ describe('readGraphState session (one status read per plan)', () => {
       calls += 1;
       return status();
     };
-    const service = new PlanGraphService(p.session, p.graph, {} as unknown as PortTypeCatalogPort);
+    const service = new PlanGraphService(
+      p.session,
+      p.graph,
+      {} as unknown as PortTypeCatalogPort,
+      NO_TEMPLATES,
+    );
     const view = await service.planGraph({ spec: { version: 1, devices: [{ name: 'Base', type: 'Base' }] } });
     expect(calls).toBe(1);
     expect(view.session.state).toBe('ready');

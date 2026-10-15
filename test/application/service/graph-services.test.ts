@@ -1,7 +1,8 @@
-import { mkdtempSync, realpathSync } from 'node:fs';
+import { mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { FsGraphTemplateLoader } from '../../../src/adapter/out/fs/graph-template-loader.js';
 import { FsPathPolicy } from '../../../src/adapter/out/fs/path-policy.js';
 import { ENUM_CATALOG } from '../../../src/adapter/out/worldmachine/enum-options.js';
 import { WorldMachineBuildResultReader } from '../../../src/adapter/out/worldmachine/world-machine-build-result-reader.js';
@@ -60,7 +61,12 @@ function wired(extra: Record<string, string> = {}, catalog?: PortTypeCatalog) {
   const devices = new WorldMachineDeviceEditor(session);
   const snapshots = new WorldMachineSnapshotEditor(session);
   const wires = new WorldMachineWireEditor(session, portTypes);
-  const plan = new PlanGraphService(session, reader, portTypes);
+  const plan = new PlanGraphService(
+    session,
+    reader,
+    portTypes,
+    new FsGraphTemplateLoader(new FsPathPolicy([root])),
+  );
   const apply = new ApplyGraphService(
     session,
     reader,
@@ -70,6 +76,7 @@ function wired(extra: Record<string, string> = {}, catalog?: PortTypeCatalog) {
     snapshots,
     portTypes,
     new WorldMachineSceneEditor(session),
+    new FsGraphTemplateLoader(new FsPathPolicy([root])),
   );
   return {
     record,
@@ -1008,5 +1015,95 @@ describe('ApplyGraphService scene settings (revision 8)', () => {
     const w = wired();
     await w.plan.planGraph({ spec: SPEC });
     expect(w.record.lines()).not.toContain('scene show');
+  });
+});
+
+describe('graph templates (templates design)', () => {
+  const template = (resolution = 'Width') =>
+    JSON.stringify({
+      template: 1,
+      description: 'a ramp',
+      parameters: { width: { type: 'number', default: 0.5 } },
+      spec: {
+        version: 1,
+        devices: [{ name: 'Ramp', type: 'Gradient', parameters: { [resolution]: { $param: 'width' } } }],
+      },
+    });
+  const file = (name: string, content: string): string => {
+    const path = join(root, name);
+    writeFileSync(path, content);
+    return path;
+  };
+
+  it('plans a template, returns the filled spec, and applies it with the same arguments', async () => {
+    const w = wired();
+    const path = file('ramp.json', template());
+    const plan = await w.plan.planGraph({ template: { path, parameters: { width: 0.25 } } });
+    expect(plan.spec).toEqual({
+      version: 1,
+      devices: [{ name: 'Ramp', type: 'Gradient', parameters: { Width: 0.25 } }],
+    });
+    const view = await w.apply.applyGraph({
+      template: { path, parameters: { width: 0.25 } },
+      planId: plan.planId,
+      keepSnapshot: false,
+    });
+    expect(view.applied).toBe(plan.steps.length);
+  });
+
+  it('refuses an apply whose template changed since the plan, and accepts a changed description (Review Focus 5)', async () => {
+    const w = wired();
+    const path = file('changing.json', template());
+    const plan = await w.plan.planGraph({ template: { path } });
+    writeFileSync(path, template().replace('a ramp', 'still a ramp'));
+    expect((await w.plan.planGraph({ template: { path } })).planId).toBe(plan.planId);
+    writeFileSync(path, template('Direction'));
+    const error = await failure(
+      w.apply.applyGraph({ template: { path }, planId: plan.planId, keepSnapshot: false }),
+    );
+    expect(error.code).toBe('REFUSED');
+    expect(error.message).toContain('changed since plan_graph');
+  });
+
+  it('gives other arguments another planId', async () => {
+    const w = wired();
+    const path = file('args.json', template());
+    const a = await w.plan.planGraph({ template: { path, parameters: { width: 0.25 } } });
+    const b = await w.plan.planGraph({ template: { path, parameters: { width: 0.75 } } });
+    expect(a.planId).not.toBe(b.planId);
+  });
+
+  it('refuses both spec and template, and neither, before any World Machine command', async () => {
+    const w = wired();
+    const path = file('both.json', template());
+    for (const query of [{ spec: SPEC, template: { path } }, {}]) {
+      const before = w.record.lines().length;
+      const error = await failure(w.plan.planGraph(query));
+      expect(error.code).toBe('REFUSED');
+      expect(error.message).toBe('Give exactly one of spec and template');
+      expect(w.record.lines().length).toBe(before);
+    }
+  });
+
+  it('reports a filled spec that breaks a v3 rule as that rule (Review Focus 3)', async () => {
+    const w = wired();
+    const path = file(
+      'long.json',
+      JSON.stringify({
+        template: 1,
+        parameters: { name: { type: 'string' } },
+        spec: { version: 1, devices: [{ name: { $param: 'name' }, type: 'Gradient' }] },
+      }),
+    );
+    const error = await failure(
+      w.plan.planGraph({ template: { path, parameters: { name: 'A name that is far too long' } } }),
+    );
+    expect(error.code).toBe('REFUSED');
+    expect(error.message).toContain('must not be longer than 23 characters');
+  });
+
+  it('leaves spec out of the view of an inline plan', async () => {
+    const w = wired();
+    expect('spec' in (await w.plan.planGraph({ spec: SPEC }))).toBe(false);
   });
 });

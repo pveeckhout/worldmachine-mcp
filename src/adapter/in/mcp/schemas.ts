@@ -522,10 +522,24 @@ export const setGroupEnabledViewSchema = z.strictObject({
   session: sessionSummarySchema,
 }) satisfies z.ZodType<SetGroupEnabledView>;
 
-export const planGraphInputSchema = z.object({ spec: graphSpecSchema });
+const templateRefSchema = z
+  .strictObject({
+    path: z.string().min(1).describe('Absolute path of a .json template file inside the allowed roots'),
+    parameters: z
+      .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+      .optional()
+      .describe("Arguments for the template's declared parameters"),
+  })
+  .describe('A graph spec template on disk, instead of spec');
+
+export const planGraphInputSchema = z.object({
+  spec: graphSpecSchema.optional(),
+  template: templateRefSchema.optional(),
+});
 
 export const applyGraphInputSchema = z.object({
-  spec: graphSpecSchema,
+  spec: graphSpecSchema.optional(),
+  template: templateRefSchema.optional(),
   plan_id: z.string().describe('The planId plan_graph returned for this spec'),
   keep_snapshot: z
     .boolean()
@@ -616,6 +630,7 @@ const planStepSchema = z.discriminatedUnion('op', [
 
 export const planGraphViewSchema = z.strictObject({
   planId: z.string(),
+  spec: graphSpecSchema.optional(),
   conflicts: z.array(z.strictObject({ entry: z.string(), reason: z.string() })),
   steps: z.array(planStepSchema),
   unchanged: z.array(z.string()),

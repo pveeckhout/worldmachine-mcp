@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import { createMcpServer } from './adapter/in/mcp/create-server.js';
+import { FsGraphTemplateLoader } from './adapter/out/fs/graph-template-loader.js';
 import { FsPathPolicy } from './adapter/out/fs/path-policy.js';
 import { ENUM_CATALOG } from './adapter/out/worldmachine/enum-options.js';
 import { resolveExecutable } from './adapter/out/worldmachine/locator.js';
@@ -76,6 +77,7 @@ try {
 
 const logger = createLogger(config.logLevel);
 const pathPolicy = new FsPathPolicy(config.allowedRoots);
+const templates = new FsGraphTemplateLoader(pathPolicy);
 const session = new WorldMachineSession({
   executable: resolveExecutable(config.bin),
   defaultProject: config.defaultProject,
@@ -151,7 +153,7 @@ const handle = serveStdio(() =>
     organizeDevices: new OrganizeDevicesService(session, devices),
     listGroups: new ListGroupsService(session, groups),
     setGroupEnabled: new SetGroupEnabledService(session, groups),
-    planGraph: new PlanGraphService(session, reader, portTypes),
+    planGraph: new PlanGraphService(session, reader, portTypes, templates),
     applyGraph: new ApplyGraphService(
       session,
       reader,
@@ -161,6 +163,7 @@ const handle = serveStdio(() =>
       snapshots,
       portTypes,
       scene,
+      templates,
     ),
     currentSession: () => session.status().session,
   }),
