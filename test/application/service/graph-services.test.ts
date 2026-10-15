@@ -289,6 +289,7 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
     const error = await failure(w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false }));
     expect(error.code).toBe('APPLY_FAILED');
     expect(error.details).toMatchObject({ completedSteps: 1, rolledBack: true });
+    expect(w.record.lines()).toContain('device rename #536 Slope');
     expect((await w.reader.getDevice('#536')).name).toBe('Ramp');
   });
 
