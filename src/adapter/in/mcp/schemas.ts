@@ -594,6 +594,25 @@ const stepSourceSchema = z.strictObject({
 
 const planStepSchema = z.discriminatedUnion('op', [
   z.strictObject({
+    op: z.literal('set-scene'),
+    changes: z.strictObject({
+      name: z.strictObject({ from: z.string(), to: z.string() }).optional(),
+      originKm: z
+        .strictObject({
+          from: z.strictObject({ x: z.number(), y: z.number() }),
+          to: z.strictObject({ x: z.number(), y: z.number() }),
+        })
+        .optional(),
+      sizeKm: z
+        .strictObject({
+          from: z.strictObject({ width: z.number(), height: z.number() }),
+          to: z.strictObject({ width: z.number(), height: z.number() }),
+        })
+        .optional(),
+      resolution: z.strictObject({ from: z.number().int(), to: z.number().int() }).optional(),
+    }),
+  }),
+  z.strictObject({
     op: z.literal('disconnect'),
     device: z.string(),
     id: z.number().int(),

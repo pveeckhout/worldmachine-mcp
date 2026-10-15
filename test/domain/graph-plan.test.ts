@@ -12,7 +12,8 @@ import {
   referencedDeviceIds,
   sharedSourceIds,
 } from '../../src/domain/graph-plan.js';
-import { type RawGraphDevice, validateGraphSpec } from '../../src/domain/graph-spec.js';
+import { type RawGraphDevice, type RawGraphScene, validateGraphSpec } from '../../src/domain/graph-spec.js';
+import type { Scene } from '../../src/domain/scene.js';
 
 const row = (id: number, name: string, enabled = true): DeviceSummary => ({ id, name, enabled });
 const output = (targets: PortLink[] = []) => ({ port: 1, name: 'Primary Output', targets });
@@ -1460,5 +1461,74 @@ describe('planGraph with renames (spec v3 revision 7)', () => {
         source: { device: 'Ridges', id: 12, port: 1 },
       },
     ]);
+  });
+});
+
+describe('planGraph with scene settings (spec v3 revision 8)', () => {
+  const SCENE: Scene = {
+    name: 'Main Extents',
+    index: 0,
+    count: 1,
+    originKm: { x: 4, y: 4 },
+    sizeKm: { width: 12, height: 12 },
+    resolution: 2049,
+    locked: false,
+  };
+  const withScene = (scene: Scene, details: DeviceDetail[] = []): GraphState => ({
+    ...state(details),
+    scene,
+  });
+  const sceneSpec = (scene: RawGraphScene, devices: RawGraphDevice[] = [], remove?: string[]) =>
+    validateGraphSpec({ version: 1, scene, devices, ...(remove === undefined ? {} : { remove }) });
+
+  it('plans set-scene first, before every device step', () => {
+    const plan = planGraph(
+      sceneSpec({ resolution: 513 }, [{ name: 'Base', type: 'Gradient' }], ['Old']),
+      withScene(SCENE, [detail(30, 'Old', 'Gradient')]),
+    );
+    expect(plan.steps.map((step) => step.op)).toEqual(['set-scene', 'remove', 'add']);
+    expect(plan.steps[0]).toEqual({ op: 'set-scene', changes: { resolution: { from: 2049, to: 513 } } });
+  });
+
+  it('lists scene first in unchanged when it matches', () => {
+    const plan = planGraph(
+      sceneSpec({ resolution: 2049, size_km: { width: 12, height: 12 } }),
+      withScene(SCENE),
+    );
+    expect(plan).toEqual({ conflicts: [], steps: [], unchanged: ['scene'] });
+  });
+
+  it('refuses a change to a locked scene, and accepts a locked scene that matches (Review Focus 3)', () => {
+    const locked = { ...SCENE, locked: true };
+    expect(planGraph(sceneSpec({ resolution: 513 }), withScene(locked))).toEqual({
+      conflicts: [
+        {
+          entry: 'scene',
+          reason: "the scene is locked; unlock it in World Machine ('scene lock off') and plan again",
+        },
+      ],
+      steps: [],
+      unchanged: [],
+    });
+    expect(planGraph(sceneSpec({ resolution: 2049 }), withScene(locked))).toEqual({
+      conflicts: [],
+      steps: [],
+      unchanged: ['scene'],
+    });
+  });
+
+  it('throws when the state holds no scene for a spec with scene', () => {
+    expect(() => planGraph(sceneSpec({ resolution: 513 }), state([]))).toThrow(
+      'planGraph: the state holds no scene for a spec with scene',
+    );
+  });
+
+  it('keeps the planId of a spec without scene, and hashes the scene of a spec with one (Review Focus 1)', () => {
+    const plain = spec([{ name: 'Base', type: 'Gradient' }]);
+    expect(planId(plain, { ...state([]), scene: undefined })).toBe(planId(plain, state([])));
+    const scened = sceneSpec({ resolution: 513 });
+    expect(planId(scened, withScene(SCENE))).not.toBe(
+      planId(scened, withScene({ ...SCENE, resolution: 1025 })),
+    );
   });
 });

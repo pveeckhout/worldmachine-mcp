@@ -5,6 +5,8 @@ import { foldCase, idOfReference, listedName } from './device-name.js';
 import type { ParameterValue } from './graph-edit.js';
 import type { GraphDevice, GraphSource, GraphSpec } from './graph-spec.js';
 import { decimalText, parameterText } from './parameter-values.js';
+import type { Scene } from './scene.js';
+import { type SceneStepChanges, sceneChanges } from './scene-plan.js';
 import { candidateIds, resolveWireSource, sharedNameClause, sourceCandidates } from './wire-source.js';
 
 /** What `planGraph` reads: the device list and `get_device` of every device `referencedDeviceIds` names. */
@@ -13,12 +15,15 @@ export type GraphState = {
   readonly projectPath: string | null;
   readonly devices: readonly DeviceSummary[];
   readonly details: readonly DeviceDetail[];
+  /** Revision 8: `scene show`, read only when the spec has `scene`. */
+  readonly scene?: Scene;
 };
 
 /** A wire's source in a step: the name the plan shows, the id when the device exists already (D8), and the port. */
 export type StepSource = { readonly device: string; readonly id?: number; readonly port: number };
 
 export type PlanStep =
+  | { readonly op: 'set-scene'; readonly changes: SceneStepChanges }
   | {
       readonly op: 'disconnect';
       readonly device: string;
@@ -432,6 +437,20 @@ export function planWithCuts(
     return found;
   };
 
+  // Revision 8: the current scene's settings, one step before every device step; a locked scene refuses a change
+  // (fact 38), a matching one is unchanged.
+  const sceneSteps: PlanStep[] = [];
+  const sceneUnchanged: string[] = [];
+  if (spec.scene !== undefined) {
+    if (state.scene === undefined)
+      throw new Error('planGraph: the state holds no scene for a spec with scene');
+    const changes = sceneChanges(spec.scene, state.scene);
+    if (Object.keys(changes).length === 0) sceneUnchanged.push('scene');
+    else if (state.scene.locked)
+      conflict('scene', "the scene is locked; unlock it in World Machine ('scene lock off') and plan again");
+    else sceneSteps.push({ op: 'set-scene', changes });
+  }
+
   const removed = new Map<number, string>();
   const absent: string[] = [];
   for (const entry of spec.remove) {
@@ -836,6 +855,7 @@ export function planWithCuts(
     to,
   }));
   const steps = [
+    ...sceneSteps,
     ...disconnects,
     ...removes,
     ...renameSteps,
@@ -846,12 +866,15 @@ export function planWithCuts(
     ...connects,
   ];
   // A remove step carries the removed device's listed name, which a label may equal (Review Focus 1).
-  const touched = new Set(steps.flatMap((step) => (step.op === 'remove' ? [] : [foldCase(step.device)])));
+  const touched = new Set(
+    steps.flatMap((step) => (step.op === 'remove' || step.op === 'set-scene' ? [] : [foldCase(step.device)])),
+  );
   // D13. A parameter or input-port conflict leaves its entry usable and adds no step; the entry is still not unchanged,
   // nor is one whose wire a remove step takes.
   const named = new Set(conflicts.map((found) => found.entry));
   const severedIds = new Set(severed.map((end) => end.id));
   const unchanged = [
+    ...sceneUnchanged,
     ...managed
       .filter(
         (entry) =>
@@ -892,6 +915,12 @@ export function canonicalJson(value: unknown): string {
  * and free of I/O, so it stays in the domain although it uses `node:crypto`.
  */
 export function planId(spec: GraphSpec, state: GraphState): string {
-  const document = { path: state.projectPath, spec, devices: state.devices, details: state.details };
+  const document = {
+    path: state.projectPath,
+    spec,
+    devices: state.devices,
+    details: state.details,
+    scene: state.scene,
+  };
   return createHash('sha256').update(canonicalJson(document)).digest('hex');
 }

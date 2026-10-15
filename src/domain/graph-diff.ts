@@ -53,14 +53,18 @@ const byId = (list: readonly DeviceDetail[], id: number | undefined): DeviceDeta
   list.find((device) => device.id === id);
 const nonEmpty = (record: object): boolean => Object.keys(record).length > 0;
 
+/** A step on a device; the `set-scene` step (revision 8) has none and is not part of the device diff. */
+type DeviceStep = Exclude<PlanStep, { readonly op: 'set-scene' }>;
+
 /**
  * Spec v3 section 6: the devices the steps touched, read back. A parameter appears only when its read-back value
  * changed, and a changed device with no visible change is left out. A managed device whose input a remove cut, and
  * that no step names, follows the devices the steps name.
  */
 export function graphDiff(steps: readonly PlanStep[], devices: AppliedDevices): DiffEntry[] {
-  const groups = new Map<string, PlanStep[]>();
+  const groups = new Map<string, DeviceStep[]>();
   for (const step of steps) {
+    if (step.op === 'set-scene') continue;
     // Removed devices by id: two removed devices may share a name (fact 30).
     const key = step.op === 'remove' ? `#${step.id}` : foldCase(step.device);
     groups.set(key, [...(groups.get(key) ?? []), step]);
@@ -134,7 +138,7 @@ export function graphDiff(steps: readonly PlanStep[], devices: AppliedDevices): 
 function changed(
   device: string,
   id: number | undefined,
-  own: readonly PlanStep[],
+  own: readonly DeviceStep[],
   cut: readonly CutInput[],
   devices: AppliedDevices,
 ): DiffEntry | undefined {

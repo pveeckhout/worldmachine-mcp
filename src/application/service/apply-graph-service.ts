@@ -29,6 +29,9 @@ import type { SessionStatus, WorldMachineSessionPort } from '../port/out/world-m
 import { readGraphState } from './read-graph-state.js';
 import { checkWireTypes } from './wire-types.js';
 
+/** What a step names in a message: its device, or the scene (revision 8). */
+const stepTarget = (step: PlanStep): string => (step.op === 'set-scene' ? 'the scene' : `'${step.device}'`);
+
 export const APPLY_SNAPSHOT_PREFIX = 'apply_graph ';
 
 export class ApplyGraphService implements ApplyGraphCommandPort {
@@ -297,7 +300,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
               : `The restore of snapshot '${snapshot}' could not be confirmed; restore it with restore_snapshot or in the World Machine window.`;
     return new WorldMachineError(
       'APPLY_FAILED',
-      `Step ${index + 1} of ${total} (${step.op} '${step.device}') failed: ${error.message}. ${outcome}`,
+      `Step ${index + 1} of ${total} (${step.op} ${stepTarget(step)}) failed: ${error.message}. ${outcome}`,
       undefined,
       details,
     );
@@ -331,7 +334,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
       }
     }
     return new Error(
-      `apply_graph step ${index + 1} of ${total} (${step.op} '${step.device}') failed with an internal error; ${outcome}. Original error: ${text(original)}${restoreError}`,
+      `apply_graph step ${index + 1} of ${total} (${step.op} ${stepTarget(step)}) failed with an internal error; ${outcome}. Original error: ${text(original)}${restoreError}`,
       { cause: original },
     );
   }
@@ -370,7 +373,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
   ): Promise<DiffEntry[]> {
     const ids = new Set<number>();
     for (const step of steps) {
-      if (step.op === 'remove') continue;
+      if (step.op === 'remove' || step.op === 'set-scene') continue;
       const id =
         step.op === 'add' ? added.get(foldCase(step.device)) : (step.id ?? added.get(foldCase(step.device)));
       if (id !== undefined) ids.add(id);
