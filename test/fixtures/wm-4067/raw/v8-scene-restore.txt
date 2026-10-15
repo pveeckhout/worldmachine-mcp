@@ -1,0 +1,80 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> scene show
+Scene 'Main Extents' (index 0 of 1):
+  Origin (center): 4.00, 4.00 km
+  Size:            12.00 x 12.00 km
+  Lower-left:      -2.00, -2.00 km
+  Upper-right:     10.00, 10.00 km
+  Resolution:      2049
+  Locked:          no
+<<<
+>>> snapshot create scene-probe
+Created snapshot 'scene-probe'
+<<<
+>>> scene name Probe Scene
+Renamed scene from 'Main Extents' to 'Probe Scene'
+<<<
+>>> scene origin 1.5 -2.25
+Set scene origin to (1.50, -2.25) km
+<<<
+>>> scene size 6 5
+Set scene size to 6.00 x 5.00 km
+<<<
+>>> scene resolution 513
+Set scene resolution to 513
+<<<
+>>> scene show
+Scene 'Probe Scene' (index 0 of 1):
+  Origin (center): 1.50, -2.25 km
+  Size:            6.00 x 5.00 km
+  Lower-left:      -1.50, -4.75 km
+  Upper-right:     4.50, 0.25 km
+  Resolution:      513
+  Locked:          no
+<<<
+>>> snapshot restore scene-probe
+Restored snapshot [#0] 'scene-probe'
+<<<
+>>> scene show
+Scene 'Main Extents' (index 0 of 1):
+  Origin (center): 4.00, 4.00 km
+  Size:            12.00 x 12.00 km
+  Lower-left:      -2.00, -2.00 km
+  Upper-right:     10.00, 10.00 km
+  Resolution:      2049
+  Locked:          no
+<<<
+>>> snapshot delete scene-probe
+Deleted snapshot [#0] 'scene-probe'
+<<<
+>>> scene size 6.125 6.005
+Set scene size to 6.13 x 6.01 km
+<<<
+>>> scene show
+Scene 'Main Extents' (index 0 of 1):
+  Origin (center): 4.00, 4.00 km
+  Size:            6.13 x 6.01 km
+  Lower-left:      0.94, 1.00 km
+  Upper-right:     7.06, 7.00 km
+  Resolution:      2049
+  Locked:          no
+<<<
+>>> scene origin 0.333 0.335
+Set scene origin to (0.33, 0.34) km
+<<<
+>>> scene show
+Scene 'Main Extents' (index 0 of 1):
+  Origin (center): 0.33, 0.34 km
+  Size:            6.13 x 6.01 km
+  Lower-left:      -2.73, -2.67 km
+  Upper-right:     3.40, 3.34 km
+  Resolution:      2049
+  Locked:          no
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<

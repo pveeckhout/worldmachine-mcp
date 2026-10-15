@@ -2020,6 +2020,19 @@ const scenarios = [
     },
   ],
   [
+    // Revision 8: whether `snapshot restore` reverts scene settings, and third-decimal sizes. Default project. Ends closed.
+    'v8-scene-restore',
+    async () => {
+      const sections = [];
+      try {
+        await sceneRestore(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
     // Revision 7: whether `snapshot restore` reverts renames, for apply_graph's rollback. Default project. Ends closed.
     'v7-rename-restore',
     async () => {
@@ -3118,6 +3131,31 @@ async function v3RenameProbe(sections) {
   const second = await addNew('Combiner');
   await renameAndRead(second, 'Blend 2');
   sections.push(...(await run(['project close force'])));
+}
+
+// Revision 8 (scene settings in a spec): does `snapshot restore` revert the scene name, origin, size, and resolution
+// set after the snapshot (fact 69 covers the resolution only)? Then how a size with a third decimal is kept and shown.
+async function sceneRestore(sections) {
+  sections.push(
+    ...(await run([
+      'project new default force',
+      'scene show',
+      'snapshot create scene-probe',
+      'scene name Probe Scene',
+      'scene origin 1.5 -2.25',
+      'scene size 6 5',
+      'scene resolution 513',
+      'scene show',
+      'snapshot restore scene-probe',
+      'scene show',
+      'snapshot delete scene-probe',
+      'scene size 6.125 6.005',
+      'scene show',
+      'scene origin 0.333 0.335',
+      'scene show',
+      'project close force',
+    ])),
+  );
 }
 
 // Revision 7 (renames in a spec): does `snapshot restore` revert a rename made after the snapshot? A device added
