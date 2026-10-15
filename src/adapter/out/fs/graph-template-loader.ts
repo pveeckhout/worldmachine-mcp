@@ -1,3 +1,4 @@
+import { constants } from 'node:fs';
 import { open } from 'node:fs/promises';
 import type { GraphTemplatePort } from '../../../application/port/out/graph-template-port.js';
 import type { PathPolicyPort } from '../../../application/port/out/path-policy-port.js';
@@ -24,7 +25,9 @@ export class FsGraphTemplateLoader implements GraphTemplatePort {
     };
     let bytes: Buffer;
     try {
-      const handle = await open(path, 'r');
+      // Non-blocking, so a FIFO swapped in after the policy check opens at once and the isFile check refuses it;
+      // it changes nothing for a regular file. Windows has no O_NONBLOCK, so the flags fall back to O_RDONLY.
+      const handle = await open(path, constants.O_RDONLY | (constants.O_NONBLOCK ?? 0));
       try {
         // The policy checked the file before open; this catches a directory or FIFO swapped in since.
         if (!(await handle.stat()).isFile()) refuse('not a regular file');

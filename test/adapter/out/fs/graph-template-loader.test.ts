@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -92,6 +93,20 @@ describe('FsGraphTemplateLoader (templates design sections 4 and 5)', () => {
       `${directory}: not a regular file`,
     );
   });
+
+  it.skipIf(process.platform === 'win32')(
+    'refuses a FIFO swapped in after the policy check without waiting for a writer',
+    async () => {
+      // Without a non-blocking open, opening a FIFO waits for a writer; the short timeout makes that visible.
+      const fifo = join(root, 'fifo.json');
+      execFileSync('mkfifo', [fifo]);
+      const policy = { authorizeExistingTemplate: async () => fifo } as unknown as PathPolicyPort;
+      expect(await refusal(new FsGraphTemplateLoader(policy).load(fifo, {}))).toBe(
+        `${fifo}: not a regular file`,
+      );
+    },
+    2000,
+  );
 
   it('refuses invalid JSON', async () => {
     const path = write('broken.json', '{ "version": 1, ');
