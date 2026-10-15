@@ -1729,6 +1729,65 @@ describe('fake World Machine: build results (build-not-built design, facts 93 an
     expect((await outputs(s, ['scene show']))[0]?.some((line) => /Resolution:\s+513$/.test(line))).toBe(true);
   });
 
+  // Revision 8, facts 27 and 101 (raw/v8-scene-restore.txt l.17-54), fact 38 for the lock.
+  describe('scene settings', () => {
+    const setters = [
+      'scene name Probe Scene',
+      'scene origin 1.5 -2.25',
+      'scene size 6 5',
+      'scene resolution 513',
+    ];
+    const shown = async (s: WorldMachineSession): Promise<string[]> =>
+      (await outputs(s, ['scene show']))[0] ?? [];
+
+    it('sets the name, origin, size, and resolution that `scene show` prints', async () => {
+      const s = session();
+      await s.execute(['project new default force']);
+      expect(await outputs(s, setters)).toEqual([
+        ["Renamed scene from 'Main Extents' to 'Probe Scene'"],
+        ['Set scene origin to (1.50, -2.25) km'],
+        ['Set scene size to 6.00 x 5.00 km'],
+        ['Set scene resolution to 513'],
+      ]);
+      const lines = (await shown(s)).map((line) => line.trim());
+      expect(lines).toEqual(
+        expect.arrayContaining([
+          "Scene 'Probe Scene' (index 0 of 1):",
+          'Origin (center): 1.50, -2.25 km',
+          'Size:            6.00 x 5.00 km',
+          'Resolution:      513',
+        ]),
+      );
+    });
+
+    it('reverts all four fields on a snapshot restore (fact 101)', async () => {
+      const s = session();
+      await s.execute(['project new default force', 'snapshot create s', ...setters, 'snapshot restore s']);
+      expect(await shown(s)).toEqual(rawFrame('v8-scene-restore.txt', 'scene show', 2));
+    });
+
+    it('rounds the third decimal half up, as World Machine did (raw/v8-scene-restore.txt l.53-54)', async () => {
+      const s = session();
+      await s.execute(['project new default force']);
+      expect(await outputs(s, ['scene size 6.125 6.005', 'scene origin 0.333 0.335'])).toEqual([
+        ['Set scene size to 6.13 x 6.01 km'],
+        ['Set scene origin to (0.33, 0.34) km'],
+      ]);
+    });
+
+    it('refuses every scene setter with fact 38 error when FAKE_WM_SCENE_LOCKED=1', async () => {
+      const s = session({ FAKE_WM_SCENE_LOCKED: '1' });
+      await s.execute(['project new default force']);
+      const error = ["Error: Error: Scene is locked. Use 'scene lock off' to unlock before making changes."];
+      expect(
+        await outputs(s, ['scene resolution 513', 'scene name X', 'scene origin 1 1', 'scene size 1 1']),
+      ).toEqual([error, error, error, error]);
+      const lines = await shown(s);
+      expect(lines).toContain('  Locked:          yes');
+      expect(lines).toContain('  Resolution:      2049');
+    });
+  });
+
   // Fact 96 (raw/build-resolution-timing.txt l.64-67 at 1024, l.106-110 at 2049; raw/build-not-built-timing.txt at 513):
   // a finished full build's levels are the scene resolution and its halvings (rounded up) down to the lowest level
   // shown, 128 px at 1024 and 129 px at 2049 and 513. The row at the scene resolution is fact 93.

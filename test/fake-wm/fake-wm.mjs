@@ -190,6 +190,16 @@ const FAKE_RESOLUTION = 2049;
 // and the top result level of a finished build. Assumed: undefined keeps the fixture's, which a project switch restores,
 // and the command is not an undoable edit and does not make the project dirty.
 let sceneResolution;
+// Revision 8: `scene name`, `scene origin`, and `scene size` (fact 27) set what `scene show` prints, as
+// `scene resolution` does; undefined keeps the fixture's. Fact 101 (raw/v8-scene-restore.txt): a snapshot restore
+// reverts all four. FAKE_WM_SCENE_LOCKED: the scene is locked (fact 38).
+let sceneName;
+let sceneOrigin;
+let sceneSize;
+const sceneLocked = env.FAKE_WM_SCENE_LOCKED === '1';
+// Two decimals, halves away from zero on the decimal text: World Machine printed 6.01 for 6.005 (raw/v8-scene-restore.txt
+// l.54), which toFixed(2) gives 6.00 for, since the binary 6.005 is just below the midpoint.
+const two = (value) => ((Math.round(Math.abs(value) * 100 + 1e-9) * Math.sign(value)) / 100).toFixed(2);
 const resolutionOf = (fixtureText) => Number(/Resolution:\s+(\d+)/.exec(fixtureText)?.[1]);
 // undefined, or { mode: 'full' | 'tiled', timer } while a build runs.
 let build;
@@ -327,9 +337,23 @@ const lateLine = (run) =>
 // `build start`, or `group build` with its group: the same events (spec v2b fact 66).
 const sceneShow = () => {
   const text = fixture(project === 'empty' ? 'scene-show-blank.txt' : 'scene-show.txt');
-  return sceneResolution === undefined
-    ? text
-    : text.replace(/(Resolution:\s+)\d+/, (_, label) => `${label}${sceneResolution}`);
+  // Assumed: the Lower-left and Upper-right corners are not read, so they keep the fixture's values.
+  let shown = text;
+  if (sceneName !== undefined)
+    shown = shown.replace(/(Scene ')[^']*(')/, (_, open, close) => `${open}${sceneName}${close}`);
+  if (sceneOrigin !== undefined)
+    shown = shown.replace(
+      /(Origin \(center\):\s+).*/,
+      (_, label) => `${label}${two(sceneOrigin.x)}, ${two(sceneOrigin.y)} km`,
+    );
+  if (sceneSize !== undefined)
+    shown = shown.replace(
+      /(Size:\s+).*/,
+      (_, label) => `${label}${two(sceneSize.width)} x ${two(sceneSize.height)} km`,
+    );
+  if (sceneResolution !== undefined)
+    shown = shown.replace(/(Resolution:\s+)\d+/, (_, label) => `${label}${sceneResolution}`);
+  return sceneLocked ? shown.replace(/(Locked:\s+)no/, (_, label) => `${label}yes`) : shown;
 };
 const currentResolution = () => sceneResolution ?? resolutionOf(sceneShow());
 const startFull = (group) => {
@@ -374,6 +398,9 @@ const switchTo = (next) => {
   results = new Set();
   buildStopped = false;
   sceneResolution = undefined;
+  sceneName = undefined;
+  sceneOrigin = undefined;
+  sceneSize = undefined;
   savedPath = undefined;
   sampleDisabled = new Set();
   snapshots = [];
@@ -720,7 +747,7 @@ const minuteStamp = () => {
 };
 // What a snapshot holds of the fake's graph (fact 60). Spec v3 fact 78: parameter values and wires too; fact 100
 // (raw/v7-rename-restore.txt): names too, which the copied devices carry. Assumed: a restore also clears the
-// selection.
+// selection. Fact 101: the scene settings too.
 const copyDevice = (device) => ({
   ...device,
   parameters: device.parameters.map((parameter) => ({ ...parameter })),
@@ -732,12 +759,20 @@ const graphState = () => ({
   // raw/v3-assumptions.txt l.311-336: after a restore, World Machine gives the next new device the id the snapshot's
   // next device would have had, so ids freed by the restore are reused.
   nextId,
+  sceneName,
+  sceneOrigin: sceneOrigin && { ...sceneOrigin },
+  sceneSize: sceneSize && { ...sceneSize },
+  sceneResolution,
 });
 const restoreGraphState = (state) => {
   added = state.added.map(copyDevice);
   nextId = state.nextId;
   wires = state.wires.map((wire) => ({ ...wire }));
   sampleDisabled = new Set(state.disabled);
+  sceneName = state.sceneName;
+  sceneOrigin = state.sceneOrigin && { ...state.sceneOrigin };
+  sceneSize = state.sceneSize && { ...state.sceneSize };
+  sceneResolution = state.sceneResolution;
   selected = undefined;
   paramUndo = [];
 };
@@ -1274,6 +1309,24 @@ async function handle(line) {
   }
   const blank = project === 'empty';
   if (command === 'scene show') return void out(sceneShow());
+  if (/^scene (name|origin|size|resolution) /.test(command) && sceneLocked)
+    return void out("Error: Error: Scene is locked. Use 'scene lock off' to unlock before making changes.\n");
+  const named = /^scene name (.+)$/.exec(command);
+  if (named) {
+    const before = sceneName ?? /Scene '(.*)'/.exec(sceneShow())?.[1];
+    sceneName = named[1];
+    return void out(`Renamed scene from '${before}' to '${sceneName}'\n`);
+  }
+  const origin = /^scene origin (\S+) (\S+)$/.exec(command);
+  if (origin) {
+    sceneOrigin = { x: Number(origin[1]), y: Number(origin[2]) };
+    return void out(`Set scene origin to (${two(sceneOrigin.x)}, ${two(sceneOrigin.y)}) km\n`);
+  }
+  const size = /^scene size (\S+) (\S+)$/.exec(command);
+  if (size) {
+    sceneSize = { width: Number(size[1]), height: Number(size[2]) };
+    return void out(`Set scene size to ${two(sceneSize.width)} x ${two(sceneSize.height)} km\n`);
+  }
   const resolution = /^scene resolution (\d+)$/.exec(command);
   if (resolution) {
     sceneResolution = Number(resolution[1]);
