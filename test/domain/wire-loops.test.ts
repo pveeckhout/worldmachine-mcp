@@ -494,4 +494,17 @@ describe('wireLoops through a rename (spec v3 revision 7)', () => {
     ]);
     expect(result.possibleLoops).toEqual([]);
   });
+
+  it('reports no loop when a rename takes the name of a removed device whose consumer is not the renamed one', () => {
+    // Ridges #50 (removed) and Mountain #12 both list Blur; Blur #30 shows Ridges as its source, Blur #31 Mountain.
+    const current = state([
+      node(50, 'Ridges', [to('Blur')]),
+      node(12, 'Mountain', [to('Blur')]),
+      node(30, 'Blur', [], { 1: 'Ridges' }),
+      node(31, 'Blur', [], { 1: 'Mountain' }),
+    ]);
+    const result = loops([ridges({ '1': '#30' })], current, ['#50']);
+    expect(result.plan.conflicts).toEqual([]);
+    expect(result.conflicts).toEqual([]);
+  });
 });

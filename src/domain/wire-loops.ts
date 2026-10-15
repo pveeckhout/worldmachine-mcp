@@ -54,8 +54,9 @@ export function wireLoops(
    * managed destination).
    */
   const keptSourceOf = (id: number, port: number): PortLink | undefined => {
-    const managed = wiring.inputsOf(id);
-    if (managed !== undefined) return managed.get(port)?.source;
+    const managed = wiring.inputsOf(id)?.get(port);
+    // Revision 7: a kept wire is read by the text World Machine shows now; a rename may have rewritten `source`.
+    if (wiring.inputsOf(id) !== undefined) return managed?.kept ? managed.currentSource : managed?.source;
     return state.details.find((detail) => detail.id === id)?.inputs.find((input) => input.port === port)
       ?.source;
   };
@@ -73,9 +74,9 @@ export function wireLoops(
     const cached = hopsCache.get(from);
     if (cached !== undefined) return cached;
     const own = nameOf(from);
-    // Revision 7: certainty comes from the current state, which knows `from` and each target by their names now; a
-    // wire's text shows either the name now or the label a rename gave. An added device has no name now.
-    const ownNow = state.devices.find((device) => device.id === from)?.name;
+    // Revision 7: certainty comes from the current state, which knows `from` and each target by their names now, and
+    // every kept text is a current one. An added device has no name now and is named as planned.
+    const ownNow = state.devices.find((device) => device.id === from)?.name ?? own;
     const hops: Hop[] = [];
     for (const output of wiring.outputsOf(from) ?? []) {
       for (const target of output.targets) {
@@ -89,13 +90,8 @@ export function wireLoops(
           }
           const source = keptSourceOf(id, target.port);
           if (source === undefined || own === undefined) continue;
-          const shows = listedName(source.device);
-          if (shows !== own && shows !== ownNow) continue;
-          const input: InputPort = {
-            port: target.port,
-            name: '',
-            source: ownNow === undefined ? source : { ...source, device: ownNow },
-          };
+          if (listedName(source.device) !== ownNow) continue;
+          const input: InputPort = { port: target.port, name: '', source };
           if (!readable(input)) {
             hops.push({ id, name, shared: own });
             continue;
