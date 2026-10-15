@@ -218,6 +218,8 @@ Every crash or forced kill of World Machine queues one more crashed session, and
 
 **"I stopped a large build and World Machine did not quit."** After `stop_build` of a build at a high scene resolution (4097 was observed), World Machine can be unable to quit; this is a World Machine issue. The server ends it after its shutdown grace and logs a warning. The stopped project is restored at the next World Machine start, silently when it is the only queued session and with the 'Recover crashed session' dialog when several are queued. Save before stopping a large build if the project matters.
 
+**"World Machine keeps asking to be activated again, or the tools fail with `START_FAILED` and 'no valid licence'."** On Linux, World Machine's licence is tied to the current MAC address of the first network interface, usually the Wi-Fi card. NetworkManager on Fedora and other distributions changes that address by default: each Wi-Fi network gets its own (`wifi.cloned-mac-address=stable-ssid`), and a random one is used while the Wi-Fi scans. After such a change, World Machine either re-activates by itself within seconds or shows its activation dialog. Activate once outside the MCP, or make NetworkManager keep the hardware address on Wi-Fi, at the cost of Wi-Fi privacy; see the [licence bug report](docs/research/2026-10-15-worldmachine-licence-mac-bug-report.md) for the evidence and the configuration.
+
 ## Documentation
 
 - [Design spec](docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md)
