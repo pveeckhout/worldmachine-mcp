@@ -204,6 +204,10 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
       case 'remove':
         await this.#devices.deleteDevice(`#${step.id}`);
         return;
+      case 'rename':
+        // Revision 7: the editor reads the device list back and fails the step when the new name does not show.
+        await this.#devices.renameDevice(`#${step.id}`, step.to);
+        return;
       case 'add': {
         const row = await this.#devices.addDevice(step.type);
         added.set(foldCase(step.device), row.id);

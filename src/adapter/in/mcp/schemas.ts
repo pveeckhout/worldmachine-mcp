@@ -672,6 +672,7 @@ const diffEntrySchema = z.discriminatedUnion('change', [
     device: z.string(),
     change: z.literal('changed'),
     id: z.number().int(),
+    name: changeOf(z.string()).optional(),
     enabled: changeOf(z.boolean()).optional(),
     bypassed: changeOf(z.boolean()).optional(),
     parameters: z.record(z.string(), changeOf(z.string())).optional(),

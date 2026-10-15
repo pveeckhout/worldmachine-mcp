@@ -257,6 +257,62 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
     expect(again.unchanged).toEqual(['Ramp']);
   });
 
+  it('renames a device by id, diffs the name, and a second plan has no rename (revision 7)', async () => {
+    const w = wired();
+    await w.devices.addDevice('Gradient', 'Ramp');
+    const spec: RawGraphSpec = {
+      version: 1,
+      devices: [{ name: 'Slope', id: 536, type: 'Gradient', rename: true }],
+    };
+    const plan = await w.plan.planGraph({ spec });
+    expect(plan.steps).toEqual([{ op: 'rename', device: 'Slope', id: 536, from: 'Ramp', to: 'Slope' }]);
+    const view = await w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
+    expect(view.applied).toBe(1);
+    expect(view.diff).toEqual([
+      { device: 'Slope', change: 'changed', id: 536, name: { before: 'Ramp', after: 'Slope' } },
+    ]);
+    expect(w.record.lines()).toContain('device rename #536 Slope');
+    const again = await w.plan.planGraph({ spec });
+    expect(again.steps).toEqual([]);
+    expect(again.unchanged).toEqual(['Slope']);
+  });
+
+  it('rolls back a rename when a later step fails (fact 83)', async () => {
+    const w = wired({ FAKE_WM_PARAM_SET_ERROR_AT: '1' });
+    await w.devices.addDevice('Gradient', 'Ramp');
+    const spec: RawGraphSpec = {
+      version: 1,
+      devices: [{ name: 'Slope', id: 536, type: 'Gradient', rename: true, parameters: { Width: 0.5 } }],
+    };
+    const plan = await w.plan.planGraph({ spec });
+    expect(plan.steps.map((step) => step.op)).toEqual(['rename', 'set-parameter']);
+    const error = await failure(w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false }));
+    expect(error.code).toBe('APPLY_FAILED');
+    expect(error.details).toMatchObject({ completedSteps: 1, rolledBack: true });
+    expect((await w.reader.getDevice('#536')).name).toBe('Ramp');
+  });
+
+  it('connects from a device renamed in the same apply (Review Focus 3)', async () => {
+    const w = wired();
+    await w.devices.addDevice('Gradient', 'Ramp');
+    await w.devices.addDevice('Combiner');
+    const spec: RawGraphSpec = {
+      version: 1,
+      devices: [
+        { name: 'Slope', id: 536, type: 'Gradient', rename: true },
+        { name: 'Combiner', type: 'Combiner', inputs: { '1': 'Slope' } },
+      ],
+    };
+    const plan = await w.plan.planGraph({ spec });
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.steps.map((step) => step.op)).toEqual(['rename', 'connect']);
+    const view = await w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
+    expect(view.applied).toBe(2);
+    const combiner = await w.reader.getDevice('#537');
+    expect(combiner.inputs.find((input) => input.port === 1)?.source).toEqual({ device: 'Slope', port: 1 });
+    expect((await w.plan.planGraph({ spec })).steps).toEqual([]);
+  });
+
   it('rolls back a set-bypassed on an existing device when a later step fails', async () => {
     const w = wired({ FAKE_WM_PARAM_SET_ERROR_AT: '1' });
     await w.devices.addDevice('Gradient', 'Ramp');

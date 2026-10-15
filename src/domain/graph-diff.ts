@@ -26,6 +26,7 @@ export type DiffEntry =
       readonly device: string;
       readonly change: 'changed';
       readonly id: number;
+      readonly name?: Change<string>;
       readonly enabled?: Change<boolean>;
       readonly bypassed?: Change<boolean>;
       readonly parameters?: Readonly<Record<string, Change<string>>>;
@@ -146,6 +147,11 @@ function changed(
   }
   if (after === undefined)
     throw new Error(`graphDiff: changed device '${device}' (#${id}) was not read back`);
+  // Revision 7: a rename step's change, by listed name.
+  const name =
+    listedName(before.name) === listedName(after.name)
+      ? undefined
+      : { before: listedName(before.name), after: listedName(after.name) };
   const enabled =
     before.enabled === after.enabled ? undefined : { before: before.enabled, after: after.enabled };
   const bypassed =
@@ -170,12 +176,19 @@ function changed(
       return was === is ? [] : [[String(port), { before: was, after: is }]];
     }),
   );
-  if (enabled === undefined && bypassed === undefined && !nonEmpty(parameters) && !nonEmpty(inputs))
+  if (
+    name === undefined &&
+    enabled === undefined &&
+    bypassed === undefined &&
+    !nonEmpty(parameters) &&
+    !nonEmpty(inputs)
+  )
     return undefined;
   return {
     device,
     change: 'changed',
     id,
+    ...(name === undefined ? {} : { name }),
     ...(enabled === undefined ? {} : { enabled }),
     ...(bypassed === undefined ? {} : { bypassed }),
     ...(nonEmpty(parameters) ? { parameters } : {}),

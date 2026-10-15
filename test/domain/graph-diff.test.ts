@@ -255,4 +255,17 @@ describe('graphDiff (spec v3 section 6)', () => {
       );
     });
   });
+
+  it('reports a rename as a name change, also when it is the only change (revision 7)', () => {
+    const steps: PlanStep[] = [{ op: 'rename', device: 'Ridges', id: 12, from: 'Mountain', to: 'Ridges' }];
+    expect(
+      graphDiff(steps, {
+        before: [detail(12, 'Mountain', 'Advanced Perlin')],
+        after: [detail(12, 'Ridges', 'Advanced Perlin')],
+        addedIds: new Map(),
+      }),
+    ).toEqual([
+      { device: 'Ridges', change: 'changed', id: 12, name: { before: 'Mountain', after: 'Ridges' } },
+    ]);
+  });
 });
