@@ -1,0 +1,131 @@
+>>> project new default force
+Created new default project.
+[Info       ] Closing current project
+<<<
+>>> device list
+Devices (17 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+
+<<<
+>>> group list
+Groups (5 total):
+  [#0] Create your Terrain      (6 devices)
+  [#1] Export Basics            (4 devices)
+  [#2] Texture & View           (5 devices)
+  [#3] Welcome to World Machine! (0 devices)
+  [#4] Material Maps            (2 devices)
+
+<<<
+>>> help group
+group commands:
+  group build <name|#index>       Build all devices in a group
+  group disable <name|#index>     Disable all devices in a group
+  group enable <name|#index>      Enable all devices in a group
+  group list [filter]             List all groups
+
+<<<
+>>> help device
+device commands:
+  device add <type>               Add a new device
+  device bypass <name>            Toggle bypass on a device
+  device delete <name>            Delete a device
+  device disable <name>           Disable a device
+  device enable <name>            Enable a device
+  device info                     Show info about selected device
+  device list [filter]            List all devices
+  device organize                 Organize devices by processing order
+  device rename <oldname> <newname>  Rename a device
+  device select <name>            Select a device by name
+
+<<<
+>>> group create Probe
+Error: Unknown command: 'group create'. Type 'group' for available subcommands.
+<<<
+>>> group new Probe
+Error: Unknown command: 'group new'. Type 'group' for available subcommands.
+<<<
+>>> group add Probe #1
+Error: Unknown command: 'group add'. Type 'group' for available subcommands.
+<<<
+>>> group assign Probe #1
+Error: Unknown command: 'group assign'. Type 'group' for available subcommands.
+<<<
+>>> group remove Probe #1
+Error: Unknown command: 'group remove'. Type 'group' for available subcommands.
+<<<
+>>> group delete Probe
+Error: Unknown command: 'group delete'. Type 'group' for available subcommands.
+<<<
+>>> group rename Probe Other
+Error: Unknown command: 'group rename'. Type 'group' for available subcommands.
+<<<
+>>> device group #1 Probe
+Error: Unknown command: 'device group'. Type 'device' for available subcommands.
+<<<
+>>> device move #1 100 100
+Error: Unknown command: 'device move'. Type 'device' for available subcommands.
+<<<
+>>> device position #1
+Error: Unknown command: 'device position'. Type 'device' for available subcommands.
+<<<
+>>> device pos #1
+Error: Unknown command: 'device pos'. Type 'device' for available subcommands.
+<<<
+>>> device setpos #1 100 100
+Error: Unknown command: 'device setpos'. Type 'device' for available subcommands.
+<<<
+>>> device place #1 100 100
+Error: Unknown command: 'device place'. Type 'device' for available subcommands.
+<<<
+>>> device location #1
+Error: Unknown command: 'device location'. Type 'device' for available subcommands.
+<<<
+>>> debug list group
+Debug variables (filtered by 'group'):
+  workview.group_corner_radius       = 7       Group rectangle corner radius in pixels  
+
+<<<
+>>> debug list pos
+Debug variables (filtered by 'pos'):
+  (no variables set)
+
+<<<
+>>> debug list layout
+Debug variables (filtered by 'layout'):
+  (no variables set)
+
+<<<
+>>> debug list node
+Debug variables (filtered by 'node'):
+  (no variables set)
+
+<<<
+>>> group list
+Groups (5 total):
+  [#0] Create your Terrain      (6 devices)
+  [#1] Export Basics            (4 devices)
+  [#2] Texture & View           (5 devices)
+  [#3] Welcome to World Machine! (0 devices)
+  [#4] Material Maps            (2 devices)
+
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<

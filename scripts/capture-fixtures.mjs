@@ -2033,6 +2033,19 @@ const scenarios = [
     },
   ],
   [
+    // Groups and layout backlog item: undocumented group and layout commands. Default project. Ends closed.
+    'groups-layout-probe',
+    async () => {
+      const sections = [];
+      try {
+        await groupsLayoutProbe(sections);
+      } catch (error) {
+        sections.push({ command: '(scenario stopped)', lines: [scrub(error.message)] });
+      }
+      return sections;
+    },
+  ],
+  [
     // Revision 7: whether `snapshot restore` reverts renames, for apply_graph's rollback. Default project. Ends closed.
     'v7-rename-restore',
     async () => {
@@ -3153,6 +3166,40 @@ async function sceneRestore(sections) {
       'scene show',
       'scene origin 0.333 0.335',
       'scene show',
+      'project close force',
+    ])),
+  );
+}
+
+// Groups and layout backlog item: does the console accept undocumented commands that create a group, assign a device
+// to one, or move a device? `help` lists none (raw/help.txt, raw/help-more.txt). Default project. Ends closed.
+async function groupsLayoutProbe(sections) {
+  sections.push(
+    ...(await run([
+      'project new default force',
+      'device list',
+      'group list',
+      'help group',
+      'help device',
+      'group create Probe',
+      'group new Probe',
+      'group add Probe #1',
+      'group assign Probe #1',
+      'group remove Probe #1',
+      'group delete Probe',
+      'group rename Probe Other',
+      'device group #1 Probe',
+      'device move #1 100 100',
+      'device position #1',
+      'device pos #1',
+      'device setpos #1 100 100',
+      'device place #1 100 100',
+      'device location #1',
+      'debug list group',
+      'debug list pos',
+      'debug list layout',
+      'debug list node',
+      'group list',
       'project close force',
     ])),
   );
