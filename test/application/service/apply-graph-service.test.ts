@@ -85,6 +85,10 @@ describe('ApplyGraphService robustness', () => {
     readonly addDevice?: (type: string, count: number) => Promise<unknown>;
     readonly diffError?: Error;
     readonly restoreError?: Error;
+    /** Thrown by `snapshot delete`. */
+    readonly removeError?: Error;
+    /** The rows `device list` shows after a restore, so the read-back fingerprint differs from the plan's. */
+    readonly listAfterRestore?: readonly { id: number; name: string; enabled: boolean }[];
     /** Called after the nth add resolved; lets a test bump the generation (a silent restart). */
     readonly afterAdd?: (count: number) => void;
     /** Called inside each diff read, before it returns; lets a test bump the generation during the read. */
@@ -93,6 +97,7 @@ describe('ApplyGraphService robustness', () => {
     const calls: string[] = [];
     const control = { generation: 1 };
     let adds = 0;
+    let restored = false;
     const session = {
       status: () => ({
         executable: null,
@@ -102,7 +107,7 @@ describe('ApplyGraphService robustness', () => {
       exclusive: <T>(action: () => Promise<T>) => action(),
     };
     const graph = {
-      listDevices: async () => [],
+      listDevices: async () => (restored ? (options.listAfterRestore ?? []) : []),
       getDevice: async () => {
         options.onDiffRead?.();
         if (options.diffError !== undefined) throw options.diffError;
@@ -118,10 +123,12 @@ describe('ApplyGraphService robustness', () => {
       restore: async (name: string) => {
         calls.push(`restore ${name}`);
         if (options.restoreError !== undefined) throw options.restoreError;
+        restored = true;
         return { index: 0, name };
       },
       remove: async (name: string) => {
         calls.push(`remove ${name}`);
+        if (options.removeError !== undefined) throw options.removeError;
         return {};
       },
     };
@@ -158,6 +165,36 @@ describe('ApplyGraphService robustness', () => {
       },
       (caught: unknown) => caught,
     );
+
+  it('reports an applied graph with its snapshot kept when the snapshot delete fails (D16)', async () => {
+    const { service, calls, id } = build({
+      removeError: new WorldMachineError('WM_COMMAND_FAILED', 'delete failed'),
+    });
+    const view = await service.applyGraph({ spec: SPEC, planId: id, keepSnapshot: false });
+    expect(view).toMatchObject({ applied: 2, snapshot: `apply_graph ${id.slice(0, 12)}` });
+    expect(view).not.toHaveProperty('diffError');
+    expect(calls).toContain(`remove apply_graph ${id.slice(0, 12)}`);
+  });
+
+  it('reports rolledBack: false when the restore runs but the project does not match the plan (D14)', async () => {
+    const { service, calls, id } = build({
+      listAfterRestore: [{ id: 1, name: 'Stray', enabled: true }],
+      addDevice: async (type, count) => {
+        if (count === 2) throw new WorldMachineError('WM_COMMAND_FAILED', 'nope');
+        return { id: 536, name: 'Ramp', kind: type, enabled: true };
+      },
+    });
+    const error = (await failure(
+      service.applyGraph({ spec: SPEC, planId: id, keepSnapshot: false }),
+    )) as WorldMachineError;
+    const snapshot = `apply_graph ${id.slice(0, 12)}`;
+    expect(error.code).toBe('APPLY_FAILED');
+    expect(error.details).toMatchObject({ rolledBack: false, completedSteps: 1, snapshot });
+    expect(calls).toContain(`restore ${snapshot}`);
+    expect(error.message).toContain(
+      `The restore of snapshot '${snapshot}' could not be confirmed; restore it with restore_snapshot or in the World Machine window.`,
+    );
+  });
 
   it('reports an applied graph whose diff cannot be read, and keeps the snapshot', async () => {
     const { service, calls, id } = build({
