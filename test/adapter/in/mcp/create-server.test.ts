@@ -406,6 +406,12 @@ describe('createMcpServer', () => {
       '{ version: 1, scene?: { name?, origin_km?, size_km?, resolution? }, devices:',
     );
     expect(description('apply_graph')).toContain('The result shows the scene settings it changed in scene.');
+    expect(description('plan_graph')).toContain(
+      'Instead of spec, template: { path, parameters? } names a .json template file inside the allowed roots',
+    );
+    expect(description('apply_graph')).toContain(
+      'pass the same spec, or the same template and parameters, and its planId as plan_id',
+    );
     expect(description('plan_graph')).toContain('add_device and give its id');
     expect(description('apply_graph')).toContain('renamed to its name only with rename: true');
     for (const name of ['connect_devices', 'disconnect_devices']) {
