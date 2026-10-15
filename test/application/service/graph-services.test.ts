@@ -113,7 +113,14 @@ describe('PlanGraphService (spec v3 sections 3 and 5)', () => {
       possibleLoops: [],
       session: expect.objectContaining({ state: 'ready' }),
     });
-    expect(w.record.lines().filter((line) => CHANGES.test(line))).toEqual([]);
+    // An allowlist: readGraphState sends `device list` and, per device read, `device select`, `device info`,
+    // `param list`, `wire list` (world-machine-graph-reader.ts); the rest is the start of the session and the fake's
+    // frame markers. Anything else, a command that changes the project included, fails here.
+    const allowed =
+      /^(START|__end_[0-9a-f]+_\d+|system info|project new default force|device (list|select .*|info)|param list .*|wire list .*)$/;
+    const lines = w.record.lines();
+    expect(lines.filter((line) => !allowed.test(line))).toEqual([]);
+    expect(lines).toContain('device list');
   });
 
   it('refuses an invalid spec before sending anything', async () => {
