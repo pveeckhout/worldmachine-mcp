@@ -314,6 +314,32 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
     expect((await w.plan.planGraph({ spec })).steps).toEqual([]);
   });
 
+  it('shows a rewire between two devices of one name by id in the diff (revision 7 follow-ups)', async () => {
+    const w = wired();
+    await w.devices.addDevice('Gradient', 'Ridges');
+    await w.devices.addDevice('Gradient', 'Mountain');
+    await w.devices.addDevice('Combiner');
+    await w.wires.connect({ device: '#536' }, { device: '#538' });
+    const spec: RawGraphSpec = {
+      version: 1,
+      devices: [
+        { name: 'Ridges', id: 537, type: 'Gradient', rename: true },
+        { name: 'Combiner', type: 'Combiner', inputs: { '1': 'Ridges' } },
+      ],
+      remove: ['#536'],
+    };
+    const plan = await w.plan.planGraph({ spec });
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.steps.map((step) => step.op)).toEqual(['disconnect', 'remove', 'rename', 'connect']);
+    const view = await w.apply.applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
+    expect(view.diff).toContainEqual({
+      device: 'Combiner',
+      change: 'changed',
+      id: 538,
+      inputs: { '1': { before: '#536.1', after: '#537.1' } },
+    });
+  });
+
   it('rolls back a set-bypassed on an existing device when a later step fails', async () => {
     const w = wired({ FAKE_WM_PARAM_SET_ERROR_AT: '1' });
     await w.devices.addDevice('Gradient', 'Ramp');

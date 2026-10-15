@@ -169,11 +169,32 @@ function changed(
       ...cut.map((input) => input.port),
     ]),
   ];
+  /** The source ids the steps name on a port: the disconnected one and the connected one (an added source by its id). */
+  const sourceIds = (port: number): { readonly was?: number; readonly is?: number } => {
+    let was: number | undefined;
+    let is: number | undefined;
+    for (const step of own) {
+      if (step.op === 'disconnect' && step.port === port) was = step.source.id;
+      if (step.op === 'connect' && step.port === port)
+        is = step.source.id ?? devices.addedIds.get(foldCase(step.source.device));
+    }
+    return { was, is };
+  };
   const inputs = Object.fromEntries(
     ports.flatMap((port) => {
-      const was = sourceText(before.inputs.find((input) => input.port === port));
-      const is = sourceText(after.inputs.find((input) => input.port === port));
-      return was === is ? [] : [[String(port), { before: was, after: is }]];
+      const beforeInput = before.inputs.find((input) => input.port === port);
+      const afterInput = after.inputs.find((input) => input.port === port);
+      const was = sourceText(beforeInput);
+      const is = sourceText(afterInput);
+      if (was !== is) return [[String(port), { before: was, after: is }]];
+      // Backlog, revision 7 follow-ups: the read-back names devices (fact 82), so a rewire between two devices of one
+      // name reads the same; the steps' ids tell them apart, shown in the spec's `#<id>.<port>` source form.
+      const ids = sourceIds(port);
+      const wasPort = beforeInput?.source?.port;
+      const isPort = afterInput?.source?.port;
+      if (ids.was === undefined || ids.is === undefined || ids.was === ids.is) return [];
+      if (wasPort === undefined || isPort === undefined) return [];
+      return [[String(port), { before: `#${ids.was}.${wasPort}`, after: `#${ids.is}.${isPort}` }]];
     }),
   );
   if (

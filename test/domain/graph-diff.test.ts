@@ -268,4 +268,73 @@ describe('graphDiff (spec v3 section 6)', () => {
       { device: 'Ridges', change: 'changed', id: 12, name: { before: 'Mountain', after: 'Ridges' } },
     ]);
   });
+
+  describe('a rewire between two devices of one name (backlog: revision 7 follow-ups)', () => {
+    const disconnect = (id: number): PlanStep => ({
+      op: 'disconnect',
+      device: 'Eroded',
+      id: 20,
+      port: 1,
+      from: 'Ridges.1',
+      source: { device: 'Ridges', id, port: 1 },
+    });
+    const connect = (source: { device: string; id?: number }): PlanStep => ({
+      op: 'connect',
+      device: 'Eroded',
+      id: 20,
+      port: 1,
+      from: `${source.device}.1`,
+      source: { ...source, port: 1 },
+    });
+    const eroded = detail(20, 'Eroded', 'Erosion', { inputs: [input(1, 'Ridges')] });
+
+    it('shows both sources by id when the read-back names are equal', () => {
+      const steps: PlanStep[] = [
+        disconnect(13),
+        { op: 'remove', device: 'Ridges', id: 13, wiresRemoved: [] },
+        { op: 'rename', device: 'Ridges', id: 12, from: 'Mountain', to: 'Ridges' },
+        connect({ device: 'Ridges', id: 12 }),
+      ];
+      const diff = graphDiff(steps, {
+        before: [detail(12, 'Mountain', 'Advanced Perlin'), detail(13, 'Ridges', 'Gradient'), eroded],
+        after: [detail(12, 'Ridges', 'Advanced Perlin'), eroded],
+        addedIds: new Map(),
+      });
+      expect(diff).toEqual([
+        { device: 'Eroded', change: 'changed', id: 20, inputs: { '1': { before: '#13.1', after: '#12.1' } } },
+        { device: 'Ridges', change: 'removed', before: { id: 13, type: 'Gradient' } },
+        { device: 'Ridges', change: 'changed', id: 12, name: { before: 'Mountain', after: 'Ridges' } },
+      ]);
+    });
+
+    it('takes the id of a source the apply added', () => {
+      const steps: PlanStep[] = [
+        disconnect(13),
+        { op: 'remove', device: 'Ridges', id: 13, wiresRemoved: [] },
+        { op: 'add', device: 'Ridges', type: 'Gradient' },
+        connect({ device: 'Ridges' }),
+      ];
+      const diff = graphDiff(steps, {
+        before: [detail(13, 'Ridges', 'Gradient'), eroded],
+        after: [detail(540, 'Ridges', 'Gradient'), eroded],
+        addedIds: new Map([['ridges', 540]]),
+      });
+      expect(diff[0]).toEqual({
+        device: 'Eroded',
+        change: 'changed',
+        id: 20,
+        inputs: { '1': { before: '#13.1', after: '#540.1' } },
+      });
+    });
+
+    it('leaves out a port whose source keeps its id', () => {
+      const steps: PlanStep[] = [disconnect(13), connect({ device: 'Ridges', id: 13 })];
+      const diff = graphDiff(steps, {
+        before: [detail(13, 'Ridges', 'Gradient'), eroded],
+        after: [eroded],
+        addedIds: new Map(),
+      });
+      expect(diff).toEqual([]);
+    });
+  });
 });
