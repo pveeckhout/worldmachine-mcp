@@ -97,6 +97,8 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
       ['Ramp B', 'added'],
       ['Combiner', 'added'],
     ]);
+    // The read-back World Machine displays: an int as given, Width in km at 8 km per unit (facts 87-90).
+    expect(view.diff[0]).toMatchObject({ after: { parameters: { Direction: '1', Width: '4 km' } } });
     expect(await names()).toEqual(expect.arrayContaining(['Ramp', 'Ramp B', 'Combiner']));
   }, 120_000);
 
