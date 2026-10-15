@@ -8,6 +8,7 @@ Revision 3 (2026-10-11): facts 80-81 from raw/v3-rename-probe.txt and raw/v3-ren
 Revision 4 (2026-10-12): section 6 robustness: `diffError` when the result cannot be read after a successful apply, a restore after an internal error, and a process generation in the session check; the plan and diff examples show step ids (D8) and the defined step order.
 Revision 5 (2026-10-12): bypassed in device entries (set-bypassed step after set-enabled; restore reverts bypass, raw/bypass-restore.txt).
 Revision 6 (2026-10-12): `id` in device entries, so a spec can manage several Combiners; a Combiner entry needs its default name or an `id`; a wire source whose name several devices share is resolved through the candidates' output targets (fact 82), in the plan and in `connect_devices` and `disconnect_devices` (amends v1 section 7). Backlog, lowlands trial items 1 and 2.
+Revision 7 (2026-10-15): `rename` in device entries with `id`, a `rename` step after `remove`, and `name` in a `changed` diff entry; fact 83 (`snapshot restore` reverts renames, raw/v7-rename-restore.txt). Amends the Ownership rule of section 4 and the out-of-scope list of section 10.
 Builds on: [v1 design](2026-10-04-worldmachine-mcp-design.md) (facts 1-41 and 77, the edit tools of section 7, the errors of section 8), [v2a design](2026-10-05-worldmachine-mcp-v2a-design.md) (the build guard), and [v2b design](2026-10-06-worldmachine-mcp-v2b-design.md) (facts 57-61, the snapshot tools)
 
 ## 1. Purpose and scope
@@ -37,6 +38,7 @@ The facts used, facts 78-79 from the v3 capture:
 - Fact 80 (raw/v3-rename-probe.txt): `device rename #<id> <name>` on a Combiner prints `Renamed '#<id>' to '<name>'` but changes nothing: `device list` and `device info` still show `Combiner`, for every name tried and for a second Combiner. A Gradient renamed in the same session takes the name. An `apply_graph` that adds a Combiner under another name therefore fails at the rename (the device editor's read-back reports it) and rolls back; give a Combiner the name `Combiner`. Across every device type `device add` accepted in raw/v3-rename-types.txt (118 types), the Combiner is the only one that ignores a rename.
 - Fact 81 (raw/v3-rename-types.txt): `device add <type>` accepts more than exact type names. Of 2846 candidate names, 205 added a device of one of 118 types: type names in any case (`Thermal weathering`), and also aliases and loose words that pick some other type (`Average` and `Subtract` add a Combiner, `Box` and `Sweep` a Radial Grad, `Byte` and `Terragen` a Height Output, `Water` a Coast Erosion). `apply_graph` therefore checks each added device's listed type (the kind in its `device list` row, or its name when the two are equal) against the spec type through fact 79's mapping, exactly as the type conflict compares; a mismatch fails the add step with `WM_COMMAND_FAILED`, before any rename, and the apply rolls back.
 - Fact 82 (revision 6): `wire list <device>` names the devices at both ends of a wire, never their ids. An input shows its source as `<- '<name>' [<output port>]` (raw/water-sea-erosion.txt l.481: `[1] Terrain <- 'Combiner' [1]`); an output shows each target as `-> '<name>' [<input port>]`, one per line, further targets on continuation lines (raw/default-updated.txt l.99-100, raw/v5-read-formats.txt l.45, raw/water-sea-erosion.txt l.164-166). When several devices share the source's name, the input alone does not say which one feeds it; the candidate whose output port lists the destination's name and input port does. A Combiner's own output targets use the same format: confirmed by the revision 6 live test on 2026-10-12 (test/live/graphs.live.test.ts, 5/5 passed).
+- Fact 83 (revision 7, raw/v7-rename-restore.txt): `snapshot restore` reverts a rename made after the snapshot, both of a device added before it (l.87, l.120: `Renamed Grad` back to `Gradient`) and of a device of the default project (l.70, l.103: `Renamed Orig` back to `Height Output`). A renamed device's `device list` row shows its type as the kind (`#1     Renamed Orig             (Height Output)`), as fact 81 describes. The wires are unchanged by the renames and by the restore (l.90-96, l.123-129).
 
 ### Assumptions settled by capture
 
@@ -78,6 +80,11 @@ The `apply_graph` description says: plan first and show the plan to the user; a 
   ```json
   { "name": "hills mix", "id": 536, "type": "Combiner", "inputs": { "1": "Base", "2": "Hills" } }
   ```
+- `devices[].rename` (revision 7) is an optional boolean, `false` when omitted, and is allowed only with `id`. With `rename: true`, the device's listed name is made equal to the entry's `name`: the label becomes the device's name in World Machine. Without it, a label is still never sent or compared, so specs written before revision 7 plan exactly as before:
+
+  ```json
+  { "name": "Ridges", "id": 12, "type": "Advanced Perlin", "rename": true }
+  ```
 - `enabled`, `bypassed`, `parameters`, and `inputs` are optional. What a device entry leaves out is left as it is. `bypassed` is a boolean that is set, not toggled (`set_device_bypassed` reads the state first); `device info` reports it even for a disabled device (fact 29).
 - `inputs` maps an input port number (as a string key) to a source, `"<device>"` or `"<device>.<outputPort>"` (port 1 when omitted), or to `null` for no wire. A source is a managed device's name or label, any device's name, or `#<id>`, looked up in that order. An input port the entry does not list is left alone.
 - `remove` lists device names (or `#<id>`) to delete. Deleting is never implied by absence.
@@ -89,7 +96,8 @@ Refused with `REFUSED`, nothing sent:
 - `version` other than 1; more than 200 entries in `devices` plus `remove`;
 - a name that is empty, longer than 23 characters, starts or ends with a space, or has the form `#<n>`;
 - two `devices` entries whose names are equal regardless of case; a name in both `devices` and `remove`;
-- an `id` that is not a positive integer; two `devices` entries with the same `id`; an `id` whose `#<id>` is in `remove` (revision 6). Labels follow the name rules above;
+- an `id` that is not a positive integer; two `devices` entries with the same `id`; an `id` whose `#<id>` is in `remove` (revision 6). Labels follow the name rules above, so a label is always a name World Machine keeps whole;
+- `rename` on an entry without `id` (revision 7): such an entry's name is its identity, so there is nothing to rename it from; the reason says to give the device's `id`;
 - a port number that is not a positive integer; a source string that does not parse;
 - a name that ends in `[disabled]` or `[bypassed]`, or that has two spaces followed by parenthesised text (as `add_device` refuses); a `remove` entry listed twice;
 - a `remove` entry that is not a `#<id>` reference and breaks a device name rule (longer than 23 characters, starts or ends with whitespace, ends in a marker or a kind suffix, or has the form `#<n>`), because World Machine keeps 23 characters of a name and `device list` trims names, so such an entry never matches and would be reported as already absent while the device stays;
@@ -101,7 +109,7 @@ Validation refuses only what needs no device type. A value the listed parameter 
 
 A device is managed when an entry gives its id, or, for an entry without `id`, when its name, compared regardless of case, appears in `devices`. Unmanaged devices keep their parameters, enabled state, and input wires. A managed device's input may come from an unmanaged device, and the spec may reference it by `#<id>` when its name is not unique.
 
-Renaming is out of scope: for an entry without `id` a name is the identity, so a new name is a new device, and an entry with `id` is never renamed. `rename_device` stays the tool for renames.
+Renaming (revision 7, replacing the rule that the spec never renames): for an entry without `id` a name is the identity, so a new name is a new device. An entry with `id` is renamed only when it has `rename: true`, and then to its `name`. A rename is never inferred from a label that differs from the listed name, because labels are how a spec tells several Combiners apart (revision 6), and a Combiner ignores a rename (fact 80). `rename_device` stays the tool for a single rename.
 
 Revision 6: an entry without `id` whose type ignores a rename (fact 80: Combiner, also when the spec gives an alias such as `Average`, fact 81) and whose name is not exactly that type's default name (compared with case, since the add renames to any other spelling and World Machine ignores that rename too) can match no device and cannot be added under its name, so each apply of the spec would add another. It is a conflict when no device has its name; the reason says to add the device with `add_device` and give its id in the spec, and, when the spec type is an alias, to give the type as `Combiner` (an alias type fails the type check of fact 81). An entry named `Combiner` keeps working as before, as long as one device has that name.
 
@@ -132,6 +140,9 @@ A conflict makes `apply_graph` refuse. Each names the spec entry and the reason:
 - a parameter name the existing device does not list, or a parameter of type `action` or `other`;
 - for an existing device, a parameter value its listed type refuses (the same rule as the parameter editor);
 - a current input source that `resolveWireSource` reports as `ambiguous` or `unknown`; the reason names the candidate ids (revision 6; before it, any shared source name was a conflict).
+- revision 7, an entry with `rename: true` whose `name` is not exactly (with case) the device's listed name, when the device's type ignores a rename (fact 80: a Combiner); the reason says World Machine ignores renames of that type;
+- revision 7, an entry with `rename: true` whose `name`, compared regardless of case, is the listed name of another device that the apply keeps (a device in `remove` does not count). World Machine would accept it (fact 32), but the two devices would then share a name, and every later lookup by that name would be ambiguous. Two entries that swap names are therefore refused too; the client renames through a temporary name in two applies;
+- revision 7, an input source in the spec that resolves, through the "any device's name" lookup of section 4, to a device that the same apply renames, so the source names the old listed name. It would resolve this time and fail on the next plan, so the reason says to use the entry's label.
 
 A removed device's `wiresRemoved` (step 2) is keyed by the ids `resolveWireSource` finds, so two wires to devices that share a name are both listed (revision 6).
 
@@ -143,11 +154,12 @@ Steps run in this order, and within each group in spec order:
 
 1. `disconnect`: an input whose spec source differs from its current source, or whose spec value is `null` while a wire exists;
 2. `remove`: each `remove` entry that exists, with the wires it takes along (`wiresRemoved`); an entry that matches nothing is listed in `unchanged` as `already absent`;
-3. `add`: each managed device that does not exist, renamed to the spec name when its default name differs;
-4. `set-enabled`: when `enabled` differs from the current state;
-5. `set-bypassed`: when `bypassed` differs from the current bypass state, which is compared exactly (a second plan of the same spec plans nothing for it). A device the plan adds starts not bypassed, so it gets this step only when `bypassed` is `true`, as `set-enabled` is planned for an added device only when `enabled` is `false`. `snapshot restore` reverts bypass (raw/bypass-restore.txt), so a failed apply restores it;
-6. `set-parameter`: per parameter, when it differs or cannot be compared (below);
-7. `connect`: each input whose spec source is not its current source.
+3. `rename` (revision 7): each entry with `rename: true` whose `name` differs from the listed name, compared with case, so a change of case alone is a rename. It runs after `remove`, because a device may take the name of a device the same apply removes, and before `add`, which cannot collide with it because two entries never share a name (section 4). The step is `{ "op": "rename", "device": "<label>", "id": <id>, "from": "<listed name>", "to": "<label>" }` and is sent as `device rename #<id> <name>` through `DeviceEditPort.renameDevice`, whose read-back of the `device list` row fails the step when the new name does not show;
+4. `add`: each managed device that does not exist, renamed to the spec name when its default name differs;
+5. `set-enabled`: when `enabled` differs from the current state;
+6. `set-bypassed`: when `bypassed` differs from the current bypass state, which is compared exactly (a second plan of the same spec plans nothing for it). A device the plan adds starts not bypassed, so it gets this step only when `bypassed` is `true`, as `set-enabled` is planned for an added device only when `enabled` is `false`. `snapshot restore` reverts bypass (raw/bypass-restore.txt), so a failed apply restores it;
+7. `set-parameter`: per parameter, when it differs or cannot be compared (below);
+8. `connect`: each input whose spec source is not its current source.
 
 Disconnecting before connecting is required: an occupied input refuses a connect (fact 34).
 
@@ -161,7 +173,7 @@ Parameter comparison with the current value from `param list`:
 
 An enum is never compared: World Machine reports a label and the spec gives an index. Labels in a spec are refused by validation (section 4).
 
-A spec applied twice in a row therefore plans only its `comparable: false` steps the second time.
+A spec applied twice in a row therefore plans only its `comparable: false` steps the second time; a renamed device's listed name equals its label after the first apply, so the second plan has no `rename` step.
 
 ### Plan output
 
@@ -203,7 +215,7 @@ sequenceDiagram
   else
     A->>S: create 'apply_graph <12 hex>'
     loop each step
-      A->>E: disconnect, delete, add, enable, param set, connect
+      A->>E: disconnect, delete, rename, add, enable, param set, connect
     end
     alt a step fails
       A->>S: restore snapshot
@@ -261,7 +273,7 @@ After success, the referenced devices are read back:
 }
 ```
 
-A `changed` entry carries `enabled` and `bypassed` as `{ before, after }` only when the read-back value changed. Parameters appear in the diff only when their read-back value changed; a float set to the value it already had does not appear. `snapshot` is the kept snapshot's name when `keep_snapshot` is true, otherwise `null`.
+A `changed` entry carries `enabled` and `bypassed` as `{ before, after }` only when the read-back value changed, and (revision 7) `name` as `{ before, after }` when the listed name changed; a device whose only change is a rename is still listed. Parameters appear in the diff only when their read-back value changed; a float set to the value it already had does not appear. `snapshot` is the kept snapshot's name when `keep_snapshot` is true, otherwise `null`.
 
 Added 2026-10-12: if the read-back fails with a `WorldMachineError` while World Machine is still the same healthy session, the apply still succeeded. The result then has `diff: []`, `diffError` (the error's message, without World Machine text), and the snapshot kept. On `TIMEOUT`, `CRASHED`, or a changed session, the call throws an error with the same code saying that all steps were applied but the result could not be read, and that the unsaved changes and snapshot are gone.
 
@@ -274,6 +286,7 @@ Added 2026-10-12: if the read-back fails with a `WorldMachineError` while World 
 - Revision 6: `src/domain/wire-source.ts` (`resolveWireSource`), used by `graph-plan.ts` and by the wire editor adapter (`world-machine-wire-editor.ts`). `planId` already covers every detail read, including the second-phase reads.
 - Revision 6, amending v1 section 7 (`connect_devices`, `disconnect_devices`, and the `REFUSED` row): when the destination's input shows the given source's own listed name and several devices share it, the wire editor runs `wire list #<id>` for each of them before any change and resolves the source. `found` and the given source: `connect` leaves the wire (`created: false`) and `disconnect` removes it. `found` and another device: `connect` sends (World Machine refuses the occupied input) and `disconnect` returns `removed: false` with nothing sent. `ambiguous` or `unknown`: `REFUSED`, naming the candidate ids, nothing sent. The checks after a change stay name-based, since an input holds one wire. An input that shows another name, or no wire, is not wired from the given source, exactly as before revision 6, whether or not that other name is shared.
 - Outbound ports unchanged: `ProjectGraphReadPort`, `DeviceEditPort`, `WireEditPort`, `ParameterEditPort`, `SnapshotPort`.
+- Revision 7: no new port or World Machine command. The plan's `rename` step uses `DeviceEditPort.renameDevice`, which `rename_device` already uses. Rollback needs no extra work, since a restore reverts renames (fact 83). The schema's description of `id` ("such an entry is never added or renamed") changes to say that it is renamed only with `rename: true`, and `rename` gets its own description.
 - `APPLY_FAILED` is added to the error codes (v1 section 8): "a step of `apply_graph` failed; effect: the apply snapshot was restored when `rolledBack` is true".
 
 ## 8. Testing
@@ -284,6 +297,7 @@ Added 2026-10-12: if the read-back fails with a `WorldMachineError` while World 
 - Captures: C1 and C2, settled as facts 78-79.
 - Live (`WM_LIVE=1`, after the user approves the run), at resolution 257 in a temporary folder: apply a three-device spec to a new project; plan again and see only float steps; apply a spec that rewires a device and removes one; apply a spec whose added device has an unknown parameter and see the rollback.
 - Revision 6: `resolveWireSource` for one candidate, one of several qualifying, chained Combiners that resolve, `ambiguous`, `unknown`, a name cut at 23 characters, and a port mismatch at either end; validation rows for `id`; planning rows for an entry with `id` (found, missing, type conflict, a label that differs from the listed name plans no rename), the Combiner rule (including the `Average` alias), the layered graph of section 5 with no conflicts, and `wiresRemoved` with two same-named targets; the second-phase reads (only unread candidates, none when names are unique); the wire editor's outcomes per case. The fake World Machine models a Combiner that ignores a rename and lists output targets of same-named devices before these tests are written. Through the fake: apply the layered graph, plan again, and see no steps other than `comparable: false` ones. Live, after the user approves the run: add two Combiners, apply a spec that binds them by `id`, plan again for no comparable steps, and disconnect a wire from one Combiner while the other exists; this also checks fact 82's assumption about a Combiner's output targets.
+- Revision 7: validation rows for `rename` without `id`, and `rename: false` with `id` (accepted, no step). Planning rows: a rename planned; a case-only rename; equal names plan nothing; the Combiner conflict, also with the `Average` alias, and a Combiner whose label is exactly its listed name (no step, no conflict); the name clash with a kept device, with another renamed entry (a swap), and no clash with a device in `remove`; a source that names the old listed name of a renamed device; the step order with `rename` between `remove` and `add`; a `connect` from a device renamed in the same apply. The fake World Machine's `snapshot restore` restores names before these tests are written. Through the fake: apply a rename and plan again for no `rename` step; a later step fails and the rollback restores the name (`rolledBack: true`); the diff's `name` entry. Live, after the user approves the run: in `graphs.live.test.ts`, apply a spec that renames an existing device by `id` and plan again for no `rename` step.
 
 ## 9. Documentation
 
@@ -291,4 +305,4 @@ The README gets a section on `plan_graph` and `apply_graph` with the spec exampl
 
 ## 10. Out of scope
 
-Templates and spec files on disk, scene settings, groups, layout and device positions (`organize_devices` exists), renaming through the spec, bypass, spec versions other than 1, and exports or builds as part of an apply.
+Templates and spec files on disk, scene settings, groups, layout and device positions (`organize_devices` exists), bypass, spec versions other than 1, and exports or builds as part of an apply.
