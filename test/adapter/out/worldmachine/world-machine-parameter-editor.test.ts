@@ -706,6 +706,36 @@ describe('WorldMachineParameterEditor', () => {
       expect(s.dirtyMarks()).toBe(1);
     });
 
+    it('notes only the last probed item when World Machine rejects every length set', async () => {
+      const s = scriptedSession({
+        'device list': [{ output: RIVER_DEVICES }],
+        'param list #536': [{ output: RIVER_LENGTHS }],
+        'param set "#536.Bankfull Depth" 1': [{ output: ['Set #536.Bankfull Depth = 1'] }],
+        'param set "#536.Bankfull Width" 1': [{ output: ['Set #536.Bankfull Width = 1'] }],
+        'param get #536.Bankfull Depth': [
+          { output: ['#536.Bankfull Depth = 8 km'] },
+          { output: ['#536.Bankfull Depth = 2 m'] },
+          { output: ['#536.Bankfull Depth = 2 m'] },
+        ],
+        'param get #536.Bankfull Width': [
+          { output: ['#536.Bankfull Width = 8 km'] },
+          { output: ['#536.Bankfull Width = 10 m'] },
+          { output: ['#536.Bankfull Width = 10 m'] },
+        ],
+        'project undo': [{ output: ['Undo performed.'] }, { output: ['Undo performed.'] }],
+        'param set "#536.Bankfull Depth" 0.000125': [{ errors: ['Error: Error: Invalid value for depth'] }],
+        'param set "#536.Bankfull Width" 0.0025': [{ errors: ['Error: Error: Invalid value for width'] }],
+      });
+      const update = await editor(s).updateParameters('#536', {
+        'Bankfull Depth': '1 m',
+        'Bankfull Width': '20m',
+      });
+      expect(update.parameters.map((parameter) => parameter.worldMachineMessage)).toEqual([
+        'Error: Error: Invalid value for depth',
+        "Error: Error: Invalid value for width; do not use redo before another edit, it would set 'Bankfull Width' to 1",
+      ]);
+    });
+
     it('notes the probed item when World Machine rejects the set of every other item', async () => {
       const s = scriptedSession({
         ...probed,

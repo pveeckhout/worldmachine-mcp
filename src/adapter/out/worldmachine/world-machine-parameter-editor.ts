@@ -166,12 +166,14 @@ export class WorldMachineParameterEditor implements ParameterEditPort {
             },
       );
       // Design section 4, last paragraph: with no `param set` confirmed, none sent or World Machine rejected every
-      // one, nothing follows the probes' undo, so their redo entries stay. The console cannot clear one, so each
-      // item probed and not set says so.
+      // one, nothing follows the probes' undo, so a probe's redo entry stays. Each probe's `param set` clears the
+      // previous redo entry, and probes run in item order, so only the last probed item's entry is left; the console
+      // cannot clear it, so that item says so.
+      const lastProbed = outcomes.findLastIndex(({ probed }) => probed);
       return {
         device: { id: target.id, name: target.name },
-        parameters: outcomes.map(({ outcome, probed }) =>
-          applied || !probed ? outcome : withRedoNote(outcome),
+        parameters: outcomes.map(({ outcome }, index) =>
+          applied || index !== lastProbed ? outcome : withRedoNote(outcome),
         ),
       };
     } catch (error) {
