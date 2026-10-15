@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DeviceDetail, PortLink } from '../../src/domain/device.js';
 import { type GraphState, type PlanStep, planGraph } from '../../src/domain/graph-plan.js';
 import { type RawGraphDevice, validateGraphSpec } from '../../src/domain/graph-spec.js';
+import { predictWiring } from '../../src/domain/predicted-wiring.js';
 import { unidentifiableWires } from '../../src/domain/wire-prediction.js';
 
 // Synthetic devices in the shape of raw/p2b-graph-edits.txt l.121-126 (a Combiner's two inputs and one output).
@@ -292,5 +293,88 @@ describe('unidentifiableWires (unidentifiable-wires design section 2)', () => {
 
   it('lists nothing for an empty spec and plan', () => {
     expect(unidentifiableWires(spec([]), state([]), [])).toEqual([]);
+  });
+});
+
+/** A one-input, one-output device: `source` feeds input 1 from its output 1, `targets` are its output 1 lines. */
+function device(
+  id: number,
+  name: string,
+  type: string,
+  source?: string,
+  targets: PortLink[] = [],
+): DeviceDetail {
+  return {
+    id,
+    name,
+    type,
+    enabled: true,
+    bypassed: false,
+    parameters: [],
+    inputs: [
+      {
+        port: 1,
+        name: 'Primary Input',
+        ...(source === undefined ? {} : { source: { device: source, port: 1 } }),
+      },
+    ],
+    outputs: [{ port: 1, name: 'Primary Output', targets }],
+    portTypes: 'unknown',
+  };
+}
+const stateOf = (details: DeviceDetail[]): GraphState => ({
+  projectPath: null,
+  devices: details.map((detail) => ({ id: detail.id, name: detail.name, enabled: true })),
+  details,
+});
+
+describe('predictWiring with a rename (spec v3 revision 7)', () => {
+  it('names the renamed device by its label in the devices, the lines that name it, and its managed targets', () => {
+    // Ramp #3 feeds Mountain #12 input 1; Mountain feeds Eroded #20 input 1.
+    const state = stateOf([
+      device(3, 'Ramp', 'Gradient', undefined, [{ device: 'Mountain', port: 1 }]),
+      device(12, 'Mountain', 'Advanced Perlin', 'Ramp', [{ device: 'Eroded', port: 1 }]),
+      device(20, 'Eroded', 'Erosion', 'Mountain'),
+    ]);
+    const graph = validateGraphSpec({
+      version: 1,
+      devices: [
+        { name: 'Ridges', id: 12, type: 'Advanced Perlin', rename: true },
+        { name: 'Eroded', id: 20, type: 'Erosion' },
+      ],
+    });
+    const steps = planGraph(graph, state).steps;
+    const wiring = predictWiring(graph, state, steps);
+    expect(wiring.devices.find((listed) => listed.id === 12)?.name).toBe('Ridges');
+    expect(wiring.outputsOf(3)?.[0]?.targets).toEqual([{ device: 'Ridges', port: 1 }]);
+    expect(wiring.inputsOf(20)?.get(1)?.source).toEqual({ device: 'Ridges', port: 1 });
+    expect(wiring.destinations.map(({ entry, name, currentName }) => ({ entry, name, currentName }))).toEqual(
+      [
+        { entry: 'Ridges', name: 'Ridges', currentName: 'Mountain' },
+        { entry: 'Eroded', name: 'Eroded', currentName: 'Eroded' },
+      ],
+    );
+  });
+
+  it('lists no unidentifiable wire once a rename separates two same-named sources (Review Focus 4)', () => {
+    // Perlin #5 and Perlin #6 each feed input 1 of a device named Mix (#7, #8): the inputs cannot be identified.
+    const state = stateOf([
+      device(5, 'Perlin', 'Perlin Noise', undefined, [{ device: 'Mix', port: 1 }]),
+      device(6, 'Perlin', 'Perlin Noise', undefined, [{ device: 'Mix', port: 1 }]),
+      device(7, 'Mix', 'Gradient', 'Perlin'),
+      device(8, 'Mix', 'Gradient', 'Perlin'),
+    ]);
+    const without = validateGraphSpec({ version: 1, devices: [{ name: 'a', id: 7, type: 'Gradient' }] });
+    expect(unidentifiableWires(without, state, planGraph(without, state).steps)).toHaveLength(1);
+    const renamed = validateGraphSpec({
+      version: 1,
+      devices: [
+        { name: 'a', id: 7, type: 'Gradient' },
+        { name: 'Ridges', id: 5, type: 'Perlin Noise', rename: true },
+      ],
+    });
+    const plan = planGraph(renamed, state);
+    expect(plan.conflicts).toEqual([]);
+    expect(unidentifiableWires(renamed, state, plan.steps)).toEqual([]);
   });
 });

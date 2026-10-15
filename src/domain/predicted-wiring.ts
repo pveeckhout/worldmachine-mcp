@@ -11,13 +11,14 @@ type PredictedOutput = { readonly port: number; readonly name: string; readonly 
 export type PredictedInput = { readonly source: PortLink | undefined; readonly kept: boolean };
 
 /**
- * A managed device: its spec entry, its id (below zero for a planned one), its listed name after the apply, and the
- * input ports its entry lists.
+ * A managed device: its spec entry, its id (below zero for a planned one), its listed name after the apply, its listed
+ * name now (`currentName`; revision 7, a rename changes `name`), and the input ports its entry lists.
  */
 export type Destination = {
   readonly entry: string;
   readonly id: number;
   readonly name: string;
+  readonly currentName: string;
   readonly listedPorts: ReadonlySet<number>;
 };
 
@@ -63,9 +64,11 @@ export function predictWiring(
     ...state.devices.filter((device) => !removed.has(device.id)),
     ...[...plannedNames].map(([id, name]) => ({ id, name, enabled: true })),
   ];
-  /** The listed name after the apply: a planned device is named exactly as its entry (v3 revision 6). */
+  /** Revision 7: the names rename steps give, applied as the steps run, so earlier steps see the current names. */
+  const renamed = new Map<number, string>();
+  /** The listed name at this point of the steps: a planned device is named exactly as its entry (v3 revision 6). */
   const nameOf = (id: number): string | undefined =>
-    plannedNames.get(id) ?? state.devices.find((device) => device.id === id)?.name;
+    renamed.get(id) ?? plannedNames.get(id) ?? state.devices.find((device) => device.id === id)?.name;
   /** A step's device: its id when it exists, otherwise the placeholder of the add step that plans it. */
   const idOf = (device: string, id: number | undefined): number | undefined =>
     id ?? plannedIds.get(foldCase(device));
@@ -126,6 +129,7 @@ export function predictWiring(
       entry: device.name,
       id,
       name,
+      currentName: name,
       listedPorts: new Set(device.inputs.map((input) => input.port)),
     });
     inputs.set(id, ports);
@@ -159,8 +163,38 @@ export function predictWiring(
             if (!predicted.kept || source === undefined) continue;
             const input: InputPort = { port, name: '', source };
             if (!readable(input)) continue;
-            const resolved = current(destination.name, input);
+            const resolved = current(destination.currentName, input);
             if (resolved.kind === 'found' && resolved.id === step.id) set(destination.id, port, undefined);
+          }
+        }
+        break;
+      }
+      case 'rename': {
+        // Revision 7: the lines that name the device by its current name name it by its label from here on, where the
+        // current state identifies the wire; one it cannot identify keeps its text, as for the other steps.
+        const from = nameOf(step.id) ?? step.from;
+        renamed.set(step.id, step.to);
+        for (const input of detailOf(step.id)?.inputs ?? []) {
+          if (input.source === undefined || !readable(input)) continue;
+          const resolved = current(from, input);
+          if (resolved.kind !== 'found') continue;
+          const targets = targetsOf(resolved.id, resolved.port);
+          const index =
+            targets?.findIndex(
+              (target) => matchesListedName(target.device, from) && target.port === input.port,
+            ) ?? -1;
+          const line = targets?.[index];
+          if (line !== undefined) targets?.splice(index, 1, { device: step.to, port: line.port });
+        }
+        for (const destination of destinations) {
+          for (const [port, predicted] of inputs.get(destination.id) ?? []) {
+            const source = predicted.source;
+            if (!predicted.kept || source === undefined) continue;
+            const input: InputPort = { port, name: '', source };
+            if (!readable(input)) continue;
+            const resolved = current(destination.currentName, input);
+            if (resolved.kind === 'found' && resolved.id === step.id)
+              set(destination.id, port, { device: step.to, port: source.port });
           }
         }
         break;
@@ -182,9 +216,15 @@ export function predictWiring(
   }
 
   return {
-    devices,
+    devices: devices.map((device) => {
+      const name = renamed.get(device.id);
+      return name === undefined ? device : { ...device, name };
+    }),
     plannedNames,
-    destinations,
+    destinations: destinations.map((destination) => ({
+      ...destination,
+      name: renamed.get(destination.id) ?? destination.name,
+    })),
     outputsOf: (id) => outputs.get(id),
     inputsOf: (id) => inputs.get(id),
     idOf,

@@ -35,7 +35,11 @@ export function unidentifiableWires(
       const input: InputPort = { port, name: '', source };
       // Plan decision D2: a kept wire on an input the spec entry lists that the current state cannot identify is the
       // plan's conflict already.
-      if (kept && destination.listedPorts.has(port) && current(destination.name, input).kind !== 'found')
+      if (
+        kept &&
+        destination.listedPorts.has(port) &&
+        current(destination.currentName, input).kind !== 'found'
+      )
         continue;
       const predicted = resolveWireSource(destination.name, input, wiring.devices, wiring.outputsOf);
       if (predicted.kind !== 'ambiguous') continue;
