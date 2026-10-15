@@ -161,7 +161,10 @@ export function validateGraphSpec(raw: RawGraphSpec): GraphSpec {
       if (problem !== undefined) refuse(`Remove entry '${entry}' must not ${problem}`);
     }
     const key = foldCase(entry);
-    if (names.has(key)) refuse(`'${entry}' is in both devices and remove`);
+    if (names.has(key))
+      refuse(
+        `'${entry}' is in both devices and remove; to remove a device whose name an entry uses as its label, give the device as #<id>`,
+      );
     const removedId = idOfReference(entry);
     const owner = removedId === undefined ? undefined : ids.get(removedId);
     if (owner !== undefined) refuse(`'${entry}' in remove is the id of '${owner}'`);

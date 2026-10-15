@@ -89,7 +89,11 @@ describe('validateGraphSpec (spec v3 section 4)', () => {
       base({ devices: [device('Base'), device('BASE')] }),
       'regardless of case',
     ],
-    ['a name in devices and remove', base({ remove: ['base'] }), 'both devices and remove'],
+    [
+      'a name in devices and remove',
+      base({ remove: ['base'] }),
+      "'base' is in both devices and remove; to remove a device whose name an entry uses as its label, give the device as #<id>",
+    ],
     [
       'an empty remove entry',
       base({ remove: [''] }),
