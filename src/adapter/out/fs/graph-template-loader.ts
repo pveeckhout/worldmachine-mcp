@@ -22,21 +22,40 @@ export class FsGraphTemplateLoader implements GraphTemplatePort {
     const refuse = (reason: string): never => {
       throw new WorldMachineError('REFUSED', `${path}: ${reason}`);
     };
-    let text: string;
+    let bytes: Buffer;
     try {
       const handle = await open(path, 'r');
       try {
-        // One byte more than the limit tells an oversized file without reading all of it.
+        // The policy checked the file before open; this catches a directory or FIFO swapped in since.
+        if (!(await handle.stat()).isFile()) refuse('not a regular file');
+        // One byte more than the limit tells an oversized file without reading all of it. A read may return
+        // fewer bytes than asked, so read until end of file or past the limit.
         const buffer = Buffer.alloc(MAX_TEMPLATE_BYTES + 1);
-        const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
-        if (bytesRead > MAX_TEMPLATE_BYTES) refuse('the file is larger than 1 MB');
-        text = buffer.subarray(0, bytesRead).toString('utf8');
+        let filled = 0;
+        while (filled < buffer.length) {
+          const { bytesRead } = await handle.read(buffer, filled, buffer.length - filled, filled);
+          if (bytesRead === 0) break;
+          filled += bytesRead;
+        }
+        if (filled > MAX_TEMPLATE_BYTES) refuse('the file is larger than 1 MB');
+        bytes = buffer.subarray(0, filled);
       } finally {
         await handle.close();
       }
     } catch (error) {
       if (error instanceof WorldMachineError) throw error;
       return refuse(`the file cannot be read (${error instanceof Error ? error.message : String(error)})`);
+    }
+    // Templates design section 2: the file is UTF-8. One leading byte order mark is dropped, as Windows editors
+    // write one; a broken byte is refused rather than replaced.
+    const hasBom = bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
+    let text: string;
+    try {
+      text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+        hasBom ? bytes.subarray(3) : bytes,
+      );
+    } catch {
+      return refuse('not valid UTF-8');
     }
     let parsed: unknown;
     try {

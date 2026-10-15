@@ -1,4 +1,4 @@
-import { mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -7,11 +7,12 @@ import {
   MAX_TEMPLATE_BYTES,
 } from '../../../../src/adapter/out/fs/graph-template-loader.js';
 import { FsPathPolicy } from '../../../../src/adapter/out/fs/path-policy.js';
+import type { PathPolicyPort } from '../../../../src/application/port/out/path-policy-port.js';
 import { WorldMachineError } from '../../../../src/domain/errors.js';
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'templates-')));
 const loader = new FsGraphTemplateLoader(new FsPathPolicy([root]));
-const write = (name: string, content: string): string => {
+const write = (name: string, content: string | Uint8Array): string => {
   const path = join(root, name);
   writeFileSync(path, content);
   return path;
@@ -48,6 +49,48 @@ describe('FsGraphTemplateLoader (templates design sections 4 and 5)', () => {
   it('refuses a file over 1 MB', async () => {
     const path = write('big.json', `{"version":1,"devices":[],"x":"${'a'.repeat(MAX_TEMPLATE_BYTES)}"}`);
     expect(await refusal(loader.load(path, {}))).toBe(`${path}: the file is larger than 1 MB`);
+  });
+
+  it('accepts a file of exactly 1 MB', async () => {
+    const json = '{"version":1,"devices":[]}';
+    const path = write('exact.json', json + ' '.repeat(MAX_TEMPLATE_BYTES - json.length));
+    expect(await loader.load(path, {})).toEqual({ version: 1, devices: [] });
+  });
+
+  it('refuses a file one byte over 1 MB', async () => {
+    const json = '{"version":1,"devices":[]}';
+    const path = write('over.json', json + ' '.repeat(MAX_TEMPLATE_BYTES + 1 - json.length));
+    expect(await refusal(loader.load(path, {}))).toBe(`${path}: the file is larger than 1 MB`);
+  });
+
+  it('loads a template that starts with a UTF-8 byte order mark', async () => {
+    const path = write(
+      'bom.json',
+      Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from('{"version":1,"devices":[]}')]),
+    );
+    expect(await loader.load(path, {})).toEqual({ version: 1, devices: [] });
+  });
+
+  it('refuses a file that is not valid UTF-8', async () => {
+    const path = write(
+      'latin.json',
+      Buffer.concat([
+        Buffer.from('{"version":1,"devices":[{"name":"'),
+        Buffer.from([0xff]),
+        Buffer.from('","type":"Gradient"}]}'),
+      ]),
+    );
+    expect(await refusal(loader.load(path, {}))).toBe(`${path}: not valid UTF-8`);
+  });
+
+  it('refuses a path that is not a regular file when opened', async () => {
+    // The policy checks the file before open; a stub stands in for a directory swapped in after that check.
+    const directory = join(root, 'swapped.json');
+    mkdirSync(directory);
+    const policy = { authorizeExistingTemplate: async () => directory } as unknown as PathPolicyPort;
+    expect(await refusal(new FsGraphTemplateLoader(policy).load(directory, {}))).toBe(
+      `${directory}: not a regular file`,
+    );
   });
 
   it('refuses invalid JSON', async () => {
