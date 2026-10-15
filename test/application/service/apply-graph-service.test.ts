@@ -474,6 +474,65 @@ describe('ApplyGraphService scene step (revision 8)', () => {
     expect(error.message).toContain('the scene');
     expect(calls).toEqual(['configure', expect.stringMatching(/^restore apply_graph /)]);
   });
+
+  it('carries the changed scene on a view whose diff cannot be read', async () => {
+    const stub = <T>(value: unknown): T => value as T;
+    const scene = {
+      name: 'Main Extents',
+      index: 0,
+      count: 1,
+      originKm: { x: 4, y: 4 },
+      sizeKm: { width: 12, height: 12 },
+      resolution: 2049,
+      locked: false,
+    };
+    const spec: RawGraphSpec = {
+      version: 1,
+      scene: { resolution: 513 },
+      devices: [{ name: 'Ramp', type: 'Gradient' }],
+    };
+    const session = {
+      status: () => ({
+        executable: null,
+        generation: 1,
+        session: { state: 'ready', binding: { kind: 'fresh' }, dirty: false },
+      }),
+      exclusive: <T>(action: () => Promise<T>) => action(),
+    };
+    // Nothing is listed before the apply, so only the diff read after the steps calls getDevice.
+    const graph = {
+      listDevices: async () => [],
+      getDevice: async () => {
+        throw new WorldMachineError('WM_COMMAND_FAILED', 'read failed');
+      },
+      getScene: async () => scene,
+    };
+    const snapshots = { list: async () => [], create: async (name: string) => ({ index: 0, name }) };
+    const devices = {
+      addDevice: async (type: string) => ({ id: 536, name: 'Ramp', kind: type, enabled: true }),
+    };
+    const scenes = { configureScene: async () => ({ ...scene, resolution: 513 }) };
+    const service = new ApplyGraphService(
+      stub<ConstructorParameters<typeof ApplyGraphService>[0]>(session),
+      stub<ConstructorParameters<typeof ApplyGraphService>[1]>(graph),
+      stub<ConstructorParameters<typeof ApplyGraphService>[2]>(devices),
+      stub<ConstructorParameters<typeof ApplyGraphService>[3]>({}),
+      stub<ConstructorParameters<typeof ApplyGraphService>[4]>({}),
+      stub<ConstructorParameters<typeof ApplyGraphService>[5]>(snapshots),
+      stub<ConstructorParameters<typeof ApplyGraphService>[6]>(syntheticPortTypes),
+      stub<ConstructorParameters<typeof ApplyGraphService>[7]>(scenes),
+    );
+    const id = planId(validateGraphSpec(spec), { projectPath: null, devices: [], details: [], scene });
+    const view = await service.applyGraph({ spec, planId: id, keepSnapshot: false });
+    expect(view).toMatchObject({
+      applied: 2,
+      snapshot: `apply_graph ${id.slice(0, 12)}`,
+      diff: [],
+      diffError: 'read failed',
+      scene: { resolution: { before: 2049, after: 513 } },
+    });
+    expect(view.scene).toEqual({ resolution: { before: 2049, after: 513 } });
+  });
 });
 
 describe('ApplyGraphService port types (port-types design section 6, plan decision D8)', () => {
