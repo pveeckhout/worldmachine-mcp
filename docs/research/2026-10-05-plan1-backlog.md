@@ -151,3 +151,11 @@ Of 44 deferred minors in the v3 and float-units handovers, 22 were still open on
 - Done: Cosmetic: a plan calls `status()` twice (`read-graph-state.ts:71`, `plan-graph-service.ts:36`). (v3 handover, T8c.) Resolution (2026-10-15): readGraphState returns the session summary it read, and both services use it. Commit: febcf65.
 - Won't fix: Cosmetic: `apply_graph` lists snapshots, then `create` lists them again and refuses a duplicate itself (`apply-graph-service.ts:94`, `world-machine-snapshot-editor.ts:55`): one extra console command per apply. (v3 handover, T9d.) Resolution (2026-10-15): the first list gives the plan-specific refusal pinned by 7369e4d, and `create`'s own check guards its other callers; one console command per apply is the cost (user ruling 2026-10-15).
 - Done: Cosmetic: the fact-91 comment in `test/fake-wm/fake-wm.test.ts:1499-1500` cites l.45-85 for `device add Gradient` (it is at l.26), and the `fourDigits` exactness comment in `test/fake-wm/fake-wm.mjs:588-591` overstates exactness near subnormals. (Float-units ledger l.57, F7.) Resolution (2026-10-15): Commit: d31071b.
+
+## v3 revision 7 follow-ups (final review 2026-10-15)
+
+Deferred by the final whole-branch review of renames through the graph spec (v3 spec revision 7, merged at 98e40d9). World Machine's own refusal and the apply rollback cover each of them.
+
+- Open: `unidentifiableWires` over-reports after a rename that tells two same-named devices apart. `predictWiring`'s `rename` case rewrites only the wire texts the current state identifies, so an ambiguous line keeps the shared name and the wire stays listed, with a reason that is false once the apply has run. The warning is advisory and refuses nothing. (Final review M1, probe p3.)
+- Open: the diff compares input sources by name (`graphDiff`'s `changed`, `sourceText`), so a rewire from a removed device to a device the same apply renames to the removed device's name, for example from removed #13 'Ridges' to #12 renamed 'Ridges', does not show in the diff. Two same-named Combiners have shown the same gap since revision 6. (Final review M2, probe p1.)
+- Open: Test coverage: no test sends a `rename` plan step or a `changed` diff entry with `name` through the MCP output schemas (`planStepSchema`, `diffEntrySchema` in `src/adapter/in/mcp/schemas.ts`); a probe showed both parse. (Final review M4, probe p2.)
