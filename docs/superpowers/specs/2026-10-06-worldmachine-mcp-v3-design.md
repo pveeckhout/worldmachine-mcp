@@ -307,4 +307,4 @@ Revision 7: that section gets a `rename: true` example and the rule that a label
 
 ## 10. Out of scope
 
-Templates and spec files on disk, scene settings, groups, layout and device positions (`organize_devices` exists), bypass, spec versions other than 1, and exports or builds as part of an apply.
+Templates and spec files on disk, scene settings, groups, layout and device positions (`organize_devices` exists), spec versions other than 1, and exports or builds as part of an apply.
