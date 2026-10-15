@@ -263,4 +263,25 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
     const first = await reader.getDevice(`#${a}`);
     expect(first.inputs.find((input) => input.port === 2)?.source).toBeUndefined();
   }, 180_000);
+
+  // Revision 7. The tests above end in a blank project, so this one adds the Gradient it renames.
+  it('renames a device by id and plans no rename the second time (revision 7)', async () => {
+    await session.ensureRunning();
+    throwIfFailed(await session.executeOne('project new blank force'));
+    const added = await devices.addDevice('Gradient', 'Ramp B');
+    const spec: RawGraphSpec = {
+      version: 1,
+      devices: [{ name: 'Ramp Renamed', id: added.id, type: 'Gradient', rename: true }],
+    };
+    const view = await planAndApply(spec);
+    expect(view.diff).toEqual([
+      {
+        device: 'Ramp Renamed',
+        change: 'changed',
+        id: added.id,
+        name: { before: 'Ramp B', after: 'Ramp Renamed' },
+      },
+    ]);
+    expect((await plan.planGraph({ spec })).steps).toEqual([]);
+  }, 120_000);
 });
