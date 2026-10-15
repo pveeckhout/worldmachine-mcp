@@ -379,4 +379,27 @@ describe('predictWiring with a rename (spec v3 revision 7)', () => {
     expect(plan.conflicts).toEqual([]);
     expect(unidentifiableWires(renamed, state, plan.steps)).toEqual([]);
   });
+
+  it('checks a renamed destination by its current name, which identifies the wire (D2)', () => {
+    // Perlin #5 lists Mountain; #6 and #7 list Ridges. Mountain #12, Ridges #50, and Ridges #51 take Perlin. The
+    // current state identifies #12's wire as #5's; the removes cannot cut the two lines to Ridges (D7).
+    const state = stateOf([
+      device(5, 'Perlin', 'Perlin Noise', undefined, [{ device: 'Mountain', port: 1 }]),
+      device(6, 'Perlin', 'Perlin Noise', undefined, [{ device: 'Ridges', port: 1 }]),
+      device(7, 'Perlin', 'Perlin Noise', undefined, [{ device: 'Ridges', port: 1 }]),
+      device(12, 'Mountain', 'Advanced Perlin', 'Perlin'),
+      device(50, 'Ridges', 'Advanced Perlin', 'Perlin'),
+      device(51, 'Ridges', 'Advanced Perlin', 'Perlin'),
+    ]);
+    const graph = validateGraphSpec({
+      version: 1,
+      remove: ['#50', '#51'],
+      devices: [{ name: 'Ridges', id: 12, type: 'Advanced Perlin', rename: true, inputs: { '1': '#5' } }],
+    });
+    const plan = planGraph(graph, state);
+    expect(plan.conflicts).toEqual([]);
+    expect(unidentifiableWires(graph, state, plan.steps)).toEqual([
+      "'Ridges' input 1 from 'Perlin' output 1: #5, #6, #7 each list 'Ridges' input 1",
+    ]);
+  });
 });
