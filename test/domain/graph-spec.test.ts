@@ -90,7 +90,11 @@ describe('validateGraphSpec (spec v3 section 4)', () => {
       'regardless of case',
     ],
     ['a name in devices and remove', base({ remove: ['base'] }), 'both devices and remove'],
-    ['an empty remove entry', base({ remove: [''] }), 'remove'],
+    [
+      'an empty remove entry',
+      base({ remove: [''] }),
+      'A remove entry must be a device name or #<id>, not empty',
+    ],
     ['a remove entry twice (D3)', base({ remove: ['Old', 'old'] }), 'twice'],
     ['a 24-character remove entry', base({ remove: ['Twenty-four characters!!'] }), 'longer than'],
     ['a remove entry with a leading space', base({ remove: [' Old'] }), 'whitespace'],
@@ -98,13 +102,25 @@ describe('validateGraphSpec (spec v3 section 4)', () => {
     ['port 0', base({ devices: [{ ...device('A'), inputs: { '0': null } }] }), 'input port'],
     ['port x', base({ devices: [{ ...device('A'), inputs: { x: null } }] }), 'input port'],
     ['port 1.5', base({ devices: [{ ...device('A'), inputs: { '1.5': null } }] }), 'input port'],
-    ['an empty source', base({ devices: [{ ...device('A'), inputs: { '1': '' } }] }), 'source'],
-    ['a source without a device', base({ devices: [{ ...device('A'), inputs: { '1': '.1' } }] }), 'source'],
-    ['a source with port 0', base({ devices: [{ ...device('A'), inputs: { '1': 'Shape.0' } }] }), 'source'],
+    [
+      'an empty source',
+      base({ devices: [{ ...device('A'), inputs: { '1': '' } }] }),
+      '\'A\' input 1: source \'\' is not "<device>" or "<device>.<port>"',
+    ],
+    [
+      'a source without a device',
+      base({ devices: [{ ...device('A'), inputs: { '1': '.1' } }] }),
+      '\'A\' input 1: source \'.1\' is not "<device>" or "<device>.<port>"',
+    ],
+    [
+      'a source with port 0',
+      base({ devices: [{ ...device('A'), inputs: { '1': 'Shape.0' } }] }),
+      '\'A\' input 1: source \'Shape.0\' is not "<device>" or "<device>.<port>"',
+    ],
     [
       'a source with a leading space',
       base({ devices: [{ ...device('A'), inputs: { '1': ' Shape' } }] }),
-      'source',
+      '\'A\' input 1: source \' Shape\' is not "<device>" or "<device>.<port>"',
     ],
     ['an empty parameter name', base({ devices: [{ ...device('A'), parameters: { '': 1 } }] }), 'parameter'],
     [
