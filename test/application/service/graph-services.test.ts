@@ -1085,6 +1085,32 @@ describe('graph templates (templates design)', () => {
     }
   });
 
+  it('refuses an apply with both spec and template, and neither, before any World Machine command', async () => {
+    const w = wired();
+    const path = file('both-apply.json', template());
+    for (const command of [
+      { spec: SPEC, template: { path }, planId: 'x', keepSnapshot: false },
+      { planId: 'x', keepSnapshot: false },
+    ]) {
+      const before = w.record.lines().length;
+      const error = await failure(w.apply.applyGraph(command));
+      expect(error.code).toBe('REFUSED');
+      expect(error.message).toBe('Give exactly one of spec and template');
+      expect(w.record.lines().length).toBe(before);
+    }
+  });
+
+  it('plans a copy at another path, and the returned spec inline, to the same planId (section 3)', async () => {
+    const w = wired();
+    const first = file('first.json', template());
+    const copy = file('copy.json', template());
+    const view = await w.plan.planGraph({ template: { path: first, parameters: { width: 0.25 } } });
+    const copied = await w.plan.planGraph({ template: { path: copy, parameters: { width: 0.25 } } });
+    expect(copied.planId).toBe(view.planId);
+    if (view.spec === undefined) throw new Error('a template plan returns its spec');
+    expect((await w.plan.planGraph({ spec: view.spec })).planId).toBe(view.planId);
+  });
+
   it('reports a filled spec that breaks a v3 rule as that rule (Review Focus 3)', async () => {
     const w = wired();
     const path = file(
