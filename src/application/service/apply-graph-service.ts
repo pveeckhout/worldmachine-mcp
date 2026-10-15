@@ -152,16 +152,19 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
       try {
         diff = await this.#diff(plan.steps, cutInputs, state, added);
       } catch (error) {
-        if (!(error instanceof WorldMachineError)) throw error;
-        if (error.code === 'TIMEOUT') throw lostAfterApply('TIMEOUT', error.message);
-        if (error.code === 'CRASHED' || !this.#sameSession(start))
-          throw lostAfterApply('CRASHED', error.message);
-        // The apply succeeded: report it, keep the snapshot, and say why the diff is empty.
+        const reason = error instanceof Error ? error.message : String(error);
+        if (error instanceof WorldMachineError && error.code === 'TIMEOUT') {
+          throw lostAfterApply('TIMEOUT', reason);
+        }
+        if ((error instanceof WorldMachineError && error.code === 'CRASHED') || !this.#sameSession(start))
+          throw lostAfterApply('CRASHED', reason);
+        // The apply succeeded: report it, keep the snapshot, and say why the diff is empty. A non-World-Machine
+        // error (graphDiff found a device missing) is reported the same way, not as an internal error.
         return {
           applied: plan.steps.length,
           snapshot,
           diff: [],
-          diffError: error.message,
+          diffError: reason,
           unidentifiableWires: unidentifiable,
           possibleLoops: loops.possibleLoops,
           session: this.#session.status().session,

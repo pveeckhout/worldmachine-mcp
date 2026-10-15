@@ -84,6 +84,8 @@ describe('ApplyGraphService robustness', () => {
   const build = (options: {
     readonly addDevice?: (type: string, count: number) => Promise<unknown>;
     readonly diffError?: Error;
+    /** The id every diff read-back reports instead of the requested one, so graphDiff cannot find the device. */
+    readonly readBackId?: number;
     readonly restoreError?: Error;
     /** Thrown by `snapshot delete`. */
     readonly removeError?: Error;
@@ -113,7 +115,7 @@ describe('ApplyGraphService robustness', () => {
         if (options.diffError !== undefined) throw options.diffError;
         // A device with the requested id: graphDiff throws for a device it cannot find.
         return {
-          id: Number(reference.slice(1)),
+          id: options.readBackId ?? Number(reference.slice(1)),
           name: 'Read',
           type: 'Read',
           enabled: true,
@@ -220,6 +222,18 @@ describe('ApplyGraphService robustness', () => {
       unidentifiableWires: [],
       possibleLoops: [],
       session: { state: 'ready' },
+    });
+    expect(calls.filter((call) => call.startsWith('remove'))).toEqual([]);
+  });
+
+  it('reports an applied graph whose diff graphDiff cannot build, and keeps the snapshot', async () => {
+    const { service, calls, id } = build({ readBackId: 999 });
+    const view = await service.applyGraph({ spec: SPEC, planId: id, keepSnapshot: false });
+    expect(view).toMatchObject({
+      applied: 2,
+      snapshot: `apply_graph ${id.slice(0, 12)}`,
+      diff: [],
+      diffError: expect.stringContaining('graphDiff: added device'),
     });
     expect(calls.filter((call) => call.startsWith('remove'))).toEqual([]);
   });
