@@ -170,4 +170,34 @@ describe('graphDiff (spec v3 section 6)', () => {
       },
     ]);
   });
+
+  it('reports two removed devices that share a name, each by its id', () => {
+    const steps: PlanStep[] = [
+      { op: 'remove', device: 'Twin', id: 12, wiresRemoved: [] },
+      { op: 'remove', device: 'Twin', id: 13, wiresRemoved: [] },
+    ];
+    const before = [detail(12, 'Twin', 'Perlin Noise'), detail(13, 'Twin', 'Gradient')];
+    expect(graphDiff(steps, { before, after: [], addedIds: new Map() })).toEqual([
+      { device: 'Twin', change: 'removed', before: { id: 12, type: 'Perlin Noise' } },
+      { device: 'Twin', change: 'removed', before: { id: 13, type: 'Gradient' } },
+    ]);
+  });
+
+  it('reports a disconnect with no connect as an input changed to null', () => {
+    const steps: PlanStep[] = [
+      {
+        op: 'disconnect',
+        device: 'Eroded',
+        id: 20,
+        port: 1,
+        from: 'Old.1',
+        source: { device: 'Old', id: 12, port: 1 },
+      },
+    ];
+    const was = detail(20, 'Eroded', 'Erosion', { inputs: [input(1, 'Old')] });
+    const is = detail(20, 'Eroded', 'Erosion', { inputs: [input(1)] });
+    expect(graphDiff(steps, { before: [was], after: [is], addedIds: new Map() })).toEqual([
+      { device: 'Eroded', change: 'changed', id: 20, inputs: { '1': { before: 'Old.1', after: null } } },
+    ]);
+  });
 });
