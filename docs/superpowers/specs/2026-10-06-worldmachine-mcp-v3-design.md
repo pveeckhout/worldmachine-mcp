@@ -303,6 +303,8 @@ Added 2026-10-12: if the read-back fails with a `WorldMachineError` while World 
 
 The README gets a section on `plan_graph` and `apply_graph` with the spec example of section 4, the ownership rule, the float rule, and rollback.
 
+Revision 7: that section gets a `rename: true` example and the rule that a label is never sent to World Machine without it.
+
 ## 10. Out of scope
 
 Templates and spec files on disk, scene settings, groups, layout and device positions (`organize_devices` exists), bypass, spec versions other than 1, and exports or builds as part of an apply.
