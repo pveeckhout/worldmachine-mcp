@@ -447,7 +447,7 @@ describe('WorldMachineGraphReader port types (port-types design sections 5 and 6
     return new WorldMachineGraphReader(
       session,
       [ENUM_CATALOG_4067],
-      new WorldMachinePortTypes(session, catalog),
+      new WorldMachinePortTypes(session, [catalog]),
     );
   }
 

@@ -12,7 +12,7 @@ import { WorldMachineDeviceEditor } from '../../src/adapter/out/worldmachine/wor
 import { WorldMachineGraphReader } from '../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
 import { WorldMachineParameterEditor } from '../../src/adapter/out/worldmachine/world-machine-parameter-editor.js';
 import {
-  PORT_TYPE_CATALOG,
+  PORT_TYPE_CATALOGS,
   WorldMachinePortTypes,
 } from '../../src/adapter/out/worldmachine/world-machine-port-types.js';
 import { WorldMachineProcess } from '../../src/adapter/out/worldmachine/world-machine-process.js';
@@ -46,7 +46,7 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
   });
   // Port-types plan decision D3: the shared reader and wire editor carry the shipped catalog and port types, as
   // main.ts wires them.
-  const portTypes = new WorldMachinePortTypes(session, PORT_TYPE_CATALOG);
+  const portTypes = new WorldMachinePortTypes(session, PORT_TYPE_CATALOGS);
   const reader = new WorldMachineGraphReader(session, ENUM_CATALOGS, portTypes);
   const writer = new WorldMachineProjectWriter(session);
   const scene = new WorldMachineSceneEditor(session);

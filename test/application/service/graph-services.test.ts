@@ -56,7 +56,7 @@ function wired(extra: Record<string, string> = {}, catalog?: PortTypeCatalog) {
       WorldMachineProcess.start({ bin, readyTimeoutMs: 5_000, logger, env, signal, onSpawn }),
   });
   sessions.push(session);
-  const portTypes = new WorldMachinePortTypes(session, catalog);
+  const portTypes = new WorldMachinePortTypes(session, catalog === undefined ? [] : [catalog]);
   const reader = new WorldMachineGraphReader(session, ENUM_CATALOGS, portTypes);
   const devices = new WorldMachineDeviceEditor(session);
   const snapshots = new WorldMachineSnapshotEditor(session);

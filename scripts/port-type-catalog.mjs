@@ -159,7 +159,7 @@ function classNames(outputClasses, outputs, names) {
  * scenario, an error answer, a refusal recorded with a stray wire, or a pair probed twice throws. A twin's verdict is
  * keyed as its probed device's own pair (design section 3, same-device holes); a twin with other ports throws.
  */
-function readTranscript(transcript) {
+export function readTranscript(transcript) {
   /** Ids to listed types of the last `device list`. */
   let listed = new Map();
   /** The `device add` whose device has to show up in the next `device list`, or be recorded as not added. */
@@ -402,5 +402,59 @@ export function parsePortTypeCatalog(transcripts, systemInfo, names = {}) {
       ]),
     ),
     types,
+  };
+}
+
+/**
+ * `{ catalog, omittedTypes, movedWords }`: the catalog of another build derived from the full catalog `base` of one build and a
+ * `port-types-sample` transcript of the new build with its `system info` (build 4069, 2026-11-17; a full run takes
+ * hours). The new catalog keeps the classes and ports of `base`, keeps only the types the sample added, and lists as
+ * `added` only the words that gave each type in the sample. Every listed type must show the ports of `base` and every
+ * verdict must follow from the classes of `base`; otherwise it throws, so the derived catalog rests only on what the
+ * sample measured. `omittedTypes` are the types of `base` the sample did not add; `movedWords` the add words that gave
+ * another type than in `base` (`Surface` gives a Material on 4069, port-types-sample.txt l.14491-14492).
+ */
+export function derivePortTypeCatalog(base, sample, systemInfo) {
+  const build = buildOfSystemInfo(systemInfo);
+  const { devices, verdicts } = readTranscript(sample);
+  const all = [...devices.values()];
+  const movedWords = [];
+  const typeOfWord = new Map(
+    Object.entries(base.types).flatMap(([type, entry]) => entry.added.map((word) => [word, type])),
+  );
+  for (const device of all) {
+    const entry = Object.hasOwn(base.types, device.type) ? base.types[device.type] : undefined;
+    if (entry === undefined) throw new Error(`type '${device.type}': not in the build ${base.build} catalog`);
+    const listed = typeOfWord.get(device.word);
+    if (listed !== undefined && listed !== device.type) {
+      movedWords.push({ word: device.word, from: listed, to: device.type });
+    }
+    if (shape(device) !== shape(entry)) {
+      throw new Error(`type '${device.type}': other ports than in the build ${base.build} catalog`);
+    }
+  }
+  for (const [key, verdict] of verdicts) {
+    if (verdict === 'crashed') continue;
+    const [from, to] = key.split('>').map((ref) => ref.split('.'));
+    const output = base.types[devices.get(from[0]).type].outputs.find(
+      (port) => port.port === Number(from[1]),
+    );
+    const input = base.types[devices.get(to[0]).type].inputs.find((port) => port.port === Number(to[1]));
+    const expected = base.inputClasses[input.class].includes(output.class) ? 'connected' : 'refused';
+    if (verdict !== expected) {
+      throw new Error(
+        `#${key.replace('>', ' -> #')}: ${verdict} on build ${build}, but the build ${base.build} catalog says ${expected}`,
+      );
+    }
+  }
+  const types = {};
+  for (const [type, entry] of Object.entries(base.types)) {
+    const words = all.filter((device) => device.type === type).map((device) => device.word);
+    if (words.length > 0) types[type] = { added: words, inputs: entry.inputs, outputs: entry.outputs };
+  }
+  return {
+    catalog: { build, outputClasses: base.outputClasses, inputClasses: base.inputClasses, types },
+    omittedTypes: Object.keys(base.types).filter((type) => !Object.hasOwn(types, type)),
+    movedWords,
   };
 }

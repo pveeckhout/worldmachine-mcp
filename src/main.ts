@@ -15,7 +15,7 @@ import { WorldMachineGraphReader } from './adapter/out/worldmachine/world-machin
 import { WorldMachineGroupEditor } from './adapter/out/worldmachine/world-machine-group-editor.js';
 import { WorldMachineParameterEditor } from './adapter/out/worldmachine/world-machine-parameter-editor.js';
 import {
-  PORT_TYPE_CATALOG,
+  PORT_TYPE_CATALOGS,
   WorldMachinePortTypes,
 } from './adapter/out/worldmachine/world-machine-port-types.js';
 import { WorldMachineProcess } from './adapter/out/worldmachine/world-machine-process.js';
@@ -89,7 +89,7 @@ const session = new WorldMachineSession({
     WorldMachineProcess.start({ bin, readyTimeoutMs: READY_TIMEOUT_MS, logger, signal, onSpawn }),
 });
 // Port-types design section 7: the shipped catalog is wired here and in the live tests only (plan decision D3).
-const portTypes = new WorldMachinePortTypes(session, PORT_TYPE_CATALOG);
+const portTypes = new WorldMachinePortTypes(session, PORT_TYPE_CATALOGS);
 const reader = new WorldMachineGraphReader(session, ENUM_CATALOGS, portTypes);
 const writer = new WorldMachineProjectWriter(session);
 const devices = new WorldMachineDeviceEditor(session);

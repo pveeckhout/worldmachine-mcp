@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parsePortTypeCatalog } from '../../scripts/port-type-catalog.mjs';
-import { PORT_TYPE_CATALOG } from '../../src/adapter/out/worldmachine/world-machine-port-types.js';
+import { PORT_TYPE_CATALOG_4067 } from '../../src/adapter/out/worldmachine/world-machine-port-types.js';
 
 const systemInfo = readFileSync(new URL('../fixtures/wm-4067/raw/system-info.txt', import.meta.url), 'utf8');
 
@@ -638,10 +638,10 @@ describe('the shipped port-type catalog (port-types design section 4)', () => {
   ) as Record<string, string>;
 
   it('is exactly what raw/port-types*.txt (the full run, its resume, and the twin run) and the names map parse to (parity)', () => {
-    expect(PORT_TYPE_CATALOG).toStrictEqual(parsePortTypeCatalog(transcripts, systemInfo, names));
+    expect(PORT_TYPE_CATALOG_4067).toStrictEqual(parsePortTypeCatalog(transcripts, systemInfo, names));
   });
 
   it('is the catalog of build 4067', () => {
-    expect(PORT_TYPE_CATALOG?.build).toBe(4067);
+    expect(PORT_TYPE_CATALOG_4067?.build).toBe(4067);
   });
 });
