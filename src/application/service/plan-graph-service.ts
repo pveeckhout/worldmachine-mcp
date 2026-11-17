@@ -42,6 +42,7 @@ export class PlanGraphService implements PlanGraphQueryPort {
     return {
       planId: planId(spec, state),
       conflicts: [...conflicts, ...types.conflicts, ...loops.conflicts],
+      typeWarnings: types.warnings,
       steps,
       unchanged,
       uncheckedWires: types.uncheckedWires,

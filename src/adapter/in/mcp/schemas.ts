@@ -632,6 +632,7 @@ export const planGraphViewSchema = z.strictObject({
   planId: z.string(),
   spec: graphSpecSchema.optional(),
   conflicts: z.array(z.strictObject({ entry: z.string(), reason: z.string() })),
+  typeWarnings: z.array(z.strictObject({ entry: z.string(), reason: z.string() })),
   steps: z.array(planStepSchema),
   unchanged: z.array(z.string()),
   uncheckedWires: z.array(z.string()),

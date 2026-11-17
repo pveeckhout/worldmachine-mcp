@@ -12,6 +12,8 @@ export type PlanGraphQuery = { readonly spec?: RawGraphSpec; readonly template?:
 export type PlanGraphView = {
   readonly planId: string;
   readonly conflicts: readonly PlanConflict[];
+  /** User-built catalogs decision D5: type findings of a sample-derived catalog; they never block apply_graph. */
+  readonly typeWarnings: readonly PlanConflict[];
   readonly steps: readonly PlanStep[];
   readonly unchanged: readonly string[];
   /** Port-types design section 6: the planned wires with an untyped end, as `'<destination>' input <port>`. */

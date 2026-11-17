@@ -78,3 +78,8 @@ export const SYNTHETIC_CATALOG: PortTypeCatalog = {
 
 /** SYNTHETIC_CATALOG with World Machine reporting its build. */
 export const syntheticPortTypes = new WorldMachinePortTypes(statusOn(4067), [shipped(SYNTHETIC_CATALOG)]);
+
+/** SYNTHETIC_CATALOG as a shipped sample-derived catalog (its type findings are warnings). */
+export const sampleDerivedPortTypes = new WorldMachinePortTypes(statusOn(4067), [
+  shipped({ ...SYNTHETIC_CATALOG, kind: 'sample-derived' }),
+]);

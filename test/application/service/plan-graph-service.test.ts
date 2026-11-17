@@ -5,7 +5,7 @@ import type { WorldMachineSessionPort } from '../../../src/application/port/out/
 import { PlanGraphService } from '../../../src/application/service/plan-graph-service.js';
 import type { DeviceDetail } from '../../../src/domain/device.js';
 import type { RawGraphSpec } from '../../../src/domain/graph-spec.js';
-import { statusOn, syntheticPortTypes } from '../../support/port-types.js';
+import { sampleDerivedPortTypes, statusOn, syntheticPortTypes } from '../../support/port-types.js';
 
 const NO_TEMPLATES: GraphTemplatePort = {
   load: async () => {
@@ -67,6 +67,15 @@ describe('PlanGraphService port types (port-types design section 6)', () => {
     expect(view.possibleLoops).toEqual([]);
     // Plan decision D7: the conflicting wire keeps its step.
     expect(view.steps.filter((step) => step.op === 'connect')).toHaveLength(2);
+    expect(view.typeWarnings).toEqual([]);
+  });
+
+  it('lists type warnings beside conflicts', async () => {
+    const view = await new PlanGraphService(session, graph, sampleDerivedPortTypes, NO_TEMPLATES).planGraph({
+      spec: SPEC,
+    });
+    expect(view.conflicts).toEqual([]);
+    expect(view.typeWarnings).toHaveLength(1);
   });
 });
 

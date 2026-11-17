@@ -7,7 +7,7 @@ import { WorldMachineError } from '../../../src/domain/errors.js';
 import { planId } from '../../../src/domain/graph-plan.js';
 import { type RawGraphSpec, validateGraphSpec } from '../../../src/domain/graph-spec.js';
 import type { SessionSummary } from '../../../src/domain/session.js';
-import { syntheticPortTypes } from '../../support/port-types.js';
+import { sampleDerivedPortTypes, syntheticPortTypes } from '../../support/port-types.js';
 
 const NO_TEMPLATES: GraphTemplatePort = {
   load: async () => {
@@ -672,6 +672,126 @@ describe('ApplyGraphService unidentifiable wires (unidentifiable-wires design se
     ).applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
     expect(view).toMatchObject({ applied: 2, diffError: 'read failed' });
     expect(view.unidentifiableWires).toEqual(plan.unidentifiableWires);
+  });
+});
+
+describe('ApplyGraphService sample-derived catalog warnings', () => {
+  const stub = <T>(value: unknown): T => value as T;
+  it('applies a wire a sample-derived catalog only warns about', async () => {
+    const calls: string[] = [];
+    const spec: RawGraphSpec = {
+      version: 1,
+      devices: [
+        { name: 'Lake', type: 'Create Water' },
+        { name: 'Combiner', type: 'Combiner', inputs: { '1': 'Lake.2' } },
+      ],
+    };
+    let adds = 0;
+    const kinds = ['Create Water', 'Combiner'];
+    const session = {
+      status: () => ({
+        executable: null,
+        session: { state: 'ready', binding: { kind: 'fresh' }, dirty: false } as SessionSummary,
+        generation: 1,
+      }),
+      exclusive: <T>(action: () => Promise<T>) => action(),
+    };
+    const service = new ApplyGraphService(
+      stub<ConstructorParameters<typeof ApplyGraphService>[0]>(session),
+      stub<ConstructorParameters<typeof ApplyGraphService>[1]>({
+        listDevices: async () => [],
+        getDevice: async (reference: string) => ({
+          id: Number(reference.slice(1)),
+          name: 'Read',
+          type: 'Read',
+          enabled: true,
+          bypassed: false,
+          parameters: [],
+          inputs: [],
+          outputs: [],
+          portTypes: 'unknown',
+        }),
+      }),
+      stub<ConstructorParameters<typeof ApplyGraphService>[2]>({
+        addDevice: async () => {
+          const kind = kinds[adds] as string;
+          adds += 1;
+          return { id: 100 + adds, name: adds === 1 ? 'Lake' : 'Combiner', kind, enabled: true };
+        },
+      }),
+      stub<ConstructorParameters<typeof ApplyGraphService>[3]>({
+        connect: async () => {
+          calls.push('connect');
+          return [];
+        },
+      }),
+      stub<ConstructorParameters<typeof ApplyGraphService>[4]>({}),
+      stub<ConstructorParameters<typeof ApplyGraphService>[5]>({
+        list: async () => [],
+        create: async (name: string) => ({ index: 0, name }),
+        remove: async () => ({}),
+      }),
+      sampleDerivedPortTypes,
+      stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
+      NO_TEMPLATES,
+    );
+    const id = planId(validateGraphSpec(spec), { projectPath: null, devices: [], details: [] });
+    await service.applyGraph({ spec, planId: id, keepSnapshot: false });
+    expect(calls).toEqual(['connect']);
+  });
+
+  it('apply refuses a loop conflict even when type findings are warnings', async () => {
+    const combiner = (id: number, targets: string[], source?: string): DeviceDetail => ({
+      id,
+      name: 'Combiner',
+      type: 'Combiner',
+      enabled: true,
+      bypassed: false,
+      parameters: [],
+      inputs: [
+        {
+          port: 1,
+          name: 'Primary Input',
+          ...(source === undefined ? {} : { source: { device: source, port: 1 } }),
+        },
+        { port: 2, name: 'Primary Input' },
+      ],
+      outputs: [{ port: 1, name: 'Primary Output', targets: targets.map((device) => ({ device, port: 1 })) }],
+      portTypes: 'unknown',
+    });
+    const details = [combiner(10, ['Combiner']), combiner(20, [], 'Combiner')];
+    const graph = {
+      listDevices: async () => details.map(({ id }) => ({ id, name: 'Combiner', enabled: true })),
+      getDevice: async (reference: string) => details.find((detail) => `#${detail.id}` === reference),
+    };
+    const spec: RawGraphSpec = {
+      version: 1,
+      devices: [{ name: 'first mix', id: 10, type: 'Combiner', inputs: { '2': '#20' } }],
+    };
+    const session = {
+      status: () => ({
+        executable: null,
+        session: { state: 'ready', binding: { kind: 'fresh' }, dirty: false } as SessionSummary,
+        generation: 1,
+      }),
+      exclusive: <T>(action: () => Promise<T>) => action(),
+    };
+    const service = new ApplyGraphService(
+      stub<ConstructorParameters<typeof ApplyGraphService>[0]>(session),
+      stub<ConstructorParameters<typeof ApplyGraphService>[1]>(graph),
+      stub<ConstructorParameters<typeof ApplyGraphService>[2]>({}),
+      stub<ConstructorParameters<typeof ApplyGraphService>[3]>({}),
+      stub<ConstructorParameters<typeof ApplyGraphService>[4]>({}),
+      stub<ConstructorParameters<typeof ApplyGraphService>[5]>({ list: async () => [] }),
+      sampleDerivedPortTypes,
+      stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
+      NO_TEMPLATES,
+    );
+    const state = { projectPath: null, devices: await graph.listDevices(), details };
+    const id = planId(validateGraphSpec(spec), state);
+    await expect(service.applyGraph({ spec, planId: id, keepSnapshot: false })).rejects.toMatchObject({
+      code: 'REFUSED',
+    });
   });
 });
 

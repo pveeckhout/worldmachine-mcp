@@ -12,6 +12,8 @@ import type { PortTypeCatalogPort } from '../port/out/port-type-catalog-port.js'
 /** What the port-type check adds to a plan (port-types design section 6). */
 export type WireTypeCheck = {
   readonly conflicts: readonly PlanConflict[];
+  /** The type findings of a sample-derived catalog: listed, never blocking (user-built catalogs decision D5). */
+  readonly warnings: readonly PlanConflict[];
   readonly uncheckedWires: readonly string[];
 };
 
@@ -38,7 +40,7 @@ export function checkWireTypes(
     const detail = state.details.find((candidate) => candidate.id === id);
     return detail === undefined ? undefined : typedPorts(detail, portTypes.portsOf(detail.type));
   };
-  const conflicts: PlanConflict[] = [];
+  const findings: PlanConflict[] = [];
   const uncheckedWires: string[] = [];
   for (const step of steps) {
     if (step.op !== 'connect') continue;
@@ -50,11 +52,13 @@ export function checkWireTypes(
     if (answer === 'unchecked') {
       uncheckedWires.push(uncheckedWire(step.device, step.port));
     } else if (answer === 'incompatible' && output !== undefined && input !== undefined) {
-      conflicts.push({
+      findings.push({
         entry: step.device,
         reason: wireConflictReason(step.source.device, output, step.device, input),
       });
     }
   }
-  return { conflicts, uncheckedWires };
+  return portTypes.catalogInUse()?.kind === 'sample-derived'
+    ? { conflicts: [], warnings: findings, uncheckedWires }
+    : { conflicts: findings, warnings: [], uncheckedWires };
 }

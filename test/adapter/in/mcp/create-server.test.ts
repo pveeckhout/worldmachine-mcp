@@ -184,6 +184,7 @@ function deps(overrides: Partial<McpDependencies> = {}): McpDependencies {
       planGraph: async () => ({
         planId: PLAN_ID,
         conflicts: [],
+        typeWarnings: [],
         steps: [],
         unchanged: [],
         uncheckedWires: [],
@@ -317,6 +318,7 @@ describe('createMcpServer', () => {
             return {
               planId: PLAN_ID,
               conflicts: [],
+              typeWarnings: [],
               steps: [],
               unchanged: [],
               uncheckedWires: [],
@@ -349,6 +351,7 @@ describe('createMcpServer', () => {
             return {
               planId: PLAN_ID,
               conflicts: [],
+              typeWarnings: [],
               steps: [],
               unchanged: [],
               uncheckedWires: [],
@@ -384,6 +387,7 @@ describe('createMcpServer', () => {
             return {
               planId: PLAN_ID,
               conflicts: [],
+              typeWarnings: [],
               steps: [],
               unchanged: [],
               uncheckedWires: [],
@@ -461,6 +465,7 @@ describe('createMcpServer', () => {
     const view = {
       planId: PLAN_ID,
       conflicts: [],
+      typeWarnings: [],
       steps: [],
       unchanged: [],
       unidentifiableWires: [],
@@ -476,6 +481,7 @@ describe('createMcpServer', () => {
     const view = {
       planId: PLAN_ID,
       conflicts: [],
+      typeWarnings: [],
       steps: [],
       unchanged: [],
       uncheckedWires: [],
@@ -501,6 +507,7 @@ describe('createMcpServer', () => {
     const view = {
       planId: PLAN_ID,
       conflicts: [],
+      typeWarnings: [],
       steps: [],
       unchanged: [],
       uncheckedWires: [],
@@ -527,6 +534,7 @@ describe('createMcpServer', () => {
     const planView = {
       planId: PLAN_ID,
       conflicts: [],
+      typeWarnings: [],
       steps: [rename],
       unchanged: [],
       uncheckedWires: [],
@@ -563,6 +571,7 @@ describe('createMcpServer', () => {
     const view = {
       planId: PLAN_ID,
       conflicts: [],
+      typeWarnings: [],
       steps: [{ op: 'rename', device: 'Ridges', id: 12, from: 'Mountain' }],
       unchanged: [],
       uncheckedWires: [],
@@ -635,6 +644,7 @@ describe('createMcpServer', () => {
     const view = {
       planId: PLAN_ID,
       conflicts: [],
+      typeWarnings: [],
       steps: [{ op: 'set-bypassed', device: 'Base', to: true, toggle: true }],
       unchanged: [],
       uncheckedWires: [],
@@ -652,6 +662,7 @@ describe('createMcpServer', () => {
     const view = {
       planId: PLAN_ID,
       conflicts: [{ entry: 'Eroded', reason: "#20 has no parameter 'Steps'" }],
+      typeWarnings: [],
       steps: [
         {
           op: 'disconnect',
@@ -951,6 +962,7 @@ describe('createMcpServer', () => {
             return {
               planId: PLAN_ID,
               conflicts: [],
+              typeWarnings: [],
               steps: [],
               unchanged: [],
               uncheckedWires: [],

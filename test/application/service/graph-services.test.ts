@@ -110,6 +110,7 @@ describe('PlanGraphService (spec v3 sections 3 and 5)', () => {
     expect(view).toEqual({
       planId: expect.stringMatching(/^[0-9a-f]{64}$/),
       conflicts: [],
+      typeWarnings: [],
       steps: [
         { op: 'add', device: 'Ramp', type: 'Gradient' },
         { op: 'add', device: 'Combiner', type: 'Combiner' },

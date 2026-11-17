@@ -4,7 +4,7 @@ import { checkWireTypes } from '../../../src/application/service/wire-types.js';
 import type { DeviceDetail } from '../../../src/domain/device.js';
 import { type GraphState, planGraph } from '../../../src/domain/graph-plan.js';
 import { type RawGraphSpec, validateGraphSpec } from '../../../src/domain/graph-spec.js';
-import { syntheticPortTypes } from '../../support/port-types.js';
+import { sampleDerivedPortTypes, syntheticPortTypes } from '../../support/port-types.js';
 
 const EMPTY: GraphState = { projectPath: null, devices: [], details: [] };
 // raw/p2b-graph-edits.txt l.121-126: a Combiner's ports, here the existing #536.
@@ -65,7 +65,11 @@ describe('checkWireTypes (port-types design sections 5 and 6)', () => {
         version: 1,
         devices: [LAKE, { name: 'Combiner', type: 'Combiner', inputs: { '1': 'Lake.2' } }],
       }),
-    ).toEqual({ conflicts: [{ entry: 'Combiner', reason: WATER_INTO_COMBINER }], uncheckedWires: [] });
+    ).toEqual({
+      conflicts: [{ entry: 'Combiner', reason: WATER_INTO_COMBINER }],
+      warnings: [],
+      uncheckedWires: [],
+    });
   });
 
   it('reports the same wire into an existing device as a conflict', () => {
@@ -74,7 +78,11 @@ describe('checkWireTypes (port-types design sections 5 and 6)', () => {
         { version: 1, devices: [LAKE, { name: 'Combiner', type: 'Combiner', inputs: { '1': 'Lake.2' } }] },
         stateOf(COMBINER),
       ),
-    ).toEqual({ conflicts: [{ entry: 'Combiner', reason: WATER_INTO_COMBINER }], uncheckedWires: [] });
+    ).toEqual({
+      conflicts: [{ entry: 'Combiner', reason: WATER_INTO_COMBINER }],
+      warnings: [],
+      uncheckedWires: [],
+    });
   });
 
   it('reports an existing source that a planned input does not accept', () => {
@@ -87,6 +95,7 @@ describe('checkWireTypes (port-types design sections 5 and 6)', () => {
           reason: "'Gradient' output 1 (heightfield) cannot feed 'Lake' input 2, which accepts water system",
         },
       ],
+      warnings: [],
       uncheckedWires: [],
     });
   });
@@ -97,7 +106,7 @@ describe('checkWireTypes (port-types design sections 5 and 6)', () => {
         version: 1,
         devices: [LAKE, { name: 'Sea', type: 'Create Water', inputs: { '2': 'Lake.2' } }],
       }),
-    ).toEqual({ conflicts: [], uncheckedWires: [] });
+    ).toEqual({ conflicts: [], warnings: [], uncheckedWires: [] });
   });
 
   it('types a planned device by an accepted add word: Anisotropy adds a VDM Features (B1, Review Focus 1)', () => {
@@ -116,6 +125,7 @@ describe('checkWireTypes (port-types design sections 5 and 6)', () => {
           reason: "'Relief' output 1 (heightfield) cannot feed 'Lake' input 2, which accepts water system",
         },
       ],
+      warnings: [],
       uncheckedWires: [],
     });
   });
@@ -130,6 +140,7 @@ describe('checkWireTypes (port-types design sections 5 and 6)', () => {
           reason: "'Lake' output 2 (water system) cannot feed 'Out' input 1, which accepts heightfield",
         },
       ],
+      warnings: [],
       uncheckedWires: [],
     });
   });
@@ -143,7 +154,7 @@ describe('checkWireTypes (port-types design sections 5 and 6)', () => {
           { ...LAKE, inputs: { '2': 'Relief' } },
         ],
       }),
-    ).toEqual({ conflicts: [], uncheckedWires: ["'Lake' input 2"] });
+    ).toEqual({ conflicts: [], warnings: [], uncheckedWires: ["'Lake' input 2"] });
   });
 
   it('lists a wire unchecked when a type is not catalogued', () => {
@@ -155,7 +166,7 @@ describe('checkWireTypes (port-types design sections 5 and 6)', () => {
           { name: 'Combiner', type: 'Combiner', inputs: { '1': 'Bend' } },
         ],
       }),
-    ).toEqual({ conflicts: [], uncheckedWires: ["'Combiner' input 1"] });
+    ).toEqual({ conflicts: [], warnings: [], uncheckedWires: ["'Combiner' input 1"] });
   });
 
   it('lists a wire unchecked for a type given in another case (Review Focus 1)', () => {
@@ -167,7 +178,7 @@ describe('checkWireTypes (port-types design sections 5 and 6)', () => {
           { name: 'Combiner', type: 'Combiner', inputs: { '1': 'Lake.2' } },
         ],
       }),
-    ).toEqual({ conflicts: [], uncheckedWires: ["'Combiner' input 1"] });
+    ).toEqual({ conflicts: [], warnings: [], uncheckedWires: ["'Combiner' input 1"] });
   });
 
   it('lists a wire unchecked when a catalogued type has no such port (Review Focus 2)', () => {
@@ -176,7 +187,7 @@ describe('checkWireTypes (port-types design sections 5 and 6)', () => {
         version: 1,
         devices: [LAKE, { name: 'Combiner', type: 'Combiner', inputs: { '1': 'Lake.7', '5': 'Lake.2' } }],
       }),
-    ).toEqual({ conflicts: [], uncheckedWires: ["'Combiner' input 1", "'Combiner' input 5"] });
+    ).toEqual({ conflicts: [], warnings: [], uncheckedWires: ["'Combiner' input 1", "'Combiner' input 5"] });
   });
 
   it('lists a wire unchecked when an existing end has other ports than the catalog (Review Focus 3)', () => {
@@ -186,7 +197,7 @@ describe('checkWireTypes (port-types design sections 5 and 6)', () => {
         { version: 1, devices: [LAKE, { name: 'Combiner', type: 'Combiner', inputs: { '1': 'Lake.2' } }] },
         stateOf(older),
       ),
-    ).toEqual({ conflicts: [], uncheckedWires: ["'Combiner' input 1"] });
+    ).toEqual({ conflicts: [], warnings: [], uncheckedWires: ["'Combiner' input 1"] });
   });
 
   it('checks nothing for a wire the spec keeps (plan decision D7, Review Focus 4)', () => {
@@ -203,6 +214,16 @@ describe('checkWireTypes (port-types design sections 5 and 6)', () => {
         stateOf(wired, GRADIENT),
         NO_TYPES,
       ),
-    ).toEqual({ conflicts: [], uncheckedWires: [] });
+    ).toEqual({ conflicts: [], warnings: [], uncheckedWires: [] });
+  });
+
+  it('reports a type finding of a sample-derived catalog as a warning', () => {
+    const found = check(
+      { version: 1, devices: [LAKE, { name: 'Combiner', type: 'Combiner', inputs: { '1': 'Lake.2' } }] },
+      EMPTY,
+      sampleDerivedPortTypes,
+    );
+    expect(found.conflicts).toEqual([]);
+    expect(found.warnings).toEqual([{ entry: 'Combiner', reason: expect.stringContaining('cannot feed') }]);
   });
 });
