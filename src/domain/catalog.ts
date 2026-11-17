@@ -35,6 +35,29 @@ export function catalogLabel(source: CatalogSource): 'shipped' | 'local full' | 
   return source.kind === 'strict' ? 'local full' : 'local short';
 }
 
+/** Which catalogs answered for a response: the build, the port-type catalog used, and any startup problems. */
+export type CatalogInfo = {
+  readonly build: number | null;
+  readonly portTypes: 'shipped' | 'local full' | 'local short' | 'none';
+  readonly corrections: boolean;
+  /** Startup problems with local catalog files; left out when none. */
+  readonly problems?: readonly string[];
+};
+
+/** The catalog info of a response; `corrections` is false until the corrections catalog exists (plan 2). */
+export function catalogInfo(
+  build: number | undefined,
+  source: CatalogSource | undefined,
+  problems: readonly string[],
+): CatalogInfo {
+  return {
+    build: build ?? null,
+    portTypes: source === undefined ? 'none' : catalogLabel(source),
+    corrections: false,
+    ...(problems.length > 0 ? { problems } : {}),
+  };
+}
+
 /** A catalogued port: its number and name as `wire list` shows them, and its class id. */
 export type PortTypeCatalogEntry = { readonly port: number; readonly name: string; readonly class: string };
 

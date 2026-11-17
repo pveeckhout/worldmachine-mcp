@@ -16,4 +16,6 @@ export interface PortTypeCatalogPort {
   portsOfAdded(addSpelling: string): CataloguedPorts | undefined;
   /** The source of the catalog selected for the running build; undefined when none applies. */
   catalogInUse(): CatalogSource | undefined;
+  /** Startup problems with local catalog files, each naming its file; empty when there are none. */
+  problems(): readonly string[];
 }

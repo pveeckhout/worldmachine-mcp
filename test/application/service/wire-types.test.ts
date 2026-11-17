@@ -43,6 +43,7 @@ const NO_TYPES: PortTypeCatalogPort = {
   portsOf: () => undefined,
   portsOfAdded: () => undefined,
   catalogInUse: () => undefined,
+  problems: () => [],
 };
 
 /** checkWireTypes over the steps planGraph makes for `raw` (port-types design section 6). */

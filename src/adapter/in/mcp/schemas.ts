@@ -28,6 +28,7 @@ import type { ListExportsView } from '../../../application/port/in/query/list-ex
 import type { GroupListView } from '../../../application/port/in/query/list-groups-query.js';
 import type { SnapshotListView } from '../../../application/port/in/query/list-snapshots-query.js';
 import type { PlanGraphView } from '../../../application/port/in/query/plan-graph-query.js';
+import type { CatalogInfo } from '../../../domain/catalog.js';
 import type {
   DeviceDetail,
   DeviceSummary,
@@ -158,9 +159,17 @@ const projectOverviewSchema = z.strictObject({
   groups: z.array(groupSchema),
 }) satisfies z.ZodType<ProjectOverview>;
 
+export const catalogInfoSchema = z.strictObject({
+  build: z.number().int().nullable(),
+  portTypes: z.enum(['shipped', 'local full', 'local short', 'none']),
+  corrections: z.boolean(),
+  problems: z.array(z.string()).optional(),
+}) satisfies z.ZodType<CatalogInfo>;
+
 export const deviceViewSchema = z.strictObject({
   device: deviceDetailSchema,
   session: sessionSummarySchema,
+  catalog: catalogInfoSchema,
 }) satisfies z.ZodType<DeviceView>;
 
 export const sceneViewSchema = z.strictObject({
@@ -639,6 +648,7 @@ export const planGraphViewSchema = z.strictObject({
   unidentifiableWires: z.array(z.string()),
   possibleLoops: z.array(z.string()),
   session: sessionSummarySchema,
+  catalog: catalogInfoSchema,
 }) satisfies z.ZodType<PlanGraphView>;
 
 const changeOf = <T extends z.ZodType>(value: T) => z.strictObject({ before: value, after: value });

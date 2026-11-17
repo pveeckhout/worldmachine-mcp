@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'vitest';
+import {
+  shipped,
+  WorldMachinePortTypes,
+} from '../../../src/adapter/out/worldmachine/world-machine-port-types.js';
 import type { GraphTemplatePort } from '../../../src/application/port/out/graph-template-port.js';
 import type { ProjectGraphReadPort } from '../../../src/application/port/out/project-graph-read-port.js';
 import type { WorldMachineSessionPort } from '../../../src/application/port/out/world-machine-session-port.js';
 import { PlanGraphService } from '../../../src/application/service/plan-graph-service.js';
 import type { DeviceDetail } from '../../../src/domain/device.js';
 import type { RawGraphSpec } from '../../../src/domain/graph-spec.js';
-import { sampleDerivedPortTypes, statusOn, syntheticPortTypes } from '../../support/port-types.js';
+import {
+  SYNTHETIC_CATALOG,
+  sampleDerivedPortTypes,
+  statusOn,
+  syntheticPortTypes,
+} from '../../support/port-types.js';
 
 const NO_TEMPLATES: GraphTemplatePort = {
   load: async () => {
@@ -233,6 +242,34 @@ describe('PlanGraphService loops (wire-loops design section 4)', () => {
     expect(view.conflicts).toEqual([]);
     expect(view.possibleLoops).toEqual([
       "'first mix' input 2 from 'Peak' output 1 may close a loop through 'Combiner', whose wires cannot be told apart",
+    ]);
+  });
+});
+
+describe('PlanGraphService catalog info (user-built catalogs decision D5)', () => {
+  const plan = (build: number, problems: readonly string[] = []) =>
+    new PlanGraphService(
+      statusOn(build) as unknown as WorldMachineSessionPort,
+      graph,
+      new WorldMachinePortTypes(statusOn(build), [shipped(SYNTHETIC_CATALOG)], problems),
+      NO_TEMPLATES,
+    ).planGraph({ spec: { version: 1, devices: [] } });
+
+  it('names the catalog the plan was typed with', async () => {
+    expect((await plan(4067)).catalog).toStrictEqual({
+      build: 4067,
+      portTypes: 'shipped',
+      corrections: false,
+    });
+  });
+
+  it('says none on a build without a catalog', async () => {
+    expect((await plan(4071)).catalog).toStrictEqual({ build: 4071, portTypes: 'none', corrections: false });
+  });
+
+  it('carries the startup problems', async () => {
+    expect((await plan(4071, ['/c/4071/port-types.json: not JSON'])).catalog.problems).toEqual([
+      '/c/4071/port-types.json: not JSON',
     ]);
   });
 });

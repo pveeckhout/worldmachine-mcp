@@ -24,7 +24,7 @@ export async function readGraphState(
   spec: GraphSpec,
   graph: ProjectGraphReadPort,
   session: WorldMachineSessionPort,
-): Promise<GraphState & { readonly session: SessionSummary }> {
+): Promise<GraphState & { readonly session: SessionSummary; readonly build: number | undefined }> {
   // Revision 8: `scene show` once, first, only when the spec has `scene`.
   const scene = spec.scene === undefined ? undefined : await graph.getScene();
   const devices = await graph.listDevices();
@@ -43,7 +43,8 @@ export async function readGraphState(
     for (const id of ids) details.push(await graph.getDevice(`#${id}`));
   }
   // The one status read of a plan: the caller reports this summary instead of reading the status again.
-  const summary = session.status().session;
+  const status = session.status();
+  const summary = status.session;
   const binding = summary.binding;
   return {
     projectPath: binding?.kind === 'opened' ? binding.path : null,
@@ -51,5 +52,6 @@ export async function readGraphState(
     details,
     ...(scene === undefined ? {} : { scene }),
     session: summary,
+    build: status.systemInfo?.build,
   };
 }

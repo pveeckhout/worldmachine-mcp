@@ -142,7 +142,12 @@ describe('readGraphState session (one status read per plan)', () => {
     const service = new PlanGraphService(
       p.session,
       p.graph,
-      { catalogInUse: () => undefined, portsOf: () => undefined, portsOfAdded: () => undefined },
+      {
+        catalogInUse: () => undefined,
+        problems: () => [],
+        portsOf: () => undefined,
+        portsOfAdded: () => undefined,
+      },
       NO_TEMPLATES,
     );
     const view = await service.planGraph({ spec: { version: 1, devices: [{ name: 'Base', type: 'Base' }] } });

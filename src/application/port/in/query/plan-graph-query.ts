@@ -1,3 +1,4 @@
+import type { CatalogInfo } from '../../../../domain/catalog.js';
 import type { PlanConflict, PlanStep } from '../../../../domain/graph-plan.js';
 import type { RawGraphSpec } from '../../../../domain/graph-spec.js';
 import type { TemplateArgument } from '../../../../domain/graph-template.js';
@@ -25,6 +26,8 @@ export type PlanGraphView = {
   /** Templates design section 3: the filled spec, only when the call gave a template. */
   readonly spec?: RawGraphSpec;
   readonly session: SessionSummary;
+  /** User-built catalogs decision D5: the catalog that typed the wires, and the startup problems with local files. */
+  readonly catalog: CatalogInfo;
 };
 export interface PlanGraphQueryPort {
   planGraph(query: PlanGraphQuery): Promise<PlanGraphView>;

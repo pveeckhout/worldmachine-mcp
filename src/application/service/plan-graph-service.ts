@@ -1,3 +1,4 @@
+import { catalogInfo } from '../../domain/catalog.js';
 import { planGraph, planId } from '../../domain/graph-plan.js';
 import { validateGraphSpec } from '../../domain/graph-spec.js';
 import { wireLoops } from '../../domain/wire-loops.js';
@@ -50,6 +51,7 @@ export class PlanGraphService implements PlanGraphQueryPort {
       possibleLoops: loops.possibleLoops,
       ...(fromTemplate ? { spec: raw } : {}),
       session: state.session,
+      catalog: catalogInfo(state.build, this.#portTypes.catalogInUse(), this.#portTypes.problems()),
     };
   }
 }

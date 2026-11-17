@@ -123,6 +123,7 @@ describe('PlanGraphService (spec v3 sections 3 and 5)', () => {
       unidentifiableWires: [],
       possibleLoops: [],
       session: expect.objectContaining({ state: 'ready' }),
+      catalog: { build: 4067, portTypes: 'none', corrections: false },
     });
     // An allowlist: readGraphState sends `device list` and, per device read, `device select`, `device info`,
     // `param list`, `wire list` (world-machine-graph-reader.ts); the rest is the start of the session and the fake's

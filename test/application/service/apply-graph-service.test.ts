@@ -67,6 +67,7 @@ describe('ApplyGraphService with a World Machine that exits between steps', () =
         portsOf: () => undefined,
         portsOfAdded: () => undefined,
         catalogInUse: () => undefined,
+        problems: () => [],
       }),
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
       NO_TEMPLATES,
@@ -177,6 +178,7 @@ describe('ApplyGraphService robustness', () => {
         portsOf: () => undefined,
         portsOfAdded: () => undefined,
         catalogInUse: () => undefined,
+        problems: () => [],
       }),
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
       NO_TEMPLATES,
@@ -643,6 +645,7 @@ describe('ApplyGraphService unidentifiable wires (unidentifiable-wires design se
       portsOf: () => undefined,
       portsOfAdded: () => undefined,
       catalogInUse: () => undefined,
+      problems: () => [],
     };
     const stub = <T>(value: unknown): T => value as T;
     const spec: RawGraphSpec = {
@@ -832,6 +835,7 @@ describe('ApplyGraphService loops (wire-loops design section 4)', () => {
     portsOf: () => undefined,
     portsOfAdded: () => undefined,
     catalogInUse: () => undefined,
+    problems: () => [],
   };
 
   it('refuses a loop before any snapshot or change command', async () => {

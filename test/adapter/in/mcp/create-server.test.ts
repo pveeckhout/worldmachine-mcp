@@ -21,6 +21,7 @@ import { fixtureLines, rawFrame } from '../../out/worldmachine/parsers/fixture.j
 
 const READY = { state: 'ready', binding: { kind: 'fresh' }, dirty: false } as const;
 const READY_DIRTY = { state: 'ready', binding: { kind: 'fresh' }, dirty: true } as const;
+const CATALOG = { build: 4067, portTypes: 'shipped', corrections: false } as const;
 const GRADIENT = { id: 1, name: 'Gradient', enabled: true, bypassed: false };
 const WIRE = {
   source: { id: 1, name: 'Gradient', port: 1 },
@@ -85,6 +86,7 @@ function deps(overrides: Partial<McpDependencies> = {}): McpDependencies {
           portTypes: 'unknown',
         },
         session: READY,
+        catalog: CATALOG,
       }),
     },
     getScene: { getScene: async () => ({ scene: SCENE, session: READY }) },
@@ -185,6 +187,7 @@ function deps(overrides: Partial<McpDependencies> = {}): McpDependencies {
         planId: PLAN_ID,
         conflicts: [],
         typeWarnings: [],
+        catalog: CATALOG,
         steps: [],
         unchanged: [],
         uncheckedWires: [],
@@ -319,6 +322,7 @@ describe('createMcpServer', () => {
               planId: PLAN_ID,
               conflicts: [],
               typeWarnings: [],
+              catalog: CATALOG,
               steps: [],
               unchanged: [],
               uncheckedWires: [],
@@ -352,6 +356,7 @@ describe('createMcpServer', () => {
               planId: PLAN_ID,
               conflicts: [],
               typeWarnings: [],
+              catalog: CATALOG,
               steps: [],
               unchanged: [],
               uncheckedWires: [],
@@ -388,6 +393,7 @@ describe('createMcpServer', () => {
               planId: PLAN_ID,
               conflicts: [],
               typeWarnings: [],
+              catalog: CATALOG,
               steps: [],
               unchanged: [],
               uncheckedWires: [],
@@ -466,6 +472,7 @@ describe('createMcpServer', () => {
       planId: PLAN_ID,
       conflicts: [],
       typeWarnings: [],
+      catalog: CATALOG,
       steps: [],
       unchanged: [],
       unidentifiableWires: [],
@@ -482,6 +489,7 @@ describe('createMcpServer', () => {
       planId: PLAN_ID,
       conflicts: [],
       typeWarnings: [],
+      catalog: CATALOG,
       steps: [],
       unchanged: [],
       uncheckedWires: [],
@@ -508,6 +516,7 @@ describe('createMcpServer', () => {
       planId: PLAN_ID,
       conflicts: [],
       typeWarnings: [],
+      catalog: CATALOG,
       steps: [],
       unchanged: [],
       uncheckedWires: [],
@@ -535,6 +544,7 @@ describe('createMcpServer', () => {
       planId: PLAN_ID,
       conflicts: [],
       typeWarnings: [],
+      catalog: CATALOG,
       steps: [rename],
       unchanged: [],
       uncheckedWires: [],
@@ -572,6 +582,7 @@ describe('createMcpServer', () => {
       planId: PLAN_ID,
       conflicts: [],
       typeWarnings: [],
+      catalog: CATALOG,
       steps: [{ op: 'rename', device: 'Ridges', id: 12, from: 'Mountain' }],
       unchanged: [],
       uncheckedWires: [],
@@ -645,6 +656,7 @@ describe('createMcpServer', () => {
       planId: PLAN_ID,
       conflicts: [],
       typeWarnings: [],
+      catalog: CATALOG,
       steps: [{ op: 'set-bypassed', device: 'Base', to: true, toggle: true }],
       unchanged: [],
       uncheckedWires: [],
@@ -663,6 +675,7 @@ describe('createMcpServer', () => {
       planId: PLAN_ID,
       conflicts: [{ entry: 'Eroded', reason: "#20 has no parameter 'Steps'" }],
       typeWarnings: [],
+      catalog: CATALOG,
       steps: [
         {
           op: 'disconnect',
@@ -963,6 +976,7 @@ describe('createMcpServer', () => {
               planId: PLAN_ID,
               conflicts: [],
               typeWarnings: [],
+              catalog: CATALOG,
               steps: [],
               unchanged: [],
               uncheckedWires: [],
@@ -1112,11 +1126,11 @@ describe('createMcpServer with parser output from the wm-4067 fixtures', () => {
 
   it('returns get_device with the parsed device as structured content', async () => {
     const client = await connect(
-      deps({ getDevice: { getDevice: async () => ({ device: erosion, session: READY }) } }),
+      deps({ getDevice: { getDevice: async () => ({ device: erosion, session: READY, catalog: CATALOG }) } }),
     );
     const result = await client.callTool({ name: 'get_device', arguments: { device: 'Erosion' } });
     expect(result.isError).toBeFalsy();
-    expect(result.structuredContent).toEqual({ device: erosion, session: READY });
+    expect(result.structuredContent).toEqual({ device: erosion, session: READY, catalog: CATALOG });
   });
 
   // raw/enum-options.txt l.1557-1559 and l.1572-1632: a new Combiner's rows and Method's options.
@@ -1165,17 +1179,17 @@ describe('createMcpServer with parser output from the wm-4067 fixtures', () => {
     ],
   ])('returns get_device with %s through the strict schema', async (_label, device) => {
     const client = await connect(
-      deps({ getDevice: { getDevice: async () => ({ device, session: READY }) } }),
+      deps({ getDevice: { getDevice: async () => ({ device, session: READY, catalog: CATALOG }) } }),
     );
     const result = await client.callTool({ name: 'get_device', arguments: { device: '#1' } });
     expect(result.isError).toBeFalsy();
-    expect(result.structuredContent).toEqual({ device, session: READY });
+    expect(result.structuredContent).toEqual({ device, session: READY, catalog: CATALOG });
   });
 
   it('refuses a get_device view without portTypes (port-types design section 6, Codex round 1 ruling S1)', async () => {
     const { portTypes: _omitted, ...device } = erosion;
     const client = await connect(
-      deps({ getDevice: { getDevice: async () => ({ device, session: READY }) as never } }),
+      deps({ getDevice: { getDevice: async () => ({ device, session: READY, catalog: CATALOG }) as never } }),
     );
     const result = await client.callTool({ name: 'get_device', arguments: { device: '#35' } });
     expect(result.isError).toBe(true);
@@ -1206,11 +1220,11 @@ describe('createMcpServer with parser output from the wm-4067 fixtures', () => {
   it('returns get_device with catalogued port types through the strict schema (port-types design section 6)', async () => {
     const device = typedCreateWater;
     const client = await connect(
-      deps({ getDevice: { getDevice: async () => ({ device, session: READY }) } }),
+      deps({ getDevice: { getDevice: async () => ({ device, session: READY, catalog: CATALOG }) } }),
     );
     const result = await client.callTool({ name: 'get_device', arguments: { device: '#536' } });
     expect(result.isError).toBeFalsy();
-    expect(result.structuredContent).toEqual({ device, session: READY });
+    expect(result.structuredContent).toEqual({ device, session: READY, catalog: CATALOG });
   });
 
   it('returns get_scene with the parsed scene as structured content', async () => {

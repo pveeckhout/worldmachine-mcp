@@ -48,6 +48,7 @@ export const NO_PORT_TYPES: PortTypeCatalogPort = {
   portsOf: () => undefined,
   portsOfAdded: () => undefined,
   catalogInUse: () => undefined,
+  problems: () => [],
 };
 
 /** An own entry only: a catalog parsed from JSON still inherits `constructor` and `toString` from Object.prototype. */
@@ -86,10 +87,16 @@ function resolvePorts(catalog: PortTypeCatalog, entry: PortTypeCatalogType): Cat
 export class WorldMachinePortTypes implements PortTypeCatalogPort {
   readonly #session: Pick<WorldMachineSessionPort, 'status'>;
   readonly #catalogs: readonly SourcedPortTypeCatalog[];
+  readonly #problems: readonly string[];
 
-  constructor(session: Pick<WorldMachineSessionPort, 'status'>, catalogs: readonly SourcedPortTypeCatalog[]) {
+  constructor(
+    session: Pick<WorldMachineSessionPort, 'status'>,
+    catalogs: readonly SourcedPortTypeCatalog[],
+    problems: readonly string[] = [],
+  ) {
     this.#session = session;
     this.#catalogs = catalogs;
+    this.#problems = problems;
   }
 
   portsOf(deviceType: string): CataloguedPorts | undefined {
@@ -109,6 +116,10 @@ export class WorldMachinePortTypes implements PortTypeCatalogPort {
 
   catalogInUse(): CatalogSource | undefined {
     return this.#selected()?.source;
+  }
+
+  problems(): readonly string[] {
+    return this.#problems;
   }
 
   /** The catalog of the build World Machine runs. */
