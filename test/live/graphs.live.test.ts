@@ -194,12 +194,19 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
     const fileOutput = portTypes.portsOf('Height Output');
     expect(water?.outputs[1]?.name).toBe('Water System');
     const accepted = fileOutput?.inputs[0]?.accepts.map((accepts) => accepts.name).join(', ');
-    expect(view.conflicts).toEqual([
-      {
-        entry: 'Water Out',
-        reason: `'Lake' output 2 (water system) cannot feed 'Water Out' input 1, which accepts ${accepted}`,
-      },
-    ]);
+    const finding = {
+      entry: 'Water Out',
+      reason: `'Lake' output 2 (water system) cannot feed 'Water Out' input 1, which accepts ${accepted}`,
+    };
+    expect(view.catalog.portTypes).toBe('shipped');
+    // A sample-derived catalog (4069) reports the finding as a warning; a strict one (4067) as a conflict.
+    if (portTypes.catalogInUse()?.kind === 'sample-derived') {
+      expect(view.conflicts).not.toContainEqual(finding);
+      expect(view.typeWarnings).toEqual([finding]);
+    } else {
+      expect(view.conflicts).toEqual([finding]);
+      expect(view.typeWarnings).toEqual([]);
+    }
     expect(accepted).not.toContain('water system');
     expect(view.uncheckedWires).toEqual([]);
     const added = await devices.addDevice('Create Water');
