@@ -193,7 +193,7 @@ The MCP can set up:
 - snapshots of the device graph, and the layout of the graph by processing order;
 - device groups that already exist: enabling or disabling all their devices, and building one group.
 
-Set these up in World Machine first, because its console (build 4067) has no command for them:
+Set these up in World Machine first, because its console (builds 4067 and 4069) has no command for them:
 
 - World settings: sea level (water level), height scale and units, and the world's overall extents;
 - the tiled-build layout: tile count, tile resolution, and overlap or blending (a tiled build uses whatever is configured there);
