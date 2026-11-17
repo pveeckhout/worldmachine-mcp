@@ -282,6 +282,76 @@ const info = (enabled: string, bypass: string) => [
   `  Bypass:  ${bypass}`,
 ];
 const ONE_GRADIENT = ['Devices (1 total):', '  #1     Gradient                '];
+// wm-4069/raw/enum-options.txt l.51-58: on build 4069 `device info #<id>` heads its reply with the id.
+const info4069 = (enabled: string, bypass: string) => [
+  'Device #1:',
+  ...info(enabled, bypass).slice(1),
+  'Build results (history ID 3):',
+  '  (none stored)',
+];
+
+// Live probes 2026-11-17: on build 4069 a selected device slows every later reply while the pointer rests on the
+// World Machine window, so the edits read their device back by reference and select nothing.
+describe('WorldMachineDeviceEditor on build 4069', () => {
+  it('sets bypass without selecting the device', async () => {
+    const s = scriptedSession(
+      {
+        'device list': [{ output: ONE_GRADIENT }],
+        'device info #1': [{ output: info4069('yes', 'no') }, { output: info4069('yes', 'yes') }],
+        'device bypass #1': [{ output: ['Set bypass: #1'] }],
+      },
+      { build: 4069 },
+    );
+    expect(await new WorldMachineDeviceEditor(s.session).setDeviceBypassed('#1', true)).toEqual({
+      device: { id: 1, name: 'Gradient' },
+      bypassed: true,
+      changed: true,
+    });
+    expect(s.batches).toEqual([['device list'], ['device info #1'], ['device bypass #1', 'device info #1']]);
+  });
+
+  it('disables a device without selecting it', async () => {
+    const s = scriptedSession(
+      {
+        'device list': [{ output: ONE_GRADIENT }],
+        'device disable #1': [{ output: ['Disabled: #1'] }],
+        'device info #1': [{ output: info4069('no', 'no') }],
+      },
+      { build: 4069 },
+    );
+    expect(await new WorldMachineDeviceEditor(s.session).setDeviceEnabled('#1', false)).toEqual({
+      device: { id: 1, name: 'Gradient' },
+      enabled: false,
+      changed: true,
+    });
+    expect(s.batches).toEqual([['device list'], ['device disable #1', 'device info #1']]);
+  });
+
+  it('reports UNEXPECTED_OUTPUT when the read-back names another device', async () => {
+    const other = [
+      'Device #1:',
+      '  Name:    Combiner',
+      '  Type:    Combiner',
+      '  Enabled: no',
+      '  Bypass:  no',
+    ];
+    const s = scriptedSession(
+      {
+        'device list': [{ output: ONE_GRADIENT }],
+        'device disable #1': [{ output: ['Disabled: #1'] }],
+        'device info #1': [{ output: other }],
+      },
+      { build: 4069 },
+    );
+    await expect(new WorldMachineDeviceEditor(s.session).setDeviceEnabled('#1', false)).rejects.toMatchObject(
+      {
+        code: 'UNEXPECTED_OUTPUT',
+        message: "Expected #1 ('Gradient'), but World Machine reported 'Combiner'",
+      },
+    );
+  });
+});
+
 describe('WorldMachineDeviceEditor.setDeviceBypassed', () => {
   it('sets bypass, reads it back, and marks the project modified', async () => {
     const { session, editor: e, record } = editor();

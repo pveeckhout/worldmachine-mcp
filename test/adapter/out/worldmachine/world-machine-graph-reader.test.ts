@@ -132,6 +132,7 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
     const frame = (command: string, output: string[]) => ({ command, output, errors: [] });
     const session = {
       assertAcceptingCalls: () => undefined,
+      ensureRunning: async () => undefined,
       status: () => ({ systemInfo: SYSTEM_INFO }),
       execute: async () => [
         frame('device select "Gradient"', []),
@@ -171,21 +172,26 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
       '  Enabled: yes',
       '  Bypass:  no',
     ];
-    /** A session whose only batch answers with `listRows` as the `device list` frame; records every batch. */
-    function stub(device: string, info: string[], listRows: string[]) {
+    /**
+     * A session whose only batch answers with `listRows` as the `device list` frame; records every batch. On build
+     * 4069 the batch is the four commands of the by-reference read; before it, the five with `device select`.
+     */
+    function stub(device: string, info: string[], listRows: string[], build = SYSTEM_INFO.build) {
       const batches: (readonly string[])[] = [];
       const session = {
         assertAcceptingCalls: () => undefined,
-        status: () => ({ systemInfo: SYSTEM_INFO }),
+        ensureRunning: async () => undefined,
+        status: () => ({ systemInfo: { ...SYSTEM_INFO, build } }),
         execute: async (commands: readonly string[]) => {
           batches.push(commands);
-          return [
-            frame(`device select ${device}`, ['Selected: Gradient']),
-            frame('device info', info),
+          const rest = [
             frame(`param list ${device}`, lines('param-list-erosion.txt')),
             frame(`wire list ${device}`, lines('wire-list-erosion.txt')),
             frame('device list', listRows),
           ];
+          return build >= 4069
+            ? [frame(`device info ${device}`, info), ...rest]
+            : [frame(`device select ${device}`, ['Selected: Gradient']), frame('device info', info), ...rest];
         },
       } as unknown as WorldMachineSession;
       return { reader: new WorldMachineGraphReader(session), batches };
@@ -201,6 +207,24 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
       expect(batches).toEqual([
         ['device select gradient', 'device info', 'param list gradient', 'wire list gradient', 'device list'],
       ]);
+    });
+
+    it('reads a device on build 4069 by reference, without selecting it (live probes 2026-11-17)', async () => {
+      // wm-4069/raw/enum-options.txt l.51-58: `device info #<id>` names its device in the header.
+      const info4069 = [
+        'Device #35:',
+        ...gradientInfo.slice(1),
+        'Build results (history ID 641):',
+        '  (none stored)',
+      ];
+      const { reader: r, batches } = stub(
+        '#35',
+        info4069,
+        ['Devices (1 total):', '  #35    Gradient                '],
+        4069,
+      );
+      expect(await r.getDevice('#35')).toMatchObject({ id: 35, name: 'Gradient', type: 'Gradient' });
+      expect(batches).toEqual([['device info #35', 'param list #35', 'wire list #35', 'device list']]);
     });
 
     it('reads a #id device without parsing the device list, in one batch', async () => {
@@ -231,14 +255,16 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
       await expect(r.getDevice('Gradient')).rejects.toMatchObject({ code: 'UNEXPECTED_OUTPUT' });
     });
 
-    it('reads the build after the batch that starts World Machine (enum-options design section 4)', async () => {
+    it('reads the build once World Machine has started (enum-options design section 4)', async () => {
       // A session that has not started holds no system info; the batch starts World Machine, whose start reads it.
       let ran = false;
       const session = {
         assertAcceptingCalls: () => undefined,
+        ensureRunning: async () => {
+          ran = true;
+        },
         status: () => (ran ? { systemInfo: SYSTEM_INFO } : {}),
         execute: async () => {
-          ran = true;
           return [
             frame('device select #1', []),
             frame('device info', gradientInfo),
@@ -368,6 +394,7 @@ describe('WorldMachineGraphReader enum options (enum-options design section 4)',
     const frame = (command: string, output: string[]) => ({ command, output, errors: [] });
     const session = {
       assertAcceptingCalls: () => undefined,
+      ensureRunning: async () => undefined,
       status: () => ({ systemInfo: SYSTEM_INFO }),
       execute: async () => [
         frame('device select #314', []),

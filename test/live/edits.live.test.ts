@@ -61,7 +61,8 @@ describe.skipIf(!LIVE)('live World Machine graph edits', () => {
   it('adds devices by type and by name, and rejects an unknown type', async () => {
     const first = await devices.addDevice('Gradient');
     const second = await devices.addDevice('Combiner');
-    const third = await devices.addDevice('File Output');
+    // Build 4069 refuses the add word 'File Output' (Height Output and VDM Output both match it, wm-4069/raw/p2c-edits.txt).
+    const third = await devices.addDevice('Height Output');
     const named = await devices.addDevice('Gradient', 'Live Grad');
     expect(new Set([first.id, second.id, third.id, named.id]).size).toBe(4);
     grad = first.id;

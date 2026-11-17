@@ -160,7 +160,7 @@ describe.skipIf(!LIVE)('live World Machine builds and exports (spec v2a section 
     await blank();
     const gradient = await devices.addDevice('Gradient');
     const river = await devices.addDevice('River');
-    const output = await devices.addDevice('File Output');
+    const output = await devices.addDevice('Height Output');
     await wires.connect({ device: `#${gradient.id}` }, { device: `#${river.id}`, port: 1 });
     await wires.connect({ device: `#${river.id}` }, { device: `#${output.id}` });
     await filename(output.id, 'river-height.png');
@@ -174,7 +174,7 @@ describe.skipIf(!LIVE)('live World Machine builds and exports (spec v2a section 
     // l.119-149: Gradient into File Output.
     await blank();
     const plain = await devices.addDevice('Gradient');
-    const plainOutput = await devices.addDevice('File Output');
+    const plainOutput = await devices.addDevice('Height Output');
     await wires.connect({ device: `#${plain.id}` }, { device: `#${plainOutput.id}` });
     await filename(plainOutput.id, 'plain-height.png');
     const built = await buildProject.buildProject({ mode: 'full', waitSeconds: 120 });
@@ -190,7 +190,7 @@ describe.skipIf(!LIVE)('live World Machine builds and exports (spec v2a section 
     // raw/build-not-built-timing.txt l.1-46: Gradient into River into File Output, its filename inside the live root.
     const gradient = await devices.addDevice('Gradient');
     const river = await devices.addDevice('River');
-    const output = await devices.addDevice('File Output');
+    const output = await devices.addDevice('Height Output');
     await wires.connect({ device: `#${gradient.id}` }, { device: `#${river.id}`, port: 1 });
     await wires.connect({ device: `#${river.id}` }, { device: `#${output.id}` });
     throwIfFailed(
