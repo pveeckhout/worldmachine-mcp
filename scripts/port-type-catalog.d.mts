@@ -2,6 +2,7 @@
 export type PortTypeCatalogPortEntry = { port: number; name: string; class: string };
 export type PortTypeCatalogData = {
   build: number;
+  kind: 'strict' | 'sample-derived';
   outputClasses: Record<string, string>;
   inputClasses: Record<string, string[]>;
   types: Record<

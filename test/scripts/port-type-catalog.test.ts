@@ -149,6 +149,7 @@ const MIXER_INPUTS = [entry(1, 'Height In', 'i1'), entry(2, 'Water In', 'i2'), e
 // Mixed is accepted where Height is (by Sink, the only other device with inputs), so it joins Height's class.
 const CATALOG = {
   build: 4067,
+  kind: 'strict',
   outputClasses: {
     o1: 'like Height Source Height',
     o2: 'like Water Source Water',
@@ -165,6 +166,9 @@ const CATALOG = {
 };
 
 describe('parsePortTypeCatalog (port-types design section 4)', () => {
+  it('marks a parsed full run strict', () => {
+    expect(parsePortTypeCatalog([transcript()], systemInfo).kind).toBe('strict');
+  });
   it('finds three output classes and an input class that accepts two of them', () => {
     expect(parsePortTypeCatalog([transcript()], systemInfo)).toEqual(CATALOG);
   });

@@ -281,7 +281,7 @@ const described = (device) => {
 };
 
 /**
- * The catalog `{ build, outputClasses, inputClasses, types }` of the `port-types` transcripts of one build and the
+ * The catalog `{ build, kind, outputClasses, inputClasses, types }` of the `port-types` transcripts of one build and the
  * `system info` capture of that build, the classes named by `names` (design section 4, plan decisions D4 and D14). A
  * type is keyed by its new device's listed type (fact 81: the kind in its `device list` row, or else its name), with
  * every `device add` word that gave it (`added`, Codex round 1 ruling B1) and its ports in `wire list` order with their
@@ -392,6 +392,7 @@ export function parsePortTypeCatalog(transcripts, systemInfo, names = {}) {
   }
   return {
     build,
+    kind: 'strict',
     outputClasses: classNames(outputClasses, outputs, names),
     inputClasses: Object.fromEntries(
       inputClasses.map((inputClass) => [
@@ -415,6 +416,10 @@ export function parsePortTypeCatalog(transcripts, systemInfo, names = {}) {
  * another type than in `base` (`Surface` gives a Material on 4069, port-types-sample.txt l.14491-14492).
  */
 export function derivePortTypeCatalog(base, sample, systemInfo) {
+  if (base.kind !== 'strict')
+    throw new Error(
+      `base catalog of build ${base.build} is ${base.kind}; only a strict catalog can be a base`,
+    );
   const build = buildOfSystemInfo(systemInfo);
   const { devices, verdicts } = readTranscript(sample);
   const all = [...devices.values()];
@@ -453,7 +458,13 @@ export function derivePortTypeCatalog(base, sample, systemInfo) {
     if (words.length > 0) types[type] = { added: words, inputs: entry.inputs, outputs: entry.outputs };
   }
   return {
-    catalog: { build, outputClasses: base.outputClasses, inputClasses: base.inputClasses, types },
+    catalog: {
+      build,
+      kind: 'sample-derived',
+      outputClasses: base.outputClasses,
+      inputClasses: base.inputClasses,
+      types,
+    },
     omittedTypes: Object.keys(base.types).filter((type) => !Object.hasOwn(types, type)),
     movedWords,
   };

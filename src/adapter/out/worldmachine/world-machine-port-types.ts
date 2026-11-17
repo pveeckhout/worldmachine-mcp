@@ -1,5 +1,6 @@
 import type { PortTypeCatalogPort } from '../../../application/port/out/port-type-catalog-port.js';
 import type { WorldMachineSessionPort } from '../../../application/port/out/world-machine-session-port.js';
+import type { CatalogKind } from '../../../domain/catalog.js';
 import type { DeviceDetail } from '../../../domain/device.js';
 import { type CataloguedPorts, type PortClass, typedPorts } from '../../../domain/port-types.js';
 import shipped4067 from './port-types.4067.json' with { type: 'json' };
@@ -23,6 +24,7 @@ type PortTypeCatalogType = {
  */
 export type PortTypeCatalog = {
   readonly build: number;
+  readonly kind: CatalogKind;
   readonly outputClasses: Readonly<Record<string, string>>;
   readonly inputClasses: Readonly<Record<string, readonly string[]>>;
   readonly types: Readonly<Record<string, PortTypeCatalogType>>;
@@ -32,12 +34,12 @@ export type PortTypeCatalog = {
  * Shipped with the server: wm-4067/raw/port-types*.txt (the full run, its resume, and the twin run), named by
  * scripts/port-type-names.4067.json.
  */
-export const PORT_TYPE_CATALOG_4067: PortTypeCatalog = shipped4067;
+export const PORT_TYPE_CATALOG_4067: PortTypeCatalog = shipped4067 as PortTypeCatalog;
 /**
  * Shipped with the server: the 4067 catalog checked against wm-4069/raw/port-types-sample.txt and derived from it
  * (2026-11-17): its ports and classes, with the add words build 4069 accepted. Every verdict of the sample agreed.
  */
-export const PORT_TYPE_CATALOG_4069: PortTypeCatalog = shipped4069;
+export const PORT_TYPE_CATALOG_4069: PortTypeCatalog = shipped4069 as PortTypeCatalog;
 /** Every shipped catalog; the one of World Machine's build applies. */
 export const PORT_TYPE_CATALOGS: readonly PortTypeCatalog[] = [
   PORT_TYPE_CATALOG_4067,

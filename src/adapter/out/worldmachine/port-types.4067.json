@@ -1,5 +1,6 @@
 {
   "build": 4067,
+  "kind": "strict",
   "outputClasses": {
     "o1": "heightfield or bitmap",
     "o2": "heightfield",

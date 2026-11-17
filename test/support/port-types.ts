@@ -28,6 +28,7 @@ export const statusOn = (build: number | undefined) => ({
  */
 export const SYNTHETIC_CATALOG: PortTypeCatalog = {
   build: 4067,
+  kind: 'strict',
   outputClasses: { o1: 'heightfield', o2: 'water system' },
   inputClasses: { i1: ['o1'], i2: ['o2'], i3: [] },
   types: {

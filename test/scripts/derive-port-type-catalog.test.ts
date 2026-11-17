@@ -35,6 +35,14 @@ describe('derivePortTypeCatalog (build 4069 from the build 4067 catalog)', () =>
     expect(catalog.build).toBe(4069);
   });
 
+  it('marks the derived catalog sample-derived', () => {
+    expect(catalog.kind).toBe('sample-derived');
+  });
+  it('refuses a base that is not strict', () => {
+    expect(() => derivePortTypeCatalog({ ...base, kind: 'sample-derived' }, sample, systemInfo)).toThrow(
+      /base catalog of build 4067 is sample-derived; only a strict catalog can be a base/,
+    );
+  });
   it('keeps the classes and the ports of the base catalog', () => {
     expect(catalog.outputClasses).toStrictEqual(base.outputClasses);
     expect(catalog.inputClasses).toStrictEqual(base.inputClasses);
