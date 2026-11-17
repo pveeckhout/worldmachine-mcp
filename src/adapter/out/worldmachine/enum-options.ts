@@ -1,6 +1,7 @@
 import type { DeviceDetail, Parameter } from '../../../domain/device.js';
 
-import shipped from './enum-options.4067.json' with { type: 'json' };
+import shipped4067 from './enum-options.4067.json' with { type: 'json' };
+import shipped4069 from './enum-options.4069.json' with { type: 'json' };
 
 /**
  * Per listed device type, captured from one World Machine build (enum-options design section 3): `parameters`, every
@@ -17,15 +18,19 @@ export type EnumCatalog = {
   >;
 };
 
-/** The catalog shipped with the server: raw/enum-options.txt of build 4067 (fact 85). */
-export const ENUM_CATALOG: EnumCatalog = shipped;
+/** Shipped with the server: wm-4067/raw/enum-options.txt (fact 85). */
+export const ENUM_CATALOG_4067: EnumCatalog = shipped4067;
+/** Shipped with the server: wm-4069/raw/enum-options.txt, captured 2026-11-17. */
+export const ENUM_CATALOG_4069: EnumCatalog = shipped4069;
+/** Every shipped catalog; getDevice uses the one of World Machine's build. */
+export const ENUM_CATALOGS: readonly EnumCatalog[] = [ENUM_CATALOG_4067, ENUM_CATALOG_4069];
 
 /** An own entry only: a catalog parsed from JSON still inherits `constructor` and `toString` from Object.prototype. */
 const own = <T>(record: Readonly<Record<string, T>>, key: string): T | undefined =>
   Object.hasOwn(record, key) ? record[key] : undefined;
 
 /**
- * Enum-options design section 4: attaches `options` to each `enum` row when World Machine's build is the catalog's,
+ * Enum-options design section 4: attaches `options` to each `enum` row when one of `catalogs` is of World Machine's build,
  * the catalog has the device's type and the row's parameter, the device's parameter names equal those of a new device
  * of that type (the version fingerprint: the console reports no device version), and the row's current value is one
  * of the options. Otherwise the row stays as read and `enumOptionsNote` says why, once per distinct reason. Rule 2 is
@@ -36,14 +41,16 @@ const own = <T>(record: Readonly<Record<string, T>>, key: string): T | undefined
 export function attachEnumOptions(
   detail: DeviceDetail,
   build: number | undefined,
-  catalog: EnumCatalog,
+  catalogs: readonly EnumCatalog[],
 ): DeviceDetail {
   if (!detail.parameters.some((parameter) => parameter.type === 'enum')) return detail;
-  if (build !== catalog.build) {
+  const catalog = catalogs.find((candidate) => candidate.build === build);
+  if (catalog === undefined) {
+    const builds = catalogs.map((candidate) => candidate.build).join(', ');
     return {
       ...detail,
       enumOptionsNote: [
-        `enum options omitted: the catalog is from build ${catalog.build}, World Machine is build ${build ?? 'unknown'}`,
+        `enum options omitted: no catalog for World Machine build ${build ?? 'unknown'} (catalogs: ${builds})`,
       ],
     };
   }

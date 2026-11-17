@@ -1,0 +1,11 @@
+>>> system info
+World Machine System Info:
+  Version:  Build 4069 'Dragontail Peak'
+  Arch:     x64-AVX2 (256-bit)
+  Threads:  3 active of 20 max
+  Building: yes
+  Memory:   58 MB / 54411 MB limit
+  App Path: <APPDIR>/opt/worldmachine/variants/avx2/
+  Doc Path: <HOME>/Documents/WorldMachine/
+
+<<<

@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // Prints the enum catalog of an `enum-options` transcript (enum-options design section 3). The build comes from the
 // `system info` capture beside it, test/fixtures/wm-<build>/raw/system-info.txt (ruling 1), never from a constant.
-// node scripts/build-enum-catalog.mjs test/fixtures/wm-4067/raw/enum-options.txt
-//   > src/adapter/out/worldmachine/enum-options.4067.json
+// node scripts/build-enum-catalog.mjs test/fixtures/wm-<build>/raw/enum-options.txt
+//   > src/adapter/out/worldmachine/enum-options.<build>.json (and add it to ENUM_CATALOGS in enum-options.ts)
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { parseEnumCatalog } from './enum-catalog.mjs';
+import { parseEnumCapture } from './enum-catalog.mjs';
 
 const transcript = process.argv[2];
 if (transcript === undefined) {
@@ -14,11 +14,13 @@ if (transcript === undefined) {
 }
 try {
   // Ruling 1: the build comes from the `system info` capture of the same fixture directory.
-  const catalog = parseEnumCatalog(
+  const { catalog, refusedAdds } = parseEnumCapture(
     readFileSync(transcript, 'utf8'),
     readFileSync(join(dirname(transcript), 'system-info.txt'), 'utf8'),
   );
   process.stdout.write(`${JSON.stringify(catalog, null, 2)}\n`);
+  // A refused add leaves its type out of the catalog; stderr names it, so the gap is never silent.
+  for (const { word, reason } of refusedAdds) process.stderr.write(`skipped device add ${word}: ${reason}\n`);
 } catch (error) {
   // Nothing on stdout, so a redirect into the catalog file never receives a partial catalog.
   process.stderr.write(`${error.message}\n`);

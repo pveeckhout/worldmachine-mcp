@@ -75,4 +75,4 @@ export const SYNTHETIC_CATALOG: PortTypeCatalog = {
 };
 
 /** SYNTHETIC_CATALOG with World Machine reporting its build. */
-export const syntheticPortTypes = new WorldMachinePortTypes(statusOn(4067), SYNTHETIC_CATALOG);
+export const syntheticPortTypes = new WorldMachinePortTypes(statusOn(4067), [SYNTHETIC_CATALOG]);

@@ -5,14 +5,14 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { FsGraphTemplateLoader } from '../../src/adapter/out/fs/graph-template-loader.js';
 import { FsPathPolicy } from '../../src/adapter/out/fs/path-policy.js';
-import { ENUM_CATALOG } from '../../src/adapter/out/worldmachine/enum-options.js';
+import { ENUM_CATALOGS } from '../../src/adapter/out/worldmachine/enum-options.js';
 import { resolveExecutable } from '../../src/adapter/out/worldmachine/locator.js';
 import { throwIfFailed } from '../../src/adapter/out/worldmachine/raw-response.js';
 import { WorldMachineDeviceEditor } from '../../src/adapter/out/worldmachine/world-machine-device-editor.js';
 import { WorldMachineGraphReader } from '../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
 import { WorldMachineParameterEditor } from '../../src/adapter/out/worldmachine/world-machine-parameter-editor.js';
 import {
-  PORT_TYPE_CATALOG,
+  PORT_TYPE_CATALOGS,
   WorldMachinePortTypes,
 } from '../../src/adapter/out/worldmachine/world-machine-port-types.js';
 import { WorldMachineProcess } from '../../src/adapter/out/worldmachine/world-machine-process.js';
@@ -46,8 +46,8 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
   });
   // Port-types plan decision D3: the shared reader and wire editor carry the shipped catalog and port types, as
   // main.ts wires them.
-  const portTypes = new WorldMachinePortTypes(session, PORT_TYPE_CATALOG);
-  const reader = new WorldMachineGraphReader(session, ENUM_CATALOG, portTypes);
+  const portTypes = new WorldMachinePortTypes(session, PORT_TYPE_CATALOGS);
+  const reader = new WorldMachineGraphReader(session, ENUM_CATALOGS, portTypes);
   const writer = new WorldMachineProjectWriter(session);
   const scene = new WorldMachineSceneEditor(session);
   const templates = new FsGraphTemplateLoader(new FsPathPolicy([liveRoot]));
@@ -177,7 +177,7 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
 
   // Port-types design section 8. The lowlands trial saw a File Output refuse a Water System (backlog l.104); no capture
   // before raw/port-types.txt shows it.
-  it('reports a Water System wired into a File Output as a conflict and shows Create Water port types', async () => {
+  it('reports a Water System wired into a Height Output as a conflict and shows Create Water port types', async () => {
     await session.ensureRunning();
     throwIfFailed(await session.executeOne('project new blank force'));
     const view = await plan.planGraph({
@@ -185,8 +185,8 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
         version: 1,
         devices: [
           { name: 'Lake', type: 'Create Water' },
-          // raw/v3-rename-types.txt l.204-205: an accepted add word for a Height Output (B1 addendum ruling).
-          { name: 'Water Out', type: 'File Output', inputs: { '1': 'Lake.2' } },
+          // An add word of a Height Output on both builds; 4069 refuses `File Output` (wm-4069/raw/port-types-sample.txt).
+          { name: 'Water Out', type: 'Height Output', inputs: { '1': 'Lake.2' } },
         ],
       },
     });

@@ -14,3 +14,13 @@ export function parsePortTypeCatalog(
   systemInfo: string,
   names?: Readonly<Record<string, string>>,
 ): PortTypeCatalogData;
+export function derivePortTypeCatalog(
+  base: PortTypeCatalogData,
+  sample: string,
+  systemInfo: string,
+): {
+  catalog: PortTypeCatalogData;
+  omittedTypes: string[];
+  movedWords: { word: string; from: string; to: string }[];
+};
+export function readTranscript(transcript: string): unknown;

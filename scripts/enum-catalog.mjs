@@ -21,6 +21,8 @@ const PROBE = /^param set "#(\d+)\.(.+)" 9999$/;
 const SET = /^param set "#(\d+)\.(.+)" (\d+)$/;
 const GET = /^param get #(\d+)\.(.+)$/;
 const ADD = /^device add (.+)$/;
+// Build 4069 refuses an add word that names several device types (wm-4069/raw/enum-options.txt l.966).
+const AMBIGUOUS_ADD = /^Error: Error: (Tag '.*' matches multiple devices: .*)$/;
 // The scenario records a failing type or delete as its own section and goes on (capture-fixtures.mjs enumOptions).
 const STOPPED = /^\((type .* stopped|scenario stopped|delete .* failed)\)$/;
 
@@ -60,7 +62,17 @@ export function buildOfSystemInfo(text) {
  * missing throws, so the catalog never has a gap.
  */
 export function parseEnumCatalog(transcript, systemInfo) {
+  return parseEnumCapture(transcript, systemInfo).catalog;
+}
+
+/**
+ * `{ catalog, refusedAdds }`: the catalog of parseEnumCatalog, and each `device add` World Machine refused because its
+ * word matches several device types, as `{ word, reason }`. Such an add adds no device and is skipped; every other add
+ * that adds no device still throws.
+ */
+export function parseEnumCapture(transcript, systemInfo) {
   const types = {};
+  const refusedAdds = [];
   let listed = new Map();
   let device;
   let pending;
@@ -89,6 +101,11 @@ export function parseEnumCatalog(transcript, systemInfo) {
     const add = ADD.exec(command);
     if (add) {
       if (adding !== undefined) throw new Error(`device add ${adding.word}: no param list of its device`);
+      const refusal = lines.map((line) => AMBIGUOUS_ADD.exec(line.trimEnd())).find((match) => match !== null);
+      if (refusal !== undefined) {
+        refusedAdds.push({ word: add[1], reason: refusal[1] });
+        continue;
+      }
       adding = { word: add[1], before: listed, added: undefined };
       continue;
     }
@@ -170,5 +187,5 @@ export function parseEnumCatalog(transcript, systemInfo) {
   }
   finish();
   if (adding !== undefined) throw new Error(`device add ${adding.word}: no param list of its device`);
-  return { build: buildOfSystemInfo(systemInfo), types };
+  return { catalog: { build: buildOfSystemInfo(systemInfo), types }, refusedAdds };
 }

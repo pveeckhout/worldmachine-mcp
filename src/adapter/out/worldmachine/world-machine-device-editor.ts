@@ -3,6 +3,7 @@ import type { DeviceSummary } from '../../../domain/device.js';
 import { WorldMachineError } from '../../../domain/errors.js';
 import type { DeviceBypassState, DeviceEnabledState, RenamedDevice } from '../../../domain/graph-edit.js';
 import { buildCommand } from './command-builder.js';
+import { deviceInfoCommands } from './device-info-read.js';
 import { listAllDevices, lookUpDevice } from './device-lookup.js';
 import { assertReadableDeviceName, matchesListedName } from './device-reference.js';
 import { readBack, requireLine, requireMatch, requireOnlyLine } from './edit-checks.js';
@@ -25,7 +26,7 @@ function checkNewName(name: string): void {
   buildCommand(['device', 'rename'], name);
 }
 
-type SelectedInfo = ReturnType<typeof parseDeviceInfo>;
+type DeviceInfoState = ReturnType<typeof parseDeviceInfo>;
 
 export class WorldMachineDeviceEditor implements DeviceEditPort {
   readonly #session: WorldMachineSession;
@@ -88,17 +89,12 @@ export class WorldMachineDeviceEditor implements DeviceEditPort {
     const ref = `#${target.id}`;
     const verb = enabled ? 'enable' : 'disable';
     // One batch: World Machine prints the same line whether or not the state changed (spec fact 25), so the device
-    // is read back with `device info`, which acts on the selection (spec section 5).
-    const responses = await this.#session.execute([
-      buildCommand(['device', verb, ref]),
-      buildCommand(['device', 'select', ref]),
-      'device info',
-    ]);
+    // is read back with `device info` (device-info-read.ts).
+    const read = await deviceInfoCommands(this.#session, ref);
+    const responses = await this.#session.execute([buildCommand(['device', verb, ref]), ...read]);
     const command = requireFrame(responses[0]);
-    const select = requireFrame(responses[1]);
-    const info = requireFrame(responses[2]);
     throwIfFailed(command);
-    const after = readBack(this.#session, () => this.#readSelected(select, info, ref, target.name));
+    const after = readBack(this.#session, () => this.#readInfo(responses.slice(1), ref, target.name));
     // `device list` shows `[disabled]` reliably (spec facts 24 and 29), so it is the state before.
     const changed = after.enabled !== target.enabled;
     if (changed) this.#session.markDirty();
@@ -117,20 +113,15 @@ export class WorldMachineDeviceEditor implements DeviceEditPort {
   async setDeviceBypassed(device: string, bypassed: boolean): Promise<DeviceBypassState> {
     const target = await lookUpDevice(this.#session, device);
     const ref = `#${target.id}`;
-    const select = buildCommand(['device', 'select', ref]);
+    const read = await deviceInfoCommands(this.#session, ref);
     // `device list` hides bypass on a disabled device (spec fact 29), so `device info` is the authority on the state.
-    const before = await this.#session.execute([select, 'device info']);
-    const current = this.#readSelected(requireFrame(before[0]), requireFrame(before[1]), ref, target.name);
+    const current = this.#readInfo(await this.#session.execute(read), ref, target.name);
     // raw/p2b-graph-edits.txt l.74-75 and l.94-95: `device bypass` toggles. Sending it for a device already in the
     // requested state would flip it the wrong way, so nothing more is sent.
     if (current.bypassed === bypassed) {
       return { device: { id: target.id, name: current.name }, bypassed: current.bypassed, changed: false };
     }
-    const responses = await this.#session.execute([
-      buildCommand(['device', 'bypass', ref]),
-      select,
-      'device info',
-    ]);
+    const responses = await this.#session.execute([buildCommand(['device', 'bypass', ref]), ...read]);
     const command = requireFrame(responses[0]);
     throwIfFailed(command);
     // raw/bypass-unsaved.txt: World Machine counts a bypass change as unsaved (an unforced `project new` is refused
@@ -138,9 +129,7 @@ export class WorldMachineDeviceEditor implements DeviceEditPort {
     this.#session.markDirty();
     // raw/p2b-graph-edits.txt l.74-75 (on) and l.94-95 (off).
     requireLine(command, `${bypassed ? 'Set' : 'Removed'} bypass: ${ref}`, 'device bypass');
-    const after = readBack(this.#session, () =>
-      this.#readSelected(requireFrame(responses[1]), requireFrame(responses[2]), ref, target.name),
-    );
+    const after = readBack(this.#session, () => this.#readInfo(responses.slice(1), ref, target.name));
     if (after.bypassed !== bypassed) {
       throw new WorldMachineError(
         'WM_COMMAND_FAILED',
@@ -151,21 +140,28 @@ export class WorldMachineDeviceEditor implements DeviceEditPort {
     return { device: { id: target.id, name: after.name }, bypassed: after.bypassed, changed: true };
   }
 
-  /** Parses a `device select` and `device info` pair, which must both name the target (listed-name rule, fact 33). */
-  #readSelected(select: RawResponse, info: RawResponse, ref: string, listedName: string): SelectedInfo {
-    throwIfFailed(select);
-    throwIfFailed(info);
-    const selected = requireMatch(select, SELECTED, 'device select')[1] ?? '';
+  /**
+   * Parses the replies to deviceInfoCommands: `device info <ref>`, or a `device select` and `device info` pair. Each
+   * reply must name the target (listed-name rule, fact 33).
+   */
+  #readInfo(responses: readonly RawResponse[], ref: string, listedName: string): DeviceInfoState {
+    const frames = responses.map((response) => requireFrame(response));
+    for (const frame of frames) throwIfFailed(frame);
+    const select = frames.length > 1 ? frames[0] : undefined;
+    const info = requireFrame(frames.at(-1));
     const state = parseDeviceInfo(info.output);
-    for (const [verbed, reported] of [
-      ['selected', selected],
-      ['reported', state.name],
-    ] as const) {
+    const names: (readonly [string, string])[] = [['reported', state.name]];
+    if (select !== undefined)
+      names.unshift(['selected', requireMatch(select, SELECTED, 'device select')[1] ?? '']);
+    for (const [verbed, reported] of names) {
       if (!matchesListedName(reported, listedName)) {
         throw new WorldMachineError(
           'UNEXPECTED_OUTPUT',
           `Expected ${ref} ('${listedName}'), but World Machine ${verbed} '${reported}'`,
-          [...select.output, ...info.output].slice(0, 20).join('\n'),
+          frames
+            .flatMap((frame) => frame.output)
+            .slice(0, 20)
+            .join('\n'),
         );
       }
     }
@@ -204,10 +200,13 @@ export class WorldMachineDeviceEditor implements DeviceEditPort {
 
   /** `device rename #<id> <name>`, then the device's `device list` row, which must show the new name. */
   async #rename(id: number, name: string): Promise<DeviceSummary> {
-    const responses = await this.#session.execute([
-      buildCommand(['device', 'rename', `#${id}`], name),
-      'device list',
-    ]);
+    // Build 4069 answers `device rename #<id>` with a name that has a space with its usage text unless the name is
+    // quoted (its raw/p2c-edits.txt l.27-29 and l.78-80); a one-word name still goes unquoted (its raw/v4-quoting.txt
+    // l.70-71). Both builds strip the quotes (raw/v4-quoting.txt l.30-31).
+    const rename = /\s/.test(name)
+      ? buildCommand(['device', 'rename', `#${id}`, { quoted: name }])
+      : buildCommand(['device', 'rename', `#${id}`], name);
+    const responses = await this.#session.execute([rename, 'device list']);
     const renamed = requireFrame(responses[0]);
     const list = requireFrame(responses[1]);
     throwIfFailed(renamed);

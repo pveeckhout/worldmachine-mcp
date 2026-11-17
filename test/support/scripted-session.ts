@@ -7,9 +7,9 @@ export type Reply = { readonly output?: readonly string[]; readonly errors?: rea
 /**
  * A stand-in for WorldMachineSession that answers each command with the next reply scripted for its exact text, and
  * records every batch and every markDirty call. A command without a remaining reply rejects the batch, so a test
- * fails when the adapter sends something it did not expect.
+ * fails when the adapter sends something it did not expect. `build` is the World Machine build its status reports.
  */
-export function scriptedSession(script: Readonly<Record<string, readonly Reply[]>>) {
+export function scriptedSession(script: Readonly<Record<string, readonly Reply[]>>, { build = 4067 } = {}) {
   const queues = new Map(Object.entries(script).map(([command, replies]) => [command, [...replies]]));
   const batches: string[][] = [];
   let dirtyMarks = 0;
@@ -23,6 +23,8 @@ export function scriptedSession(script: Readonly<Record<string, readonly Reply[]
   };
   const session = {
     assertAcceptingCalls: () => undefined,
+    ensureRunning: async () => undefined,
+    status: () => ({ systemInfo: { build, buildName: 'Scripted', arch: 'x64-AVX2 (256-bit)' } }),
     execute,
     executeOne: async (command: string) => (await execute([command]))[0],
     markDirty: () => {

@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { parseBuildEvent } from '../../../../../src/adapter/out/worldmachine/build-events.js';
 import { LOG_LINE } from '../../../../../src/domain/errors.js';
 
-export function fixtureLines(name: string): string[] {
-  return readFileSync(new URL(`../../../../fixtures/wm-4067/${name}`, import.meta.url), 'utf8')
+export function fixtureLines(name: string, build = '4067'): string[] {
+  return readFileSync(new URL(`../../../../fixtures/wm-${build}/${name}`, import.meta.url), 'utf8')
     .split('\n')
     .filter((line, index, all) => !(line === '' && index === all.length - 1));
 }
@@ -12,8 +12,8 @@ export function fixtureLines(name: string): string[] {
  * The output of the `occurrence`-th `>>> <command>` block of a raw transcript as it reaches a parser: log lines and
  * build events removed (spec v2a section 5), blank lines at either end trimmed.
  */
-export function rawFrame(name: string, command: string, occurrence = 0): string[] {
-  const lines = fixtureLines(`raw/${name}`);
+export function rawFrame(name: string, command: string, occurrence = 0, build = '4067'): string[] {
+  const lines = fixtureLines(`raw/${name}`, build);
   const starts = lines.flatMap((line, index) => (line === `>>> ${command}` ? [index] : []));
   const start = starts[occurrence];
   if (start === undefined) throw new Error(`raw/${name} has no block ${occurrence} for ${command}`);

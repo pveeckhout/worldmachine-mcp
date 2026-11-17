@@ -4,8 +4,9 @@ import type { DeviceDetail, DeviceSummary } from '../../../domain/device.js';
 import type { ProjectOverview } from '../../../domain/project.js';
 import type { Scene } from '../../../domain/scene.js';
 import { buildCommand } from './command-builder.js';
+import { deviceInfoCommands } from './device-info-read.js';
 import { idOfReference, resolveDeviceReference } from './device-reference.js';
-import { attachEnumOptions, ENUM_CATALOG, type EnumCatalog } from './enum-options.js';
+import { attachEnumOptions, ENUM_CATALOGS, type EnumCatalog } from './enum-options.js';
 import { parseDeviceInfo } from './parsers/device-info.js';
 import { parseDeviceList } from './parsers/device-list.js';
 import { parseGroupList } from './parsers/group-list.js';
@@ -19,21 +20,22 @@ import type { WorldMachineSession } from './world-machine-session.js';
 
 export class WorldMachineGraphReader implements ProjectGraphReadPort {
   readonly #session: WorldMachineSession;
-  readonly #catalog: EnumCatalog;
+  readonly #catalogs: readonly EnumCatalog[];
   readonly #portTypes: PortTypeCatalogPort;
 
   /**
-   * `catalog`: the enum options getDevice attaches (enum-options design section 4); tests pass a small one.
+   * `catalogs`: the enum options getDevice attaches, from the one of World Machine's build (enum-options design
+   * section 4); tests pass a small one.
    * `portTypes`: the port types it attaches (port-types design section 6); none unless main.ts passes the shipped
    * catalog (port-types plan decision D3).
    */
   constructor(
     session: WorldMachineSession,
-    catalog: EnumCatalog = ENUM_CATALOG,
+    catalogs: readonly EnumCatalog[] = ENUM_CATALOGS,
     portTypes: PortTypeCatalogPort = NO_PORT_TYPES,
   ) {
     this.#session = session;
-    this.#catalog = catalog;
+    this.#catalogs = catalogs;
     this.#portTypes = portTypes;
   }
 
@@ -48,31 +50,33 @@ export class WorldMachineGraphReader implements ProjectGraphReadPort {
 
   async getDevice(device: string): Promise<DeviceDetail> {
     this.#session.assertAcceptingCalls();
+    // The reference is checked before anything is sent, as the command builder does for the rest of the batch.
+    buildCommand(['device', 'info'], device);
+    const infoRead = await deviceInfoCommands(this.#session, device);
     const commands = [
-      buildCommand(['device', 'select'], device),
-      'device info',
+      ...infoRead,
       buildCommand(['param', 'list'], device),
       buildCommand(['wire', 'list'], device),
       'device list',
     ];
     const responses = await this.#session.execute(commands);
-    // Indexed one by one: destructuring an array under `noUncheckedIndexedAccess` types each element as possibly undefined.
-    const select = requireFrame(responses[0]);
-    const info = requireFrame(responses[1]);
-    const params = requireFrame(responses[2]);
-    const wires = requireFrame(responses[3]);
-    const list = requireFrame(responses[4]);
-    for (const response of [select, info, params, wires, list]) throwIfFailed(response);
+    for (const response of responses) throwIfFailed(requireFrame(response));
+    // Indexed from the end: the info read is one command or two (device-info-read.ts). Indexed one by one, because
+    // destructuring an array under `noUncheckedIndexedAccess` types each element as possibly undefined.
+    const info = requireFrame(responses[infoRead.length - 1]);
+    const params = requireFrame(responses[infoRead.length]);
+    const wires = requireFrame(responses[infoRead.length + 1]);
+    const list = requireFrame(responses[infoRead.length + 2]);
     const detail = parseDeviceInfo(info.output);
     // Spec section 5: one batch, so the name is resolved after it. For an ambiguous name World Machine has already
-    // selected one of the devices; selection is not project state, so the refusal leaves nothing to undo.
+    // read (or selected) one of the devices; neither is project state, so the refusal leaves nothing to undo.
     // A `#<id>` reference carries its id, so a list row the parser rejects cannot fail the read.
     const id =
       idOfReference(device) ?? idOfReference(resolveDeviceReference(parseDeviceList(list.output), device));
     // World Machine selected a device, but no listed name matches: nothing tells which id it has.
     if (id === undefined) throw unexpectedOutput('device list', list.output);
-    // Enum-options design section 4. The build is read after the batch: the batch starts World Machine when it was
-    // not running, and only a start reads `system info` (world-machine-session.ts).
+    // Enum-options design section 4. The build is read once World Machine has started (deviceInfoCommands starts it),
+    // because only a start reads `system info` (world-machine-session.ts).
     const read = attachEnumOptions(
       {
         id,
@@ -83,7 +87,7 @@ export class WorldMachineGraphReader implements ProjectGraphReadPort {
         portTypes: 'unknown',
       },
       this.#session.status().systemInfo?.build,
-      this.#catalog,
+      this.#catalogs,
     );
     // Port-types design section 6, also after the batch; the fingerprint is the domain's (plan decision D5).
     return attachPortTypes(read, this.#portTypes.portsOf(read.type));

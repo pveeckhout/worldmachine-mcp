@@ -1116,7 +1116,9 @@ async function handle(line) {
   if (command.startsWith('device rename ')) {
     // raw/v4-quoting.txt l.13-14 and l.70-71: the new name is the final argument and may contain spaces; the
     // reference is echoed as given. The fake reads the reference as the first word (Plan 2c sends `#<id>`).
-    const [ref, name] = splitOnce(command.slice('device rename '.length));
+    const [ref, given] = splitOnce(command.slice('device rename '.length));
+    // raw/v4-quoting.txt l.30-31 (builds 4067 and 4069): quotes around the new name are stripped.
+    const name = /^".*"$/.test(given) ? given.slice(1, -1) : given;
     const device = findAdded(ref);
     if (device === undefined) return void notFound(ref);
     // raw/v3-rename-probe.txt l.51-74, l.87-110, and l.213-235 (spec fact 80): a Combiner confirms the rename and keeps its name.

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   attachPortTypes,
   NO_PORT_TYPES,
-  PORT_TYPE_CATALOG,
+  PORT_TYPE_CATALOG_4067,
+  PORT_TYPE_CATALOGS,
   WorldMachinePortTypes,
 } from '../../../../src/adapter/out/worldmachine/world-machine-port-types.js';
 import type { DeviceDetail } from '../../../../src/domain/device.js';
@@ -68,19 +69,27 @@ describe('WorldMachinePortTypes (port-types design sections 5 and 7)', () => {
   });
 
   it('types nothing on another build', () => {
-    const other = new WorldMachinePortTypes(statusOn(4068), SYNTHETIC_CATALOG);
+    const other = new WorldMachinePortTypes(statusOn(4068), [SYNTHETIC_CATALOG]);
     expect(other.portsOf('Create Water')).toBeUndefined();
     expect(other.portsOfAdded('Create Water')).toBeUndefined();
   });
 
+  it('types with the catalog of the running build among several', () => {
+    const empty = { ...SYNTHETIC_CATALOG, build: 4069, types: {} };
+    const on = (build: number) => new WorldMachinePortTypes(statusOn(build), [SYNTHETIC_CATALOG, empty]);
+    expect(on(4067).portsOf('Create Water')).toEqual(syntheticPortTypes.portsOf('Create Water'));
+    expect(on(4069).portsOf('Create Water')).toBeUndefined();
+    expect(on(4068).portsOf('Create Water')).toBeUndefined();
+  });
+
   it('types nothing when the session holds no system info', () => {
     expect(
-      new WorldMachinePortTypes(statusOn(undefined), SYNTHETIC_CATALOG).portsOf('Create Water'),
+      new WorldMachinePortTypes(statusOn(undefined), [SYNTHETIC_CATALOG]).portsOf('Create Water'),
     ).toBeUndefined();
   });
 
   it('types nothing without a catalog (port-types plan decisions D2 and D3)', () => {
-    expect(new WorldMachinePortTypes(statusOn(4067), undefined).portsOfAdded('Create Water')).toBeUndefined();
+    expect(new WorldMachinePortTypes(statusOn(4067), []).portsOfAdded('Create Water')).toBeUndefined();
     expect(NO_PORT_TYPES.portsOf('Create Water')).toBeUndefined();
     expect(NO_PORT_TYPES.portsOfAdded('Create Water')).toBeUndefined();
   });
@@ -136,7 +145,7 @@ describe('attachPortTypes (port-types design section 6)', () => {
 });
 
 describe('the shipped port-type catalog agrees with earlier captures (port-types plan decision D17)', () => {
-  const shipped = new WorldMachinePortTypes(statusOn(4067), PORT_TYPE_CATALOG);
+  const shipped = new WorldMachinePortTypes(statusOn(4067), [PORT_TYPE_CATALOG_4067]);
   // Every connect between console-added devices in raw/create-water-sea.txt (#536 and #542 Create Water, #537-539
   // Height Output from `device add File Output`, #540 Gradient, #541 Select Height), and two of
   // raw/reach-scaling-inputs.txt (#536 Reach Scaling, #537 Perlin Curve, #543 Shapes).
@@ -157,5 +166,24 @@ describe('the shipped port-type catalog agrees with earlier captures (port-types
         shipped.portsOf(destination)?.inputs.find((port) => port.port === input),
       ),
     ).toBe(expected);
+  });
+});
+
+describe('the shipped port-type catalogs on build 4069', () => {
+  const on = (build: number) => new WorldMachinePortTypes(statusOn(build), PORT_TYPE_CATALOGS);
+
+  it('types Create Water as on build 4067', () => {
+    expect(on(4069).portsOf('Create Water')).toBeDefined();
+    expect(on(4069).portsOf('Create Water')).toEqual(on(4067).portsOf('Create Water'));
+  });
+
+  it('finds the type of an add word by what it gives on 4069 (wm-4069/raw/port-types-sample.txt l.14491-14492)', () => {
+    expect(on(4069).portsOfAdded('Surface')).toEqual(on(4069).portsOf('Material'));
+    expect(on(4067).portsOfAdded('Surface')).toEqual(on(4067).portsOf('VDM Repair Surface'));
+  });
+
+  it('types no add word build 4069 refuses (wm-4069/raw/port-types-sample.txt l.3124)', () => {
+    expect(on(4069).portsOfAdded('Height')).toBeUndefined();
+    expect(on(4067).portsOfAdded('Height')).toBeDefined();
   });
 });

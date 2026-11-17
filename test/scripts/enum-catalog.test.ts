@@ -4,8 +4,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { parseEnumCatalog } from '../../scripts/enum-catalog.mjs';
-import { ENUM_CATALOG } from '../../src/adapter/out/worldmachine/enum-options.js';
+import { parseEnumCapture, parseEnumCatalog } from '../../scripts/enum-catalog.mjs';
+import {
+  ENUM_CATALOG_4067,
+  ENUM_CATALOG_4069,
+  ENUM_CATALOGS,
+} from '../../src/adapter/out/worldmachine/enum-options.js';
 import { parseParamList } from '../../src/adapter/out/worldmachine/parsers/param-list.js';
 
 const raw = (name: string) =>
@@ -44,6 +48,38 @@ const COMPOSITE_PARAMETERS = ['Pack/Unpack', 'Type'];
 // l.1523-1636: `device add Combiner`, its list row `#559   Combiner`, `device info #559` showing Scene View
 // (l.1548-1554), `param list #559`, then Method's current value, range probe, and eleven set and get pairs.
 const COMBINER = excerpt(1523, 1636);
+
+// Build 4069 (2026-11-17) refuses an add word that matches several device types (wm-4069/raw/enum-options.txt l.966).
+const raw4069 = (name: string) =>
+  readFileSync(new URL(`../fixtures/wm-4069/raw/${name}`, import.meta.url), 'utf8');
+const lines4069 = raw4069('enum-options.txt').split('\n');
+const excerpt4069 = (first: number, last: number) => lines4069.slice(first - 1, last).join('\n');
+const systemInfo4069 = raw4069('system-info.txt');
+const BRIGHTNESS_REFUSAL =
+  "Tag 'Brightness' matches multiple devices: Adjust Color, Bias/Gain, Gamma, Levels, Report Color, Select Color";
+
+describe('parseEnumCapture refused add words (build 4069)', () => {
+  it('skips an add refused as matching several devices, and reads the adds after it (wm-4069 l.965-1091)', () => {
+    // l.989-1031: the capture's retry by name, `device add Bias/Gain` (no enum rows); l.1032-1091: Channel Combiner.
+    const capture = parseEnumCapture(excerpt4069(965, 1091), systemInfo4069);
+    expect(capture.refusedAdds).toEqual([{ word: 'Brightness', reason: BRIGHTNESS_REFUSAL }]);
+    expect(capture.catalog).toEqual(parseEnumCatalog(excerpt4069(989, 1091), systemInfo4069));
+    expect(Object.keys(capture.catalog.types)).toEqual(['Channel Combiner']);
+  });
+
+  it('still fails on an add refused for another reason', () => {
+    // l.968-988 first: the device list World Machine shows after the refusal, so the add has a list to compare with.
+    const other = `${excerpt4069(968, 988)}\n${excerpt4069(965, 1091)}`.replace(
+      `Error: Error: ${BRIGHTNESS_REFUSAL}`,
+      "Error: Error: Unknown device type 'Brightness'",
+    );
+    expect(() => parseEnumCapture(other, systemInfo4069)).toThrow(/device add Brightness: no new device/);
+  });
+
+  it('reports no refused adds for the build 4067 capture', () => {
+    expect(parseEnumCapture(transcript, systemInfo).refusedAdds).toEqual([]);
+  });
+});
 
 describe('parseEnumCatalog (enum-options design section 3)', () => {
   it('keys a type by its device list row, not by device info, and drops trailing whitespace (l.1523-1636)', () => {
@@ -194,6 +230,28 @@ describe('scripts/build-enum-catalog.mjs (enum-options design section 3)', () =>
     }
   }
 
+  it('prints the catalog of a capture with refused adds and names each refused word on stderr (build 4069)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'enum-catalog-'));
+    try {
+      const path = join(dir, 'enum-options.txt');
+      copyFileSync(fileURLToPath(new URL('../fixtures/wm-4069/raw/enum-options.txt', import.meta.url)), path);
+      copyFileSync(
+        fileURLToPath(new URL('../fixtures/wm-4069/raw/system-info.txt', import.meta.url)),
+        join(dir, 'system-info.txt'),
+      );
+      const result = spawnSync(process.execPath, [script, path], { encoding: 'utf8' });
+      expect(result.status).toBe(0);
+      expect(JSON.parse(result.stdout).build).toBe(4069);
+      expect(result.stderr.trim().split('\n')).toEqual([
+        `skipped device add Brightness: ${BRIGHTNESS_REFUSAL}`,
+        "skipped device add Fractal: Tag 'Fractal' matches multiple devices: Advanced Perlin, Basic Noise, Perlin Curve, VDM Noise, Voronoi",
+        "skipped device add Rescale: Tag 'Rescale' matches multiple devices: Clamp, Levels, Scalar Clamp",
+      ]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('fails when no system-info.txt lies beside the transcript', () => {
     const result = generateBeside();
     expect(result.status).toBe(1);
@@ -211,15 +269,25 @@ describe('scripts/build-enum-catalog.mjs (enum-options design section 3)', () =>
 
 describe('the shipped enum catalog (enum-options design section 3)', () => {
   it('is exactly what raw/enum-options.txt parses to (parity)', () => {
-    expect(ENUM_CATALOG).toStrictEqual(parseEnumCatalog(transcript, systemInfo));
+    expect(ENUM_CATALOG_4067).toStrictEqual(parseEnumCatalog(transcript, systemInfo));
+  });
+
+  it('ships the build 4069 catalog its transcript parses to (parity)', () => {
+    expect(ENUM_CATALOG_4069).toStrictEqual(parseEnumCatalog(raw4069('enum-options.txt'), systemInfo4069));
+  });
+
+  it('ships one catalog per build, 4067 and 4069', () => {
+    expect(ENUM_CATALOGS.map((catalog) => catalog.build)).toEqual([4067, 4069]);
   });
 
   it('holds the 68 types and 111 enum parameters of fact 85', () => {
-    expect(ENUM_CATALOG.build).toBe(4067);
-    expect(Object.keys(ENUM_CATALOG.types)).toHaveLength(68);
-    expect(Object.values(ENUM_CATALOG.types).flatMap((entry) => Object.keys(entry.enums))).toHaveLength(111);
-    expect(ENUM_CATALOG.types.Combiner?.enums.Method).toEqual(COMBINER_METHOD);
-    expect(ENUM_CATALOG.types.Combiner?.parameters).toEqual(COMBINER_PARAMETERS);
+    expect(ENUM_CATALOG_4067.build).toBe(4067);
+    expect(Object.keys(ENUM_CATALOG_4067.types)).toHaveLength(68);
+    expect(Object.values(ENUM_CATALOG_4067.types).flatMap((entry) => Object.keys(entry.enums))).toHaveLength(
+      111,
+    );
+    expect(ENUM_CATALOG_4067.types.Combiner?.enums.Method).toEqual(COMBINER_METHOD);
+    expect(ENUM_CATALOG_4067.types.Combiner?.parameters).toEqual(COMBINER_PARAMETERS);
   });
 
   it("agrees with the adapter's parseParamList on the enum rows of every captured param list", () => {
@@ -243,8 +311,8 @@ describe('the shipped enum catalog (enum-options design section 3)', () => {
         .filter((parameter) => parameter.type === 'enum')
         .map((parameter) => parameter.name);
       if (enumNames.length === 0) continue;
-      expect(Object.keys(ENUM_CATALOG.types[type]?.enums ?? {})).toEqual(enumNames);
-      expect(ENUM_CATALOG.types[type]?.parameters).toEqual(
+      expect(Object.keys(ENUM_CATALOG_4067.types[type]?.enums ?? {})).toEqual(enumNames);
+      expect(ENUM_CATALOG_4067.types[type]?.parameters).toEqual(
         parseParamList(output).map((parameter) => parameter.name),
       );
       compared.add(type);
@@ -252,6 +320,6 @@ describe('the shipped enum catalog (enum-options design section 3)', () => {
     // The only blocks without a header are the five `Device '<name>' has no parameters.` lines (l.4097, l.4422,
     // l.4461, l.4500, l.5485), and every catalog type was compared, so nothing passed by being skipped.
     expect(withoutHeader).toBe(5);
-    expect([...compared].sort()).toEqual(Object.keys(ENUM_CATALOG.types).sort());
+    expect([...compared].sort()).toEqual(Object.keys(ENUM_CATALOG_4067.types).sort());
   });
 });

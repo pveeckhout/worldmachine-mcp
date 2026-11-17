@@ -3,7 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { FsPathPolicy } from '../../../../src/adapter/out/fs/path-policy.js';
-import { ENUM_CATALOG, type EnumCatalog } from '../../../../src/adapter/out/worldmachine/enum-options.js';
+import {
+  ENUM_CATALOG_4067,
+  type EnumCatalog,
+} from '../../../../src/adapter/out/worldmachine/enum-options.js';
 import { WorldMachineGraphReader } from '../../../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
 import {
   type PortTypeCatalog,
@@ -42,7 +45,7 @@ afterEach(async () => {
   await Promise.all(sessions.splice(0).map((session) => session.shutdown()));
 });
 
-function reader(extra: Record<string, string> = {}, catalog?: EnumCatalog) {
+function reader(extra: Record<string, string> = {}, catalog?: readonly EnumCatalog[]) {
   const record = recorder();
   const logger = captureLogger();
   const env = fakeEnv({ FAKE_WM_RECORD: record.path, ...extra });
@@ -132,6 +135,7 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
     const frame = (command: string, output: string[]) => ({ command, output, errors: [] });
     const session = {
       assertAcceptingCalls: () => undefined,
+      ensureRunning: async () => undefined,
       status: () => ({ systemInfo: SYSTEM_INFO }),
       execute: async () => [
         frame('device select "Gradient"', []),
@@ -171,21 +175,26 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
       '  Enabled: yes',
       '  Bypass:  no',
     ];
-    /** A session whose only batch answers with `listRows` as the `device list` frame; records every batch. */
-    function stub(device: string, info: string[], listRows: string[]) {
+    /**
+     * A session whose only batch answers with `listRows` as the `device list` frame; records every batch. On build
+     * 4069 the batch is the four commands of the by-reference read; before it, the five with `device select`.
+     */
+    function stub(device: string, info: string[], listRows: string[], build = SYSTEM_INFO.build) {
       const batches: (readonly string[])[] = [];
       const session = {
         assertAcceptingCalls: () => undefined,
-        status: () => ({ systemInfo: SYSTEM_INFO }),
+        ensureRunning: async () => undefined,
+        status: () => ({ systemInfo: { ...SYSTEM_INFO, build } }),
         execute: async (commands: readonly string[]) => {
           batches.push(commands);
-          return [
-            frame(`device select ${device}`, ['Selected: Gradient']),
-            frame('device info', info),
+          const rest = [
             frame(`param list ${device}`, lines('param-list-erosion.txt')),
             frame(`wire list ${device}`, lines('wire-list-erosion.txt')),
             frame('device list', listRows),
           ];
+          return build >= 4069
+            ? [frame(`device info ${device}`, info), ...rest]
+            : [frame(`device select ${device}`, ['Selected: Gradient']), frame('device info', info), ...rest];
         },
       } as unknown as WorldMachineSession;
       return { reader: new WorldMachineGraphReader(session), batches };
@@ -201,6 +210,24 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
       expect(batches).toEqual([
         ['device select gradient', 'device info', 'param list gradient', 'wire list gradient', 'device list'],
       ]);
+    });
+
+    it('reads a device on build 4069 by reference, without selecting it (live probes 2026-11-17)', async () => {
+      // wm-4069/raw/enum-options.txt l.51-58: `device info #<id>` names its device in the header.
+      const info4069 = [
+        'Device #35:',
+        ...gradientInfo.slice(1),
+        'Build results (history ID 641):',
+        '  (none stored)',
+      ];
+      const { reader: r, batches } = stub(
+        '#35',
+        info4069,
+        ['Devices (1 total):', '  #35    Gradient                '],
+        4069,
+      );
+      expect(await r.getDevice('#35')).toMatchObject({ id: 35, name: 'Gradient', type: 'Gradient' });
+      expect(batches).toEqual([['device info #35', 'param list #35', 'wire list #35', 'device list']]);
     });
 
     it('reads a #id device without parsing the device list, in one batch', async () => {
@@ -231,14 +258,16 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
       await expect(r.getDevice('Gradient')).rejects.toMatchObject({ code: 'UNEXPECTED_OUTPUT' });
     });
 
-    it('reads the build after the batch that starts World Machine (enum-options design section 4)', async () => {
+    it('reads the build once World Machine has started (enum-options design section 4)', async () => {
       // A session that has not started holds no system info; the batch starts World Machine, whose start reads it.
       let ran = false;
       const session = {
         assertAcceptingCalls: () => undefined,
+        ensureRunning: async () => {
+          ran = true;
+        },
         status: () => (ran ? { systemInfo: SYSTEM_INFO } : {}),
         execute: async () => {
-          ran = true;
           return [
             frame('device select #1', []),
             frame('device info', gradientInfo),
@@ -300,7 +329,7 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
 
 describe('WorldMachineGraphReader enum options (enum-options design section 4)', () => {
   /** The first device of a blank project after `device add <type>`, read with `catalog` (the shipped one if omitted). */
-  async function added(type: string, catalog?: EnumCatalog) {
+  async function added(type: string, catalog?: readonly EnumCatalog[]) {
     const { reader: r, session } = reader({}, catalog);
     await session.execute(['project new blank force', `device add ${type}`]);
     return r.getDevice('#1');
@@ -318,10 +347,10 @@ describe('WorldMachineGraphReader enum options (enum-options design section 4)',
   });
 
   it('omits options and names both builds when World Machine is another build', async () => {
-    const device = await added('Combiner', { ...ENUM_CATALOG, build: 4066 });
+    const device = await added('Combiner', [{ ...ENUM_CATALOG_4067, build: 4066 }]);
     expect(device.parameters.find((p) => p.name === 'Method')).not.toHaveProperty('options');
     expect(device.enumOptionsNote).toEqual([
-      'enum options omitted: the catalog is from build 4066, World Machine is build 4067',
+      'enum options omitted: no catalog for World Machine build 4067 (catalogs: 4066)',
     ]);
   });
 
@@ -338,20 +367,24 @@ describe('WorldMachineGraphReader enum options (enum-options design section 4)',
   });
 
   it('says the parameter is unknown when the type has no entry for it', async () => {
-    const device = await added('Gradient', {
-      build: 4067,
-      types: { Gradient: { parameters: ['Direction', 'Width', 'Tiling'], enums: { Other: ['A'] } } },
-    });
+    const device = await added('Gradient', [
+      {
+        build: 4067,
+        types: { Gradient: { parameters: ['Direction', 'Width', 'Tiling'], enums: { Other: ['A'] } } },
+      },
+    ]);
     expect(device.enumOptionsNote).toEqual(["no enum options known for 'Tiling' of type 'Gradient'"]);
   });
 
   it('omits options when the current value is not listed', async () => {
-    const device = await added('Gradient', {
-      build: 4067,
-      types: {
-        Gradient: { parameters: ['Direction', 'Width', 'Tiling'], enums: { Tiling: ['Mirrored Repeat'] } },
+    const device = await added('Gradient', [
+      {
+        build: 4067,
+        types: {
+          Gradient: { parameters: ['Direction', 'Width', 'Tiling'], enums: { Tiling: ['Mirrored Repeat'] } },
+        },
       },
-    });
+    ]);
     expect(device.parameters.find((p) => p.name === 'Tiling')).toEqual({
       name: 'Tiling',
       type: 'enum',
@@ -368,6 +401,7 @@ describe('WorldMachineGraphReader enum options (enum-options design section 4)',
     const frame = (command: string, output: string[]) => ({ command, output, errors: [] });
     const session = {
       assertAcceptingCalls: () => undefined,
+      ensureRunning: async () => undefined,
       status: () => ({ systemInfo: SYSTEM_INFO }),
       execute: async () => [
         frame('device select #314', []),
@@ -398,7 +432,7 @@ describe('WorldMachineGraphReader enum options (enum-options design section 4)',
 
   it('gives a device without enum rows no note, even on another build', async () => {
     // Round ruling 1: a new Erosion has seventeen parameters and no enum (raw/enum-options.txt l.2737-2754, Task 4).
-    const device = await added('Erosion', { ...ENUM_CATALOG, build: 4066 });
+    const device = await added('Erosion', [{ ...ENUM_CATALOG_4067, build: 4066 }]);
     expect(device.parameters).toHaveLength(17);
     expect(device.parameters.some((p) => p.type === 'enum')).toBe(false);
     expect(device).not.toHaveProperty('enumOptionsNote');
@@ -410,7 +444,11 @@ describe('WorldMachineGraphReader port types (port-types design sections 5 and 6
   async function typedReader(catalog: PortTypeCatalog = SYNTHETIC_CATALOG) {
     const { session } = reader();
     await session.execute(['project new blank force', 'device add Gradient', 'device add Combiner']);
-    return new WorldMachineGraphReader(session, ENUM_CATALOG, new WorldMachinePortTypes(session, catalog));
+    return new WorldMachineGraphReader(
+      session,
+      [ENUM_CATALOG_4067],
+      new WorldMachinePortTypes(session, [catalog]),
+    );
   }
 
   it("types a device whose ports equal the catalog's", async () => {

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { FsGraphTemplateLoader } from '../../../src/adapter/out/fs/graph-template-loader.js';
 import { FsPathPolicy } from '../../../src/adapter/out/fs/path-policy.js';
-import { ENUM_CATALOG } from '../../../src/adapter/out/worldmachine/enum-options.js';
+import { ENUM_CATALOGS } from '../../../src/adapter/out/worldmachine/enum-options.js';
 import { WorldMachineBuildResultReader } from '../../../src/adapter/out/worldmachine/world-machine-build-result-reader.js';
 import { WorldMachineBuilder } from '../../../src/adapter/out/worldmachine/world-machine-builder.js';
 import { WorldMachineDeviceEditor } from '../../../src/adapter/out/worldmachine/world-machine-device-editor.js';
@@ -56,8 +56,8 @@ function wired(extra: Record<string, string> = {}, catalog?: PortTypeCatalog) {
       WorldMachineProcess.start({ bin, readyTimeoutMs: 5_000, logger, env, signal, onSpawn }),
   });
   sessions.push(session);
-  const portTypes = new WorldMachinePortTypes(session, catalog);
-  const reader = new WorldMachineGraphReader(session, ENUM_CATALOG, portTypes);
+  const portTypes = new WorldMachinePortTypes(session, catalog === undefined ? [] : [catalog]);
+  const reader = new WorldMachineGraphReader(session, ENUM_CATALOGS, portTypes);
   const devices = new WorldMachineDeviceEditor(session);
   const snapshots = new WorldMachineSnapshotEditor(session);
   const wires = new WorldMachineWireEditor(session, portTypes);

@@ -36,7 +36,7 @@ const device = (type: string, parameters: Parameter[]): DeviceDetail => ({
 describe('attachEnumOptions (enum-options design section 4)', () => {
   it('attaches the options of a listed value and leaves other rows as read', () => {
     expect(
-      attachEnumOptions(device('Combiner', [enumRow('Method', 'Add'), STRENGTH]), 4067, CATALOG),
+      attachEnumOptions(device('Combiner', [enumRow('Method', 'Add'), STRENGTH]), 4067, [CATALOG]),
     ).toStrictEqual(
       device('Combiner', [{ ...enumRow('Method', 'Add'), options: ['Average', 'Add'] }, STRENGTH]),
     );
@@ -44,15 +44,37 @@ describe('attachEnumOptions (enum-options design section 4)', () => {
 
   it.each([4066, undefined])('returns a device without enum rows unchanged when the build is %s', (build) => {
     const plain = device('Combiner', [STRENGTH]);
-    expect(attachEnumOptions(plain, build, CATALOG)).toBe(plain);
+    expect(attachEnumOptions(plain, build, [CATALOG])).toBe(plain);
   });
 
   it.each<[number | undefined, string]>([
-    [4066, 'enum options omitted: the catalog is from build 4067, World Machine is build 4066'],
-    [undefined, 'enum options omitted: the catalog is from build 4067, World Machine is build unknown'],
+    [4066, 'enum options omitted: no catalog for World Machine build 4066 (catalogs: 4067)'],
+    [undefined, 'enum options omitted: no catalog for World Machine build unknown (catalogs: 4067)'],
   ])('omits every option with one note when the build is %s', (build, note) => {
     const read = device('Combiner', [enumRow('Method', 'Add'), STRENGTH]);
-    expect(attachEnumOptions(read, build, CATALOG)).toStrictEqual({ ...read, enumOptionsNote: [note] });
+    expect(attachEnumOptions(read, build, [CATALOG])).toStrictEqual({ ...read, enumOptionsNote: [note] });
+  });
+
+  it("uses the catalog of World Machine's build among several", () => {
+    const other: EnumCatalog = {
+      build: 4069,
+      types: {
+        Combiner: { parameters: ['Method', 'Strength'], enums: { Method: ['Average', 'Add', 'Max'] } },
+      },
+    };
+    const read = device('Combiner', [enumRow('Method', 'Add'), STRENGTH]);
+    expect(attachEnumOptions(read, 4069, [CATALOG, other]).parameters[0]).toHaveProperty('options', [
+      'Average',
+      'Add',
+      'Max',
+    ]);
+    expect(attachEnumOptions(read, 4067, [CATALOG, other]).parameters[0]).toHaveProperty('options', [
+      'Average',
+      'Add',
+    ]);
+    expect(attachEnumOptions(read, 4070, [CATALOG, other]).enumOptionsNote).toEqual([
+      'enum options omitted: no catalog for World Machine build 4070 (catalogs: 4067, 4069)',
+    ]);
   });
 
   it('gives one note per distinct reason, in row order', () => {
@@ -61,7 +83,7 @@ describe('attachEnumOptions (enum-options design section 4)', () => {
       enumRow('Planform Type', 'Simple Alignment'),
       enumRow('Channel Type', 'Curved'),
     ]);
-    expect(attachEnumOptions(river, 4067, CATALOG).enumOptionsNote).toEqual([
+    expect(attachEnumOptions(river, 4067, [CATALOG]).enumOptionsNote).toEqual([
       "no enum options known for type 'River'",
     ]);
     // A listed row keeps its options beside rows omitted for two other reasons; `Mode` is in `parameters` only.
@@ -70,7 +92,7 @@ describe('attachEnumOptions (enum-options design section 4)', () => {
       enumRow('Type', '0'),
       enumRow('Mode', 'A'),
     ]);
-    expect(attachEnumOptions(composite, 4067, CATALOG)).toStrictEqual({
+    expect(attachEnumOptions(composite, 4067, [CATALOG])).toStrictEqual({
       ...device('Composite Type', [
         {
           ...enumRow('Pack/Unpack', 'Unpack from Composite Type'),
@@ -88,7 +110,7 @@ describe('attachEnumOptions (enum-options design section 4)', () => {
 
   it('omits the options of a value the catalog does not list', () => {
     const read = device('Combiner', [enumRow('Method', 'Screen'), STRENGTH]);
-    expect(attachEnumOptions(read, 4067, CATALOG)).toStrictEqual({
+    expect(attachEnumOptions(read, 4067, [CATALOG])).toStrictEqual({
       ...read,
       enumOptionsNote: ["'Method' shows 'Screen', which the catalog does not list; its options are omitted"],
     });
@@ -114,7 +136,7 @@ describe('attachEnumOptions (enum-options design section 4)', () => {
       { name: 'Basin Restructuring', type: 'float', value: '1.25°' },
       enumRow('fillquality', 'Fast'),
     ]);
-    expect(attachEnumOptions(older, 4067, catalog)).toStrictEqual({
+    expect(attachEnumOptions(older, 4067, [catalog])).toStrictEqual({
       ...older,
       enumOptionsNote: [
         "enum options omitted: this 'Flow Restructure' has other parameters than a new 'Flow Restructure' (another device version)",
@@ -132,7 +154,7 @@ describe('attachEnumOptions (enum-options design section 4)', () => {
       'Combiner',
       names.map((name) => (name === 'Method' ? enumRow('Method', 'Add') : { ...STRENGTH, name })),
     );
-    const result = attachEnumOptions(read, 4067, CATALOG);
+    const result = attachEnumOptions(read, 4067, [CATALOG]);
     expect(result.parameters).toStrictEqual(read.parameters);
     expect(result.enumOptionsNote).toEqual([
       "enum options omitted: this 'Combiner' has other parameters than a new 'Combiner' (another device version)",
@@ -141,17 +163,17 @@ describe('attachEnumOptions (enum-options design section 4)', () => {
 
   it('gives a type missing from the catalog only its type note, whatever its parameter names', () => {
     const river = device('River', [enumRow('Planform Type', 'Simple Alignment')]);
-    expect(attachEnumOptions(river, 4067, CATALOG).enumOptionsNote).toEqual([
+    expect(attachEnumOptions(river, 4067, [CATALOG]).enumOptionsNote).toEqual([
       "no enum options known for type 'River'",
     ]);
   });
 
   it('looks up own catalog entries only, not Object.prototype members', () => {
     expect(
-      attachEnumOptions(device('constructor', [enumRow('x', 'A')]), 4067, CATALOG).enumOptionsNote,
+      attachEnumOptions(device('constructor', [enumRow('x', 'A')]), 4067, [CATALOG]).enumOptionsNote,
     ).toEqual(["no enum options known for type 'constructor'"]);
     expect(
-      attachEnumOptions(device('Combiner', [enumRow('toString', 'A'), STRENGTH]), 4067, CATALOG)
+      attachEnumOptions(device('Combiner', [enumRow('toString', 'A'), STRENGTH]), 4067, [CATALOG])
         .enumOptionsNote,
     ).toEqual(["no enum options known for 'toString' of type 'Combiner'"]);
   });

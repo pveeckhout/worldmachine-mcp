@@ -1,0 +1,83 @@
+>>> project new blank force
+Created new blank project.
+[Info       ] Closing current project
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> device add File Output
+Error: Error: Tag 'File Output' matches multiple devices: Height Output, VDM Output
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> param list Gradient
+Parameters for 'Gradient' (Gradient):
+  Direction                 int       0
+  Width                     float     8 km
+  Tiling                    enum      Clamp
+
+<<<
+>>> param list Gradient
+Parameters for 'Gradient' (Gradient):
+  Direction                 int       0
+  Width                     float     8 km
+  Tiling                    enum      Clamp
+
+<<<
+>>> param get Gradient.Direction
+Gradient.Direction = 0
+<<<
+>>> param set Gradient.Direction 0.5
+Error: Error: Invalid integer value: 0.5
+<<<
+>>> param get Gradient.Direction
+Gradient.Direction = 0
+<<<
+>>> param set Gradient.Direction 2
+Set Gradient.Direction = 2
+<<<
+>>> param get Gradient.Direction
+Gradient.Direction = 2
+<<<
+>>> param get Gradient.exportAlways
+Error: Error: Parameter 'exportAlways' not found on device 'Gradient'.
+<<<
+>>> param set Gradient.exportAlways true
+Error: Error: Parameter 'exportAlways' not found on device 'Gradient'.
+<<<
+>>> param get Gradient.exportAlways
+Error: Error: Parameter 'exportAlways' not found on device 'Gradient'.
+<<<
+>>> param set Gradient.exportAlways 0
+Error: Error: Parameter 'exportAlways' not found on device 'Gradient'.
+<<<
+>>> param get Gradient.exportAlways
+Error: Error: Parameter 'exportAlways' not found on device 'Gradient'.
+<<<
+>>> param set Gradient.filename <WORK>/out.png
+Error: Error: Parameter 'filename' not found on device 'Gradient'.
+<<<
+>>> param get Gradient.filename
+Error: Error: Parameter 'filename' not found on device 'Gradient'.
+<<<
+>>> param set Gradient.format PNG (16bit)
+Error: Error: Parameter 'format' not found on device 'Gradient'.
+<<<
+>>> param get Gradient.format
+Error: Error: Parameter 'format' not found on device 'Gradient'.
+<<<
+>>> param list Gradient
+Parameters for 'Gradient' (Gradient):
+  Direction                 int       2
+  Width                     float     8 km
+  Tiling                    enum      Clamp
+
+<<<
