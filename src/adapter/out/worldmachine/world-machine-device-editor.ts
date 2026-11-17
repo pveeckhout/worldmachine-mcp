@@ -204,10 +204,13 @@ export class WorldMachineDeviceEditor implements DeviceEditPort {
 
   /** `device rename #<id> <name>`, then the device's `device list` row, which must show the new name. */
   async #rename(id: number, name: string): Promise<DeviceSummary> {
-    const responses = await this.#session.execute([
-      buildCommand(['device', 'rename', `#${id}`], name),
-      'device list',
-    ]);
+    // Build 4069 answers `device rename #<id>` with a name that has a space with its usage text unless the name is
+    // quoted (its raw/p2c-edits.txt l.27-29 and l.78-80); a one-word name still goes unquoted (its raw/v4-quoting.txt
+    // l.70-71). Both builds strip the quotes (raw/v4-quoting.txt l.30-31).
+    const rename = /\s/.test(name)
+      ? buildCommand(['device', 'rename', `#${id}`, { quoted: name }])
+      : buildCommand(['device', 'rename', `#${id}`], name);
+    const responses = await this.#session.execute([rename, 'device list']);
     const renamed = requireFrame(responses[0]);
     const list = requireFrame(responses[1]);
     throwIfFailed(renamed);

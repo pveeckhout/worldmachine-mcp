@@ -2,13 +2,19 @@ import { unexpectedOutput } from './unexpected.js';
 
 const FIELD = /^\s+(Name|Type|Enabled|Bypass):\s+(.*?)\s*$/;
 
+/**
+ * Build 4067 heads the output `Selected device:`; build 4069 heads it `Device #<id>:` and appends the device's build
+ * results, which the field pattern skips (raw/v5-read-formats.txt of each build).
+ */
+const HEADER = /^(?:Selected device|Device #\d+):$/;
+
 export function parseDeviceInfo(output: readonly string[]): {
   name: string;
   type: string;
   enabled: boolean;
   bypassed: boolean;
 } {
-  if (output[0]?.trim() !== 'Selected device:') throw unexpectedOutput('device info', output);
+  if (!HEADER.test(output[0]?.trim() ?? '')) throw unexpectedOutput('device info', output);
   const fields = new Map<string, string>();
   for (const line of output.slice(1)) {
     const match = FIELD.exec(line);

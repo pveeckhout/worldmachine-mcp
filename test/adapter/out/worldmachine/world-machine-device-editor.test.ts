@@ -70,7 +70,7 @@ describe('WorldMachineDeviceEditor.addDevice', () => {
       enabled: true,
       bypassed: false,
     });
-    expect(sent(record).slice(3)).toEqual(['device rename #536 Grad A', 'device list']);
+    expect(sent(record).slice(3)).toEqual(['device rename #536 "Grad A"', 'device list']);
   });
 
   it('refuses a name device list could not read back before World Machine starts', async () => {
@@ -86,7 +86,7 @@ describe('WorldMachineDeviceEditor.addDevice', () => {
   });
 
   it('reports a missing rename confirmation after the add, with the project modified', async () => {
-    const { session, editor: e } = editor({ FAKE_WM_SILENT_ON: 'device rename #536 Grad A' });
+    const { session, editor: e } = editor({ FAKE_WM_SILENT_ON: 'device rename #536 "Grad A"' });
     await expect(e.addDevice('Gradient', 'Grad A')).rejects.toMatchObject({
       code: 'UNEXPECTED_OUTPUT',
       message: expect.stringContaining("Added #536 'Gradient', but the rename failed"),
@@ -167,7 +167,7 @@ describe('WorldMachineDeviceEditor.renameDevice', () => {
       device: { id: 536, name: 'Grad B', kind: 'Gradient', enabled: true, bypassed: false },
       previousName: 'Gradient',
     });
-    expect(sent(record).slice(3)).toEqual(['device list', 'device rename #536 Grad B', 'device list']);
+    expect(sent(record).slice(3)).toEqual(['device list', 'device rename #536 "Grad B"', 'device list']);
     expect(session.status().session.dirty).toBe(true);
   });
 
@@ -185,21 +185,43 @@ describe('WorldMachineDeviceEditor.renameDevice', () => {
           ],
         },
       ],
-      'device rename #4 Grad A B': [{ output: ["Renamed '#4' to 'Grad A B'"] }],
+      'device rename #4 "Grad A B"': [{ output: ["Renamed '#4' to 'Grad A B'"] }],
     });
     expect(await new WorldMachineDeviceEditor(s.session).renameDevice('#4', 'Grad A B')).toEqual({
       device: { id: 4, name: 'Grad A B', kind: 'Gradient', enabled: true, bypassed: false },
       previousName: 'Gradient',
     });
-    expect(s.batches).toEqual([['device list'], ['device rename #4 Grad A B', 'device list']]);
+    expect(s.batches).toEqual([['device list'], ['device rename #4 "Grad A B"', 'device list']]);
     expect(s.dirtyMarks()).toBe(1);
+  });
+
+  it('sends a one-word name unquoted (build 4069 raw/v4-quoting.txt l.70-78)', async () => {
+    const s = scriptedSession({
+      'device list': [
+        { output: P2C_DEVICES },
+        {
+          output: [
+            'Devices (4 total):',
+            '  #1     Gradient                ',
+            '  #2     Combiner                ',
+            '  #3     Height Output           ',
+            '  #4     GradById                 (Gradient)',
+          ],
+        },
+      ],
+      'device rename #4 GradById': [{ output: ["Renamed '#4' to 'GradById'"] }],
+    });
+    expect((await new WorldMachineDeviceEditor(s.session).renameDevice('#4', 'GradById')).device.name).toBe(
+      'GradById',
+    );
+    expect(s.batches).toEqual([['device list'], ['device rename #4 GradById', 'device list']]);
   });
 
   it('reports a confirmed rename that device list does not show as WM_COMMAND_FAILED (ruling K3)', async () => {
     const s = scriptedSession({
       // Assumed: a rename without effect; no capture shows one. The rows are raw/p2c-edits.txt l.21-25.
       'device list': [{ output: P2C_DEVICES }, { output: P2C_DEVICES }],
-      'device rename #4 Grad A B': [{ output: ["Renamed '#4' to 'Grad A B'"] }],
+      'device rename #4 "Grad A B"': [{ output: ["Renamed '#4' to 'Grad A B'"] }],
     });
     await expect(
       new WorldMachineDeviceEditor(s.session).renameDevice('#4', 'Grad A B'),
@@ -260,7 +282,6 @@ const info = (enabled: string, bypass: string) => [
   `  Bypass:  ${bypass}`,
 ];
 const ONE_GRADIENT = ['Devices (1 total):', '  #1     Gradient                '];
-
 describe('WorldMachineDeviceEditor.setDeviceBypassed', () => {
   it('sets bypass, reads it back, and marks the project modified', async () => {
     const { session, editor: e, record } = editor();
