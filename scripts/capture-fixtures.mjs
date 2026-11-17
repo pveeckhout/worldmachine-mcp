@@ -3414,6 +3414,22 @@ async function floatScale(sections) {
   sections.push(...(await run(['project close force'])));
 }
 
+// Build 4069 refuses an add word that matches several device types (wm-4069/raw/enum-options.txt l.966, l.3264,
+// l.6142). The capture then adds the type by the name the word gave on build 4067 (the ENUM_TYPES comment above;
+// Rescale added `Rescale (Clamp)`, raw/enum-options.txt l.6019-6087).
+const ADD_BY_NAME = {
+  Anisotropy: 'VDM Features',
+  Balance: 'VDM Detail Sifter',
+  Border: 'VDM Repair Surface',
+  Brightness: 'Bias/Gain',
+  Fractal: 'VDM Noise',
+  Integer: 'Select by ID',
+  Mesh: 'VDM to HF+Cliff',
+  Rescale: 'Clamp',
+  Sphere: 'VDM Primitive',
+};
+const AMBIGUOUS_ADD = /matches multiple devices/;
+
 async function enumOptions(sections) {
   const listed = await run(['project new default force', 'device list']);
   sections.push(...listed);
@@ -3422,8 +3438,14 @@ async function enumOptions(sections) {
   for (const type of ENUM_TYPES) {
     let id;
     try {
-      const added = await run([`device add ${type}`, 'device list']);
+      let added = await run([`device add ${type}`, 'device list']);
       sections.push(...added);
+      const byName = ADD_BY_NAME[type];
+      if (byName !== undefined && added[0].lines.some((line) => AMBIGUOUS_ADD.test(line))) {
+        added = await run([`device add ${byName}`, 'device list']);
+        sections.push(...added);
+        outcomes.push(`${type}: refused as ambiguous, added as ${byName}`);
+      }
       // The new device is the one the list after the add shows for the first time.
       const fresh = devices(added[1].lines).filter((device) => !known.has(device.id));
       for (const device of fresh) known.add(device.id);
@@ -3925,8 +3947,9 @@ try {
       if (!build) throw new Error('could not read the build number from system info');
       outDir = join('test', 'fixtures', `wm-${build}`, 'raw');
       mkdirSync(outDir, { recursive: true });
-      // A filtered run leaves the committed system-info capture untouched.
-      if (only.length > 0) continue;
+      // A filtered run leaves a committed system-info capture untouched, but writes one for a build that has none:
+      // scripts/build-enum-catalog.mjs reads the build from it.
+      if (only.length > 0 && existsSync(join(outDir, 'system-info.txt'))) continue;
     }
     writeFileSync(join(outDir, `${name}.txt`), render(sections));
     console.log(`captured ${name}`);

@@ -61,7 +61,7 @@ Build results (history ID 642):
 Parameters for 'Add Noise' (Add Noise):
   Noise Type                enum      Normal noise
   Noise Amount              float     0.1
-  Seed                      int       18337
+  Seed                      int       4299
   Adjust by Scale           bool      true
 
 <<<
@@ -218,7 +218,7 @@ Parameters for 'Advanced Perlin' (Advanced Perlin):
   Persistence               float     0.5
   Lacunarity                float     2.051
   Octaves                   int       (auto)
-  Seed                      int       21147
+  Seed                      int       8000
   Steepness                 float     0.5
   Elevation                 float     1312 m
   Specify Height Range      other     false
@@ -721,7 +721,7 @@ Parameters for 'Basic Noise' (Basic Noise):
   Octaves                   int       0
   Gain                      float     2.0
   Offset                    float     0.75
-  Seed                      int       31125
+  Seed                      int       29455
   Height                    float     40.0
   Distortion Amount         float     1.0
   Distortion Enable         bool      false
@@ -986,6 +986,49 @@ Devices (17 total):
   #373   Rock and Soil           
 
 <<<
+>>> device add Bias/Gain
+Added 'Bias/Gain'
+<<<
+>>> device list
+Devices (18 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #549   Bias/Gain               
+
+<<<
+>>> device info #549
+Device #549:
+  Name:    Bias/Gain
+  Type:    Bias/Gain
+  Enabled: yes
+  Bypass:  no
+Build results (history ID 710):
+  (none stored)
+<<<
+>>> param list #549
+Parameters for 'Bias/Gain' (Bias/Gain):
+  Bias                      float     0.5
+  Gain                      float     0.5
+
+<<<
+>>> device delete #549
+Deleted: #549
+<<<
 >>> device add Channel Combiner
 Added 'Channel Combiner'
 <<<
@@ -1008,80 +1051,20 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #549   Channel Combiner        
-
-<<<
->>> device info #549
-Device #549:
-  Name:    Channel Combiner
-  Type:    Channel Combiner
-  Enabled: yes
-  Bypass:  no
-Build results (history ID 710):
-  (none stored)
-<<<
->>> param list #549
-Parameters for 'Channel Combiner' (Channel Combiner):
-  Channel Type              enum      Red / Green / Blue
-
-<<<
->>> param get #549.Channel Type
-#549.Channel Type = Red / Green / Blue
-<<<
->>> param set "#549.Channel Type" 9999
-Error: Error: Enum index out of range (0-1): 9999
-<<<
->>> param set "#549.Channel Type" 0
-Set #549.Channel Type = 0
-<<<
->>> param get #549.Channel Type
-#549.Channel Type = Red / Green / Blue
-<<<
->>> param set "#549.Channel Type" 1
-Set #549.Channel Type = 1
-<<<
->>> param get #549.Channel Type
-#549.Channel Type = Hue / Saturation / Brightness (
-<<<
->>> device delete #549
-Deleted: #549
-<<<
->>> device add Channel Splitter
-Added 'Channel Splitter'
-<<<
->>> device list
-Devices (18 total):
-  #1     Height Output           
-  #2     Advanced Perlin         
-  #3     Curves                  
-  #35    Erosion                 
-  #36    Scene View              
-  #222   Vegetation Layer        
-  #304   Layers                  
-  #305   Thermal Weathering      
-  #307   Ambient Occlusion       
-  #308   Material Output         
-  #309   Colormap only            (Bitmap Output)
-  #310   Tap                     
-  #314   Flow Restructure        
-  #317   Texture Weightmap       
-  #318   Splatmap                 (Bitmap Output)
-  #319   Easy Distortion          (Macro)
-  #373   Rock and Soil           
-  #550   Channel Splitter        
+  #550   Channel Combiner        
 
 <<<
 >>> device info #550
 Device #550:
-  Name:    Channel Splitter
-  Type:    Channel Splitter
+  Name:    Channel Combiner
+  Type:    Channel Combiner
   Enabled: yes
   Bypass:  no
-Build results (history ID 714):
+Build results (history ID 712):
   (none stored)
 <<<
 >>> param list #550
-Parameters for 'Channel Splitter' (Channel Splitter):
+Parameters for 'Channel Combiner' (Channel Combiner):
   Channel Type              enum      Red / Green / Blue
 
 <<<
@@ -1106,6 +1089,66 @@ Set #550.Channel Type = 1
 >>> device delete #550
 Deleted: #550
 <<<
+>>> device add Channel Splitter
+Added 'Channel Splitter'
+<<<
+>>> device list
+Devices (18 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #551   Channel Splitter        
+
+<<<
+>>> device info #551
+Device #551:
+  Name:    Channel Splitter
+  Type:    Channel Splitter
+  Enabled: yes
+  Bypass:  no
+Build results (history ID 716):
+  (none stored)
+<<<
+>>> param list #551
+Parameters for 'Channel Splitter' (Channel Splitter):
+  Channel Type              enum      Red / Green / Blue
+
+<<<
+>>> param get #551.Channel Type
+#551.Channel Type = Red / Green / Blue
+<<<
+>>> param set "#551.Channel Type" 9999
+Error: Error: Enum index out of range (0-1): 9999
+<<<
+>>> param set "#551.Channel Type" 0
+Set #551.Channel Type = 0
+<<<
+>>> param get #551.Channel Type
+#551.Channel Type = Red / Green / Blue
+<<<
+>>> param set "#551.Channel Type" 1
+Set #551.Channel Type = 1
+<<<
+>>> param get #551.Channel Type
+#551.Channel Type = Hue / Saturation / Brightness (
+<<<
+>>> device delete #551
+Deleted: #551
+<<<
 >>> device add Checkpoint
 Added 'Checkpoint'
 <<<
@@ -1128,25 +1171,25 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #551   Checkpoint              
+  #552   Checkpoint              
 
 <<<
->>> device info #551
-Device #551:
+>>> device info #552
+Device #552:
   Name:    Checkpoint
   Type:    Checkpoint
   Enabled: yes
   Bypass:  no
-Build results (history ID 718):
+Build results (history ID 720):
   (none stored)
 <<<
->>> param list #551
+>>> param list #552
 Parameters for 'Checkpoint' (Checkpoint):
   Number of Ports           int       1
 
 <<<
->>> device delete #551
-Deleted: #551
+>>> device delete #552
+Deleted: #552
 <<<
 >>> device add Chooser
 Added 'Chooser'
@@ -1170,75 +1213,75 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #552   Chooser                 
+  #553   Chooser                 
 
 <<<
->>> device info #552
-Device #552:
+>>> device info #553
+Device #553:
   Name:    Chooser
   Type:    Chooser
   Enabled: yes
   Bypass:  no
-Build results (history ID 720):
+Build results (history ID 722):
   (none stored)
 <<<
->>> param list #552
+>>> param list #553
 Parameters for 'Chooser' (Chooser):
   Method                    enum      Alpha Blend
   Mix order                 enum      High values choose B
   Favor Elevations From     float     0.5
 
 <<<
->>> param get #552.Method
-#552.Method = Alpha Blend
+>>> param get #553.Method
+#553.Method = Alpha Blend
 <<<
->>> param set "#552.Method" 9999
+>>> param set "#553.Method" 9999
 Error: Error: Enum index out of range (0-3): 9999
 <<<
->>> param set "#552.Method" 0
-Set #552.Method = 0
+>>> param set "#553.Method" 0
+Set #553.Method = 0
 <<<
->>> param get #552.Method
-#552.Method = Alpha Blend
+>>> param get #553.Method
+#553.Method = Alpha Blend
 <<<
->>> param set "#552.Method" 1
-Set #552.Method = 1
+>>> param set "#553.Method" 1
+Set #553.Method = 1
 <<<
->>> param get #552.Method
-#552.Method = Height Matching
+>>> param get #553.Method
+#553.Method = Height Matching
 <<<
->>> param set "#552.Method" 2
-Set #552.Method = 2
+>>> param set "#553.Method" 2
+Set #553.Method = 2
 <<<
->>> param get #552.Method
-#552.Method = Pre-multiplied (Specialty)
+>>> param get #553.Method
+#553.Method = Pre-multiplied (Specialty)
 <<<
->>> param set "#552.Method" 3
-Set #552.Method = 3
+>>> param set "#553.Method" 3
+Set #553.Method = 3
 <<<
->>> param get #552.Method
-#552.Method = Add (DEPRECATED)
+>>> param get #553.Method
+#553.Method = Add (DEPRECATED)
 <<<
->>> param get #552.Mix order
-#552.Mix order = High values choose B
+>>> param get #553.Mix order
+#553.Mix order = High values choose B
 <<<
->>> param set "#552.Mix order" 9999
+>>> param set "#553.Mix order" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#552.Mix order" 0
-Set #552.Mix order = 0
+>>> param set "#553.Mix order" 0
+Set #553.Mix order = 0
 <<<
->>> param get #552.Mix order
-#552.Mix order = High values choose A
+>>> param get #553.Mix order
+#553.Mix order = High values choose A
 <<<
->>> param set "#552.Mix order" 1
-Set #552.Mix order = 1
+>>> param set "#553.Mix order" 1
+Set #553.Mix order = 1
 <<<
->>> param get #552.Mix order
-#552.Mix order = High values choose B
+>>> param get #553.Mix order
+#553.Mix order = High values choose B
 <<<
->>> device delete #552
-Deleted: #552
+>>> device delete #553
+Deleted: #553
 <<<
 >>> device add Cnoidal Curve
 Added 'Cnoidal Curve'
@@ -1262,19 +1305,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #553   Cnoidal Curve           
+  #554   Cnoidal Curve           
 
 <<<
->>> device info #553
-Device #553:
+>>> device info #554
+Device #554:
   Name:    Cnoidal Curve
   Type:    Cnoidal Curve
   Enabled: yes
   Bypass:  no
-Build results (history ID 728):
+Build results (history ID 730):
   (none stored)
 <<<
->>> param list #553
+>>> param list #554
 Parameters for 'Cnoidal Curve' (Cnoidal Curve):
   Frequency sin1            float     1.0
   Amplitude sin1            float     1.0
@@ -1282,8 +1325,8 @@ Parameters for 'Cnoidal Curve' (Cnoidal Curve):
   Wave shape (m)            float     0.9
 
 <<<
->>> device delete #553
-Deleted: #553
+>>> device delete #554
+Deleted: #554
 <<<
 >>> device add Coast Erosion
 Added 'Coast Erosion'
@@ -1307,19 +1350,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #554   Coast Erosion           
+  #555   Coast Erosion           
 
 <<<
->>> device info #554
-Device #554:
+>>> device info #555
+Device #555:
   Name:    Coast Erosion
   Type:    Coast Erosion
   Enabled: yes
   Bypass:  no
-Build results (history ID 730):
+Build results (history ID 732):
   (none stored)
 <<<
->>> param list #554
+>>> param list #555
 Parameters for 'Coast Erosion' (Coast Erosion):
   Simulation Type           enum      Simple (fast)
   Use Global Water Level    bool      false
@@ -1331,38 +1374,38 @@ Parameters for 'Coast Erosion' (Coast Erosion):
   Smoothing Amount          int       4
 
 <<<
->>> param get #554.Simulation Type
-#554.Simulation Type = Simple (fast)
+>>> param get #555.Simulation Type
+#555.Simulation Type = Simple (fast)
 <<<
->>> param set "#554.Simulation Type" 9999
+>>> param set "#555.Simulation Type" 9999
 Error: Error: Enum index out of range (0-0): 9999
 <<<
->>> param set "#554.Simulation Type" 0
-Set #554.Simulation Type = 0
+>>> param set "#555.Simulation Type" 0
+Set #555.Simulation Type = 0
 <<<
->>> param get #554.Simulation Type
-#554.Simulation Type = Simple (fast)
+>>> param get #555.Simulation Type
+#555.Simulation Type = Simple (fast)
 <<<
->>> param get #554.Transition Zone
-#554.Transition Zone = Smooth
+>>> param get #555.Transition Zone
+#555.Transition Zone = Smooth
 <<<
->>> param set "#554.Transition Zone" 9999
+>>> param set "#555.Transition Zone" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#554.Transition Zone" 0
-Set #554.Transition Zone = 0
+>>> param set "#555.Transition Zone" 0
+Set #555.Transition Zone = 0
 <<<
->>> param get #554.Transition Zone
-#554.Transition Zone = Smooth
+>>> param get #555.Transition Zone
+#555.Transition Zone = Smooth
 <<<
->>> param set "#554.Transition Zone" 1
-Set #554.Transition Zone = 1
+>>> param set "#555.Transition Zone" 1
+Set #555.Transition Zone = 1
 <<<
->>> param get #554.Transition Zone
-#554.Transition Zone = Cliffs
+>>> param get #555.Transition Zone
+#555.Transition Zone = Cliffs
 <<<
->>> device delete #554
-Deleted: #554
+>>> device delete #555
+Deleted: #555
 <<<
 >>> device add Code
 Added 'Code'
@@ -1386,25 +1429,25 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #555   Code                    
+  #556   Code                    
 
 <<<
->>> device info #555
-Device #555:
+>>> device info #556
+Device #556:
   Name:    Code
   Type:    Code
   Enabled: yes
   Bypass:  no
-Build results (history ID 735):
+Build results (history ID 737):
   (none stored)
 <<<
->>> param list #555
+>>> param list #556
 Parameters for 'Code' (Code):
   parm0                     float     8 km
 
 <<<
->>> device delete #555
-Deleted: #555
+>>> device delete #556
+Deleted: #556
 <<<
 >>> device add Color
 Added 'Color'
@@ -1428,25 +1471,25 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #556   Color                   
+  #557   Color                   
 
 <<<
->>> device info #556
-Device #556:
+>>> device info #557
+Device #557:
   Name:    Color
   Type:    Color
   Enabled: yes
   Bypass:  no
-Build results (history ID 737):
+Build results (history ID 739):
   (none stored)
 <<<
->>> param list #556
+>>> param list #557
 Parameters for 'Color' (Color):
   Color                     other     
 
 <<<
->>> device delete #556
-Deleted: #556
+>>> device delete #557
+Deleted: #557
 <<<
 >>> device add Colorizer
 Added 'Colorizer'
@@ -1470,49 +1513,49 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #557   Colorizer               
+  #558   Colorizer               
 
 <<<
->>> device info #557
-Device #557:
+>>> device info #558
+Device #558:
   Name:    Colorizer
   Type:    Colorizer
   Enabled: yes
   Bypass:  no
-Build results (history ID 739):
+Build results (history ID 741):
   (none stored)
 <<<
->>> param list #557
+>>> param list #558
 Parameters for 'Colorizer' (Colorizer):
   Method                    enum      Use gradient
 
 <<<
->>> param get #557.Method
-#557.Method = Use gradient
+>>> param get #558.Method
+#558.Method = Use gradient
 <<<
->>> param set "#557.Method" 9999
+>>> param set "#558.Method" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#557.Method" 0
-Set #557.Method = 0
+>>> param set "#558.Method" 0
+Set #558.Method = 0
 <<<
->>> param get #557.Method
-#557.Method = Use gradient
+>>> param get #558.Method
+#558.Method = Use gradient
 <<<
->>> param set "#557.Method" 1
-Set #557.Method = 1
+>>> param set "#558.Method" 1
+Set #558.Method = 1
 <<<
->>> param get #557.Method
-#557.Method = Use global colortable
+>>> param get #558.Method
+#558.Method = Use global colortable
 <<<
->>> param set "#557.Method" 2
-Set #557.Method = 2
+>>> param set "#558.Method" 2
+Set #558.Method = 2
 <<<
->>> param get #557.Method
-#557.Method = Use imported colors
+>>> param get #558.Method
+#558.Method = Use imported colors
 <<<
->>> device delete #557
-Deleted: #557
+>>> device delete #558
+Deleted: #558
 <<<
 >>> device add Combiner
 Added 'Combiner'
@@ -1536,98 +1579,98 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #558   Combiner                
+  #559   Combiner                
 
 <<<
->>> device info #558
-Device #558:
+>>> device info #559
+Device #559:
   Name:    Combiner
   Type:    Combiner
   Enabled: yes
   Bypass:  no
-Build results (history ID 744):
+Build results (history ID 746):
   (none stored)
 <<<
->>> param list #558
+>>> param list #559
 Parameters for 'Combiner' (Combiner):
   Method                    enum      Average
   Strength                  float     0.5
 
 <<<
->>> param get #558.Method
-#558.Method = Average
+>>> param get #559.Method
+#559.Method = Average
 <<<
->>> param set "#558.Method" 9999
+>>> param set "#559.Method" 9999
 Error: Error: Enum index out of range (0-10): 9999
 <<<
->>> param set "#558.Method" 0
-Set #558.Method = 0
+>>> param set "#559.Method" 0
+Set #559.Method = 0
 <<<
->>> param get #558.Method
-#558.Method = Average
+>>> param get #559.Method
+#559.Method = Average
 <<<
->>> param set "#558.Method" 1
-Set #558.Method = 1
+>>> param set "#559.Method" 1
+Set #559.Method = 1
 <<<
->>> param get #558.Method
-#558.Method = Add 
+>>> param get #559.Method
+#559.Method = Add 
 <<<
->>> param set "#558.Method" 2
-Set #558.Method = 2
+>>> param set "#559.Method" 2
+Set #559.Method = 2
 <<<
->>> param get #558.Method
-#558.Method = Subtract
+>>> param get #559.Method
+#559.Method = Subtract
 <<<
->>> param set "#558.Method" 3
-Set #558.Method = 3
+>>> param set "#559.Method" 3
+Set #559.Method = 3
 <<<
->>> param get #558.Method
-#558.Method = Multiply
+>>> param get #559.Method
+#559.Method = Multiply
 <<<
->>> param set "#558.Method" 4
-Set #558.Method = 4
+>>> param set "#559.Method" 4
+Set #559.Method = 4
 <<<
->>> param get #558.Method
-#558.Method = Max
+>>> param get #559.Method
+#559.Method = Max
 <<<
->>> param set "#558.Method" 5
-Set #558.Method = 5
+>>> param set "#559.Method" 5
+Set #559.Method = 5
 <<<
->>> param get #558.Method
-#558.Method = Min
+>>> param get #559.Method
+#559.Method = Min
 <<<
->>> param set "#558.Method" 6
-Set #558.Method = 6
+>>> param set "#559.Method" 6
+Set #559.Method = 6
 <<<
->>> param get #558.Method
-#558.Method = Power
+>>> param get #559.Method
+#559.Method = Power
 <<<
->>> param set "#558.Method" 7
-Set #558.Method = 7
+>>> param set "#559.Method" 7
+Set #559.Method = 7
 <<<
->>> param get #558.Method
-#558.Method = Root
+>>> param get #559.Method
+#559.Method = Root
 <<<
->>> param set "#558.Method" 8
-Set #558.Method = 8
+>>> param set "#559.Method" 8
+Set #559.Method = 8
 <<<
->>> param get #558.Method
-#558.Method = Detail
+>>> param get #559.Method
+#559.Method = Detail
 <<<
->>> param set "#558.Method" 9
-Set #558.Method = 9
+>>> param set "#559.Method" 9
+Set #559.Method = 9
 <<<
->>> param get #558.Method
-#558.Method = Differences
+>>> param get #559.Method
+#559.Method = Differences
 <<<
->>> param set "#558.Method" 10
-Set #558.Method = 10
+>>> param set "#559.Method" 10
+Set #559.Method = 10
 <<<
->>> param get #558.Method
-#558.Method = Screen
+>>> param get #559.Method
+#559.Method = Screen
 <<<
->>> device delete #558
-Deleted: #558
+>>> device delete #559
+Deleted: #559
 <<<
 >>> device add Compare maps
 Added 'Compare maps'
@@ -1651,19 +1694,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #559   Compare maps            
+  #560   Compare maps            
 
 <<<
->>> device info #559
-Device #559:
+>>> device info #560
+Device #560:
   Name:    Compare maps
   Type:    Compare maps
   Enabled: yes
   Bypass:  no
-Build results (history ID 757):
+Build results (history ID 759):
   (none stored)
 <<<
->>> param list #559
+>>> param list #560
 Parameters for 'Compare maps' (Compare maps):
   comparison                enum      A < B
   groupFalloff              other     
@@ -1672,74 +1715,74 @@ Parameters for 'Compare maps' (Compare maps):
   falloffCurve              enum      Exponential
 
 <<<
->>> param get #559.comparison
-#559.comparison = A < B
+>>> param get #560.comparison
+#560.comparison = A < B
 <<<
->>> param set "#559.comparison" 9999
+>>> param set "#560.comparison" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#559.comparison" 0
-Set #559.comparison = 0
+>>> param set "#560.comparison" 0
+Set #560.comparison = 0
 <<<
->>> param get #559.comparison
-#559.comparison = A < B
+>>> param get #560.comparison
+#560.comparison = A < B
 <<<
->>> param set "#559.comparison" 1
-Set #559.comparison = 1
+>>> param set "#560.comparison" 1
+Set #560.comparison = 1
 <<<
->>> param get #559.comparison
-#559.comparison = A > B
+>>> param get #560.comparison
+#560.comparison = A > B
 <<<
->>> param set "#559.comparison" 2
-Set #559.comparison = 2
+>>> param set "#560.comparison" 2
+Set #560.comparison = 2
 <<<
->>> param get #559.comparison
-#559.comparison = A = B
+>>> param get #560.comparison
+#560.comparison = A = B
 <<<
->>> param get #559.falloffPos
-#559.falloffPos = Centered
+>>> param get #560.falloffPos
+#560.falloffPos = Centered
 <<<
->>> param set "#559.falloffPos" 9999
+>>> param set "#560.falloffPos" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#559.falloffPos" 0
-Set #559.falloffPos = 0
+>>> param set "#560.falloffPos" 0
+Set #560.falloffPos = 0
 <<<
->>> param get #559.falloffPos
-#559.falloffPos = External
+>>> param get #560.falloffPos
+#560.falloffPos = External
 <<<
->>> param set "#559.falloffPos" 1
-Set #559.falloffPos = 1
+>>> param set "#560.falloffPos" 1
+Set #560.falloffPos = 1
 <<<
->>> param get #559.falloffPos
-#559.falloffPos = Internal
+>>> param get #560.falloffPos
+#560.falloffPos = Internal
 <<<
->>> param set "#559.falloffPos" 2
-Set #559.falloffPos = 2
+>>> param set "#560.falloffPos" 2
+Set #560.falloffPos = 2
 <<<
->>> param get #559.falloffPos
-#559.falloffPos = Centered
+>>> param get #560.falloffPos
+#560.falloffPos = Centered
 <<<
->>> param get #559.falloffCurve
-#559.falloffCurve = Exponential
+>>> param get #560.falloffCurve
+#560.falloffCurve = Exponential
 <<<
->>> param set "#559.falloffCurve" 9999
+>>> param set "#560.falloffCurve" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#559.falloffCurve" 0
-Set #559.falloffCurve = 0
+>>> param set "#560.falloffCurve" 0
+Set #560.falloffCurve = 0
 <<<
->>> param get #559.falloffCurve
-#559.falloffCurve = Linear
+>>> param get #560.falloffCurve
+#560.falloffCurve = Linear
 <<<
->>> param set "#559.falloffCurve" 1
-Set #559.falloffCurve = 1
+>>> param set "#560.falloffCurve" 1
+Set #560.falloffCurve = 1
 <<<
->>> param get #559.falloffCurve
-#559.falloffCurve = Exponential
+>>> param get #560.falloffCurve
+#560.falloffCurve = Exponential
 <<<
->>> device delete #559
-Deleted: #559
+>>> device delete #560
+Deleted: #560
 <<<
 >>> device add Composite Type
 Added 'Composite Type'
@@ -1763,50 +1806,50 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #560   Composite Type          
+  #561   Composite Type          
 
 <<<
->>> device info #560
-Device #560:
+>>> device info #561
+Device #561:
   Name:    Composite Type
   Type:    Composite Type
   Enabled: yes
   Bypass:  no
-Build results (history ID 767):
+Build results (history ID 769):
   (none stored)
 <<<
->>> param list #560
+>>> param list #561
 Parameters for 'Composite Type' (Composite Type):
   Pack/Unpack               enum      Unpack from Composite Type
   Type                      enum      0
 
 <<<
->>> param get #560.Pack/Unpack
-#560.Pack/Unpack = Unpack from Composite Type
+>>> param get #561.Pack/Unpack
+#561.Pack/Unpack = Unpack from Composite Type
 <<<
->>> param set "#560.Pack/Unpack" 9999
+>>> param set "#561.Pack/Unpack" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#560.Pack/Unpack" 0
-Set #560.Pack/Unpack = 0
+>>> param set "#561.Pack/Unpack" 0
+Set #561.Pack/Unpack = 0
 <<<
->>> param get #560.Pack/Unpack
-#560.Pack/Unpack = Pack to Composite Type
+>>> param get #561.Pack/Unpack
+#561.Pack/Unpack = Pack to Composite Type
 <<<
->>> param set "#560.Pack/Unpack" 1
-Set #560.Pack/Unpack = 1
+>>> param set "#561.Pack/Unpack" 1
+Set #561.Pack/Unpack = 1
 <<<
->>> param get #560.Pack/Unpack
-#560.Pack/Unpack = Unpack from Composite Type
+>>> param get #561.Pack/Unpack
+#561.Pack/Unpack = Unpack from Composite Type
 <<<
->>> param get #560.Type
-#560.Type = 0
+>>> param get #561.Type
+#561.Type = 0
 <<<
->>> param set "#560.Type" 9999
+>>> param set "#561.Type" 9999
 Error: Error: Enum index out of range (0--1): 9999
 <<<
->>> device delete #560
-Deleted: #560
+>>> device delete #561
+Deleted: #561
 <<<
 >>> device add Constant
 Added 'Constant'
@@ -1830,25 +1873,25 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #561   Constant                
+  #562   Constant                
 
 <<<
->>> device info #561
-Device #561:
+>>> device info #562
+Device #562:
   Name:    Constant
   Type:    Constant
   Enabled: yes
   Bypass:  no
-Build results (history ID 771):
+Build results (history ID 773):
   (none stored)
 <<<
->>> param list #561
+>>> param list #562
 Parameters for 'Constant' (Constant):
   Height                    float     0 m
 
 <<<
->>> device delete #561
-Deleted: #561
+>>> device delete #562
+Deleted: #562
 <<<
 >>> device add Construct Range
 Added 'Construct Range'
@@ -1872,19 +1915,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #562   Construct Range          (Construct Parameter)
+  #563   Construct Range          (Construct Parameter)
 
 <<<
->>> device info #562
-Device #562:
+>>> device info #563
+Device #563:
   Name:    Construct Range
   Type:    Construct Parameter
   Enabled: yes
   Bypass:  no
-Build results (history ID 773):
+Build results (history ID 775):
   (none stored)
 <<<
->>> param list #562
+>>> param list #563
 Parameters for 'Construct Range' (Construct Parameter):
   type                      enum      Range
   groupRange                other     
@@ -1904,44 +1947,44 @@ Parameters for 'Construct Range' (Construct Parameter):
   l                         float     0.0
 
 <<<
->>> param get #562.type
-#562.type = Range
+>>> param get #563.type
+#563.type = Range
 <<<
->>> param set "#562.type" 9999
+>>> param set "#563.type" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#562.type" 0
-Set #562.type = 0
+>>> param set "#563.type" 0
+Set #563.type = 0
 <<<
->>> param get #562.type
-#562.type = Range
+>>> param get #563.type
+#563.type = Range
 <<<
->>> param set "#562.type" 1
-Set #562.type = 1
+>>> param set "#563.type" 1
+Set #563.type = 1
 <<<
->>> param get #562.type
-#562.type = Color
+>>> param get #563.type
+#563.type = Color
 <<<
->>> param get #562.colorFrom
-#562.colorFrom = RGB
+>>> param get #563.colorFrom
+#563.colorFrom = RGB
 <<<
->>> param set "#562.colorFrom" 9999
+>>> param set "#563.colorFrom" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#562.colorFrom" 0
-Set #562.colorFrom = 0
+>>> param set "#563.colorFrom" 0
+Set #563.colorFrom = 0
 <<<
->>> param get #562.colorFrom
-#562.colorFrom = RGB
+>>> param get #563.colorFrom
+#563.colorFrom = RGB
 <<<
->>> param set "#562.colorFrom" 1
-Set #562.colorFrom = 1
+>>> param set "#563.colorFrom" 1
+Set #563.colorFrom = 1
 <<<
->>> param get #562.colorFrom
-#562.colorFrom = HSV
+>>> param get #563.colorFrom
+#563.colorFrom = HSV
 <<<
->>> device delete #562
-Deleted: #562
+>>> device delete #563
+Deleted: #563
 <<<
 >>> device add Control Device
 Added 'Control Device'
@@ -1965,19 +2008,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #563   Control Device          
+  #564   Control Device          
 
 <<<
->>> device info #563
-Device #563:
+>>> device info #564
+Device #564:
   Name:    Control Device
   Type:    Control Device
   Enabled: yes
   Bypass:  no
-Build results (history ID 779):
+Build results (history ID 781):
   (none stored)
 <<<
->>> param list #563
+>>> param list #564
 Parameters for 'Control Device' (Control Device):
   disable                   bool      false
   bypass                    bool      false
@@ -1987,32 +2030,32 @@ Parameters for 'Control Device' (Control Device):
   localH                    float     1.0
 
 <<<
->>> param get #563.spatialMethod
-#563.spatialMethod = Inherited (Default)
+>>> param get #564.spatialMethod
+#564.spatialMethod = Inherited (Default)
 <<<
->>> param set "#563.spatialMethod" 9999
+>>> param set "#564.spatialMethod" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#563.spatialMethod" 0
-Set #563.spatialMethod = 0
+>>> param set "#564.spatialMethod" 0
+Set #564.spatialMethod = 0
 <<<
->>> param get #563.spatialMethod
-#563.spatialMethod = Worldspace
+>>> param get #564.spatialMethod
+#564.spatialMethod = Worldspace
 <<<
->>> param set "#563.spatialMethod" 1
-Set #563.spatialMethod = 1
+>>> param set "#564.spatialMethod" 1
+Set #564.spatialMethod = 1
 <<<
->>> param get #563.spatialMethod
-#563.spatialMethod = Localspace
+>>> param get #564.spatialMethod
+#564.spatialMethod = Localspace
 <<<
->>> param set "#563.spatialMethod" 2
-Set #563.spatialMethod = 2
+>>> param set "#564.spatialMethod" 2
+Set #564.spatialMethod = 2
 <<<
->>> param get #563.spatialMethod
-#563.spatialMethod = Inherited (Default)
+>>> param get #564.spatialMethod
+#564.spatialMethod = Inherited (Default)
 <<<
->>> device delete #563
-Deleted: #563
+>>> device delete #564
+Deleted: #564
 <<<
 >>> device add Coordinate Generator
 Added 'Coordinate Generator'
@@ -2036,26 +2079,26 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #564   Coordinate Generator    
+  #565   Coordinate Generator    
 
 <<<
->>> device info #564
-Device #564:
+>>> device info #565
+Device #565:
   Name:    Coordinate Generator
   Type:    Coordinate Generator
   Enabled: yes
   Bypass:  no
-Build results (history ID 784):
+Build results (history ID 786):
   (none stored)
 <<<
->>> param list #564
+>>> param list #565
 Parameters for 'Coordinate Generator' (Coordinate Generator):
   X Value                   float     0.0
   Y Value                   float     0.0
 
 <<<
->>> device delete #564
-Deleted: #564
+>>> device delete #565
+Deleted: #565
 <<<
 >>> device add Create Normals
 Added 'Create Normals'
@@ -2079,45 +2122,45 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #565   Create Normals          
+  #566   Create Normals          
 
 <<<
->>> device info #565
-Device #565:
+>>> device info #566
+Device #566:
   Name:    Create Normals
   Type:    Create Normals
   Enabled: yes
   Bypass:  no
-Build results (history ID 786):
+Build results (history ID 788):
   (none stored)
 <<<
->>> param list #565
+>>> param list #566
 Parameters for 'Create Normals' (Create Normals):
   Encoding Type             enum      OpenGL convention (Green +Y)
   Flip X                    bool      false
   Flip Y                    bool      false
 
 <<<
->>> param get #565.Encoding Type
-#565.Encoding Type = OpenGL convention (Green +Y)
+>>> param get #566.Encoding Type
+#566.Encoding Type = OpenGL convention (Green +Y)
 <<<
->>> param set "#565.Encoding Type" 9999
+>>> param set "#566.Encoding Type" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#565.Encoding Type" 0
-Set #565.Encoding Type = 0
+>>> param set "#566.Encoding Type" 0
+Set #566.Encoding Type = 0
 <<<
->>> param get #565.Encoding Type
-#565.Encoding Type = OpenGL convention (Green +Y)
+>>> param get #566.Encoding Type
+#566.Encoding Type = OpenGL convention (Green +Y)
 <<<
->>> param set "#565.Encoding Type" 1
-Set #565.Encoding Type = 1
+>>> param set "#566.Encoding Type" 1
+Set #566.Encoding Type = 1
 <<<
->>> param get #565.Encoding Type
-#565.Encoding Type = DirectX convention (Green -Y)
+>>> param get #566.Encoding Type
+#566.Encoding Type = DirectX convention (Green -Y)
 <<<
->>> device delete #565
-Deleted: #565
+>>> device delete #566
+Deleted: #566
 <<<
 >>> device add Create Water
 Added 'Create Water'
@@ -2141,19 +2184,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #566   Create Water            
+  #567   Create Water            
 
 <<<
->>> device info #566
-Device #566:
+>>> device info #567
+Device #567:
   Name:    Create Water
   Type:    Create Water
   Enabled: yes
   Bypass:  no
-Build results (history ID 790):
+Build results (history ID 792):
   (none stored)
 <<<
->>> param list #566
+>>> param list #567
 Parameters for 'Create Water' (Create Water):
   Drain to:                 enum      Map borders and existing water
   Headwater Locations       enum      Automatic
@@ -2166,68 +2209,68 @@ Parameters for 'Create Water' (Create Water):
   Edit headwater locations...  action    
 
 <<<
->>> param get #566.Drain to:
-#566.Drain to: = Map borders and existing water
+>>> param get #567.Drain to:
+#567.Drain to: = Map borders and existing water
 <<<
->>> param set "#566.Drain to:" 9999
+>>> param set "#567.Drain to:" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#566.Drain to:" 0
-Set #566.Drain to: = 0
+>>> param set "#567.Drain to:" 0
+Set #567.Drain to: = 0
 <<<
->>> param get #566.Drain to:
-#566.Drain to: = Map borders and existing water
+>>> param get #567.Drain to:
+#567.Drain to: = Map borders and existing water
 <<<
->>> param set "#566.Drain to:" 1
-Set #566.Drain to: = 1
+>>> param set "#567.Drain to:" 1
+Set #567.Drain to: = 1
 <<<
->>> param get #566.Drain to:
-#566.Drain to: = Existing water only
+>>> param get #567.Drain to:
+#567.Drain to: = Existing water only
 <<<
->>> param get #566.Headwater Locations
-#566.Headwater Locations = Automatic
+>>> param get #567.Headwater Locations
+#567.Headwater Locations = Automatic
 <<<
->>> param set "#566.Headwater Locations" 9999
+>>> param set "#567.Headwater Locations" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#566.Headwater Locations" 0
-Set #566.Headwater Locations = 0
+>>> param set "#567.Headwater Locations" 0
+Set #567.Headwater Locations = 0
 <<<
->>> param get #566.Headwater Locations
-#566.Headwater Locations = Automatic
+>>> param get #567.Headwater Locations
+#567.Headwater Locations = Automatic
 <<<
->>> param set "#566.Headwater Locations" 1
-Set #566.Headwater Locations = 1
+>>> param set "#567.Headwater Locations" 1
+Set #567.Headwater Locations = 1
 <<<
->>> param get #566.Headwater Locations
-#566.Headwater Locations = Specified
+>>> param get #567.Headwater Locations
+#567.Headwater Locations = Specified
 <<<
->>> param get #566.Channel Model
-#566.Channel Model = Full channels
+>>> param get #567.Channel Model
+#567.Channel Model = Full channels
 <<<
->>> param set "#566.Channel Model" 9999
+>>> param set "#567.Channel Model" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#566.Channel Model" 0
-Set #566.Channel Model = 0
+>>> param set "#567.Channel Model" 0
+Set #567.Channel Model = 0
 <<<
->>> param get #566.Channel Model
-#566.Channel Model = Do not carve channels
+>>> param get #567.Channel Model
+#567.Channel Model = Do not carve channels
 <<<
->>> param set "#566.Channel Model" 1
-Set #566.Channel Model = 1
+>>> param set "#567.Channel Model" 1
+Set #567.Channel Model = 1
 <<<
->>> param get #566.Channel Model
-#566.Channel Model = Simple channels (single pixel)
+>>> param get #567.Channel Model
+#567.Channel Model = Simple channels (single pixel)
 <<<
->>> param set "#566.Channel Model" 2
-Set #566.Channel Model = 2
+>>> param set "#567.Channel Model" 2
+Set #567.Channel Model = 2
 <<<
->>> param get #566.Channel Model
-#566.Channel Model = Full channels
+>>> param get #567.Channel Model
+#567.Channel Model = Full channels
 <<<
->>> device delete #566
-Deleted: #566
+>>> device delete #567
+Deleted: #567
 <<<
 >>> device add Crop & Transform
 Added 'Crop & Transform'
@@ -2251,19 +2294,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #567   Crop & Transform        
+  #568   Crop & Transform        
 
 <<<
->>> device info #567
-Device #567:
+>>> device info #568
+Device #568:
   Name:    Crop & Transform
   Type:    Crop & Transform
   Enabled: yes
   Bypass:  no
-Build results (history ID 799):
+Build results (history ID 801):
   (none stored)
 <<<
->>> param list #567
+>>> param list #568
 Parameters for 'Crop & Transform' (Crop & Transform):
   resType                   enum      Original Or Smaller
   res                       int       1024
@@ -2272,56 +2315,56 @@ Parameters for 'Crop & Transform' (Crop & Transform):
   height                    float     1.0
 
 <<<
->>> param get #567.resType
-#567.resType = Original Or Smaller
+>>> param get #568.resType
+#568.resType = Original Or Smaller
 <<<
->>> param set "#567.resType" 9999
+>>> param set "#568.resType" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#567.resType" 0
-Set #567.resType = 0
+>>> param set "#568.resType" 0
+Set #568.resType = 0
 <<<
->>> param get #567.resType
-#567.resType = Original Or Smaller
+>>> param get #568.resType
+#568.resType = Original Or Smaller
 <<<
->>> param set "#567.resType" 1
-Set #567.resType = 1
+>>> param set "#568.resType" 1
+Set #568.resType = 1
 <<<
->>> param get #567.resType
-#567.resType = Expandable
+>>> param get #568.resType
+#568.resType = Expandable
 <<<
->>> param get #567.outside
-#567.outside = Blank
+>>> param get #568.outside
+#568.outside = Blank
 <<<
->>> param set "#567.outside" 9999
+>>> param set "#568.outside" 9999
 Error: Error: Enum index out of range (0-3): 9999
 <<<
->>> param set "#567.outside" 0
-Set #567.outside = 0
+>>> param set "#568.outside" 0
+Set #568.outside = 0
 <<<
->>> param get #567.outside
-#567.outside = Blank
+>>> param get #568.outside
+#568.outside = Blank
 <<<
->>> param set "#567.outside" 1
-Set #567.outside = 1
+>>> param set "#568.outside" 1
+Set #568.outside = 1
 <<<
->>> param get #567.outside
-#567.outside = Edge values
+>>> param get #568.outside
+#568.outside = Edge values
 <<<
->>> param set "#567.outside" 2
-Set #567.outside = 2
+>>> param set "#568.outside" 2
+Set #568.outside = 2
 <<<
->>> param get #567.outside
-#567.outside = Repeat Interior
+>>> param get #568.outside
+#568.outside = Repeat Interior
 <<<
->>> param set "#567.outside" 3
-Set #567.outside = 3
+>>> param set "#568.outside" 3
+Set #568.outside = 3
 <<<
->>> param get #567.outside
-#567.outside = Mirror Interior
+>>> param get #568.outside
+#568.outside = Mirror Interior
 <<<
->>> device delete #567
-Deleted: #567
+>>> device delete #568
+Deleted: #568
 <<<
 >>> device add Crystallize
 Added 'Crystallize'
@@ -2345,19 +2388,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #568   Crystallize             
+  #569   Crystallize             
 
 <<<
->>> device info #568
-Device #568:
+>>> device info #569
+Device #569:
   Name:    Crystallize
   Type:    Crystallize
   Enabled: yes
   Bypass:  no
-Build results (history ID 807):
+Build results (history ID 809):
   (none stored)
 <<<
->>> param list #568
+>>> param list #569
 Parameters for 'Crystallize' (Crystallize):
   Cell Shape                enum      Hexagon
   Size                      float     1 km
@@ -2365,26 +2408,26 @@ Parameters for 'Crystallize' (Crystallize):
   FMask                     bool      true
 
 <<<
->>> param get #568.Cell Shape
-#568.Cell Shape = Hexagon
+>>> param get #569.Cell Shape
+#569.Cell Shape = Hexagon
 <<<
->>> param set "#568.Cell Shape" 9999
+>>> param set "#569.Cell Shape" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#568.Cell Shape" 0
-Set #568.Cell Shape = 0
+>>> param set "#569.Cell Shape" 0
+Set #569.Cell Shape = 0
 <<<
->>> param get #568.Cell Shape
-#568.Cell Shape = Square
+>>> param get #569.Cell Shape
+#569.Cell Shape = Square
 <<<
->>> param set "#568.Cell Shape" 1
-Set #568.Cell Shape = 1
+>>> param set "#569.Cell Shape" 1
+Set #569.Cell Shape = 1
 <<<
->>> param get #568.Cell Shape
-#568.Cell Shape = Hexagon
+>>> param get #569.Cell Shape
+#569.Cell Shape = Hexagon
 <<<
->>> device delete #568
-Deleted: #568
+>>> device delete #569
+Deleted: #569
 <<<
 >>> device add Curve Chooser
 Added 'Curve Chooser'
@@ -2408,25 +2451,25 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #569   Curve Chooser           
+  #570   Curve Chooser           
 
 <<<
->>> device info #569
-Device #569:
+>>> device info #570
+Device #570:
   Name:    Curve Chooser
   Type:    Curve Chooser
   Enabled: yes
   Bypass:  no
-Build results (history ID 811):
+Build results (history ID 813):
   (none stored)
 <<<
->>> param list #569
+>>> param list #570
 Parameters for 'Curve Chooser' (Curve Chooser):
   Contrast                  float     0.0
 
 <<<
->>> device delete #569
-Deleted: #569
+>>> device delete #570
+Deleted: #570
 <<<
 >>> device add Curve Combiner
 Added 'Curve Combiner'
@@ -2450,62 +2493,62 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #570   Curve Combiner          
+  #571   Curve Combiner          
 
 <<<
->>> device info #570
-Device #570:
+>>> device info #571
+Device #571:
   Name:    Curve Combiner
   Type:    Curve Combiner
   Enabled: yes
   Bypass:  no
-Build results (history ID 813):
+Build results (history ID 815):
   (none stored)
 <<<
->>> param list #570
+>>> param list #571
 Parameters for 'Curve Combiner' (Curve Combiner):
   How to Combine            enum      Add
   Strength                  float     1.0
 
 <<<
->>> param get #570.How to Combine
-#570.How to Combine = Add
+>>> param get #571.How to Combine
+#571.How to Combine = Add
 <<<
->>> param set "#570.How to Combine" 9999
+>>> param set "#571.How to Combine" 9999
 Error: Error: Enum index out of range (0-4): 9999
 <<<
->>> param set "#570.How to Combine" 0
-Set #570.How to Combine = 0
+>>> param set "#571.How to Combine" 0
+Set #571.How to Combine = 0
 <<<
->>> param get #570.How to Combine
-#570.How to Combine = Add
+>>> param get #571.How to Combine
+#571.How to Combine = Add
 <<<
->>> param set "#570.How to Combine" 1
-Set #570.How to Combine = 1
+>>> param set "#571.How to Combine" 1
+Set #571.How to Combine = 1
 <<<
->>> param get #570.How to Combine
-#570.How to Combine = Subtract
+>>> param get #571.How to Combine
+#571.How to Combine = Subtract
 <<<
->>> param set "#570.How to Combine" 2
-Set #570.How to Combine = 2
+>>> param set "#571.How to Combine" 2
+Set #571.How to Combine = 2
 <<<
->>> param get #570.How to Combine
-#570.How to Combine = Multiply
+>>> param get #571.How to Combine
+#571.How to Combine = Multiply
 <<<
->>> param set "#570.How to Combine" 3
-Set #570.How to Combine = 3
+>>> param set "#571.How to Combine" 3
+Set #571.How to Combine = 3
 <<<
->>> param get #570.How to Combine
-#570.How to Combine = Average
+>>> param get #571.How to Combine
+#571.How to Combine = Average
 <<<
->>> param set "#570.How to Combine" 4
-Set #570.How to Combine = 4
+>>> param set "#571.How to Combine" 4
+Set #571.How to Combine = 4
 <<<
->>> param get #570.How to Combine
-#570.How to Combine = Modulate (Phase)
+>>> param get #571.How to Combine
+#571.How to Combine = Modulate (Phase)
 <<<
->>> device delete #570
-Deleted: #570
+>>> device delete #571
+Deleted: #571
 <<<
 >>> device add Curves
 Added 'Curves'
@@ -2529,26 +2572,26 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #571   Curves                  
+  #572   Curves                  
 
 <<<
->>> device info #571
-Device #571:
+>>> device info #572
+Device #572:
   Name:    Curves
   Type:    Curves
   Enabled: yes
   Bypass:  no
-Build results (history ID 820):
+Build results (history ID 822):
   (none stored)
 <<<
->>> param list #571
+>>> param list #572
 Parameters for 'Curves' (Curves):
   curvedata                 other     
   Curve Power               float     1.0
 
 <<<
->>> device delete #571
-Deleted: #571
+>>> device delete #572
+Deleted: #572
 <<<
 >>> device add Dissolve
 Added 'Dissolve'
@@ -2572,39 +2615,39 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #572   Dissolve                
+  #573   Dissolve                
 
 <<<
->>> device info #572
-Device #572:
+>>> device info #573
+Device #573:
   Name:    Dissolve
   Type:    Dissolve
   Enabled: yes
   Bypass:  no
-Build results (history ID 822):
+Build results (history ID 824):
   (none stored)
 <<<
->>> param list #572
+>>> param list #573
 Parameters for 'Dissolve' (Dissolve):
   Probability Type          enum      Random (White Noise)
   Bias                      float     0.5
   Strength                  float     1.0
 
 <<<
->>> param get #572.Probability Type
-#572.Probability Type = Random (White Noise)
+>>> param get #573.Probability Type
+#573.Probability Type = Random (White Noise)
 <<<
->>> param set "#572.Probability Type" 9999
+>>> param set "#573.Probability Type" 9999
 Error: Error: Enum index out of range (0-0): 9999
 <<<
->>> param set "#572.Probability Type" 0
-Set #572.Probability Type = 0
+>>> param set "#573.Probability Type" 0
+Set #573.Probability Type = 0
 <<<
->>> param get #572.Probability Type
-#572.Probability Type = Random (White Noise)
+>>> param get #573.Probability Type
+#573.Probability Type = Random (White Noise)
 <<<
->>> device delete #572
-Deleted: #572
+>>> device delete #573
+Deleted: #573
 <<<
 >>> device add Distortion Generator
 Added 'Distortion Generator'
@@ -2628,44 +2671,44 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #573   Distortion Generator    
+  #574   Distortion Generator    
 
 <<<
->>> device info #573
-Device #573:
+>>> device info #574
+Device #574:
   Name:    Distortion Generator
   Type:    Distortion Generator
   Enabled: yes
   Bypass:  no
-Build results (history ID 825):
+Build results (history ID 827):
   (none stored)
 <<<
->>> param list #573
+>>> param list #574
 Parameters for 'Distortion Generator' (Distortion Generator):
   Distortion Type           enum      Angle and Power
   Distortion Distance       float     0 m
 
 <<<
->>> param get #573.Distortion Type
-#573.Distortion Type = Angle and Power
+>>> param get #574.Distortion Type
+#574.Distortion Type = Angle and Power
 <<<
->>> param set "#573.Distortion Type" 9999
+>>> param set "#574.Distortion Type" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#573.Distortion Type" 0
-Set #573.Distortion Type = 0
+>>> param set "#574.Distortion Type" 0
+Set #574.Distortion Type = 0
 <<<
->>> param get #573.Distortion Type
-#573.Distortion Type = Angle and Power
+>>> param get #574.Distortion Type
+#574.Distortion Type = Angle and Power
 <<<
->>> param set "#573.Distortion Type" 1
-Set #573.Distortion Type = 1
+>>> param set "#574.Distortion Type" 1
+Set #574.Distortion Type = 1
 <<<
->>> param get #573.Distortion Type
-#573.Distortion Type = XY Vector
+>>> param get #574.Distortion Type
+#574.Distortion Type = XY Vector
 <<<
->>> device delete #573
-Deleted: #573
+>>> device delete #574
+Deleted: #574
 <<<
 >>> device add Equalizer
 Added 'Equalizer'
@@ -2689,27 +2732,27 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #574   Equalizer               
+  #575   Equalizer               
 
 <<<
->>> device info #574
-Device #574:
+>>> device info #575
+Device #575:
   Name:    Equalizer
   Type:    Equalizer
   Enabled: yes
   Bypass:  no
-Build results (history ID 829):
+Build results (history ID 831):
   (none stored)
 <<<
->>> param list #574
+>>> param list #575
 Parameters for 'Equalizer' (Equalizer):
   Equalization              float     1.0
   Capture sample            action    
   Release sample            action    
 
 <<<
->>> device delete #574
-Deleted: #574
+>>> device delete #575
+Deleted: #575
 <<<
 >>> device add Erosion
 Added 'Erosion'
@@ -2733,19 +2776,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #575   Erosion                 
+  #576   Erosion                 
 
 <<<
->>> device info #575
-Device #575:
+>>> device info #576
+Device #576:
   Name:    Erosion
   Type:    Erosion
   Enabled: yes
   Bypass:  no
-Build results (history ID 831):
+Build results (history ID 833):
   (none stored)
 <<<
->>> param list #575
+>>> param list #576
 Parameters for 'Erosion' (Erosion):
   Amount                    int       100
   Hardness                  float     0.0
@@ -2753,7 +2796,7 @@ Parameters for 'Erosion' (Erosion):
   Filter Type               int       0
   Filter Strength           float     0.15
   Method                    int       0
-  Seed                      int       24070
+  Seed                      int       46783
   River Depth               float     0.05
   River Bias                float     0.0
   Multiscale Enable         bool      false
@@ -2766,8 +2809,8 @@ Parameters for 'Erosion' (Erosion):
   Hardness Map Behavior     bool      false
 
 <<<
->>> device delete #575
-Deleted: #575
+>>> device delete #576
+Deleted: #576
 <<<
 >>> device add Expander
 Added 'Expander'
@@ -2791,19 +2834,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #576   Expander                
+  #577   Expander                
 
 <<<
->>> device info #576
-Device #576:
+>>> device info #577
+Device #577:
   Name:    Expander
   Type:    Expander
   Enabled: yes
   Bypass:  no
-Build results (history ID 833):
+Build results (history ID 835):
   (none stored)
 <<<
->>> param list #576
+>>> param list #577
 Parameters for 'Expander' (Expander):
   Action                    enum      Max
   Filter type               enum      Square (fast)
@@ -2811,62 +2854,62 @@ Parameters for 'Expander' (Expander):
   Scale-independant         bool      true
 
 <<<
->>> param get #576.Action
-#576.Action = Max
+>>> param get #577.Action
+#577.Action = Max
 <<<
->>> param set "#576.Action" 9999
+>>> param set "#577.Action" 9999
 Error: Error: Enum index out of range (0-3): 9999
 <<<
->>> param set "#576.Action" 0
-Set #576.Action = 0
+>>> param set "#577.Action" 0
+Set #577.Action = 0
 <<<
->>> param get #576.Action
-#576.Action = Max
+>>> param get #577.Action
+#577.Action = Max
 <<<
->>> param set "#576.Action" 1
-Set #576.Action = 1
+>>> param set "#577.Action" 1
+Set #577.Action = 1
 <<<
->>> param get #576.Action
-#576.Action = Min
+>>> param get #577.Action
+#577.Action = Min
 <<<
->>> param set "#576.Action" 2
-Set #576.Action = 2
+>>> param set "#577.Action" 2
+Set #577.Action = 2
 <<<
->>> param get #576.Action
-#576.Action = Reshape like Max
+>>> param get #577.Action
+#577.Action = Reshape like Max
 <<<
->>> param set "#576.Action" 3
-Set #576.Action = 3
+>>> param set "#577.Action" 3
+Set #577.Action = 3
 <<<
->>> param get #576.Action
-#576.Action = Reshape like Min
+>>> param get #577.Action
+#577.Action = Reshape like Min
 <<<
->>> param get #576.Filter type
-#576.Filter type = Square (fast)
+>>> param get #577.Filter type
+#577.Filter type = Square (fast)
 <<<
->>> param set "#576.Filter type" 9999
+>>> param set "#577.Filter type" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#576.Filter type" 0
-Set #576.Filter type = 0
+>>> param set "#577.Filter type" 0
+Set #577.Filter type = 0
 <<<
->>> param get #576.Filter type
-#576.Filter type = Square (fast)
+>>> param get #577.Filter type
+#577.Filter type = Square (fast)
 <<<
->>> param set "#576.Filter type" 1
-Set #576.Filter type = 1
+>>> param set "#577.Filter type" 1
+Set #577.Filter type = 1
 <<<
->>> param get #576.Filter type
-#576.Filter type = Circular (slow)
+>>> param get #577.Filter type
+#577.Filter type = Circular (slow)
 <<<
->>> param set "#576.Filter type" 2
-Set #576.Filter type = 2
+>>> param set "#577.Filter type" 2
+Set #577.Filter type = 2
 <<<
->>> param get #576.Filter type
-#576.Filter type = Hybrid (fast)
+>>> param get #577.Filter type
+#577.Filter type = Hybrid (fast)
 <<<
->>> device delete #576
-Deleted: #576
+>>> device delete #577
+Deleted: #577
 <<<
 >>> device add File Input
 Added 'File Input'
@@ -2890,19 +2933,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #577   File Input              
+  #578   File Input              
 
 <<<
->>> device info #577
-Device #577:
+>>> device info #578
+Device #578:
   Name:    File Input
   Type:    File Input
   Enabled: yes
   Bypass:  no
-Build results (history ID 842):
+Build results (history ID 844):
   (none stored)
 <<<
->>> param list #577
+>>> param list #578
 Parameters for 'File Input' (File Input):
   groupFile                 other     
   dataType                  enum      Heightfield
@@ -2928,164 +2971,164 @@ Parameters for 'File Input' (File Input):
   rescaleTweak              float     0.5
 
 <<<
->>> param get #577.dataType
-#577.dataType = Heightfield
+>>> param get #578.dataType
+#578.dataType = Heightfield
 <<<
->>> param set "#577.dataType" 9999
+>>> param set "#578.dataType" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#577.dataType" 0
-Set #577.dataType = 0
+>>> param set "#578.dataType" 0
+Set #578.dataType = 0
 <<<
->>> param get #577.dataType
-#577.dataType = Heightfield
+>>> param get #578.dataType
+#578.dataType = Heightfield
 <<<
->>> param set "#577.dataType" 1
-Set #577.dataType = 1
+>>> param set "#578.dataType" 1
+Set #578.dataType = 1
 <<<
->>> param get #577.dataType
-#577.dataType = RGB Bitmap
+>>> param get #578.dataType
+#578.dataType = RGB Bitmap
 <<<
->>> param get #577.placementType
-#577.placementType = Worldspace
+>>> param get #578.placementType
+#578.placementType = Worldspace
 <<<
->>> param set "#577.placementType" 9999
+>>> param set "#578.placementType" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#577.placementType" 0
-Set #577.placementType = 0
+>>> param set "#578.placementType" 0
+Set #578.placementType = 0
 <<<
->>> param get #577.placementType
-#577.placementType = Worldspace
+>>> param get #578.placementType
+#578.placementType = Worldspace
 <<<
->>> param set "#577.placementType" 1
-Set #577.placementType = 1
+>>> param set "#578.placementType" 1
+Set #578.placementType = 1
 <<<
->>> param get #577.placementType
-#577.placementType = Localspace
+>>> param get #578.placementType
+#578.placementType = Localspace
 <<<
->>> param get #577.aspectType
-#577.aspectType = Contain
+>>> param get #578.aspectType
+#578.aspectType = Contain
 <<<
->>> param set "#577.aspectType" 9999
+>>> param set "#578.aspectType" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#577.aspectType" 0
-Set #577.aspectType = 0
+>>> param set "#578.aspectType" 0
+Set #578.aspectType = 0
 <<<
->>> param get #577.aspectType
-#577.aspectType = Fill (any aspect)
+>>> param get #578.aspectType
+#578.aspectType = Fill (any aspect)
 <<<
->>> param set "#577.aspectType" 1
-Set #577.aspectType = 1
+>>> param set "#578.aspectType" 1
+Set #578.aspectType = 1
 <<<
->>> param get #577.aspectType
-#577.aspectType = Contain
+>>> param get #578.aspectType
+#578.aspectType = Contain
 <<<
->>> param get #577.elevationType
-#577.elevationType = Natural file elevations
+>>> param get #578.elevationType
+#578.elevationType = Natural file elevations
 <<<
->>> param set "#577.elevationType" 9999
+>>> param set "#578.elevationType" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#577.elevationType" 0
-Set #577.elevationType = 0
+>>> param set "#578.elevationType" 0
+Set #578.elevationType = 0
 <<<
->>> param get #577.elevationType
-#577.elevationType = Natural file elevations
+>>> param get #578.elevationType
+#578.elevationType = Natural file elevations
 <<<
->>> param set "#577.elevationType" 1
-Set #577.elevationType = 1
+>>> param set "#578.elevationType" 1
+Set #578.elevationType = 1
 <<<
->>> param get #577.elevationType
-#577.elevationType = Normalize to fill range
+>>> param get #578.elevationType
+#578.elevationType = Normalize to fill range
 <<<
->>> param set "#577.elevationType" 2
-Set #577.elevationType = 2
+>>> param set "#578.elevationType" 2
+Set #578.elevationType = 2
 <<<
->>> param get #577.elevationType
-#577.elevationType = Specify range
+>>> param get #578.elevationType
+#578.elevationType = Specify range
 <<<
->>> param get #577.footprintType
-#577.footprintType = Empty
+>>> param get #578.footprintType
+#578.footprintType = Empty
 <<<
->>> param set "#577.footprintType" 9999
+>>> param set "#578.footprintType" 9999
 Error: Error: Enum index out of range (0-3): 9999
 <<<
->>> param set "#577.footprintType" 0
-Set #577.footprintType = 0
+>>> param set "#578.footprintType" 0
+Set #578.footprintType = 0
 <<<
->>> param get #577.footprintType
-#577.footprintType = Empty
+>>> param get #578.footprintType
+#578.footprintType = Empty
 <<<
->>> param set "#577.footprintType" 1
-Set #577.footprintType = 1
+>>> param set "#578.footprintType" 1
+Set #578.footprintType = 1
 <<<
->>> param get #577.footprintType
-#577.footprintType = Use edge values
+>>> param get #578.footprintType
+#578.footprintType = Use edge values
 <<<
->>> param set "#577.footprintType" 2
-Set #577.footprintType = 2
+>>> param set "#578.footprintType" 2
+Set #578.footprintType = 2
 <<<
->>> param get #577.footprintType
-#577.footprintType = Repeat tiled
+>>> param get #578.footprintType
+#578.footprintType = Repeat tiled
 <<<
->>> param set "#577.footprintType" 3
-Set #577.footprintType = 3
+>>> param set "#578.footprintType" 3
+Set #578.footprintType = 3
 <<<
->>> param get #577.footprintType
-#577.footprintType = Repeat mirrored
+>>> param get #578.footprintType
+#578.footprintType = Repeat mirrored
 <<<
->>> param get #577.rescaleType
-#577.rescaleType = (World Default)
+>>> param get #578.rescaleType
+#578.rescaleType = (World Default)
 <<<
->>> param set "#577.rescaleType" 9999
+>>> param set "#578.rescaleType" 9999
 Error: Error: Enum index out of range (0-6): 9999
 <<<
->>> param set "#577.rescaleType" 0
-Set #577.rescaleType = 0
+>>> param set "#578.rescaleType" 0
+Set #578.rescaleType = 0
 <<<
->>> param get #577.rescaleType
-#577.rescaleType = (World Default)
+>>> param get #578.rescaleType
+#578.rescaleType = (World Default)
 <<<
->>> param set "#577.rescaleType" 1
-Set #577.rescaleType = 1
+>>> param set "#578.rescaleType" 1
+Set #578.rescaleType = 1
 <<<
->>> param get #577.rescaleType
-#577.rescaleType = Nearest Neighbor
+>>> param get #578.rescaleType
+#578.rescaleType = Nearest Neighbor
 <<<
->>> param set "#577.rescaleType" 2
-Set #577.rescaleType = 2
+>>> param set "#578.rescaleType" 2
+Set #578.rescaleType = 2
 <<<
->>> param get #577.rescaleType
-#577.rescaleType = Bilinear
+>>> param get #578.rescaleType
+#578.rescaleType = Bilinear
 <<<
->>> param set "#577.rescaleType" 3
-Set #577.rescaleType = 3
+>>> param set "#578.rescaleType" 3
+Set #578.rescaleType = 3
 <<<
->>> param get #577.rescaleType
-#577.rescaleType = Bicubic Soft
+>>> param get #578.rescaleType
+#578.rescaleType = Bicubic Soft
 <<<
->>> param set "#577.rescaleType" 4
-Set #577.rescaleType = 4
+>>> param set "#578.rescaleType" 4
+Set #578.rescaleType = 4
 <<<
->>> param get #577.rescaleType
-#577.rescaleType = Bicubic Tuneable
+>>> param get #578.rescaleType
+#578.rescaleType = Bicubic Tuneable
 <<<
->>> param set "#577.rescaleType" 5
-Set #577.rescaleType = 5
+>>> param set "#578.rescaleType" 5
+Set #578.rescaleType = 5
 <<<
->>> param get #577.rescaleType
-#577.rescaleType = Fractal
+>>> param get #578.rescaleType
+#578.rescaleType = Fractal
 <<<
->>> param set "#577.rescaleType" 6
-Set #577.rescaleType = 6
+>>> param set "#578.rescaleType" 6
+Set #578.rescaleType = 6
 <<<
->>> param get #577.rescaleType
-#577.rescaleType = Set-Preserving
+>>> param get #578.rescaleType
+#578.rescaleType = Set-Preserving
 <<<
->>> device delete #577
-Deleted: #577
+>>> device delete #578
+Deleted: #578
 <<<
 >>> device add Flipper
 Added 'Flipper'
@@ -3109,26 +3152,26 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #578   Flipper                 
+  #579   Flipper                 
 
 <<<
->>> device info #578
-Device #578:
+>>> device info #579
+Device #579:
   Name:    Flipper
   Type:    Flipper
   Enabled: yes
   Bypass:  no
-Build results (history ID 864):
+Build results (history ID 866):
   (none stored)
 <<<
->>> param list #578
+>>> param list #579
 Parameters for 'Flipper' (Flipper):
   Flip Horizontally         bool      false
   Flip Vertically           bool      false
 
 <<<
->>> device delete #578
-Deleted: #578
+>>> device delete #579
+Deleted: #579
 <<<
 >>> device add Flow Restructure
 Added 'Flow Restructure'
@@ -3152,19 +3195,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #579   Flow Restructure        
+  #580   Flow Restructure        
 
 <<<
->>> device info #579
-Device #579:
+>>> device info #580
+Device #580:
   Name:    Flow Restructure
   Type:    Flow Restructure
   Enabled: yes
   Bypass:  no
-Build results (history ID 866):
+Build results (history ID 868):
   (none stored)
 <<<
->>> param list #579
+>>> param list #580
 Parameters for 'Flow Restructure' (Flow Restructure):
   Ridge Carving             float     1.0
   Basin Restructuring       float     0.0
@@ -3172,50 +3215,50 @@ Parameters for 'Flow Restructure' (Flow Restructure):
   Operation                 enum      Restructure
 
 <<<
->>> param get #579.Drain to:
-#579.Drain to: = Map borders and drainage input
+>>> param get #580.Drain to:
+#580.Drain to: = Map borders and drainage input
 <<<
->>> param set "#579.Drain to:" 9999
+>>> param set "#580.Drain to:" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#579.Drain to:" 0
-Set #579.Drain to: = 0
+>>> param set "#580.Drain to:" 0
+Set #580.Drain to: = 0
 <<<
->>> param get #579.Drain to:
-#579.Drain to: = Map borders and drainage input
+>>> param get #580.Drain to:
+#580.Drain to: = Map borders and drainage input
 <<<
->>> param set "#579.Drain to:" 1
-Set #579.Drain to: = 1
+>>> param set "#580.Drain to:" 1
+Set #580.Drain to: = 1
 <<<
->>> param get #579.Drain to:
-#579.Drain to: = Drainage input
+>>> param get #580.Drain to:
+#580.Drain to: = Drainage input
 <<<
->>> param set "#579.Drain to:" 2
-Set #579.Drain to: = 2
+>>> param set "#580.Drain to:" 2
+Set #580.Drain to: = 2
 <<<
->>> param get #579.Drain to:
-#579.Drain to: = Map borders along drainage mask
+>>> param get #580.Drain to:
+#580.Drain to: = Map borders along drainage mask
 <<<
->>> param get #579.Operation
-#579.Operation = Restructure
+>>> param get #580.Operation
+#580.Operation = Restructure
 <<<
->>> param set "#579.Operation" 9999
+>>> param set "#580.Operation" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#579.Operation" 0
-Set #579.Operation = 0
+>>> param set "#580.Operation" 0
+Set #580.Operation = 0
 <<<
->>> param get #579.Operation
-#579.Operation = Restructure
+>>> param get #580.Operation
+#580.Operation = Restructure
 <<<
->>> param set "#579.Operation" 1
-Set #579.Operation = 1
+>>> param set "#580.Operation" 1
+Set #580.Operation = 1
 <<<
->>> param get #579.Operation
-#579.Operation = Synthesize (experimental!)
+>>> param get #580.Operation
+#580.Operation = Synthesize (experimental!)
 <<<
->>> device delete #579
-Deleted: #579
+>>> device delete #580
+Deleted: #580
 <<<
 >>> device add Fractal
 Error: Error: Tag 'Fractal' matches multiple devices: Advanced Perlin, Basic Noise, Perlin Curve, VDM Noise, Voronoi
@@ -3241,6 +3284,201 @@ Devices (17 total):
   #373   Rock and Soil           
 
 <<<
+>>> device add VDM Noise
+Added 'VDM Noise'
+<<<
+>>> device list
+Devices (18 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #581   VDM Noise               
+
+<<<
+>>> device info #581
+Device #581:
+  Name:    VDM Noise
+  Type:    VDM Noise
+  Enabled: yes
+  Bypass:  no
+Build results (history ID 875):
+  (none stored)
+<<<
+>>> param list #581
+Parameters for 'VDM Noise' (VDM Noise):
+  groupDisp                 other     
+  dirType                   enum      Along normal
+  featureScale              float     800 m
+  disp                      float     0.5
+  smooth                    float     1.0
+  dampZ                     float     0.66
+  dampType                  enum      Feature itself
+  offset                    float     0.0
+  groupNoise                other     
+  noiseType                 enum      Perlin
+  perlinType                enum      Standard
+  voronoiType               enum      Ridges (F1)
+  persist                   float     0.48
+  octaves                   int       (auto)
+  seed                      int       4892
+  curv                      float     1.0
+
+<<<
+>>> param get #581.dirType
+#581.dirType = Along normal
+<<<
+>>> param set "#581.dirType" 9999
+Error: Error: Enum index out of range (0-1): 9999
+<<<
+>>> param set "#581.dirType" 0
+Set #581.dirType = 0
+<<<
+>>> param get #581.dirType
+#581.dirType = Along normal
+<<<
+>>> param set "#581.dirType" 1
+Set #581.dirType = 1
+<<<
+>>> param get #581.dirType
+#581.dirType = XY cylindrical
+<<<
+>>> param get #581.dampType
+#581.dampType = Feature itself
+<<<
+>>> param set "#581.dampType" 9999
+Error: Error: Enum index out of range (0-1): 9999
+<<<
+>>> param set "#581.dampType" 0
+Set #581.dampType = 0
+<<<
+>>> param get #581.dampType
+#581.dampType = Z Component
+<<<
+>>> param set "#581.dampType" 1
+Set #581.dampType = 1
+<<<
+>>> param get #581.dampType
+#581.dampType = Feature itself
+<<<
+>>> param get #581.noiseType
+#581.noiseType = Perlin
+<<<
+>>> param set "#581.noiseType" 9999
+Error: Error: Enum index out of range (0-1): 9999
+<<<
+>>> param set "#581.noiseType" 0
+Set #581.noiseType = 0
+<<<
+>>> param get #581.noiseType
+#581.noiseType = Perlin
+<<<
+>>> param set "#581.noiseType" 1
+Set #581.noiseType = 1
+<<<
+>>> param get #581.noiseType
+#581.noiseType = Voronoi
+<<<
+>>> param get #581.perlinType
+#581.perlinType = Standard
+<<<
+>>> param set "#581.perlinType" 9999
+Error: Error: Enum index out of range (0-2): 9999
+<<<
+>>> param set "#581.perlinType" 0
+Set #581.perlinType = 0
+<<<
+>>> param get #581.perlinType
+#581.perlinType = Standard
+<<<
+>>> param set "#581.perlinType" 1
+Set #581.perlinType = 1
+<<<
+>>> param get #581.perlinType
+#581.perlinType = Ridged
+<<<
+>>> param set "#581.perlinType" 2
+Set #581.perlinType = 2
+<<<
+>>> param get #581.perlinType
+#581.perlinType = Billowy
+<<<
+>>> param get #581.voronoiType
+#581.voronoiType = Ridges (F1)
+<<<
+>>> param set "#581.voronoiType" 9999
+Error: Error: Enum index out of range (0-8): 9999
+<<<
+>>> param set "#581.voronoiType" 0
+Set #581.voronoiType = 0
+<<<
+>>> param get #581.voronoiType
+#581.voronoiType = Ridges (F1)
+<<<
+>>> param set "#581.voronoiType" 1
+Set #581.voronoiType = 1
+<<<
+>>> param get #581.voronoiType
+#581.voronoiType = Ridges (F2)
+<<<
+>>> param set "#581.voronoiType" 2
+Set #581.voronoiType = 2
+<<<
+>>> param get #581.voronoiType
+#581.voronoiType = Ridges (F3)
+<<<
+>>> param set "#581.voronoiType" 3
+Set #581.voronoiType = 3
+<<<
+>>> param get #581.voronoiType
+#581.voronoiType = Rounded (F1)
+<<<
+>>> param set "#581.voronoiType" 4
+Set #581.voronoiType = 4
+<<<
+>>> param get #581.voronoiType
+#581.voronoiType = Rounded (F2)
+<<<
+>>> param set "#581.voronoiType" 5
+Set #581.voronoiType = 5
+<<<
+>>> param get #581.voronoiType
+#581.voronoiType = Rounded (F3)
+<<<
+>>> param set "#581.voronoiType" 6
+Set #581.voronoiType = 6
+<<<
+>>> param get #581.voronoiType
+#581.voronoiType = Crackle (F2-F1)
+<<<
+>>> param set "#581.voronoiType" 7
+Set #581.voronoiType = 7
+<<<
+>>> param get #581.voronoiType
+#581.voronoiType = Crackle (F3-F1)
+<<<
+>>> param set "#581.voronoiType" 8
+Set #581.voronoiType = 8
+<<<
+>>> param get #581.voronoiType
+#581.voronoiType = Crackle (F3-F2)
+<<<
+>>> device delete #581
+Deleted: #581
+<<<
 >>> device add Gamma
 Added 'Gamma'
 <<<
@@ -3263,56 +3501,56 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #580   Gamma                   
+  #582   Gamma                   
 
 <<<
->>> device info #580
-Device #580:
+>>> device info #582
+Device #582:
   Name:    Gamma
   Type:    Gamma
   Enabled: yes
   Bypass:  no
-Build results (history ID 873):
+Build results (history ID 895):
   (none stored)
 <<<
->>> param list #580
+>>> param list #582
 Parameters for 'Gamma' (Gamma):
   operation                 enum      Apply sRGB gamma
   value                     float     1.0
 
 <<<
->>> param get #580.operation
-#580.operation = Apply sRGB gamma
+>>> param get #582.operation
+#582.operation = Apply sRGB gamma
 <<<
->>> param set "#580.operation" 9999
+>>> param set "#582.operation" 9999
 Error: Error: Enum index out of range (0-3): 9999
 <<<
->>> param set "#580.operation" 0
-Set #580.operation = 0
+>>> param set "#582.operation" 0
+Set #582.operation = 0
 <<<
->>> param get #580.operation
-#580.operation = Apply sRGB gamma
+>>> param get #582.operation
+#582.operation = Apply sRGB gamma
 <<<
->>> param set "#580.operation" 1
-Set #580.operation = 1
+>>> param set "#582.operation" 1
+Set #582.operation = 1
 <<<
->>> param get #580.operation
-#580.operation = Remove sRGB gamma
+>>> param get #582.operation
+#582.operation = Remove sRGB gamma
 <<<
->>> param set "#580.operation" 2
-Set #580.operation = 2
+>>> param set "#582.operation" 2
+Set #582.operation = 2
 <<<
->>> param get #580.operation
-#580.operation = Apply arbitrary gamma
+>>> param get #582.operation
+#582.operation = Apply arbitrary gamma
 <<<
->>> param set "#580.operation" 3
-Set #580.operation = 3
+>>> param set "#582.operation" 3
+Set #582.operation = 3
 <<<
->>> param get #580.operation
-#580.operation = Remove arbitrary gamma
+>>> param get #582.operation
+#582.operation = Remove arbitrary gamma
 <<<
->>> device delete #580
-Deleted: #580
+>>> device delete #582
+Deleted: #582
 <<<
 >>> device add Gradient
 Added 'Gradient'
@@ -3336,51 +3574,51 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #581   Gradient                
+  #583   Gradient                
 
 <<<
->>> device info #581
-Device #581:
+>>> device info #583
+Device #583:
   Name:    Gradient
   Type:    Gradient
   Enabled: yes
   Bypass:  no
-Build results (history ID 879):
+Build results (history ID 901):
   (none stored)
 <<<
->>> param list #581
+>>> param list #583
 Parameters for 'Gradient' (Gradient):
   Direction                 int       0
   Width                     float     8 km
   Tiling                    enum      Clamp
 
 <<<
->>> param get #581.Tiling
-#581.Tiling = Clamp
+>>> param get #583.Tiling
+#583.Tiling = Clamp
 <<<
->>> param set "#581.Tiling" 9999
+>>> param set "#583.Tiling" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#581.Tiling" 0
-Set #581.Tiling = 0
+>>> param set "#583.Tiling" 0
+Set #583.Tiling = 0
 <<<
->>> param get #581.Tiling
-#581.Tiling = Clamp
+>>> param get #583.Tiling
+#583.Tiling = Clamp
 <<<
->>> param set "#581.Tiling" 1
-Set #581.Tiling = 1
+>>> param set "#583.Tiling" 1
+Set #583.Tiling = 1
 <<<
->>> param get #581.Tiling
-#581.Tiling = Mirrored Repeat
+>>> param get #583.Tiling
+#583.Tiling = Mirrored Repeat
 <<<
->>> param set "#581.Tiling" 2
-Set #581.Tiling = 2
+>>> param set "#583.Tiling" 2
+Set #583.Tiling = 2
 <<<
->>> param get #581.Tiling
-#581.Tiling = Discontinuous Repeat
+>>> param get #583.Tiling
+#583.Tiling = Discontinuous Repeat
 <<<
->>> device delete #581
-Deleted: #581
+>>> device delete #583
+Deleted: #583
 <<<
 >>> device add Height Output
 Added 'Height Output'
@@ -3404,19 +3642,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #582   Height Output           
+  #584   Height Output           
 
 <<<
->>> device info #582
-Device #582:
+>>> device info #584
+Device #584:
   Name:    Height Output
   Type:    Height Output
   Enabled: yes
   Bypass:  no
-Build results (history ID 884):
+Build results (history ID 906):
   (none stored)
 <<<
->>> param list #582
+>>> param list #584
 Parameters for 'Height Output' (Height Output):
   filename                  filename  <project>_<name>_<res>.png
   format                    enum      PNG (16bit)
@@ -3425,104 +3663,104 @@ Parameters for 'Height Output' (Height Output):
   writeButton               action    
 
 <<<
->>> param get #582.format
-#582.format = PNG (16bit)
+>>> param get #584.format
+#584.format = PNG (16bit)
 <<<
->>> param set "#582.format" 9999
+>>> param set "#584.format" 9999
 Error: Error: Enum index out of range (0-14): 9999
 <<<
->>> param set "#582.format" 0
-Set #582.format = 0
+>>> param set "#584.format" 0
+Set #584.format = 0
 <<<
->>> param get #582.format
-#582.format = 8bit RAW
+>>> param get #584.format
+#584.format = 8bit RAW
 <<<
->>> param set "#582.format" 1
-Set #582.format = 1
+>>> param set "#584.format" 1
+Set #584.format = 1
 <<<
->>> param get #582.format
-#582.format = 16bit RAW
+>>> param get #584.format
+#584.format = 16bit RAW
 <<<
->>> param set "#582.format" 2
-Set #582.format = 2
+>>> param set "#584.format" 2
+Set #584.format = 2
 <<<
->>> param get #582.format
-#582.format = 32bit Float RAW
+>>> param get #584.format
+#584.format = 32bit Float RAW
 <<<
->>> param set "#582.format" 3
-Set #582.format = 3
+>>> param set "#584.format" 3
+Set #584.format = 3
 <<<
->>> param get #582.format
-#582.format = Terragen
+>>> param get #584.format
+#584.format = Terragen
 <<<
->>> param set "#582.format" 4
-Set #582.format = 4
+>>> param set "#584.format" 4
+Set #584.format = 4
 <<<
->>> param get #582.format
-#582.format = Leveller
+>>> param get #584.format
+#584.format = Leveller
 <<<
->>> param set "#582.format" 5
-Set #582.format = 5
+>>> param set "#584.format" 5
+Set #584.format = 5
 <<<
->>> param get #582.format
-#582.format = BT
+>>> param get #584.format
+#584.format = BT
 <<<
->>> param set "#582.format" 6
-Set #582.format = 6
+>>> param set "#584.format" 6
+Set #584.format = 6
 <<<
->>> param get #582.format
-#582.format = PGM
+>>> param get #584.format
+#584.format = PGM
 <<<
->>> param set "#582.format" 7
-Set #582.format = 7
+>>> param set "#584.format" 7
+Set #584.format = 7
 <<<
->>> param get #582.format
-#582.format = Windows BMP (8bit)
+>>> param get #584.format
+#584.format = Windows BMP (8bit)
 <<<
->>> param set "#582.format" 8
-Set #582.format = 8
+>>> param set "#584.format" 8
+Set #584.format = 8
 <<<
->>> param get #582.format
-#582.format = TGA (8bit)
+>>> param get #584.format
+#584.format = TGA (8bit)
 <<<
->>> param set "#582.format" 9
-Set #582.format = 9
+>>> param set "#584.format" 9
+Set #584.format = 9
 <<<
->>> param get #582.format
-#582.format = TIFF (16bit)
+>>> param get #584.format
+#584.format = TIFF (16bit)
 <<<
->>> param set "#582.format" 10
-Set #582.format = 10
+>>> param set "#584.format" 10
+Set #584.format = 10
 <<<
->>> param get #582.format
-#582.format = PNG (8bit)
+>>> param get #584.format
+#584.format = PNG (8bit)
 <<<
->>> param set "#582.format" 11
-Set #582.format = 11
+>>> param set "#584.format" 11
+Set #584.format = 11
 <<<
->>> param get #582.format
-#582.format = PNG (16bit)
+>>> param get #584.format
+#584.format = PNG (16bit)
 <<<
->>> param set "#582.format" 12
-Set #582.format = 12
+>>> param set "#584.format" 12
+Set #584.format = 12
 <<<
->>> param get #582.format
-#582.format = HFZ
+>>> param get #584.format
+#584.format = HFZ
 <<<
->>> param set "#582.format" 13
-Set #582.format = 13
+>>> param set "#584.format" 13
+Set #584.format = 13
 <<<
->>> param get #582.format
-#582.format = OpenEXR (32bit)
+>>> param get #584.format
+#584.format = OpenEXR (32bit)
 <<<
->>> param set "#582.format" 14
-Set #582.format = 14
+>>> param set "#584.format" 14
+Set #584.format = 14
 <<<
->>> param get #582.format
-#582.format = OpenEXR (32bit RGB)
+>>> param get #584.format
+#584.format = OpenEXR (32bit RGB)
 <<<
->>> device delete #582
-Deleted: #582
+>>> device delete #584
+Deleted: #584
 <<<
 >>> device add Height Slices
 Added 'Height Slices'
@@ -3546,50 +3784,50 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #583   Height Slices           
+  #585   Height Slices           
 
 <<<
->>> device info #583
-Device #583:
+>>> device info #585
+Device #585:
   Name:    Height Slices
   Type:    Height Slices
   Enabled: yes
   Bypass:  no
-Build results (history ID 901):
+Build results (history ID 923):
   (none stored)
 <<<
->>> param list #583
+>>> param list #585
 Parameters for 'Height Slices' (Height Slices):
   Number of Bands           int       2
   Clipping Behavior         enum      Clip to zero
 
 <<<
->>> param get #583.Clipping Behavior
-#583.Clipping Behavior = Clip to zero
+>>> param get #585.Clipping Behavior
+#585.Clipping Behavior = Clip to zero
 <<<
->>> param set "#583.Clipping Behavior" 9999
+>>> param set "#585.Clipping Behavior" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#583.Clipping Behavior" 0
-Set #583.Clipping Behavior = 0
+>>> param set "#585.Clipping Behavior" 0
+Set #585.Clipping Behavior = 0
 <<<
->>> param get #583.Clipping Behavior
-#583.Clipping Behavior = Clip to zero
+>>> param get #585.Clipping Behavior
+#585.Clipping Behavior = Clip to zero
 <<<
->>> param set "#583.Clipping Behavior" 1
-Set #583.Clipping Behavior = 1
+>>> param set "#585.Clipping Behavior" 1
+Set #585.Clipping Behavior = 1
 <<<
->>> param get #583.Clipping Behavior
-#583.Clipping Behavior = Clip to border
+>>> param get #585.Clipping Behavior
+#585.Clipping Behavior = Clip to border
 <<<
->>> param set "#583.Clipping Behavior" 2
-Set #583.Clipping Behavior = 2
+>>> param set "#585.Clipping Behavior" 2
+Set #585.Clipping Behavior = 2
 <<<
->>> param get #583.Clipping Behavior
-#583.Clipping Behavior = Coverage Masks
+>>> param get #585.Clipping Behavior
+#585.Clipping Behavior = Coverage Masks
 <<<
->>> device delete #583
-Deleted: #583
+>>> device delete #585
+Deleted: #585
 <<<
 >>> device add Instance Scattering
 Added 'Instance Scattering'
@@ -3613,19 +3851,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #584   Instance Scattering     
+  #586   Instance Scattering     
 
 <<<
->>> device info #584
-Device #584:
+>>> device info #586
+Device #586:
   Name:    Instance Scattering
   Type:    Instance Scattering
   Enabled: yes
   Bypass:  no
-Build results (history ID 906):
+Build results (history ID 928):
   (none stored)
 <<<
->>> param list #584
+>>> param list #586
 Parameters for 'Instance Scattering' (Instance Scattering):
   Variant Inputs            int       1
   Scattering Type           enum      Jittered Grid
@@ -3633,7 +3871,7 @@ Parameters for 'Instance Scattering' (Instance Scattering):
   Object Scale              float     8 km
   Elevation Scale           float     2625 m
   Elevation Offset          float     0 m
-  Random Seed               int       1603
+  Random Seed               int       250
   Grid Fill                 float     0.5
   Jitter                    float     1.0
   Fractal Layers            int       1
@@ -3641,56 +3879,56 @@ Parameters for 'Instance Scattering' (Instance Scattering):
   Fractal Persistence       float     0.5
 
 <<<
->>> param get #584.Scattering Type
-#584.Scattering Type = Jittered Grid
+>>> param get #586.Scattering Type
+#586.Scattering Type = Jittered Grid
 <<<
->>> param set "#584.Scattering Type" 9999
+>>> param set "#586.Scattering Type" 9999
 Error: Error: Enum index out of range (0-0): 9999
 <<<
->>> param set "#584.Scattering Type" 0
-Set #584.Scattering Type = 0
+>>> param set "#586.Scattering Type" 0
+Set #586.Scattering Type = 0
 <<<
->>> param get #584.Scattering Type
-#584.Scattering Type = Jittered Grid
+>>> param get #586.Scattering Type
+#586.Scattering Type = Jittered Grid
 <<<
->>> param get #584.Compositing Type
-#584.Compositing Type = Replace
+>>> param get #586.Compositing Type
+#586.Compositing Type = Replace
 <<<
->>> param set "#584.Compositing Type" 9999
+>>> param set "#586.Compositing Type" 9999
 Error: Error: Enum index out of range (0-4): 9999
 <<<
->>> param set "#584.Compositing Type" 0
-Set #584.Compositing Type = 0
+>>> param set "#586.Compositing Type" 0
+Set #586.Compositing Type = 0
 <<<
->>> param get #584.Compositing Type
-#584.Compositing Type = Replace
+>>> param get #586.Compositing Type
+#586.Compositing Type = Replace
 <<<
->>> param set "#584.Compositing Type" 1
-Set #584.Compositing Type = 1
+>>> param set "#586.Compositing Type" 1
+Set #586.Compositing Type = 1
 <<<
->>> param get #584.Compositing Type
-#584.Compositing Type = Add
+>>> param get #586.Compositing Type
+#586.Compositing Type = Add
 <<<
->>> param set "#584.Compositing Type" 2
-Set #584.Compositing Type = 2
+>>> param set "#586.Compositing Type" 2
+Set #586.Compositing Type = 2
 <<<
->>> param get #584.Compositing Type
-#584.Compositing Type = Most Different
+>>> param get #586.Compositing Type
+#586.Compositing Type = Most Different
 <<<
->>> param set "#584.Compositing Type" 3
-Set #584.Compositing Type = 3
+>>> param set "#586.Compositing Type" 3
+Set #586.Compositing Type = 3
 <<<
->>> param get #584.Compositing Type
-#584.Compositing Type = Maximum
+>>> param get #586.Compositing Type
+#586.Compositing Type = Maximum
 <<<
->>> param set "#584.Compositing Type" 4
-Set #584.Compositing Type = 4
+>>> param set "#586.Compositing Type" 4
+Set #586.Compositing Type = 4
 <<<
->>> param get #584.Compositing Type
-#584.Compositing Type = Minimum
+>>> param get #586.Compositing Type
+#586.Compositing Type = Minimum
 <<<
->>> device delete #584
-Deleted: #584
+>>> device delete #586
+Deleted: #586
 <<<
 >>> device add Instance Tiling
 Added 'Instance Tiling'
@@ -3714,57 +3952,57 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #585   Instance Tiling         
+  #587   Instance Tiling         
 
 <<<
->>> device info #585
-Device #585:
+>>> device info #587
+Device #587:
   Name:    Instance Tiling
   Type:    Instance Tiling
   Enabled: yes
   Bypass:  no
-Build results (history ID 914):
+Build results (history ID 936):
   (none stored)
 <<<
->>> param list #585
+>>> param list #587
 Parameters for 'Instance Tiling' (Instance Tiling):
   Distribution              enum      Repeat Tiled
   Scale                     float     8 km
   Edges match               bool      true
 
 <<<
->>> param get #585.Distribution
-#585.Distribution = Repeat Tiled
+>>> param get #587.Distribution
+#587.Distribution = Repeat Tiled
 <<<
->>> param set "#585.Distribution" 9999
+>>> param set "#587.Distribution" 9999
 Error: Error: Enum index out of range (0-3): 9999
 <<<
->>> param set "#585.Distribution" 0
-Set #585.Distribution = 0
+>>> param set "#587.Distribution" 0
+Set #587.Distribution = 0
 <<<
->>> param get #585.Distribution
-#585.Distribution = Solo Instance
+>>> param get #587.Distribution
+#587.Distribution = Solo Instance
 <<<
->>> param set "#585.Distribution" 1
-Set #585.Distribution = 1
+>>> param set "#587.Distribution" 1
+Set #587.Distribution = 1
 <<<
->>> param get #585.Distribution
-#585.Distribution = Solo Clamped Edges
+>>> param get #587.Distribution
+#587.Distribution = Solo Clamped Edges
 <<<
->>> param set "#585.Distribution" 2
-Set #585.Distribution = 2
+>>> param set "#587.Distribution" 2
+Set #587.Distribution = 2
 <<<
->>> param get #585.Distribution
-#585.Distribution = Repeat Tiled
+>>> param get #587.Distribution
+#587.Distribution = Repeat Tiled
 <<<
->>> param set "#585.Distribution" 3
-Set #585.Distribution = 3
+>>> param set "#587.Distribution" 3
+Set #587.Distribution = 3
 <<<
->>> param get #585.Distribution
-#585.Distribution = Repeat Mirrored
+>>> param get #587.Distribution
+#587.Distribution = Repeat Mirrored
 <<<
->>> device delete #585
-Deleted: #585
+>>> device delete #587
+Deleted: #587
 <<<
 >>> device add Integer
 Added 'Select by ID'
@@ -3788,19 +4026,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #586   Select by ID            
+  #588   Select by ID            
 
 <<<
->>> device info #586
-Device #586:
+>>> device info #588
+Device #588:
   Name:    Select by ID
   Type:    Select by ID
   Enabled: yes
   Bypass:  no
-Build results (history ID 920):
+Build results (history ID 942):
   (none stored)
 <<<
->>> param list #586
+>>> param list #588
 Parameters for 'Select by ID' (Select by ID):
   mode                      enum      Equals
   id                        int       0
@@ -3808,26 +4046,26 @@ Parameters for 'Select by ID' (Select by ID):
   idMax                     int       255
 
 <<<
->>> param get #586.mode
-#586.mode = Equals
+>>> param get #588.mode
+#588.mode = Equals
 <<<
->>> param set "#586.mode" 9999
+>>> param set "#588.mode" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#586.mode" 0
-Set #586.mode = 0
+>>> param set "#588.mode" 0
+Set #588.mode = 0
 <<<
->>> param get #586.mode
-#586.mode = Equals
+>>> param get #588.mode
+#588.mode = Equals
 <<<
->>> param set "#586.mode" 1
-Set #586.mode = 1
+>>> param set "#588.mode" 1
+Set #588.mode = 1
 <<<
->>> param get #586.mode
-#586.mode = Range
+>>> param get #588.mode
+#588.mode = Range
 <<<
->>> device delete #586
-Deleted: #586
+>>> device delete #588
+Deleted: #588
 <<<
 >>> device add Integer Equals
 Added 'Integer Equals'
@@ -3851,26 +4089,26 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #587   Integer Equals          
+  #589   Integer Equals          
 
 <<<
->>> device info #587
-Device #587:
+>>> device info #589
+Device #589:
   Name:    Integer Equals
   Type:    Integer Equals
   Enabled: yes
   Bypass:  no
-Build results (history ID 924):
+Build results (history ID 946):
   (none stored)
 <<<
->>> param list #587
+>>> param list #589
 Parameters for 'Integer Equals' (Integer Equals):
   Current Evaluation        bool      false
   Comparison Value          int       0
 
 <<<
->>> device delete #587
-Deleted: #587
+>>> device delete #589
+Deleted: #589
 <<<
 >>> device add Integer Generator
 Added 'Integer Generator'
@@ -3894,26 +4132,26 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #588   Integer Generator       
+  #590   Integer Generator       
 
 <<<
->>> device info #588
-Device #588:
+>>> device info #590
+Device #590:
   Name:    Integer Generator
   Type:    Integer Generator
   Enabled: yes
   Bypass:  no
-Build results (history ID 926):
+Build results (history ID 948):
   (none stored)
 <<<
->>> param list #588
+>>> param list #590
 Parameters for 'Integer Generator' (Integer Generator):
   Value                     int       0
   random                    action    
 
 <<<
->>> device delete #588
-Deleted: #588
+>>> device delete #590
+Deleted: #590
 <<<
 >>> device add Inverter
 Added 'Inverter'
@@ -3937,23 +4175,23 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #589   Inverter                
+  #591   Inverter                
 
 <<<
->>> device info #589
-Device #589:
+>>> device info #591
+Device #591:
   Name:    Inverter
   Type:    Inverter
   Enabled: yes
   Bypass:  no
-Build results (history ID 928):
+Build results (history ID 950):
   (none stored)
 <<<
->>> param list #589
+>>> param list #591
 Device 'Inverter' has no parameters.
 <<<
->>> device delete #589
-Deleted: #589
+>>> device delete #591
+Deleted: #591
 <<<
 >>> device add Invert Parameter
 Added 'Invert Parameter'
@@ -3977,25 +4215,25 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #590   Invert Parameter        
+  #592   Invert Parameter        
 
 <<<
->>> device info #590
-Device #590:
+>>> device info #592
+Device #592:
   Name:    Invert Parameter
   Type:    Invert Parameter
   Enabled: yes
   Bypass:  no
-Build results (history ID 930):
+Build results (history ID 952):
   (none stored)
 <<<
->>> param list #590
+>>> param list #592
 Parameters for 'Invert Parameter' (Invert Parameter):
   norm                      bool      false
 
 <<<
->>> device delete #590
-Deleted: #590
+>>> device delete #592
+Deleted: #592
 <<<
 >>> device add Layers
 Added 'Layers'
@@ -4019,25 +4257,25 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #591   Layers                  
+  #593   Layers                  
 
 <<<
->>> device info #591
-Device #591:
+>>> device info #593
+Device #593:
   Name:    Layers
   Type:    Layers
   Enabled: yes
   Bypass:  no
-Build results (history ID 932):
+Build results (history ID 954):
   (none stored)
 <<<
->>> param list #591
+>>> param list #593
 Parameters for 'Layers' (Layers):
   num                       int       2
 
 <<<
->>> device delete #591
-Deleted: #591
+>>> device delete #593
+Deleted: #593
 <<<
 >>> device add Levels
 Added 'Levels'
@@ -4061,19 +4299,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #592   Levels                  
+  #594   Levels                  
 
 <<<
->>> device info #592
-Device #592:
+>>> device info #594
+Device #594:
   Name:    Levels
   Type:    Levels
   Enabled: yes
   Bypass:  no
-Build results (history ID 934):
+Build results (history ID 956):
   (none stored)
 <<<
->>> param list #592
+>>> param list #594
 Parameters for 'Levels' (Levels):
   autofind                  action    
   inputRange                range     0 m - 2625 m
@@ -4085,26 +4323,26 @@ Parameters for 'Levels' (Levels):
   softclip                  bool      false
 
 <<<
->>> param get #592.midType
-#592.midType = Gamma
+>>> param get #594.midType
+#594.midType = Gamma
 <<<
->>> param set "#592.midType" 9999
+>>> param set "#594.midType" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#592.midType" 0
-Set #592.midType = 0
+>>> param set "#594.midType" 0
+Set #594.midType = 0
 <<<
->>> param get #592.midType
-#592.midType = Gamma
+>>> param get #594.midType
+#594.midType = Gamma
 <<<
->>> param set "#592.midType" 1
-Set #592.midType = 1
+>>> param set "#594.midType" 1
+Set #594.midType = 1
 <<<
->>> param get #592.midType
-#592.midType = Contrast
+>>> param get #594.midType
+#594.midType = Contrast
 <<<
->>> device delete #592
-Deleted: #592
+>>> device delete #594
+Deleted: #594
 <<<
 >>> device add Library Input
 Added 'Library Input'
@@ -4128,19 +4366,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #593   Library Input           
+  #595   Library Input           
 
 <<<
->>> device info #593
-Device #593:
+>>> device info #595
+Device #595:
   Name:    Library Input
   Type:    Library Input
   Enabled: yes
   Bypass:  no
-Build results (history ID 938):
+Build results (history ID 960):
   (none stored)
 <<<
->>> param list #593
+>>> param list #595
 Parameters for 'Library Input' (Library Input):
   Specify Library File...   action    
   File Name                 string    
@@ -4149,56 +4387,56 @@ Parameters for 'Library Input' (Library Input):
   Roughness                 float     0.5
 
 <<<
->>> param get #593.Rescaling Type
-#593.Rescaling Type = (World Default)
+>>> param get #595.Rescaling Type
+#595.Rescaling Type = (World Default)
 <<<
->>> param set "#593.Rescaling Type" 9999
+>>> param set "#595.Rescaling Type" 9999
 Error: Error: Enum index out of range (0-6): 9999
 <<<
->>> param set "#593.Rescaling Type" 0
-Set #593.Rescaling Type = 0
+>>> param set "#595.Rescaling Type" 0
+Set #595.Rescaling Type = 0
 <<<
->>> param get #593.Rescaling Type
-#593.Rescaling Type = (World Default)
+>>> param get #595.Rescaling Type
+#595.Rescaling Type = (World Default)
 <<<
->>> param set "#593.Rescaling Type" 1
-Set #593.Rescaling Type = 1
+>>> param set "#595.Rescaling Type" 1
+Set #595.Rescaling Type = 1
 <<<
->>> param get #593.Rescaling Type
-#593.Rescaling Type = Nearest Neighbor
+>>> param get #595.Rescaling Type
+#595.Rescaling Type = Nearest Neighbor
 <<<
->>> param set "#593.Rescaling Type" 2
-Set #593.Rescaling Type = 2
+>>> param set "#595.Rescaling Type" 2
+Set #595.Rescaling Type = 2
 <<<
->>> param get #593.Rescaling Type
-#593.Rescaling Type = Bilinear
+>>> param get #595.Rescaling Type
+#595.Rescaling Type = Bilinear
 <<<
->>> param set "#593.Rescaling Type" 3
-Set #593.Rescaling Type = 3
+>>> param set "#595.Rescaling Type" 3
+Set #595.Rescaling Type = 3
 <<<
->>> param get #593.Rescaling Type
-#593.Rescaling Type = Bicubic Soft
+>>> param get #595.Rescaling Type
+#595.Rescaling Type = Bicubic Soft
 <<<
->>> param set "#593.Rescaling Type" 4
-Set #593.Rescaling Type = 4
+>>> param set "#595.Rescaling Type" 4
+Set #595.Rescaling Type = 4
 <<<
->>> param get #593.Rescaling Type
-#593.Rescaling Type = Bicubic Tuneable
+>>> param get #595.Rescaling Type
+#595.Rescaling Type = Bicubic Tuneable
 <<<
->>> param set "#593.Rescaling Type" 5
-Set #593.Rescaling Type = 5
+>>> param set "#595.Rescaling Type" 5
+Set #595.Rescaling Type = 5
 <<<
->>> param get #593.Rescaling Type
-#593.Rescaling Type = Fractal
+>>> param get #595.Rescaling Type
+#595.Rescaling Type = Fractal
 <<<
->>> param set "#593.Rescaling Type" 6
-Set #593.Rescaling Type = 6
+>>> param set "#595.Rescaling Type" 6
+Set #595.Rescaling Type = 6
 <<<
->>> param get #593.Rescaling Type
-#593.Rescaling Type = Set-Preserving
+>>> param get #595.Rescaling Type
+#595.Rescaling Type = Set-Preserving
 <<<
->>> device delete #593
-Deleted: #593
+>>> device delete #595
+Deleted: #595
 <<<
 >>> device add Library Output
 Added 'Library Output'
@@ -4222,19 +4460,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #594   Library Output          
+  #596   Library Output          
 
 <<<
->>> device info #594
-Device #594:
+>>> device info #596
+Device #596:
   Name:    Library Output
   Type:    Library Output
   Enabled: yes
   Bypass:  no
-Build results (history ID 947):
+Build results (history ID 969):
   (none stored)
 <<<
->>> param list #594
+>>> param list #596
 Parameters for 'Library Output' (Library Output):
   Number of Outputs         int       0
   Specify Output File...    action    
@@ -4243,8 +4481,8 @@ Parameters for 'Library Output' (Library Output):
   Write output to disk!     action    
 
 <<<
->>> device delete #594
-Deleted: #594
+>>> device delete #596
+Deleted: #596
 <<<
 >>> device add Macro
 Added 'Macro'
@@ -4268,23 +4506,23 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #595   Macro                   
+  #597   Macro                   
 
 <<<
->>> device info #595
-Device #595:
+>>> device info #597
+Device #597:
   Name:    Macro
   Type:    Macro
   Enabled: yes
   Bypass:  no
-Build results (history ID 949):
+Build results (history ID 971):
   (none stored)
 <<<
->>> param list #595
+>>> param list #597
 Device 'Macro' has no parameters.
 <<<
->>> device delete #595
-Deleted: #595
+>>> device delete #597
+Deleted: #597
 <<<
 >>> device add Manipulate Spatial
 Added 'Manipulate Spatial'
@@ -4308,23 +4546,23 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #600   Manipulate Spatial      
+  #602   Manipulate Spatial      
 
 <<<
->>> device info #600
-Device #600:
+>>> device info #602
+Device #602:
   Name:    Manipulate Spatial
   Type:    Manipulate Spatial
   Enabled: yes
   Bypass:  no
-Build results (history ID 951):
+Build results (history ID 973):
   (none stored)
 <<<
->>> param list #600
+>>> param list #602
 Device 'Manipulate Spatial' has no parameters.
 <<<
->>> device delete #600
-Deleted: #600
+>>> device delete #602
+Deleted: #602
 <<<
 >>> device add Masked View
 Added 'Masked View'
@@ -4348,23 +4586,23 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #601   Masked View             
+  #603   Masked View             
 
 <<<
->>> device info #601
-Device #601:
+>>> device info #603
+Device #603:
   Name:    Masked View
   Type:    Masked View
   Enabled: yes
   Bypass:  no
-Build results (history ID 953):
+Build results (history ID 975):
   (none stored)
 <<<
->>> param list #601
+>>> param list #603
 Device 'Masked View' has no parameters.
 <<<
->>> device delete #601
-Deleted: #601
+>>> device delete #603
+Deleted: #603
 <<<
 >>> device add Material
 Added 'Material'
@@ -4388,19 +4626,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #602   Material                
+  #604   Material                
 
 <<<
->>> device info #602
-Device #602:
+>>> device info #604
+Device #604:
   Name:    Material
   Type:    Material
   Enabled: yes
   Bypass:  no
-Build results (history ID 955):
+Build results (history ID 977):
   (none stored)
 <<<
->>> param list #602
+>>> param list #604
 Parameters for 'Material' (Material):
   src                       enum      Create New
   srcProj                   enum      (None Defined)
@@ -4426,80 +4664,80 @@ Parameters for 'Material' (Material):
   normalI                   float     1.0
 
 <<<
->>> param get #602.src
-#602.src = Create New
+>>> param get #604.src
+#604.src = Create New
 <<<
->>> param set "#602.src" 9999
+>>> param set "#604.src" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#602.src" 0
-Set #602.src = 0
+>>> param set "#604.src" 0
+Set #604.src = 0
 <<<
->>> param get #602.src
-#602.src = Create New
+>>> param get #604.src
+#604.src = Create New
 <<<
->>> param set "#602.src" 1
-Set #602.src = 1
+>>> param set "#604.src" 1
+Set #604.src = 1
 <<<
->>> param get #602.src
-#602.src = Import
+>>> param get #604.src
+#604.src = Import
 <<<
->>> param get #602.srcProj
-#602.srcProj = (None Defined)
+>>> param get #604.srcProj
+#604.srcProj = (None Defined)
 <<<
->>> param set "#602.srcProj" 9999
+>>> param set "#604.srcProj" 9999
 Error: Error: Enum index out of range (0-0): 9999
 <<<
->>> param set "#602.srcProj" 0
-Set #602.srcProj = 0
+>>> param set "#604.srcProj" 0
+Set #604.srcProj = 0
 <<<
->>> param get #602.srcProj
-#602.srcProj = (None Defined)
+>>> param get #604.srcProj
+#604.srcProj = (None Defined)
 <<<
->>> param get #602.diffType
-#602.diffType = (No conversion)
+>>> param get #604.diffType
+#604.diffType = (No conversion)
 <<<
->>> param set "#602.diffType" 9999
+>>> param set "#604.diffType" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#602.diffType" 0
-Set #602.diffType = 0
+>>> param set "#604.diffType" 0
+Set #604.diffType = 0
 <<<
->>> param get #602.diffType
-#602.diffType = (No conversion)
+>>> param get #604.diffType
+#604.diffType = (No conversion)
 <<<
->>> param set "#602.diffType" 1
-Set #602.diffType = 1
+>>> param set "#604.diffType" 1
+Set #604.diffType = 1
 <<<
->>> param get #602.diffType
-#602.diffType = sRGB
+>>> param get #604.diffType
+#604.diffType = sRGB
 <<<
->>> param set "#602.diffType" 2
-Set #602.diffType = 2
+>>> param set "#604.diffType" 2
+Set #604.diffType = 2
 <<<
->>> param get #602.diffType
-#602.diffType = Linear
+>>> param get #604.diffType
+#604.diffType = Linear
 <<<
->>> param get #602.normalType
-#602.normalType = OpenGL convention (Green +Y)
+>>> param get #604.normalType
+#604.normalType = OpenGL convention (Green +Y)
 <<<
->>> param set "#602.normalType" 9999
+>>> param set "#604.normalType" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#602.normalType" 0
-Set #602.normalType = 0
+>>> param set "#604.normalType" 0
+Set #604.normalType = 0
 <<<
->>> param get #602.normalType
-#602.normalType = OpenGL convention (Green +Y)
+>>> param get #604.normalType
+#604.normalType = OpenGL convention (Green +Y)
 <<<
->>> param set "#602.normalType" 1
-Set #602.normalType = 1
+>>> param set "#604.normalType" 1
+Set #604.normalType = 1
 <<<
->>> param get #602.normalType
-#602.normalType = DirectX convention (Green -Y)
+>>> param get #604.normalType
+#604.normalType = DirectX convention (Green -Y)
 <<<
->>> device delete #602
-Deleted: #602
+>>> device delete #604
+Deleted: #604
 <<<
 >>> device add Material Output
 Added 'Material Output'
@@ -4523,19 +4761,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #603   Material Output         
+  #605   Material Output         
 
 <<<
->>> device info #603
-Device #603:
+>>> device info #605
+Device #605:
   Name:    Material Output
   Type:    Material Output
   Enabled: yes
   Bypass:  no
-Build results (history ID 965):
+Build results (history ID 987):
   (none stored)
 <<<
->>> param list #603
+>>> param list #605
 Parameters for 'Material Output' (Material Output):
   filename                  filename  <project>_<name>_<res>.png
   writeOut                  action    
@@ -4553,68 +4791,68 @@ Parameters for 'Material Output' (Material Output):
   useSmooth                 bool      false
 
 <<<
->>> param get #603.format
-#603.format = PNG  (8bits/channel)
+>>> param get #605.format
+#605.format = PNG  (8bits/channel)
 <<<
->>> param set "#603.format" 9999
+>>> param set "#605.format" 9999
 Error: Error: Enum index out of range (0-5): 9999
 <<<
->>> param set "#603.format" 0
-Set #603.format = 0
+>>> param set "#605.format" 0
+Set #605.format = 0
 <<<
->>> param get #603.format
-#603.format = PNG  (8bits/channel)
+>>> param get #605.format
+#605.format = PNG  (8bits/channel)
 <<<
->>> param set "#603.format" 1
-Set #603.format = 1
+>>> param set "#605.format" 1
+Set #605.format = 1
 <<<
->>> param get #603.format
-#603.format = PNG  (16bits/channel)
+>>> param get #605.format
+#605.format = PNG  (16bits/channel)
 <<<
->>> param set "#603.format" 2
-Set #603.format = 2
+>>> param set "#605.format" 2
+Set #605.format = 2
 <<<
->>> param get #603.format
-#603.format = TIFF (8bits/channel)
+>>> param get #605.format
+#605.format = TIFF (8bits/channel)
 <<<
->>> param set "#603.format" 3
-Set #603.format = 3
+>>> param set "#605.format" 3
+Set #605.format = 3
 <<<
->>> param get #603.format
-#603.format = TIFF (16bits/channel)
+>>> param get #605.format
+#605.format = TIFF (16bits/channel)
 <<<
->>> param set "#603.format" 4
-Set #603.format = 4
+>>> param set "#605.format" 4
+Set #605.format = 4
 <<<
->>> param get #603.format
-#603.format = JPEG (8bits/channel)
+>>> param get #605.format
+#605.format = JPEG (8bits/channel)
 <<<
->>> param set "#603.format" 5
-Set #603.format = 5
+>>> param set "#605.format" 5
+Set #605.format = 5
 <<<
->>> param get #603.format
-#603.format = OpenEXR (16bits/channel)
+>>> param get #605.format
+#605.format = OpenEXR (16bits/channel)
 <<<
->>> param get #603.normalType
-#603.normalType = OpenGL convention (Green +Y)
+>>> param get #605.normalType
+#605.normalType = OpenGL convention (Green +Y)
 <<<
->>> param set "#603.normalType" 9999
+>>> param set "#605.normalType" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#603.normalType" 0
-Set #603.normalType = 0
+>>> param set "#605.normalType" 0
+Set #605.normalType = 0
 <<<
->>> param get #603.normalType
-#603.normalType = OpenGL convention (Green +Y)
+>>> param get #605.normalType
+#605.normalType = OpenGL convention (Green +Y)
 <<<
->>> param set "#603.normalType" 1
-Set #603.normalType = 1
+>>> param set "#605.normalType" 1
+Set #605.normalType = 1
 <<<
->>> param get #603.normalType
-#603.normalType = DirectX convention (Green -Y)
+>>> param get #605.normalType
+#605.normalType = DirectX convention (Green -Y)
 <<<
->>> device delete #603
-Deleted: #603
+>>> device delete #605
+Deleted: #605
 <<<
 >>> device add Mesh
 Added 'VDM to HF+Cliff'
@@ -4638,19 +4876,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #604   VDM to HF+Cliff         
+  #606   VDM to HF+Cliff         
 
 <<<
->>> device info #604
-Device #604:
+>>> device info #606
+Device #606:
   Name:    VDM to HF+Cliff
   Type:    VDM to HF+Cliff
   Enabled: yes
   Bypass:  no
-Build results (history ID 975):
+Build results (history ID 997):
   (none stored)
 <<<
->>> param list #604
+>>> param list #606
 Parameters for 'VDM to HF+Cliff' (VDM to HF+Cliff):
   type                      enum      Heightfield only
   hilo                      enum      Top surface
@@ -4663,80 +4901,80 @@ Parameters for 'VDM to HF+Cliff' (VDM to HF+Cliff):
   maskSpace                 enum      World space
 
 <<<
->>> param get #604.type
-#604.type = Heightfield only
+>>> param get #606.type
+#606.type = Heightfield only
 <<<
->>> param set "#604.type" 9999
+>>> param set "#606.type" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#604.type" 0
-Set #604.type = 0
+>>> param set "#606.type" 0
+Set #606.type = 0
 <<<
->>> param get #604.type
-#604.type = HF + Cliff Mesh
+>>> param get #606.type
+#606.type = HF + Cliff Mesh
 <<<
->>> param set "#604.type" 1
-Set #604.type = 1
+>>> param set "#606.type" 1
+Set #606.type = 1
 <<<
->>> param get #604.type
-#604.type = Heightfield only
+>>> param get #606.type
+#606.type = Heightfield only
 <<<
->>> param get #604.hilo
-#604.hilo = Top surface
+>>> param get #606.hilo
+#606.hilo = Top surface
 <<<
->>> param set "#604.hilo" 9999
+>>> param set "#606.hilo" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#604.hilo" 0
-Set #604.hilo = 0
+>>> param set "#606.hilo" 0
+Set #606.hilo = 0
 <<<
->>> param get #604.hilo
-#604.hilo = Bottom surface
+>>> param get #606.hilo
+#606.hilo = Bottom surface
 <<<
->>> param set "#604.hilo" 1
-Set #604.hilo = 1
+>>> param set "#606.hilo" 1
+Set #606.hilo = 1
 <<<
->>> param get #604.hilo
-#604.hilo = Top surface
+>>> param get #606.hilo
+#606.hilo = Top surface
 <<<
->>> param get #604.maskSpaceIn
-#604.maskSpaceIn = World space
+>>> param get #606.maskSpaceIn
+#606.maskSpaceIn = World space
 <<<
->>> param set "#604.maskSpaceIn" 9999
+>>> param set "#606.maskSpaceIn" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#604.maskSpaceIn" 0
-Set #604.maskSpaceIn = 0
+>>> param set "#606.maskSpaceIn" 0
+Set #606.maskSpaceIn = 0
 <<<
->>> param get #604.maskSpaceIn
-#604.maskSpaceIn = VDM space
+>>> param get #606.maskSpaceIn
+#606.maskSpaceIn = VDM space
 <<<
->>> param set "#604.maskSpaceIn" 1
-Set #604.maskSpaceIn = 1
+>>> param set "#606.maskSpaceIn" 1
+Set #606.maskSpaceIn = 1
 <<<
->>> param get #604.maskSpaceIn
-#604.maskSpaceIn = World space
+>>> param get #606.maskSpaceIn
+#606.maskSpaceIn = World space
 <<<
->>> param get #604.maskSpace
-#604.maskSpace = World space
+>>> param get #606.maskSpace
+#606.maskSpace = World space
 <<<
->>> param set "#604.maskSpace" 9999
+>>> param set "#606.maskSpace" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#604.maskSpace" 0
-Set #604.maskSpace = 0
+>>> param set "#606.maskSpace" 0
+Set #606.maskSpace = 0
 <<<
->>> param get #604.maskSpace
-#604.maskSpace = VDM space
+>>> param get #606.maskSpace
+#606.maskSpace = VDM space
 <<<
->>> param set "#604.maskSpace" 1
-Set #604.maskSpace = 1
+>>> param set "#606.maskSpace" 1
+Set #606.maskSpace = 1
 <<<
->>> param get #604.maskSpace
-#604.maskSpace = World space
+>>> param get #606.maskSpace
+#606.maskSpace = World space
 <<<
->>> device delete #604
-Deleted: #604
+>>> device delete #606
+Deleted: #606
 <<<
 >>> device add Meshify
 Added 'Meshify'
@@ -4760,19 +4998,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #605   Meshify                 
+  #607   Meshify                 
 
 <<<
->>> device info #605
-Device #605:
+>>> device info #607
+Device #607:
   Name:    Meshify
   Type:    Meshify
   Enabled: yes
   Bypass:  no
-Build results (history ID 985):
+Build results (history ID 1007):
   (none stored)
 <<<
->>> param list #605
+>>> param list #607
 Parameters for 'Meshify' (Meshify):
   reportTri                 string    (None)
   groupGeo                  other     
@@ -4785,86 +5023,86 @@ Parameters for 'Meshify' (Meshify):
   normType                  enum      Tangent Space
 
 <<<
->>> param get #605.opt
-#605.opt = Optimized (Delaunay TIN)
+>>> param get #607.opt
+#607.opt = Optimized (Delaunay TIN)
 <<<
->>> param set "#605.opt" 9999
+>>> param set "#607.opt" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#605.opt" 0
-Set #605.opt = 0
+>>> param set "#607.opt" 0
+Set #607.opt = 0
 <<<
->>> param get #605.opt
-#605.opt = Uniform Grid
+>>> param get #607.opt
+#607.opt = Uniform Grid
 <<<
->>> param set "#605.opt" 1
-Set #605.opt = 1
+>>> param set "#607.opt" 1
+Set #607.opt = 1
 <<<
->>> param get #605.opt
-#605.opt = Optimized (Delaunay TIN)
+>>> param get #607.opt
+#607.opt = Optimized (Delaunay TIN)
 <<<
->>> param get #605.volume
-#605.volume = Top Surface
+>>> param get #607.volume
+#607.volume = Top Surface
 <<<
->>> param set "#605.volume" 9999
+>>> param set "#607.volume" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#605.volume" 0
-Set #605.volume = 0
+>>> param set "#607.volume" 0
+Set #607.volume = 0
 <<<
->>> param get #605.volume
-#605.volume = Top Surface
+>>> param get #607.volume
+#607.volume = Top Surface
 <<<
->>> param set "#605.volume" 1
-Set #605.volume = 1
+>>> param set "#607.volume" 1
+Set #607.volume = 1
 <<<
->>> param get #605.volume
-#605.volume = Enclosed Volume
+>>> param get #607.volume
+#607.volume = Enclosed Volume
 <<<
->>> param get #605.geoType
-#605.geoType = Triangles
+>>> param get #607.geoType
+#607.geoType = Triangles
 <<<
->>> param set "#605.geoType" 9999
+>>> param set "#607.geoType" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#605.geoType" 0
-Set #605.geoType = 0
+>>> param set "#607.geoType" 0
+Set #607.geoType = 0
 <<<
->>> param get #605.geoType
-#605.geoType = Triangles
+>>> param get #607.geoType
+#607.geoType = Triangles
 <<<
->>> param set "#605.geoType" 1
-Set #605.geoType = 1
+>>> param set "#607.geoType" 1
+Set #607.geoType = 1
 <<<
->>> param get #605.geoType
-#605.geoType = Quads
+>>> param get #607.geoType
+#607.geoType = Quads
 <<<
->>> param set "#605.geoType" 2
-Set #605.geoType = 2
+>>> param set "#607.geoType" 2
+Set #607.geoType = 2
 <<<
->>> param get #605.geoType
-#605.geoType = 4-Tri
+>>> param get #607.geoType
+#607.geoType = 4-Tri
 <<<
->>> param get #605.normType
-#605.normType = Tangent Space
+>>> param get #607.normType
+#607.normType = Tangent Space
 <<<
->>> param set "#605.normType" 9999
+>>> param set "#607.normType" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#605.normType" 0
-Set #605.normType = 0
+>>> param set "#607.normType" 0
+Set #607.normType = 0
 <<<
->>> param get #605.normType
-#605.normType = Tangent Space
+>>> param get #607.normType
+#607.normType = Tangent Space
 <<<
->>> param set "#605.normType" 1
-Set #605.normType = 1
+>>> param set "#607.normType" 1
+Set #607.normType = 1
 <<<
->>> param get #605.normType
-#605.normType = Object Space
+>>> param get #607.normType
+#607.normType = Object Space
 <<<
->>> device delete #605
-Deleted: #605
+>>> device delete #607
+Deleted: #607
 <<<
 >>> device add Mesh Output
 Added 'Mesh Output'
@@ -4888,19 +5126,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #606   Mesh Output             
+  #608   Mesh Output             
 
 <<<
->>> device info #606
-Device #606:
+>>> device info #608
+Device #608:
   Name:    Mesh Output
   Type:    Mesh Output
   Enabled: yes
   Bypass:  no
-Build results (history ID 996):
+Build results (history ID 1018):
   (none stored)
 <<<
->>> param list #606
+>>> param list #608
 Parameters for 'Mesh Output' (Mesh Output):
   Mesh Type                 enum      Regular Mesh Triangulation
   Target kTri Count         int       256
@@ -4920,86 +5158,86 @@ Parameters for 'Mesh Output' (Mesh Output):
   Specify Output File...    action    
 
 <<<
->>> param get #606.Mesh Type
-#606.Mesh Type = Regular Mesh Triangulation
+>>> param get #608.Mesh Type
+#608.Mesh Type = Regular Mesh Triangulation
 <<<
->>> param set "#606.Mesh Type" 9999
+>>> param set "#608.Mesh Type" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#606.Mesh Type" 0
-Set #606.Mesh Type = 0
+>>> param set "#608.Mesh Type" 0
+Set #608.Mesh Type = 0
 <<<
->>> param get #606.Mesh Type
-#606.Mesh Type = Regular Mesh Triangulation
+>>> param get #608.Mesh Type
+#608.Mesh Type = Regular Mesh Triangulation
 <<<
->>> param set "#606.Mesh Type" 1
-Set #606.Mesh Type = 1
+>>> param set "#608.Mesh Type" 1
+Set #608.Mesh Type = 1
 <<<
->>> param get #606.Mesh Type
-#606.Mesh Type = Simple Mesh Reduction
+>>> param get #608.Mesh Type
+#608.Mesh Type = Simple Mesh Reduction
 <<<
->>> param get #606.Coordinate System
-#606.Coordinate System = Z is up (X = east, Y = north)
+>>> param get #608.Coordinate System
+#608.Coordinate System = Z is up (X = east, Y = north)
 <<<
->>> param set "#606.Coordinate System" 9999
+>>> param set "#608.Coordinate System" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#606.Coordinate System" 0
-Set #606.Coordinate System = 0
+>>> param set "#608.Coordinate System" 0
+Set #608.Coordinate System = 0
 <<<
->>> param get #606.Coordinate System
-#606.Coordinate System = Z is up (X = east, Y = north)
+>>> param get #608.Coordinate System
+#608.Coordinate System = Z is up (X = east, Y = north)
 <<<
->>> param set "#606.Coordinate System" 1
-Set #606.Coordinate System = 1
+>>> param set "#608.Coordinate System" 1
+Set #608.Coordinate System = 1
 <<<
->>> param get #606.Coordinate System
-#606.Coordinate System = Y is up (X = east, Z = south)
+>>> param get #608.Coordinate System
+#608.Coordinate System = Y is up (X = east, Z = south)
 <<<
->>> param get #606.Units
-#606.Units = Export normalized
+>>> param get #608.Units
+#608.Units = Export normalized
 <<<
->>> param set "#606.Units" 9999
+>>> param set "#608.Units" 9999
 Error: Error: Enum index out of range (0-3): 9999
 <<<
->>> param set "#606.Units" 0
-Set #606.Units = 0
+>>> param set "#608.Units" 0
+Set #608.Units = 0
 <<<
->>> param get #606.Units
-#606.Units = Export using WM units
+>>> param get #608.Units
+#608.Units = Export using WM units
 <<<
->>> param set "#606.Units" 1
-Set #606.Units = 1
+>>> param set "#608.Units" 1
+Set #608.Units = 1
 <<<
->>> param get #606.Units
-#606.Units = Export normalized
+>>> param get #608.Units
+#608.Units = Export normalized
 <<<
->>> param set "#606.Units" 2
-Set #606.Units = 2
+>>> param set "#608.Units" 2
+Set #608.Units = 2
 <<<
->>> param get #606.Units
-#606.Units = Export using kilometers
+>>> param get #608.Units
+#608.Units = Export using kilometers
 <<<
->>> param set "#606.Units" 3
-Set #606.Units = 3
+>>> param set "#608.Units" 3
+Set #608.Units = 3
 <<<
->>> param get #606.Units
-#606.Units = Export using meters
+>>> param get #608.Units
+#608.Units = Export using meters
 <<<
->>> param get #606.File Format
-#606.File Format = Wavefront Object (OBJ)
+>>> param get #608.File Format
+#608.File Format = Wavefront Object (OBJ)
 <<<
->>> param set "#606.File Format" 9999
+>>> param set "#608.File Format" 9999
 Error: Error: Enum index out of range (0-0): 9999
 <<<
->>> param set "#606.File Format" 0
-Set #606.File Format = 0
+>>> param set "#608.File Format" 0
+Set #608.File Format = 0
 <<<
->>> param get #606.File Format
-#606.File Format = Wavefront Object (OBJ)
+>>> param get #608.File Format
+#608.File Format = Wavefront Object (OBJ)
 <<<
->>> device delete #606
-Deleted: #606
+>>> device delete #608
+Deleted: #608
 <<<
 >>> device add Mimic
 Added 'Mimic'
@@ -5023,27 +5261,27 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #607   Mimic                   
+  #609   Mimic                   
 
 <<<
->>> device info #607
-Device #607:
+>>> device info #609
+Device #609:
   Name:    Mimic
   Type:    Mimic
   Enabled: yes
   Bypass:  no
-Build results (history ID 1007):
+Build results (history ID 1029):
   (none stored)
 <<<
->>> param list #607
+>>> param list #609
 Parameters for 'Mimic' (Mimic):
   Match Elevations          float     1.0
   Match Roughness           float     1.0
   Detail Fidelity           int       8
 
 <<<
->>> device delete #607
-Deleted: #607
+>>> device delete #609
+Deleted: #609
 <<<
 >>> device add Multi Chooser
 Added 'Multi Chooser'
@@ -5067,26 +5305,26 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #608   Multi Chooser           
+  #610   Multi Chooser           
 
 <<<
->>> device info #608
-Device #608:
+>>> device info #610
+Device #610:
   Name:    Multi Chooser
   Type:    Multi Chooser
   Enabled: yes
   Bypass:  no
-Build results (history ID 1009):
+Build results (history ID 1031):
   (none stored)
 <<<
->>> param list #608
+>>> param list #610
 Parameters for 'Multi Chooser' (Multi Chooser):
   Number of Inputs          int       4
   Transition Contrast       float     0.5
 
 <<<
->>> device delete #608
-Deleted: #608
+>>> device delete #610
+Deleted: #610
 <<<
 >>> device add Normal Combiner
 Added 'Normal Combiner'
@@ -5110,25 +5348,25 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #609   Normal Combiner         
+  #611   Normal Combiner         
 
 <<<
->>> device info #609
-Device #609:
+>>> device info #611
+Device #611:
   Name:    Normal Combiner
   Type:    Normal Combiner
   Enabled: yes
   Bypass:  no
-Build results (history ID 1011):
+Build results (history ID 1033):
   (none stored)
 <<<
->>> param list #609
+>>> param list #611
 Parameters for 'Normal Combiner' (Normal Combiner):
   str                       float     1.0
 
 <<<
->>> device delete #609
-Deleted: #609
+>>> device delete #611
+Deleted: #611
 <<<
 >>> device add Overlay View
 Added 'Overlay View'
@@ -5152,44 +5390,44 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #610   Overlay View            
+  #612   Overlay View            
 
 <<<
->>> device info #610
-Device #610:
+>>> device info #612
+Device #612:
   Name:    Overlay View
   Type:    Overlay View
   Enabled: yes
   Bypass:  no
-Build results (history ID 1013):
+Build results (history ID 1035):
   (none stored)
 <<<
->>> param list #610
+>>> param list #612
 Parameters for 'Overlay View' (Overlay View):
   Mask Colors               enum      Blend colors with Mask
   Mask Ambient              float     0.0
 
 <<<
->>> param get #610.Mask Colors
-#610.Mask Colors = Blend colors with Mask
+>>> param get #612.Mask Colors
+#612.Mask Colors = Blend colors with Mask
 <<<
->>> param set "#610.Mask Colors" 9999
+>>> param set "#612.Mask Colors" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#610.Mask Colors" 0
-Set #610.Mask Colors = 0
+>>> param set "#612.Mask Colors" 0
+Set #612.Mask Colors = 0
 <<<
->>> param get #610.Mask Colors
-#610.Mask Colors = Replace with Mask
+>>> param get #612.Mask Colors
+#612.Mask Colors = Replace with Mask
 <<<
->>> param set "#610.Mask Colors" 1
-Set #610.Mask Colors = 1
+>>> param set "#612.Mask Colors" 1
+Set #612.Mask Colors = 1
 <<<
->>> param get #610.Mask Colors
-#610.Mask Colors = Blend colors with Mask
+>>> param get #612.Mask Colors
+#612.Mask Colors = Blend colors with Mask
 <<<
->>> device delete #610
-Deleted: #610
+>>> device delete #612
+Deleted: #612
 <<<
 >>> device add Parameter Arithmetic
 Added 'Parameter Arithmetic'
@@ -5213,69 +5451,69 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #611   Parameter Arithmetic    
+  #613   Parameter Arithmetic    
 
 <<<
->>> device info #611
-Device #611:
+>>> device info #613
+Device #613:
   Name:    Parameter Arithmetic
   Type:    Parameter Arithmetic
   Enabled: yes
   Bypass:  no
-Build results (history ID 1017):
+Build results (history ID 1039):
   (none stored)
 <<<
->>> param list #611
+>>> param list #613
 Parameters for 'Parameter Arithmetic' (Parameter Arithmetic):
   Amount                    float     0.0
   Operation                 enum      Add to value
   Clipping                  enum      Clip
 
 <<<
->>> param get #611.Operation
-#611.Operation = Add to value
+>>> param get #613.Operation
+#613.Operation = Add to value
 <<<
->>> param set "#611.Operation" 9999
+>>> param set "#613.Operation" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#611.Operation" 0
-Set #611.Operation = 0
+>>> param set "#613.Operation" 0
+Set #613.Operation = 0
 <<<
->>> param get #611.Operation
-#611.Operation = Add to value
+>>> param get #613.Operation
+#613.Operation = Add to value
 <<<
->>> param set "#611.Operation" 1
-Set #611.Operation = 1
+>>> param set "#613.Operation" 1
+Set #613.Operation = 1
 <<<
->>> param get #611.Operation
-#611.Operation = Subtract from value
+>>> param get #613.Operation
+#613.Operation = Subtract from value
 <<<
->>> param set "#611.Operation" 2
-Set #611.Operation = 2
+>>> param set "#613.Operation" 2
+Set #613.Operation = 2
 <<<
->>> param get #611.Operation
-#611.Operation = Multiply with value
+>>> param get #613.Operation
+#613.Operation = Multiply with value
 <<<
->>> param get #611.Clipping
-#611.Clipping = Clip
+>>> param get #613.Clipping
+#613.Clipping = Clip
 <<<
->>> param set "#611.Clipping" 9999
+>>> param set "#613.Clipping" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#611.Clipping" 0
-Set #611.Clipping = 0
+>>> param set "#613.Clipping" 0
+Set #613.Clipping = 0
 <<<
->>> param get #611.Clipping
-#611.Clipping = Rollover
+>>> param get #613.Clipping
+#613.Clipping = Rollover
 <<<
->>> param set "#611.Clipping" 1
-Set #611.Clipping = 1
+>>> param set "#613.Clipping" 1
+Set #613.Clipping = 1
 <<<
->>> param get #611.Clipping
-#611.Clipping = Clip
+>>> param get #613.Clipping
+#613.Clipping = Clip
 <<<
->>> device delete #611
-Deleted: #611
+>>> device delete #613
+Deleted: #613
 <<<
 >>> device add Perlin Curve
 Added 'Perlin Curve'
@@ -5299,19 +5537,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #612   Perlin Curve            
+  #614   Perlin Curve            
 
 <<<
->>> device info #612
-Device #612:
+>>> device info #614
+Device #614:
   Name:    Perlin Curve
   Type:    Perlin Curve
   Enabled: yes
   Bypass:  no
-Build results (history ID 1024):
+Build results (history ID 1046):
   (none stored)
 <<<
->>> param list #612
+>>> param list #614
 Parameters for 'Perlin Curve' (Perlin Curve):
   Octaves                   int       1
   Lead-in Frequency         float     1.0
@@ -5320,8 +5558,8 @@ Parameters for 'Perlin Curve' (Perlin Curve):
   Phase Offset              float     0.0
 
 <<<
->>> device delete #612
-Deleted: #612
+>>> device delete #614
+Deleted: #614
 <<<
 >>> device add Pull-up
 Added 'Pull-up'
@@ -5345,23 +5583,23 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #613   Pull-up                 
+  #615   Pull-up                 
 
 <<<
->>> device info #613
-Device #613:
+>>> device info #615
+Device #615:
   Name:    Pull-up
   Type:    Pull-up
   Enabled: yes
   Bypass:  no
-Build results (history ID 1026):
+Build results (history ID 1048):
   (none stored)
 <<<
->>> param list #613
+>>> param list #615
 Device 'Pull-up' has no parameters.
 <<<
->>> device delete #613
-Deleted: #613
+>>> device delete #615
+Deleted: #615
 <<<
 >>> device add Radial Grad
 Added 'Radial Grad'
@@ -5385,62 +5623,62 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #614   Radial Grad             
+  #616   Radial Grad             
 
 <<<
->>> device info #614
-Device #614:
+>>> device info #616
+Device #616:
   Name:    Radial Grad
   Type:    Radial Grad
   Enabled: yes
   Bypass:  no
-Build results (history ID 1028):
+Build results (history ID 1050):
   (none stored)
 <<<
->>> param list #614
+>>> param list #616
 Parameters for 'Radial Grad' (Radial Grad):
   Radius                    float     8 km
   Type                      enum      Gaussian
 
 <<<
->>> param get #614.Type
-#614.Type = Gaussian
+>>> param get #616.Type
+#616.Type = Gaussian
 <<<
->>> param set "#614.Type" 9999
+>>> param set "#616.Type" 9999
 Error: Error: Enum index out of range (0-4): 9999
 <<<
->>> param set "#614.Type" 0
-Set #614.Type = 0
+>>> param set "#616.Type" 0
+Set #616.Type = 0
 <<<
->>> param get #614.Type
-#614.Type = Spherical
+>>> param get #616.Type
+#616.Type = Spherical
 <<<
->>> param set "#614.Type" 1
-Set #614.Type = 1
+>>> param set "#616.Type" 1
+Set #616.Type = 1
 <<<
->>> param get #614.Type
-#614.Type = Gaussian
+>>> param get #616.Type
+#616.Type = Gaussian
 <<<
->>> param set "#614.Type" 2
-Set #614.Type = 2
+>>> param set "#616.Type" 2
+Set #616.Type = 2
 <<<
->>> param get #614.Type
-#614.Type = Diamond
+>>> param get #616.Type
+#616.Type = Diamond
 <<<
->>> param set "#614.Type" 3
-Set #614.Type = 3
+>>> param set "#616.Type" 3
+Set #616.Type = 3
 <<<
->>> param get #614.Type
-#614.Type = Square
+>>> param get #616.Type
+#616.Type = Square
 <<<
->>> param set "#614.Type" 4
-Set #614.Type = 4
+>>> param set "#616.Type" 4
+Set #616.Type = 4
 <<<
->>> param get #614.Type
-#614.Type = Cone
+>>> param get #616.Type
+#616.Type = Cone
 <<<
->>> device delete #614
-Deleted: #614
+>>> device delete #616
+Deleted: #616
 <<<
 >>> device add Ramp
 Added 'Ramp'
@@ -5464,19 +5702,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #615   Ramp                    
+  #617   Ramp                    
 
 <<<
->>> device info #615
-Device #615:
+>>> device info #617
+Device #617:
   Name:    Ramp
   Type:    Ramp
   Enabled: yes
   Bypass:  no
-Build results (history ID 1035):
+Build results (history ID 1057):
   (none stored)
 <<<
->>> param list #615
+>>> param list #617
 Parameters for 'Ramp' (Ramp):
   Type of Ramp              enum      Mirror
   Frequency                 float     1.0
@@ -5484,26 +5722,26 @@ Parameters for 'Ramp' (Ramp):
   Offset                    float     0 m
 
 <<<
->>> param get #615.Type of Ramp
-#615.Type of Ramp = Mirror
+>>> param get #617.Type of Ramp
+#617.Type of Ramp = Mirror
 <<<
->>> param set "#615.Type of Ramp" 9999
+>>> param set "#617.Type of Ramp" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#615.Type of Ramp" 0
-Set #615.Type of Ramp = 0
+>>> param set "#617.Type of Ramp" 0
+Set #617.Type of Ramp = 0
 <<<
->>> param get #615.Type of Ramp
-#615.Type of Ramp = Repeat
+>>> param get #617.Type of Ramp
+#617.Type of Ramp = Repeat
 <<<
->>> param set "#615.Type of Ramp" 1
-Set #615.Type of Ramp = 1
+>>> param set "#617.Type of Ramp" 1
+Set #617.Type of Ramp = 1
 <<<
->>> param get #615.Type of Ramp
-#615.Type of Ramp = Mirror
+>>> param get #617.Type of Ramp
+#617.Type of Ramp = Mirror
 <<<
->>> device delete #615
-Deleted: #615
+>>> device delete #617
+Deleted: #617
 <<<
 >>> device add Reach Scaling
 Added 'Reach Scaling'
@@ -5527,19 +5765,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #616   Reach Scaling           
+  #618   Reach Scaling           
 
 <<<
->>> device info #616
-Device #616:
+>>> device info #618
+Device #618:
   Name:    Reach Scaling
   Type:    Reach Scaling
   Enabled: yes
   Bypass:  no
-Build results (history ID 1039):
+Build results (history ID 1061):
   (none stored)
 <<<
->>> param list #616
+>>> param list #618
 Parameters for 'Reach Scaling' (Reach Scaling):
   Meander Scaled to         enum      Bankfull Width (Wavelength)
   Meander Belt Width        float     800 m
@@ -5550,80 +5788,80 @@ Parameters for 'Reach Scaling' (Reach Scaling):
   Valley Wall Amplitude     float     400 m
 
 <<<
->>> param get #616.Meander Scaled to
-#616.Meander Scaled to = Bankfull Width (Wavelength)
+>>> param get #618.Meander Scaled to
+#618.Meander Scaled to = Bankfull Width (Wavelength)
 <<<
->>> param set "#616.Meander Scaled to" 9999
+>>> param set "#618.Meander Scaled to" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#616.Meander Scaled to" 0
-Set #616.Meander Scaled to = 0
+>>> param set "#618.Meander Scaled to" 0
+Set #618.Meander Scaled to = 0
 <<<
->>> param get #616.Meander Scaled to
-#616.Meander Scaled to = Total Reach Length (Frequency)
+>>> param get #618.Meander Scaled to
+#618.Meander Scaled to = Total Reach Length (Frequency)
 <<<
->>> param set "#616.Meander Scaled to" 1
-Set #616.Meander Scaled to = 1
+>>> param set "#618.Meander Scaled to" 1
+Set #618.Meander Scaled to = 1
 <<<
->>> param get #616.Meander Scaled to
-#616.Meander Scaled to = Per-km Length (Frequency)
+>>> param get #618.Meander Scaled to
+#618.Meander Scaled to = Per-km Length (Frequency)
 <<<
->>> param set "#616.Meander Scaled to" 2
-Set #616.Meander Scaled to = 2
+>>> param set "#618.Meander Scaled to" 2
+Set #618.Meander Scaled to = 2
 <<<
->>> param get #616.Meander Scaled to
-#616.Meander Scaled to = Bankfull Width (Wavelength)
+>>> param get #618.Meander Scaled to
+#618.Meander Scaled to = Bankfull Width (Wavelength)
 <<<
->>> param get #616.Channel Scaled to
-#616.Channel Scaled to = Use meander scaling
+>>> param get #618.Channel Scaled to
+#618.Channel Scaled to = Use meander scaling
 <<<
->>> param set "#616.Channel Scaled to" 9999
+>>> param set "#618.Channel Scaled to" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#616.Channel Scaled to" 0
-Set #616.Channel Scaled to = 0
+>>> param set "#618.Channel Scaled to" 0
+Set #618.Channel Scaled to = 0
 <<<
->>> param get #616.Channel Scaled to
-#616.Channel Scaled to = Use meander scaling
+>>> param get #618.Channel Scaled to
+#618.Channel Scaled to = Use meander scaling
 <<<
->>> param set "#616.Channel Scaled to" 1
-Set #616.Channel Scaled to = 1
+>>> param set "#618.Channel Scaled to" 1
+Set #618.Channel Scaled to = 1
 <<<
->>> param get #616.Channel Scaled to
-#616.Channel Scaled to = Total Reach Length (Frequency)
+>>> param get #618.Channel Scaled to
+#618.Channel Scaled to = Total Reach Length (Frequency)
 <<<
->>> param set "#616.Channel Scaled to" 2
-Set #616.Channel Scaled to = 2
+>>> param set "#618.Channel Scaled to" 2
+Set #618.Channel Scaled to = 2
 <<<
->>> param get #616.Channel Scaled to
-#616.Channel Scaled to = Per-km Length (Frequency)
+>>> param get #618.Channel Scaled to
+#618.Channel Scaled to = Per-km Length (Frequency)
 <<<
->>> param get #616.Valley Scaled to
-#616.Valley Scaled to = Use meander scaling
+>>> param get #618.Valley Scaled to
+#618.Valley Scaled to = Use meander scaling
 <<<
->>> param set "#616.Valley Scaled to" 9999
+>>> param set "#618.Valley Scaled to" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#616.Valley Scaled to" 0
-Set #616.Valley Scaled to = 0
+>>> param set "#618.Valley Scaled to" 0
+Set #618.Valley Scaled to = 0
 <<<
->>> param get #616.Valley Scaled to
-#616.Valley Scaled to = Use meander scaling
+>>> param get #618.Valley Scaled to
+#618.Valley Scaled to = Use meander scaling
 <<<
->>> param set "#616.Valley Scaled to" 1
-Set #616.Valley Scaled to = 1
+>>> param set "#618.Valley Scaled to" 1
+Set #618.Valley Scaled to = 1
 <<<
->>> param get #616.Valley Scaled to
-#616.Valley Scaled to = Total Reach Length (Frequency)
+>>> param get #618.Valley Scaled to
+#618.Valley Scaled to = Total Reach Length (Frequency)
 <<<
->>> param set "#616.Valley Scaled to" 2
-Set #616.Valley Scaled to = 2
+>>> param set "#618.Valley Scaled to" 2
+Set #618.Valley Scaled to = 2
 <<<
->>> param get #616.Valley Scaled to
-#616.Valley Scaled to = Per-km Length (Frequency)
+>>> param get #618.Valley Scaled to
+#618.Valley Scaled to = Per-km Length (Frequency)
 <<<
->>> device delete #616
-Deleted: #616
+>>> device delete #618
+Deleted: #618
 <<<
 >>> device add Report Color
 Added 'Report Color'
@@ -5647,19 +5885,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #617   Report Color            
+  #619   Report Color            
 
 <<<
->>> device info #617
-Device #617:
+>>> device info #619
+Device #619:
   Name:    Report Color
   Type:    Report Color
   Enabled: yes
   Bypass:  no
-Build results (history ID 1050):
+Build results (history ID 1072):
   (none stored)
 <<<
->>> param list #617
+>>> param list #619
 Parameters for 'Report Color' (Report Color):
   avgC                      other     
   maxV                      other     
@@ -5668,8 +5906,8 @@ Parameters for 'Report Color' (Report Color):
   rangeV                    range     0.5 - 0.5
 
 <<<
->>> device delete #617
-Deleted: #617
+>>> device delete #619
+Deleted: #619
 <<<
 >>> device add Report Extents
 Added 'Report Extents'
@@ -5693,19 +5931,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #618   Report Extents          
+  #620   Report Extents          
 
 <<<
->>> device info #618
-Device #618:
+>>> device info #620
+Device #620:
   Name:    Report Extents
   Type:    Report Extents
   Enabled: yes
   Bypass:  no
-Build results (history ID 1052):
+Build results (history ID 1074):
   (none stored)
 <<<
->>> param list #618
+>>> param list #620
 Parameters for 'Report Extents' (Report Extents):
   mode                      enum      Active Render Extent
   groupExtent               other     
@@ -5721,26 +5959,26 @@ Parameters for 'Report Extents' (Report Extents):
   sealevel                  float     0 m
 
 <<<
->>> param get #618.mode
-#618.mode = Active Render Extent
+>>> param get #620.mode
+#620.mode = Active Render Extent
 <<<
->>> param set "#618.mode" 9999
+>>> param set "#620.mode" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#618.mode" 0
-Set #618.mode = 0
+>>> param set "#620.mode" 0
+Set #620.mode = 0
 <<<
->>> param get #618.mode
-#618.mode = Active Render Extent
+>>> param get #620.mode
+#620.mode = Active Render Extent
 <<<
->>> param set "#618.mode" 1
-Set #618.mode = 1
+>>> param set "#620.mode" 1
+Set #620.mode = 1
 <<<
->>> param get #618.mode
-#618.mode = Last Build
+>>> param get #620.mode
+#620.mode = Last Build
 <<<
->>> device delete #618
-Deleted: #618
+>>> device delete #620
+Deleted: #620
 <<<
 >>> device add Report Height
 Added 'Report Height'
@@ -5764,27 +6002,27 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #619   Report Height           
+  #621   Report Height           
 
 <<<
->>> device info #619
-Device #619:
+>>> device info #621
+Device #621:
   Name:    Report Height
   Type:    Report Height
   Enabled: yes
   Bypass:  no
-Build results (history ID 1056):
+Build results (history ID 1078):
   (none stored)
 <<<
->>> param list #619
+>>> param list #621
 Parameters for 'Report Height' (Report Height):
   avg                       float     0 m
   max                       float     0 m
   min                       float     0 m
 
 <<<
->>> device delete #619
-Deleted: #619
+>>> device delete #621
+Deleted: #621
 <<<
 >>> device add Report Placement
 Added 'Report Placement'
@@ -5808,19 +6046,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #620   Report Placement        
+  #622   Report Placement        
 
 <<<
->>> device info #620
-Device #620:
+>>> device info #622
+Device #622:
   Name:    Report Placement
   Type:    Report Placement
   Enabled: yes
   Bypass:  no
-Build results (history ID 1058):
+Build results (history ID 1080):
   (none stored)
 <<<
->>> param list #620
+>>> param list #622
 Parameters for 'Report Placement' (Report Placement):
   ctrlSpatial               other     true
   spatialMethod             enum      Inherited (Default)
@@ -5831,32 +6069,32 @@ Parameters for 'Report Placement' (Report Placement):
   resolution                int       0
 
 <<<
->>> param get #620.spatialMethod
-#620.spatialMethod = Inherited (Default)
+>>> param get #622.spatialMethod
+#622.spatialMethod = Inherited (Default)
 <<<
->>> param set "#620.spatialMethod" 9999
+>>> param set "#622.spatialMethod" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#620.spatialMethod" 0
-Set #620.spatialMethod = 0
+>>> param set "#622.spatialMethod" 0
+Set #622.spatialMethod = 0
 <<<
->>> param get #620.spatialMethod
-#620.spatialMethod = Worldspace
+>>> param get #622.spatialMethod
+#622.spatialMethod = Worldspace
 <<<
->>> param set "#620.spatialMethod" 1
-Set #620.spatialMethod = 1
+>>> param set "#622.spatialMethod" 1
+Set #622.spatialMethod = 1
 <<<
->>> param get #620.spatialMethod
-#620.spatialMethod = Localspace
+>>> param get #622.spatialMethod
+#622.spatialMethod = Localspace
 <<<
->>> param set "#620.spatialMethod" 2
-Set #620.spatialMethod = 2
+>>> param set "#622.spatialMethod" 2
+Set #622.spatialMethod = 2
 <<<
->>> param get #620.spatialMethod
-#620.spatialMethod = Inherited (Default)
+>>> param get #622.spatialMethod
+#622.spatialMethod = Inherited (Default)
 <<<
->>> device delete #620
-Deleted: #620
+>>> device delete #622
+Deleted: #622
 <<<
 >>> device add Report Presence
 Added 'Report Presence'
@@ -5880,25 +6118,25 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #621   Report Presence         
+  #623   Report Presence         
 
 <<<
->>> device info #621
-Device #621:
+>>> device info #623
+Device #623:
   Name:    Report Presence
   Type:    Report Presence
   Enabled: yes
   Bypass:  no
-Build results (history ID 1063):
+Build results (history ID 1085):
   (none stored)
 <<<
->>> param list #621
+>>> param list #623
 Parameters for 'Report Presence' (Report Presence):
   presence                  bool      false
 
 <<<
->>> device delete #621
-Deleted: #621
+>>> device delete #623
+Deleted: #623
 <<<
 >>> device add Rescale
 Error: Error: Tag 'Rescale' matches multiple devices: Clamp, Levels, Scalar Clamp
@@ -5924,6 +6162,76 @@ Devices (17 total):
   #373   Rock and Soil           
 
 <<<
+>>> device add Clamp
+Added 'Rescale'
+<<<
+>>> device list
+Devices (18 total):
+  #1     Height Output           
+  #2     Advanced Perlin         
+  #3     Curves                  
+  #35    Erosion                 
+  #36    Scene View              
+  #222   Vegetation Layer        
+  #304   Layers                  
+  #305   Thermal Weathering      
+  #307   Ambient Occlusion       
+  #308   Material Output         
+  #309   Colormap only            (Bitmap Output)
+  #310   Tap                     
+  #314   Flow Restructure        
+  #317   Texture Weightmap       
+  #318   Splatmap                 (Bitmap Output)
+  #319   Easy Distortion          (Macro)
+  #373   Rock and Soil           
+  #624   Rescale                  (Clamp)
+
+<<<
+>>> device info #624
+Device #624:
+  Name:    Rescale
+  Type:    Clamp
+  Enabled: yes
+  Bypass:  no
+Build results (history ID 1087):
+  (none stored)
+<<<
+>>> param list #624
+Parameters for 'Rescale' (Clamp):
+  Range1                    float     0 m
+  Range2                    float     2625 m
+  Type                      enum      Rescale
+  Normalize                 bool      false
+  Soft Clipping             bool      false
+
+<<<
+>>> param get #624.Type
+#624.Type = Rescale
+<<<
+>>> param set "#624.Type" 9999
+Error: Error: Enum index out of range (0-2): 9999
+<<<
+>>> param set "#624.Type" 0
+Set #624.Type = 0
+<<<
+>>> param get #624.Type
+#624.Type = Rescale
+<<<
+>>> param set "#624.Type" 1
+Set #624.Type = 1
+<<<
+>>> param get #624.Type
+#624.Type = Clip
+<<<
+>>> param set "#624.Type" 2
+Set #624.Type = 2
+<<<
+>>> param get #624.Type
+#624.Type = Expand
+<<<
+>>> device delete #624
+Deleted: #624
+<<<
 >>> device add River
 Added 'River'
 <<<
@@ -5946,19 +6254,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #622   River                   
+  #625   River                   
 
 <<<
->>> device info #622
-Device #622:
+>>> device info #625
+Device #625:
   Name:    River
   Type:    River
   Enabled: yes
   Bypass:  no
-Build results (history ID 1065):
+Build results (history ID 1092):
   (none stored)
 <<<
->>> param list #622
+>>> param list #625
 Parameters for 'River' (River):
   Sinuosity                 float     0.0
   Channel Gradient          float     0.0
@@ -5987,44 +6295,44 @@ Parameters for 'River' (River):
   Quality                   float     6.0
 
 <<<
->>> param get #622.Planform Type
-#622.Planform Type = Simple Alignment
+>>> param get #625.Planform Type
+#625.Planform Type = Simple Alignment
 <<<
->>> param set "#622.Planform Type" 9999
+>>> param set "#625.Planform Type" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#622.Planform Type" 0
-Set #622.Planform Type = 0
+>>> param set "#625.Planform Type" 0
+Set #625.Planform Type = 0
 <<<
->>> param get #622.Planform Type
-#622.Planform Type = Simple Alignment
+>>> param get #625.Planform Type
+#625.Planform Type = Simple Alignment
 <<<
->>> param set "#622.Planform Type" 1
-Set #622.Planform Type = 1
+>>> param set "#625.Planform Type" 1
+Set #625.Planform Type = 1
 <<<
->>> param get #622.Planform Type
-#622.Planform Type = Layout Alignment
+>>> param get #625.Planform Type
+#625.Planform Type = Layout Alignment
 <<<
->>> param get #622.Channel Type
-#622.Channel Type = Curved
+>>> param get #625.Channel Type
+#625.Channel Type = Curved
 <<<
->>> param set "#622.Channel Type" 9999
+>>> param set "#625.Channel Type" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#622.Channel Type" 0
-Set #622.Channel Type = 0
+>>> param set "#625.Channel Type" 0
+Set #625.Channel Type = 0
 <<<
->>> param get #622.Channel Type
-#622.Channel Type = Curved
+>>> param get #625.Channel Type
+#625.Channel Type = Curved
 <<<
->>> param set "#622.Channel Type" 1
-Set #622.Channel Type = 1
+>>> param set "#625.Channel Type" 1
+Set #625.Channel Type = 1
 <<<
->>> param get #622.Channel Type
-#622.Channel Type = Trapezoidal
+>>> param get #625.Channel Type
+#625.Channel Type = Trapezoidal
 <<<
->>> device delete #622
-Deleted: #622
+>>> device delete #625
+Deleted: #625
 <<<
 >>> device add Route Chooser
 Added 'Route Chooser'
@@ -6048,26 +6356,26 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #623   Route Chooser           
+  #626   Route Chooser           
 
 <<<
->>> device info #623
-Device #623:
+>>> device info #626
+Device #626:
   Name:    Route Chooser
   Type:    Route Chooser
   Enabled: yes
   Bypass:  no
-Build results (history ID 1071):
+Build results (history ID 1098):
   (none stored)
 <<<
->>> param list #623
+>>> param list #626
 Parameters for 'Route Chooser' (Route Chooser):
   Number of Inputs          int       2
   Input Choice              int       0
 
 <<<
->>> device delete #623
-Deleted: #623
+>>> device delete #626
+Deleted: #626
 <<<
 >>> device add Router
 Added 'Router'
@@ -6091,26 +6399,26 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #624   Router                  
+  #627   Router                  
 
 <<<
->>> device info #624
-Device #624:
+>>> device info #627
+Device #627:
   Name:    Router
   Type:    Router
   Enabled: yes
   Bypass:  no
-Build results (history ID 1073):
+Build results (history ID 1100):
   (none stored)
 <<<
->>> param list #624
+>>> param list #627
 Parameters for 'Router' (Router):
   Number of Outputs         int       2
   Output Choice             int       0
 
 <<<
->>> device delete #624
-Deleted: #624
+>>> device delete #627
+Deleted: #627
 <<<
 >>> device add Scalar Clamp
 Added 'Scalar Clamp'
@@ -6134,45 +6442,45 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #625   Scalar Clamp            
+  #628   Scalar Clamp            
 
 <<<
->>> device info #625
-Device #625:
+>>> device info #628
+Device #628:
   Name:    Scalar Clamp
   Type:    Scalar Clamp
   Enabled: yes
   Bypass:  no
-Build results (history ID 1075):
+Build results (history ID 1102):
   (none stored)
 <<<
->>> param list #625
+>>> param list #628
 Parameters for 'Scalar Clamp' (Scalar Clamp):
   Max Range                 float     1.0
   Min Range                 float     0.0
   Type                      enum      Rescale
 
 <<<
->>> param get #625.Type
-#625.Type = Rescale
+>>> param get #628.Type
+#628.Type = Rescale
 <<<
->>> param set "#625.Type" 9999
+>>> param set "#628.Type" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#625.Type" 0
-Set #625.Type = 0
+>>> param set "#628.Type" 0
+Set #628.Type = 0
 <<<
->>> param get #625.Type
-#625.Type = Rescale
+>>> param get #628.Type
+#628.Type = Rescale
 <<<
->>> param set "#625.Type" 1
-Set #625.Type = 1
+>>> param set "#628.Type" 1
+Set #628.Type = 1
 <<<
->>> param get #625.Type
-#625.Type = Clip
+>>> param get #628.Type
+#628.Type = Clip
 <<<
->>> device delete #625
-Deleted: #625
+>>> device delete #628
+Deleted: #628
 <<<
 >>> device add Scalar Combiner
 Added 'Scalar Combiner'
@@ -6196,49 +6504,49 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #626   Scalar Combiner         
+  #629   Scalar Combiner         
 
 <<<
->>> device info #626
-Device #626:
+>>> device info #629
+Device #629:
   Name:    Scalar Combiner
   Type:    Scalar Combiner
   Enabled: yes
   Bypass:  no
-Build results (history ID 1079):
+Build results (history ID 1106):
   (none stored)
 <<<
->>> param list #626
+>>> param list #629
 Parameters for 'Scalar Combiner' (Scalar Combiner):
   Operation                 enum      Add together
 
 <<<
->>> param get #626.Operation
-#626.Operation = Add together
+>>> param get #629.Operation
+#629.Operation = Add together
 <<<
->>> param set "#626.Operation" 9999
+>>> param set "#629.Operation" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#626.Operation" 0
-Set #626.Operation = 0
+>>> param set "#629.Operation" 0
+Set #629.Operation = 0
 <<<
->>> param get #626.Operation
-#626.Operation = Add together
+>>> param get #629.Operation
+#629.Operation = Add together
 <<<
->>> param set "#626.Operation" 1
-Set #626.Operation = 1
+>>> param set "#629.Operation" 1
+Set #629.Operation = 1
 <<<
->>> param get #626.Operation
-#626.Operation = Subtract B from A
+>>> param get #629.Operation
+#629.Operation = Subtract B from A
 <<<
->>> param set "#626.Operation" 2
-Set #626.Operation = 2
+>>> param set "#629.Operation" 2
+Set #629.Operation = 2
 <<<
->>> param get #626.Operation
-#626.Operation = Multiply
+>>> param get #629.Operation
+#629.Operation = Multiply
 <<<
->>> device delete #626
-Deleted: #626
+>>> device delete #629
+Deleted: #629
 <<<
 >>> device add Scalar Generator
 Added 'Scalar Generator'
@@ -6262,25 +6570,25 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #627   Scalar Generator        
+  #630   Scalar Generator        
 
 <<<
->>> device info #627
-Device #627:
+>>> device info #630
+Device #630:
   Name:    Scalar Generator
   Type:    Scalar Generator
   Enabled: yes
   Bypass:  no
-Build results (history ID 1084):
+Build results (history ID 1111):
   (none stored)
 <<<
->>> param list #627
+>>> param list #630
 Parameters for 'Scalar Generator' (Scalar Generator):
   Value                     float     0.0
 
 <<<
->>> device delete #627
-Deleted: #627
+>>> device delete #630
+Deleted: #630
 <<<
 >>> device add Scene Object
 Added 'Scene Object'
@@ -6304,44 +6612,44 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #628   Scene Object            
+  #631   Scene Object            
 
 <<<
->>> device info #628
-Device #628:
+>>> device info #631
+Device #631:
   Name:    Scene Object
   Type:    Scene Object
   Enabled: yes
   Bypass:  no
-Build results (history ID 1086):
+Build results (history ID 1113):
   (none stored)
 <<<
->>> param list #628
+>>> param list #631
 Parameters for 'Scene Object' (Scene Object):
   normalType                enum      Tangent Space
   showGeo                   bool      false
 
 <<<
->>> param get #628.normalType
-#628.normalType = Tangent Space
+>>> param get #631.normalType
+#631.normalType = Tangent Space
 <<<
->>> param set "#628.normalType" 9999
+>>> param set "#631.normalType" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#628.normalType" 0
-Set #628.normalType = 0
+>>> param set "#631.normalType" 0
+Set #631.normalType = 0
 <<<
->>> param get #628.normalType
-#628.normalType = Tangent Space
+>>> param get #631.normalType
+#631.normalType = Tangent Space
 <<<
->>> param set "#628.normalType" 1
-Set #628.normalType = 1
+>>> param set "#631.normalType" 1
+Set #631.normalType = 1
 <<<
->>> param get #628.normalType
-#628.normalType = Object Space
+>>> param get #631.normalType
+#631.normalType = Object Space
 <<<
->>> device delete #628
-Deleted: #628
+>>> device delete #631
+Deleted: #631
 <<<
 >>> device add Scene Output
 Added 'Scene Output'
@@ -6365,19 +6673,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #629   Scene Output            
+  #632   Scene Output            
 
 <<<
->>> device info #629
-Device #629:
+>>> device info #632
+Device #632:
   Name:    Scene Output
   Type:    Scene Output
   Enabled: yes
   Bypass:  no
-Build results (history ID 1090):
+Build results (history ID 1117):
   (none stored)
 <<<
->>> param list #629
+>>> param list #632
 Parameters for 'Scene Output' (Scene Output):
   status                    string    (No Input)
   filename                  filename  <project>_<name>_<res>.glb
@@ -6387,20 +6695,20 @@ Parameters for 'Scene Output' (Scene Output):
   outScale                  float     1.0
 
 <<<
->>> param get #629.type
-#629.type = Binary glTF (.glb)
+>>> param get #632.type
+#632.type = Binary glTF (.glb)
 <<<
->>> param set "#629.type" 9999
+>>> param set "#632.type" 9999
 Error: Error: Enum index out of range (0-0): 9999
 <<<
->>> param set "#629.type" 0
-Set #629.type = 0
+>>> param set "#632.type" 0
+Set #632.type = 0
 <<<
->>> param get #629.type
-#629.type = Binary glTF (.glb)
+>>> param get #632.type
+#632.type = Binary glTF (.glb)
 <<<
->>> device delete #629
-Deleted: #629
+>>> device delete #632
+Deleted: #632
 <<<
 >>> device add Scene View
 Added 'Scene View'
@@ -6424,43 +6732,43 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #630   Scene View              
+  #633   Scene View              
 
 <<<
->>> device info #630
-Device #630:
+>>> device info #633
+Device #633:
   Name:    Scene View
   Type:    Scene View
   Enabled: yes
   Bypass:  no
-Build results (history ID 1093):
+Build results (history ID 1120):
   (none stored)
 <<<
->>> param list #630
+>>> param list #633
 Parameters for 'Scene View' (Scene View):
   Interpret Water Input as:  enum      Water depth
 
 <<<
->>> param get #630.Interpret Water Input as:
-#630.Interpret Water Input as: = Water depth
+>>> param get #633.Interpret Water Input as:
+#633.Interpret Water Input as: = Water depth
 <<<
->>> param set "#630.Interpret Water Input as:" 9999
+>>> param set "#633.Interpret Water Input as:" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#630.Interpret Water Input as:" 0
-Set #630.Interpret Water Input as: = 0
+>>> param set "#633.Interpret Water Input as:" 0
+Set #633.Interpret Water Input as: = 0
 <<<
->>> param get #630.Interpret Water Input as:
-#630.Interpret Water Input as: = Water depth
+>>> param get #633.Interpret Water Input as:
+#633.Interpret Water Input as: = Water depth
 <<<
->>> param set "#630.Interpret Water Input as:" 1
-Set #630.Interpret Water Input as: = 1
+>>> param set "#633.Interpret Water Input as:" 1
+Set #633.Interpret Water Input as: = 1
 <<<
->>> param get #630.Interpret Water Input as:
-#630.Interpret Water Input as: = Water elevation
+>>> param get #633.Interpret Water Input as:
+#633.Interpret Water Input as: = Water elevation
 <<<
->>> device delete #630
-Deleted: #630
+>>> device delete #633
+Deleted: #633
 <<<
 >>> device add Select Aspect
 Added 'Select Aspect'
@@ -6484,26 +6792,26 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #631   Select Aspect           
+  #634   Select Aspect           
 
 <<<
->>> device info #631
-Device #631:
+>>> device info #634
+Device #634:
   Name:    Select Aspect
   Type:    Select Aspect
   Enabled: yes
   Bypass:  no
-Build results (history ID 1097):
+Build results (history ID 1124):
   (none stored)
 <<<
->>> param list #631
+>>> param list #634
 Parameters for 'Select Aspect' (Select Aspect):
   Heading                   int       0
   Elevation                 int       45
 
 <<<
->>> device delete #631
-Deleted: #631
+>>> device delete #634
+Deleted: #634
 <<<
 >>> device add Select Color
 Added 'Select Color'
@@ -6527,19 +6835,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #632   Select Color            
+  #635   Select Color            
 
 <<<
->>> device info #632
-Device #632:
+>>> device info #635
+Device #635:
   Name:    Select Color
   Type:    Select Color
   Enabled: yes
   Bypass:  no
-Build results (history ID 1099):
+Build results (history ID 1126):
   (none stored)
 <<<
->>> param list #632
+>>> param list #635
 Parameters for 'Select Color' (Select Color):
   Selection Type            enum      Select hue
   Color                     other     
@@ -6547,38 +6855,38 @@ Parameters for 'Select Color' (Select Color):
   Falloff                   float     0.1
 
 <<<
->>> param get #632.Selection Type
-#632.Selection Type = Select hue
+>>> param get #635.Selection Type
+#635.Selection Type = Select hue
 <<<
->>> param set "#632.Selection Type" 9999
+>>> param set "#635.Selection Type" 9999
 Error: Error: Enum index out of range (0-3): 9999
 <<<
->>> param set "#632.Selection Type" 0
-Set #632.Selection Type = 0
+>>> param set "#635.Selection Type" 0
+Set #635.Selection Type = 0
 <<<
->>> param get #632.Selection Type
-#632.Selection Type = Select color
+>>> param get #635.Selection Type
+#635.Selection Type = Select color
 <<<
->>> param set "#632.Selection Type" 1
-Set #632.Selection Type = 1
+>>> param set "#635.Selection Type" 1
+Set #635.Selection Type = 1
 <<<
->>> param get #632.Selection Type
-#632.Selection Type = Select hue
+>>> param get #635.Selection Type
+#635.Selection Type = Select hue
 <<<
->>> param set "#632.Selection Type" 2
-Set #632.Selection Type = 2
+>>> param set "#635.Selection Type" 2
+Set #635.Selection Type = 2
 <<<
->>> param get #632.Selection Type
-#632.Selection Type = Select saturation
+>>> param get #635.Selection Type
+#635.Selection Type = Select saturation
 <<<
->>> param set "#632.Selection Type" 3
-Set #632.Selection Type = 3
+>>> param set "#635.Selection Type" 3
+Set #635.Selection Type = 3
 <<<
->>> param get #632.Selection Type
-#632.Selection Type = Select luminance
+>>> param get #635.Selection Type
+#635.Selection Type = Select luminance
 <<<
->>> device delete #632
-Deleted: #632
+>>> device delete #635
+Deleted: #635
 <<<
 >>> device add Select Convexity
 Added 'Select Convexity'
@@ -6602,19 +6910,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #633   Select Convexity        
+  #636   Select Convexity        
 
 <<<
->>> device info #633
-Device #633:
+>>> device info #636
+Device #636:
   Name:    Select Convexity
   Type:    Select Convexity
   Enabled: yes
   Bypass:  no
-Build results (history ID 1105):
+Build results (history ID 1132):
   (none stored)
 <<<
->>> param list #633
+>>> param list #636
 Parameters for 'Select Convexity' (Select Convexity):
   Selection Type            enum      Full Range
   Strength                  float     1.0
@@ -6622,68 +6930,68 @@ Parameters for 'Select Convexity' (Select Convexity):
   Convexity Type            enum      Total Convexity
 
 <<<
->>> param get #633.Selection Type
-#633.Selection Type = Full Range
+>>> param get #636.Selection Type
+#636.Selection Type = Full Range
 <<<
->>> param set "#633.Selection Type" 9999
+>>> param set "#636.Selection Type" 9999
 Error: Error: Enum index out of range (0-3): 9999
 <<<
->>> param set "#633.Selection Type" 0
-Set #633.Selection Type = 0
+>>> param set "#636.Selection Type" 0
+Set #636.Selection Type = 0
 <<<
->>> param get #633.Selection Type
-#633.Selection Type = Full Range
+>>> param get #636.Selection Type
+#636.Selection Type = Full Range
 <<<
->>> param set "#633.Selection Type" 1
-Set #633.Selection Type = 1
+>>> param set "#636.Selection Type" 1
+Set #636.Selection Type = 1
 <<<
->>> param get #633.Selection Type
-#633.Selection Type = Exposed Areas
+>>> param get #636.Selection Type
+#636.Selection Type = Exposed Areas
 <<<
->>> param set "#633.Selection Type" 2
-Set #633.Selection Type = 2
+>>> param set "#636.Selection Type" 2
+Set #636.Selection Type = 2
 <<<
->>> param get #633.Selection Type
-#633.Selection Type = Recessed Areas
+>>> param get #636.Selection Type
+#636.Selection Type = Recessed Areas
 <<<
->>> param set "#633.Selection Type" 3
-Set #633.Selection Type = 3
+>>> param set "#636.Selection Type" 3
+Set #636.Selection Type = 3
 <<<
->>> param get #633.Selection Type
-#633.Selection Type = Smooth Areas
+>>> param get #636.Selection Type
+#636.Selection Type = Smooth Areas
 <<<
->>> param get #633.Convexity Type
-#633.Convexity Type = Total Convexity
+>>> param get #636.Convexity Type
+#636.Convexity Type = Total Convexity
 <<<
->>> param set "#633.Convexity Type" 9999
+>>> param set "#636.Convexity Type" 9999
 Error: Error: Enum index out of range (0-3): 9999
 <<<
->>> param set "#633.Convexity Type" 0
-Set #633.Convexity Type = 0
+>>> param set "#636.Convexity Type" 0
+Set #636.Convexity Type = 0
 <<<
->>> param get #633.Convexity Type
-#633.Convexity Type = Total Convexity
+>>> param get #636.Convexity Type
+#636.Convexity Type = Total Convexity
 <<<
->>> param set "#633.Convexity Type" 1
-Set #633.Convexity Type = 1
+>>> param set "#636.Convexity Type" 1
+Set #636.Convexity Type = 1
 <<<
->>> param get #633.Convexity Type
-#633.Convexity Type = Across Surface (Plan)
+>>> param get #636.Convexity Type
+#636.Convexity Type = Across Surface (Plan)
 <<<
->>> param set "#633.Convexity Type" 2
-Set #633.Convexity Type = 2
+>>> param set "#636.Convexity Type" 2
+Set #636.Convexity Type = 2
 <<<
->>> param get #633.Convexity Type
-#633.Convexity Type = Down Surface (Profile)
+>>> param get #636.Convexity Type
+#636.Convexity Type = Down Surface (Profile)
 <<<
->>> param set "#633.Convexity Type" 3
-Set #633.Convexity Type = 3
+>>> param set "#636.Convexity Type" 3
+Set #636.Convexity Type = 3
 <<<
->>> param get #633.Convexity Type
-#633.Convexity Type = Tangent Curvature
+>>> param get #636.Convexity Type
+#636.Convexity Type = Tangent Curvature
 <<<
->>> device delete #633
-Deleted: #633
+>>> device delete #636
+Deleted: #636
 <<<
 >>> device add Select Height
 Added 'Select Height'
@@ -6707,19 +7015,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #634   Select Height           
+  #637   Select Height           
 
 <<<
->>> device info #634
-Device #634:
+>>> device info #637
+Device #637:
   Name:    Select Height
   Type:    Select Height
   Enabled: yes
   Bypass:  no
-Build results (history ID 1115):
+Build results (history ID 1142):
   (none stored)
 <<<
->>> param list #634
+>>> param list #637
 Parameters for 'Select Height' (Select Height):
   Minimum                   float     0.0
   Maximum                   float     0.5
@@ -6728,32 +7036,32 @@ Parameters for 'Select Height' (Select Height):
   Invert Selection          bool      false
 
 <<<
->>> param get #634.Falloff type
-#634.Falloff type = Smoothstep
+>>> param get #637.Falloff type
+#637.Falloff type = Smoothstep
 <<<
->>> param set "#634.Falloff type" 9999
+>>> param set "#637.Falloff type" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#634.Falloff type" 0
-Set #634.Falloff type = 0
+>>> param set "#637.Falloff type" 0
+Set #637.Falloff type = 0
 <<<
->>> param get #634.Falloff type
-#634.Falloff type = Linear
+>>> param get #637.Falloff type
+#637.Falloff type = Linear
 <<<
->>> param set "#634.Falloff type" 1
-Set #634.Falloff type = 1
+>>> param set "#637.Falloff type" 1
+Set #637.Falloff type = 1
 <<<
->>> param get #634.Falloff type
-#634.Falloff type = Exponential
+>>> param get #637.Falloff type
+#637.Falloff type = Exponential
 <<<
->>> param set "#634.Falloff type" 2
-Set #634.Falloff type = 2
+>>> param set "#637.Falloff type" 2
+Set #637.Falloff type = 2
 <<<
->>> param get #634.Falloff type
-#634.Falloff type = Smoothstep
+>>> param get #637.Falloff type
+#637.Falloff type = Smoothstep
 <<<
->>> device delete #634
-Deleted: #634
+>>> device delete #637
+Deleted: #637
 <<<
 >>> device add Select Roughness
 Added 'Select Roughness'
@@ -6777,26 +7085,26 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #635   Select Roughness        
+  #638   Select Roughness        
 
 <<<
->>> device info #635
-Device #635:
+>>> device info #638
+Device #638:
   Name:    Select Roughness
   Type:    Select Roughness
   Enabled: yes
   Bypass:  no
-Build results (history ID 1120):
+Build results (history ID 1147):
   (none stored)
 <<<
->>> param list #635
+>>> param list #638
 Parameters for 'Select Roughness' (Select Roughness):
   Strength                  float     1.0
   Neighborhood              int       1
 
 <<<
->>> device delete #635
-Deleted: #635
+>>> device delete #638
+Deleted: #638
 <<<
 >>> device add Select Slope
 Added 'Select Slope'
@@ -6820,19 +7128,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #636   Select Slope            
+  #639   Select Slope            
 
 <<<
->>> device info #636
-Device #636:
+>>> device info #639
+Device #639:
   Name:    Select Slope
   Type:    Select Slope
   Enabled: yes
   Bypass:  no
-Build results (history ID 1122):
+Build results (history ID 1149):
   (none stored)
 <<<
->>> param list #636
+>>> param list #639
 Parameters for 'Select Slope' (Select Slope):
   Minimum                   float     0.0
   Maximum                   float     0.5
@@ -6841,8 +7149,8 @@ Parameters for 'Select Slope' (Select Slope):
   Invert Selection          bool      false
 
 <<<
->>> device delete #636
-Deleted: #636
+>>> device delete #639
+Deleted: #639
 <<<
 >>> device add Select Wetness
 Added 'Select Wetness'
@@ -6866,25 +7174,25 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #637   Select Wetness          
+  #640   Select Wetness          
 
 <<<
->>> device info #637
-Device #637:
+>>> device info #640
+Device #640:
   Name:    Select Wetness
   Type:    Select Wetness
   Enabled: yes
   Bypass:  no
-Build results (history ID 1124):
+Build results (history ID 1151):
   (none stored)
 <<<
->>> param list #637
+>>> param list #640
 Parameters for 'Select Wetness' (Select Wetness):
   Moisture                  float     1.0
 
 <<<
->>> device delete #637
-Deleted: #637
+>>> device delete #640
+Deleted: #640
 <<<
 >>> device add Shapes
 Added 'Shapes'
@@ -6908,19 +7216,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #638   Shapes                  
+  #641   Shapes                  
 
 <<<
->>> device info #638
-Device #638:
+>>> device info #641
+Device #641:
   Name:    Shapes
   Type:    Shapes
   Enabled: yes
   Bypass:  no
-Build results (history ID 1126):
+Build results (history ID 1153):
   (none stored)
 <<<
->>> param list #638
+>>> param list #641
 Parameters for 'Shapes' (Shapes):
   Quality                   enum      Standard
   Background Value          float     0 m
@@ -6931,38 +7239,38 @@ Parameters for 'Shapes' (Shapes):
   Shape Roughness           int       3
 
 <<<
->>> param get #638.Quality
-#638.Quality = Standard
+>>> param get #641.Quality
+#641.Quality = Standard
 <<<
->>> param set "#638.Quality" 9999
+>>> param set "#641.Quality" 9999
 Error: Error: Enum index out of range (0-3): 9999
 <<<
->>> param set "#638.Quality" 0
-Set #638.Quality = 0
+>>> param set "#641.Quality" 0
+Set #641.Quality = 0
 <<<
->>> param get #638.Quality
-#638.Quality = Fast
+>>> param get #641.Quality
+#641.Quality = Fast
 <<<
->>> param set "#638.Quality" 1
-Set #638.Quality = 1
+>>> param set "#641.Quality" 1
+Set #641.Quality = 1
 <<<
->>> param get #638.Quality
-#638.Quality = Standard
+>>> param get #641.Quality
+#641.Quality = Standard
 <<<
->>> param set "#638.Quality" 2
-Set #638.Quality = 2
+>>> param set "#641.Quality" 2
+Set #641.Quality = 2
 <<<
->>> param get #638.Quality
-#638.Quality = Smooth
+>>> param get #641.Quality
+#641.Quality = Smooth
 <<<
->>> param set "#638.Quality" 3
-Set #638.Quality = 3
+>>> param set "#641.Quality" 3
+Set #641.Quality = 3
 <<<
->>> param get #638.Quality
-#638.Quality = Ultra-smooth
+>>> param get #641.Quality
+#641.Quality = Ultra-smooth
 <<<
->>> device delete #638
-Deleted: #638
+>>> device delete #641
+Deleted: #641
 <<<
 >>> device add Simple Displacement
 Added 'Simple Displacement'
@@ -6986,19 +7294,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #639   Simple Displacement     
+  #642   Simple Displacement     
 
 <<<
->>> device info #639
-Device #639:
+>>> device info #642
+Device #642:
   Name:    Simple Displacement
   Type:    Simple Displacement
   Enabled: yes
   Bypass:  no
-Build results (history ID 1132):
+Build results (history ID 1159):
   (none stored)
 <<<
->>> param list #639
+>>> param list #642
 Parameters for 'Simple Displacement' (Simple Displacement):
   Direction                 int       0
   Strength                  float     0.0
@@ -7006,26 +7314,26 @@ Parameters for 'Simple Displacement' (Simple Displacement):
   Edge Handling             enum      Mirror interior values
 
 <<<
->>> param get #639.Edge Handling
-#639.Edge Handling = Mirror interior values
+>>> param get #642.Edge Handling
+#642.Edge Handling = Mirror interior values
 <<<
->>> param set "#639.Edge Handling" 9999
+>>> param set "#642.Edge Handling" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#639.Edge Handling" 0
-Set #639.Edge Handling = 0
+>>> param set "#642.Edge Handling" 0
+Set #642.Edge Handling = 0
 <<<
->>> param get #639.Edge Handling
-#639.Edge Handling = Repeat edge values
+>>> param get #642.Edge Handling
+#642.Edge Handling = Repeat edge values
 <<<
->>> param set "#639.Edge Handling" 1
-Set #639.Edge Handling = 1
+>>> param set "#642.Edge Handling" 1
+Set #642.Edge Handling = 1
 <<<
->>> param get #639.Edge Handling
-#639.Edge Handling = Mirror interior values
+>>> param get #642.Edge Handling
+#642.Edge Handling = Mirror interior values
 <<<
->>> device delete #639
-Deleted: #639
+>>> device delete #642
+Deleted: #642
 <<<
 >>> device add Simple Transform
 Added 'Simple Transform'
@@ -7049,19 +7357,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #640   Simple Transform        
+  #643   Simple Transform        
 
 <<<
->>> device info #640
-Device #640:
+>>> device info #643
+Device #643:
   Name:    Simple Transform
   Type:    Simple Transform
   Enabled: yes
   Bypass:  no
-Build results (history ID 1136):
+Build results (history ID 1163):
   (none stored)
 <<<
->>> param list #640
+>>> param list #643
 Parameters for 'Simple Transform' (Simple Transform):
   Canyonize                 float     0.0
   Glaciate                  float     0.0
@@ -7072,8 +7380,8 @@ Parameters for 'Simple Transform' (Simple Transform):
   Intensity                 int       1
 
 <<<
->>> device delete #640
-Deleted: #640
+>>> device delete #643
+Deleted: #643
 <<<
 >>> device add Sinusoidal Curve
 Added 'Sinusoidal Curve'
@@ -7097,19 +7405,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #641   Sinusoidal Curve        
+  #644   Sinusoidal Curve        
 
 <<<
->>> device info #641
-Device #641:
+>>> device info #644
+Device #644:
   Name:    Sinusoidal Curve
   Type:    Sinusoidal Curve
   Enabled: yes
   Bypass:  no
-Build results (history ID 1138):
+Build results (history ID 1165):
   (none stored)
 <<<
->>> param list #641
+>>> param list #644
 Parameters for 'Sinusoidal Curve' (Sinusoidal Curve):
   Number of Sinusoids       int       1
   Frequency sin1            float     1.0
@@ -7126,8 +7434,8 @@ Parameters for 'Sinusoidal Curve' (Sinusoidal Curve):
   Phase sin4                float     0.0
 
 <<<
->>> device delete #641
-Deleted: #641
+>>> device delete #644
+Deleted: #644
 <<<
 >>> device add Snow
 Added 'Snow'
@@ -7151,19 +7459,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #642   Snow                    
+  #645   Snow                    
 
 <<<
->>> device info #642
-Device #642:
+>>> device info #645
+Device #645:
   Name:    Snow
   Type:    Snow
   Enabled: yes
   Bypass:  no
-Build results (history ID 1140):
+Build results (history ID 1167):
   (none stored)
 <<<
->>> param list #642
+>>> param list #645
 Parameters for 'Snow' (Snow):
   Intensity                 float     0.5
   Evaporative Balance       float     1.0
@@ -7174,8 +7482,8 @@ Parameters for 'Snow' (Snow):
   Taper Snowfall            bool      false
 
 <<<
->>> device delete #642
-Deleted: #642
+>>> device delete #645
+Deleted: #645
 <<<
 >>> device add Sphere
 Added 'VDM Primitive'
@@ -7199,19 +7507,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #643   VDM Primitive           
+  #646   VDM Primitive           
 
 <<<
->>> device info #643
-Device #643:
+>>> device info #646
+Device #646:
   Name:    VDM Primitive
   Type:    VDM Primitive
   Enabled: yes
   Bypass:  no
-Build results (history ID 1142):
+Build results (history ID 1169):
   (none stored)
 <<<
->>> param list #643
+>>> param list #646
 Parameters for 'VDM Primitive' (VDM Primitive):
   type                      enum      Sphere
   scale                     float     8 km
@@ -7233,62 +7541,62 @@ Parameters for 'VDM Primitive' (VDM Primitive):
   basePx                    int       1px
 
 <<<
->>> param get #643.type
-#643.type = Sphere
+>>> param get #646.type
+#646.type = Sphere
 <<<
->>> param set "#643.type" 9999
+>>> param set "#646.type" 9999
 Error: Error: Enum index out of range (0-3): 9999
 <<<
->>> param set "#643.type" 0
-Set #643.type = 0
+>>> param set "#646.type" 0
+Set #646.type = 0
 <<<
->>> param get #643.type
-#643.type = Sphere
+>>> param get #646.type
+#646.type = Sphere
 <<<
->>> param set "#643.type" 1
-Set #643.type = 1
+>>> param set "#646.type" 1
+Set #646.type = 1
 <<<
->>> param get #643.type
-#643.type = Cube
+>>> param get #646.type
+#646.type = Cube
 <<<
->>> param set "#643.type" 2
-Set #643.type = 2
+>>> param set "#646.type" 2
+Set #646.type = 2
 <<<
->>> param get #643.type
-#643.type = Superellipsoid
+>>> param get #646.type
+#646.type = Superellipsoid
 <<<
->>> param set "#643.type" 3
-Set #643.type = 3
+>>> param set "#646.type" 3
+Set #646.type = 3
 <<<
->>> param get #643.type
-#643.type = Cliff
+>>> param get #646.type
+#646.type = Cliff
 <<<
->>> param get #643.pinchProfile
-#643.pinchProfile = Smooth
+>>> param get #646.pinchProfile
+#646.pinchProfile = Smooth
 <<<
->>> param set "#643.pinchProfile" 9999
+>>> param set "#646.pinchProfile" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#643.pinchProfile" 0
-Set #643.pinchProfile = 0
+>>> param set "#646.pinchProfile" 0
+Set #646.pinchProfile = 0
 <<<
->>> param get #643.pinchProfile
-#643.pinchProfile = Linear
+>>> param get #646.pinchProfile
+#646.pinchProfile = Linear
 <<<
->>> param set "#643.pinchProfile" 1
-Set #643.pinchProfile = 1
+>>> param set "#646.pinchProfile" 1
+Set #646.pinchProfile = 1
 <<<
->>> param get #643.pinchProfile
-#643.pinchProfile = Smooth
+>>> param get #646.pinchProfile
+#646.pinchProfile = Smooth
 <<<
->>> param set "#643.pinchProfile" 2
-Set #643.pinchProfile = 2
+>>> param set "#646.pinchProfile" 2
+Set #646.pinchProfile = 2
 <<<
->>> param get #643.pinchProfile
-#643.pinchProfile = Shelf
+>>> param get #646.pinchProfile
+#646.pinchProfile = Shelf
 <<<
->>> device delete #643
-Deleted: #643
+>>> device delete #646
+Deleted: #646
 <<<
 >>> device add Strata
 Added 'Strata'
@@ -7312,19 +7620,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #644   Strata                  
+  #647   Strata                  
 
 <<<
->>> device info #644
-Device #644:
+>>> device info #647
+Device #647:
   Name:    Strata
   Type:    Strata
   Enabled: yes
   Bypass:  no
-Build results (history ID 1151):
+Build results (history ID 1178):
   (none stored)
 <<<
->>> param list #644
+>>> param list #647
 Parameters for 'Strata' (Strata):
   groupStrata               other     
   Strata Incision           float     0.5
@@ -7336,8 +7644,8 @@ Parameters for 'Strata' (Strata):
   tiltHeading               float     0.0
 
 <<<
->>> device delete #644
-Deleted: #644
+>>> device delete #647
+Deleted: #647
 <<<
 >>> device add Switch
 Added 'Switch'
@@ -7361,25 +7669,25 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #645   Switch                  
+  #648   Switch                  
 
 <<<
->>> device info #645
-Device #645:
+>>> device info #648
+Device #648:
   Name:    Switch
   Type:    Switch
   Enabled: yes
   Bypass:  no
-Build results (history ID 1153):
+Build results (history ID 1180):
   (none stored)
 <<<
->>> param list #645
+>>> param list #648
 Parameters for 'Switch' (Switch):
   Input choice              bool      false
 
 <<<
->>> device delete #645
-Deleted: #645
+>>> device delete #648
+Deleted: #648
 <<<
 >>> device add Tap
 Added 'Tap'
@@ -7403,25 +7711,25 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #646   Tap                     
+  #649   Tap                     
 
 <<<
->>> device info #646
-Device #646:
+>>> device info #649
+Device #649:
   Name:    Tap
   Type:    Tap
   Enabled: yes
   Bypass:  no
-Build results (history ID 1155):
+Build results (history ID 1182):
   (none stored)
 <<<
->>> param list #646
+>>> param list #649
 Parameters for 'Tap' (Tap):
   member                    string    
 
 <<<
->>> device delete #646
-Deleted: #646
+>>> device delete #649
+Deleted: #649
 <<<
 >>> device add Terrace
 Added 'Terrace'
@@ -7445,19 +7753,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #647   Terrace                 
+  #650   Terrace                 
 
 <<<
->>> device info #647
-Device #647:
+>>> device info #650
+Device #650:
   Name:    Terrace
   Type:    Terrace
   Enabled: yes
   Bypass:  no
-Build results (history ID 1157):
+Build results (history ID 1184):
   (none stored)
 <<<
->>> param list #647
+>>> param list #650
 Parameters for 'Terrace' (Terrace):
   Terrace Method            enum      Sharp
   Number of Terraces        int       32
@@ -7465,32 +7773,32 @@ Parameters for 'Terrace' (Terrace):
   Terrace Layering          int       3
 
 <<<
->>> param get #647.Terrace Method
-#647.Terrace Method = Sharp
+>>> param get #650.Terrace Method
+#650.Terrace Method = Sharp
 <<<
->>> param set "#647.Terrace Method" 9999
+>>> param set "#650.Terrace Method" 9999
 Error: Error: Enum index out of range (0-2): 9999
 <<<
->>> param set "#647.Terrace Method" 0
-Set #647.Terrace Method = 0
+>>> param set "#650.Terrace Method" 0
+Set #650.Terrace Method = 0
 <<<
->>> param get #647.Terrace Method
-#647.Terrace Method = Simple
+>>> param get #650.Terrace Method
+#650.Terrace Method = Simple
 <<<
->>> param set "#647.Terrace Method" 1
-Set #647.Terrace Method = 1
+>>> param set "#650.Terrace Method" 1
+Set #650.Terrace Method = 1
 <<<
->>> param get #647.Terrace Method
-#647.Terrace Method = Sharp
+>>> param get #650.Terrace Method
+#650.Terrace Method = Sharp
 <<<
->>> param set "#647.Terrace Method" 2
-Set #647.Terrace Method = 2
+>>> param set "#650.Terrace Method" 2
+Set #650.Terrace Method = 2
 <<<
->>> param get #647.Terrace Method
-#647.Terrace Method = Smooth
+>>> param get #650.Terrace Method
+#650.Terrace Method = Smooth
 <<<
->>> device delete #647
-Deleted: #647
+>>> device delete #650
+Deleted: #650
 <<<
 >>> device add Text Output
 Added 'Text Output'
@@ -7514,19 +7822,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #648   Text Output             
+  #651   Text Output             
 
 <<<
->>> device info #648
-Device #648:
+>>> device info #651
+Device #651:
   Name:    Text Output
   Type:    Text Output
   Enabled: yes
   Bypass:  no
-Build results (history ID 1162):
+Build results (history ID 1189):
   (none stored)
 <<<
->>> param list #648
+>>> param list #651
 Parameters for 'Text Output' (Text Output):
   File Name                 filename  <project>_<name>.txt
   Output File on every Build  bool      false
@@ -7534,8 +7842,8 @@ Parameters for 'Text Output' (Text Output):
   Write output to disk!     action    
 
 <<<
->>> device delete #648
-Deleted: #648
+>>> device delete #651
+Deleted: #651
 <<<
 >>> device add Texture Weightmap
 Added 'Texture Weightmap'
@@ -7559,19 +7867,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #649   Texture Weightmap       
+  #652   Texture Weightmap       
 
 <<<
->>> device info #649
-Device #649:
+>>> device info #652
+Device #652:
   Name:    Texture Weightmap
   Type:    Texture Weightmap
   Enabled: yes
   Bypass:  no
-Build results (history ID 1164):
+Build results (history ID 1191):
   (none stored)
 <<<
->>> param list #649
+>>> param list #652
 Parameters for 'Texture Weightmap' (Texture Weightmap):
   Number of Inputs          int       4
   Priority Behavior         enum      Equal priority
@@ -7579,44 +7887,44 @@ Parameters for 'Texture Weightmap' (Texture Weightmap):
   Exclusion                 float     0.0
 
 <<<
->>> param get #649.Priority Behavior
-#649.Priority Behavior = Equal priority
+>>> param get #652.Priority Behavior
+#652.Priority Behavior = Equal priority
 <<<
->>> param set "#649.Priority Behavior" 9999
+>>> param set "#652.Priority Behavior" 9999
 Error: Error: Enum index out of range (0-4): 9999
 <<<
->>> param set "#649.Priority Behavior" 0
-Set #649.Priority Behavior = 0
+>>> param set "#652.Priority Behavior" 0
+Set #652.Priority Behavior = 0
 <<<
->>> param get #649.Priority Behavior
-#649.Priority Behavior = Equal priority
+>>> param get #652.Priority Behavior
+#652.Priority Behavior = Equal priority
 <<<
->>> param set "#649.Priority Behavior" 1
-Set #649.Priority Behavior = 1
+>>> param set "#652.Priority Behavior" 1
+Set #652.Priority Behavior = 1
 <<<
->>> param get #649.Priority Behavior
-#649.Priority Behavior = Favor top inputs
+>>> param get #652.Priority Behavior
+#652.Priority Behavior = Favor top inputs
 <<<
->>> param set "#649.Priority Behavior" 2
-Set #649.Priority Behavior = 2
+>>> param set "#652.Priority Behavior" 2
+Set #652.Priority Behavior = 2
 <<<
->>> param get #649.Priority Behavior
-#649.Priority Behavior = Favor bottom inputs
+>>> param get #652.Priority Behavior
+#652.Priority Behavior = Favor bottom inputs
 <<<
->>> param set "#649.Priority Behavior" 3
-Set #649.Priority Behavior = 3
+>>> param set "#652.Priority Behavior" 3
+Set #652.Priority Behavior = 3
 <<<
->>> param get #649.Priority Behavior
-#649.Priority Behavior = Favor variety
+>>> param get #652.Priority Behavior
+#652.Priority Behavior = Favor variety
 <<<
->>> param set "#649.Priority Behavior" 4
-Set #649.Priority Behavior = 4
+>>> param set "#652.Priority Behavior" 4
+Set #652.Priority Behavior = 4
 <<<
->>> param get #649.Priority Behavior
-#649.Priority Behavior = Favor best match
+>>> param get #652.Priority Behavior
+#652.Priority Behavior = Favor best match
 <<<
->>> device delete #649
-Deleted: #649
+>>> device delete #652
+Deleted: #652
 <<<
 >>> device add Thermal Weathering
 Added 'Thermal Weathering'
@@ -7640,19 +7948,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #650   Thermal Weathering      
+  #653   Thermal Weathering      
 
 <<<
->>> device info #650
-Device #650:
+>>> device info #653
+Device #653:
   Name:    Thermal Weathering
   Type:    Thermal Weathering
   Enabled: yes
   Bypass:  no
-Build results (history ID 1171):
+Build results (history ID 1198):
   (none stored)
 <<<
->>> param list #650
+>>> param list #653
 Parameters for 'Thermal Weathering' (Thermal Weathering):
   Iterations                int       25
   Style                     enum      Classic
@@ -7662,26 +7970,26 @@ Parameters for 'Thermal Weathering' (Thermal Weathering):
   Talus Angle               float     0.001
 
 <<<
->>> param get #650.Style
-#650.Style = Classic
+>>> param get #653.Style
+#653.Style = Classic
 <<<
->>> param set "#650.Style" 9999
+>>> param set "#653.Style" 9999
 Error: Error: Enum index out of range (0-1): 9999
 <<<
->>> param set "#650.Style" 0
-Set #650.Style = 0
+>>> param set "#653.Style" 0
+Set #653.Style = 0
 <<<
->>> param get #650.Style
-#650.Style = Classic
+>>> param get #653.Style
+#653.Style = Classic
 <<<
->>> param set "#650.Style" 1
-Set #650.Style = 1
+>>> param set "#653.Style" 1
+Set #653.Style = 1
 <<<
->>> param get #650.Style
-#650.Style = Two-phase
+>>> param get #653.Style
+#653.Style = Two-phase
 <<<
->>> device delete #650
-Deleted: #650
+>>> device delete #653
+Deleted: #653
 <<<
 >>> device add Tiled File Input
 Added 'Tiled File Input'
@@ -7705,24 +8013,24 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #651   Tiled File Input        
+  #654   Tiled File Input        
 
 <<<
->>> device info #651
-Device #651:
+>>> device info #654
+Device #654:
   Name:    Tiled File Input
   Type:    Tiled File Input
   Enabled: yes
   Bypass:  no
-Build results (history ID 1175):
+Build results (history ID 1202):
   (none stored)
 <<<
->>> param list #651
+>>> param list #654
 Parameters for 'Tiled File Input' (Tiled File Input):
 
 <<<
->>> device delete #651
-Deleted: #651
+>>> device delete #654
+Deleted: #654
 <<<
 >>> device add Tint
 Added 'Tint'
@@ -7746,19 +8054,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #652   Tint                    
+  #655   Tint                    
 
 <<<
->>> device info #652
-Device #652:
+>>> device info #655
+Device #655:
   Name:    Tint
   Type:    Tint
   Enabled: yes
   Bypass:  no
-Build results (history ID 1177):
+Build results (history ID 1204):
   (none stored)
 <<<
->>> param list #652
+>>> param list #655
 Parameters for 'Tint' (Tint):
   color                     other     
   str                       float     1.0
@@ -7766,8 +8074,8 @@ Parameters for 'Tint' (Tint):
   dev                       float     0.0
 
 <<<
->>> device delete #652
-Deleted: #652
+>>> device delete #655
+Deleted: #655
 <<<
 >>> device add Type Filter
 Added 'Type Filter'
@@ -7791,31 +8099,31 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #653   Type Filter             
+  #656   Type Filter             
 
 <<<
->>> device info #653
-Device #653:
+>>> device info #656
+Device #656:
   Name:    Type Filter
   Type:    Type Filter
   Enabled: yes
   Bypass:  no
-Build results (history ID 1179):
+Build results (history ID 1206):
   (none stored)
 <<<
->>> param list #653
+>>> param list #656
 Parameters for 'Type Filter' (Type Filter):
   type                      enum      0
 
 <<<
->>> param get #653.type
-#653.type = 0
+>>> param get #656.type
+#656.type = 0
 <<<
->>> param set "#653.type" 9999
+>>> param set "#656.type" 9999
 Error: Error: Enum index out of range (0--1): 9999
 <<<
->>> device delete #653
-Deleted: #653
+>>> device delete #656
+Deleted: #656
 <<<
 >>> device add Voronoi
 Added 'Voronoi'
@@ -7839,19 +8147,19 @@ Devices (18 total):
   #318   Splatmap                 (Bitmap Output)
   #319   Easy Distortion          (Macro)
   #373   Rock and Soil           
-  #654   Voronoi                 
+  #657   Voronoi                 
 
 <<<
->>> device info #654
-Device #654:
+>>> device info #657
+Device #657:
   Name:    Voronoi
   Type:    Voronoi
   Enabled: yes
   Bypass:  no
-Build results (history ID 1181):
+Build results (history ID 1208):
   (none stored)
 <<<
->>> param list #654
+>>> param list #657
 Parameters for 'Voronoi' (Voronoi):
   Scale                     float     8 km
   Style                     enum      F1
@@ -7860,131 +8168,131 @@ Parameters for 'Voronoi' (Voronoi):
   Distortion Enable         other     false
   Distortion Amount         float     0.0
   Distortion Direction      int       0
-  Random Seed               int       14982
+  Random Seed               int       4026
 
 <<<
->>> param get #654.Style
-#654.Style = F1
+>>> param get #657.Style
+#657.Style = F1
 <<<
->>> param set "#654.Style" 9999
+>>> param set "#657.Style" 9999
 Error: Error: Enum index out of range (0-13): 9999
 <<<
->>> param set "#654.Style" 0
-Set #654.Style = 0
+>>> param set "#657.Style" 0
+Set #657.Style = 0
 <<<
->>> param get #654.Style
-#654.Style = F1
+>>> param get #657.Style
+#657.Style = F1
 <<<
->>> param set "#654.Style" 1
-Set #654.Style = 1
+>>> param set "#657.Style" 1
+Set #657.Style = 1
 <<<
->>> param get #654.Style
-#654.Style = F2
+>>> param get #657.Style
+#657.Style = F2
 <<<
->>> param set "#654.Style" 2
-Set #654.Style = 2
+>>> param set "#657.Style" 2
+Set #657.Style = 2
 <<<
->>> param get #654.Style
-#654.Style = F3
+>>> param get #657.Style
+#657.Style = F3
 <<<
->>> param set "#654.Style" 3
-Set #654.Style = 3
+>>> param set "#657.Style" 3
+Set #657.Style = 3
 <<<
->>> param get #654.Style
-#654.Style = F4
+>>> param get #657.Style
+#657.Style = F4
 <<<
->>> param set "#654.Style" 4
-Set #654.Style = 4
+>>> param set "#657.Style" 4
+Set #657.Style = 4
 <<<
->>> param get #654.Style
-#654.Style = F2 - F1
+>>> param get #657.Style
+#657.Style = F2 - F1
 <<<
->>> param set "#654.Style" 5
-Set #654.Style = 5
+>>> param set "#657.Style" 5
+Set #657.Style = 5
 <<<
->>> param get #654.Style
-#654.Style = F3 - F2
+>>> param get #657.Style
+#657.Style = F3 - F2
 <<<
->>> param set "#654.Style" 6
-Set #654.Style = 6
+>>> param set "#657.Style" 6
+Set #657.Style = 6
 <<<
->>> param get #654.Style
-#654.Style = F3 - F1
+>>> param get #657.Style
+#657.Style = F3 - F1
 <<<
->>> param set "#654.Style" 7
-Set #654.Style = 7
+>>> param set "#657.Style" 7
+Set #657.Style = 7
 <<<
->>> param get #654.Style
-#654.Style = F4 - F3
+>>> param get #657.Style
+#657.Style = F4 - F3
 <<<
->>> param set "#654.Style" 8
-Set #654.Style = 8
+>>> param set "#657.Style" 8
+Set #657.Style = 8
 <<<
->>> param get #654.Style
-#654.Style = F4 - F2
+>>> param get #657.Style
+#657.Style = F4 - F2
 <<<
->>> param set "#654.Style" 9
-Set #654.Style = 9
+>>> param set "#657.Style" 9
+Set #657.Style = 9
 <<<
->>> param get #654.Style
-#654.Style = F4 - F1
+>>> param get #657.Style
+#657.Style = F4 - F1
 <<<
->>> param set "#654.Style" 10
-Set #654.Style = 10
+>>> param set "#657.Style" 10
+Set #657.Style = 10
 <<<
->>> param get #654.Style
-#654.Style = Cellular F1
+>>> param get #657.Style
+#657.Style = Cellular F1
 <<<
->>> param set "#654.Style" 11
-Set #654.Style = 11
+>>> param set "#657.Style" 11
+Set #657.Style = 11
 <<<
->>> param get #654.Style
-#654.Style = Cellular F2
+>>> param get #657.Style
+#657.Style = Cellular F2
 <<<
->>> param set "#654.Style" 12
-Set #654.Style = 12
+>>> param set "#657.Style" 12
+Set #657.Style = 12
 <<<
->>> param get #654.Style
-#654.Style = Cellular F3
+>>> param get #657.Style
+#657.Style = Cellular F3
 <<<
->>> param set "#654.Style" 13
-Set #654.Style = 13
+>>> param set "#657.Style" 13
+Set #657.Style = 13
 <<<
->>> param get #654.Style
-#654.Style = Cellular F4
+>>> param get #657.Style
+#657.Style = Cellular F4
 <<<
->>> param get #654.Distance Function
-#654.Distance Function = Euclidean
+>>> param get #657.Distance Function
+#657.Distance Function = Euclidean
 <<<
->>> param set "#654.Distance Function" 9999
+>>> param set "#657.Distance Function" 9999
 Error: Error: Enum index out of range (0-3): 9999
 <<<
->>> param set "#654.Distance Function" 0
-Set #654.Distance Function = 0
+>>> param set "#657.Distance Function" 0
+Set #657.Distance Function = 0
 <<<
->>> param get #654.Distance Function
-#654.Distance Function = Euclidean
+>>> param get #657.Distance Function
+#657.Distance Function = Euclidean
 <<<
->>> param set "#654.Distance Function" 1
-Set #654.Distance Function = 1
+>>> param set "#657.Distance Function" 1
+Set #657.Distance Function = 1
 <<<
->>> param get #654.Distance Function
-#654.Distance Function = Manhattan
+>>> param get #657.Distance Function
+#657.Distance Function = Manhattan
 <<<
->>> param set "#654.Distance Function" 2
-Set #654.Distance Function = 2
+>>> param set "#657.Distance Function" 2
+Set #657.Distance Function = 2
 <<<
->>> param get #654.Distance Function
-#654.Distance Function = Alternate #1
+>>> param get #657.Distance Function
+#657.Distance Function = Alternate #1
 <<<
->>> param set "#654.Distance Function" 3
-Set #654.Distance Function = 3
+>>> param set "#657.Distance Function" 3
+Set #657.Distance Function = 3
 <<<
->>> param get #654.Distance Function
-#654.Distance Function = Alternate #2
+>>> param get #657.Distance Function
+#657.Distance Function = Alternate #2
 <<<
->>> device delete #654
-Deleted: #654
+>>> device delete #657
+Deleted: #657
 <<<
 >>> (summary)
 Add Noise: 1 enum(s) (Noise Type: 2)
@@ -8000,7 +8308,8 @@ Basic Noise: 0 enum(s)
 Bitmap Output: 1 enum(s) (File Format: 7)
 Blur: 1 enum(s) (Blur type: 3)
 Border: 1 enum(s) (pinMode: 2)
-Brightness: no new device in the list
+Brightness: refused as ambiguous, added as Bias/Gain
+Brightness: 0 enum(s)
 Channel Combiner: 1 enum(s) (Channel Type: 2)
 Channel Splitter: 1 enum(s) (Channel Type: 2)
 Checkpoint: 0 enum(s)
@@ -8032,7 +8341,8 @@ Expander: 2 enum(s) (Action: 4, Filter type: 3)
 File Input: 6 enum(s) (dataType: 2, placementType: 2, aspectType: 2, elevationType: 3, footprintType: 4, rescaleType: 7)
 Flipper: 0 enum(s)
 Flow Restructure: 2 enum(s) (Drain to:: 3, Operation: 2)
-Fractal: no new device in the list
+Fractal: refused as ambiguous, added as VDM Noise
+Fractal: 5 enum(s) (dirType: 2, dampType: 2, noiseType: 2, perlinType: 3, voronoiType: 9)
 Gamma: 1 enum(s) (operation: 4)
 Gradient: 1 enum(s) (Tiling: 3)
 Height Output: 1 enum(s) (format: 15)
@@ -8071,7 +8381,8 @@ Report Extents: 1 enum(s) (mode: 2)
 Report Height: 0 enum(s)
 Report Placement: 1 enum(s) (spatialMethod: 3)
 Report Presence: 0 enum(s)
-Rescale: no new device in the list
+Rescale: refused as ambiguous, added as Clamp
+Rescale: 1 enum(s) (Type: 3)
 River: 2 enum(s) (Planform Type: 2, Channel Type: 2)
 Route Chooser: 0 enum(s)
 Router: 0 enum(s)
