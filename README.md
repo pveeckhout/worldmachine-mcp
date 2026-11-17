@@ -2,7 +2,7 @@
 
 An [MCP](https://modelcontextprotocol.io) server that lets AI assistants inspect and edit [World Machine](https://www.world-machine.com) terrain projects through your own local World Machine installation.
 
-> **Status: early development.** All thirty tools listed below work against World Machine build 4067 on Linux: the eighteen of v1, the five build and export tools of v2a, and the seven snapshot, layout, and group tools of v2b. The design is in [`docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md`](docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md), [`docs/superpowers/specs/2026-10-05-worldmachine-mcp-v2a-design.md`](docs/superpowers/specs/2026-10-05-worldmachine-mcp-v2a-design.md), and [`docs/superpowers/specs/2026-10-06-worldmachine-mcp-v2b-design.md`](docs/superpowers/specs/2026-10-06-worldmachine-mcp-v2b-design.md).
+> **Status: early development.** All thirty tools listed below work against World Machine builds 4067 and 4069 on Linux: the eighteen of v1, the five build and export tools of v2a, and the seven snapshot, layout, and group tools of v2b. The design is in [`docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md`](docs/superpowers/specs/2026-10-04-worldmachine-mcp-design.md), [`docs/superpowers/specs/2026-10-05-worldmachine-mcp-v2a-design.md`](docs/superpowers/specs/2026-10-05-worldmachine-mcp-v2a-design.md), and [`docs/superpowers/specs/2026-10-06-worldmachine-mcp-v2b-design.md`](docs/superpowers/specs/2026-10-06-worldmachine-mcp-v2b-design.md).
 
 ## How it works
 
@@ -22,7 +22,7 @@ World Machine --cli (your installation, your licence)
 
 ## Requirements
 
-- World Machine with command-line console support. Developed against build 4067 (Dragontail Peak).
+- World Machine with command-line console support. Developed against build 4067 and tested on build 4069 (both Dragontail Peak). On another build, `get_device` lists no enum options and no port types, and `plan_graph` checks no wire types.
 - A World Machine licence. Nothing from World Machine is bundled. World Machine must be activated on the machine first (start it once normally). When its licence checkout fails at startup, the server waits until the 45 s startup limit for World Machine to repair its activation (it often does, within seconds) or for you to activate it in its dialog; after that, or when you quit the dialog, the tools fail with `START_FAILED` and the message "World Machine has no valid licence on this machine. Start World Machine once outside the MCP and activate it, then retry."
 - Node.js 22.12 or later.
 - Linux. Windows and macOS are planned but not yet supported.
