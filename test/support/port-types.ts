@@ -1,5 +1,6 @@
 import {
   type PortTypeCatalog,
+  shipped,
   WorldMachinePortTypes,
 } from '../../src/adapter/out/worldmachine/world-machine-port-types.js';
 import type { SessionStatus } from '../../src/application/port/out/world-machine-session-port.js';
@@ -76,4 +77,4 @@ export const SYNTHETIC_CATALOG: PortTypeCatalog = {
 };
 
 /** SYNTHETIC_CATALOG with World Machine reporting its build. */
-export const syntheticPortTypes = new WorldMachinePortTypes(statusOn(4067), [SYNTHETIC_CATALOG]);
+export const syntheticPortTypes = new WorldMachinePortTypes(statusOn(4067), [shipped(SYNTHETIC_CATALOG)]);

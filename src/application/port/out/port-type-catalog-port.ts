@@ -1,3 +1,4 @@
+import type { CatalogSource } from '../../../domain/catalog.js';
 import type { CataloguedPorts } from '../../../domain/port-types.js';
 
 /**
@@ -13,4 +14,6 @@ export interface PortTypeCatalogPort {
    * ruling B1), since another spelling of the same listed type is not known to give the same device.
    */
   portsOfAdded(addSpelling: string): CataloguedPorts | undefined;
+  /** The source of the catalog selected for the running build; undefined when none applies. */
+  catalogInUse(): CatalogSource | undefined;
 }

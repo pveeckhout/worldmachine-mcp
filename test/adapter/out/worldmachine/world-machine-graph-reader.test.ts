@@ -10,6 +10,7 @@ import {
 import { WorldMachineGraphReader } from '../../../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
 import {
   type PortTypeCatalog,
+  shipped,
   WorldMachinePortTypes,
 } from '../../../../src/adapter/out/worldmachine/world-machine-port-types.js';
 import { WorldMachineProcess } from '../../../../src/adapter/out/worldmachine/world-machine-process.js';
@@ -447,7 +448,7 @@ describe('WorldMachineGraphReader port types (port-types design sections 5 and 6
     return new WorldMachineGraphReader(
       session,
       [ENUM_CATALOG_4067],
-      new WorldMachinePortTypes(session, [catalog]),
+      new WorldMachinePortTypes(session, [shipped(catalog)]),
     );
   }
 

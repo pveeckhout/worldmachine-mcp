@@ -66,6 +66,7 @@ describe('ApplyGraphService with a World Machine that exits between steps', () =
       stub<ConstructorParameters<typeof ApplyGraphService>[6]>({
         portsOf: () => undefined,
         portsOfAdded: () => undefined,
+        catalogInUse: () => undefined,
       }),
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
       NO_TEMPLATES,
@@ -175,6 +176,7 @@ describe('ApplyGraphService robustness', () => {
       stub<ConstructorParameters<typeof ApplyGraphService>[6]>({
         portsOf: () => undefined,
         portsOfAdded: () => undefined,
+        catalogInUse: () => undefined,
       }),
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
       NO_TEMPLATES,
@@ -637,7 +639,11 @@ describe('ApplyGraphService unidentifiable wires (unidentifiable-wires design se
       create: async (name: string) => ({ index: 0, name }),
       remove: async () => ({}),
     };
-    const portTypes = { portsOf: () => undefined, portsOfAdded: () => undefined };
+    const portTypes = {
+      portsOf: () => undefined,
+      portsOfAdded: () => undefined,
+      catalogInUse: () => undefined,
+    };
     const stub = <T>(value: unknown): T => value as T;
     const spec: RawGraphSpec = {
       version: 1,
@@ -702,7 +708,11 @@ describe('ApplyGraphService loops (wire-loops design section 4)', () => {
     version: 1,
     devices: [{ name: 'first mix', id: 10, type: 'Combiner', inputs: { '2': '#20' } }],
   };
-  const portTypes = { portsOf: () => undefined, portsOfAdded: () => undefined };
+  const portTypes = {
+    portsOf: () => undefined,
+    portsOfAdded: () => undefined,
+    catalogInUse: () => undefined,
+  };
 
   it('refuses a loop before any snapshot or change command', async () => {
     // #10 feeds #20 on input 1, so #20 into #10 closes a loop.

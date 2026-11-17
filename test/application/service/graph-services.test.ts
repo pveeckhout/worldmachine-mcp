@@ -14,6 +14,7 @@ import { WorldMachineGroupEditor } from '../../../src/adapter/out/worldmachine/w
 import { WorldMachineParameterEditor } from '../../../src/adapter/out/worldmachine/world-machine-parameter-editor.js';
 import {
   type PortTypeCatalog,
+  shipped,
   WorldMachinePortTypes,
 } from '../../../src/adapter/out/worldmachine/world-machine-port-types.js';
 import { WorldMachineProcess } from '../../../src/adapter/out/worldmachine/world-machine-process.js';
@@ -56,7 +57,7 @@ function wired(extra: Record<string, string> = {}, catalog?: PortTypeCatalog) {
       WorldMachineProcess.start({ bin, readyTimeoutMs: 5_000, logger, env, signal, onSpawn }),
   });
   sessions.push(session);
-  const portTypes = new WorldMachinePortTypes(session, catalog === undefined ? [] : [catalog]);
+  const portTypes = new WorldMachinePortTypes(session, catalog === undefined ? [] : [shipped(catalog)]);
   const reader = new WorldMachineGraphReader(session, ENUM_CATALOGS, portTypes);
   const devices = new WorldMachineDeviceEditor(session);
   const snapshots = new WorldMachineSnapshotEditor(session);

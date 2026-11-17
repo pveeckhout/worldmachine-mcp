@@ -23,7 +23,8 @@ const own = <T>(record: Readonly<Record<string, T>>, key: string): T | undefined
  * of that type (the version fingerprint: the console reports no device version), and the row's current value is one
  * of the options. Otherwise the row stays as read and `enumOptionsNote` says why, once per distinct reason. Rule 2 is
  * checked per row before rule 3, so a type missing from the catalog keeps its own note; rule 3 is decided once per
- * device, at the first row that passed rule 2, and a mismatch skips rule 4. A device without enum rows is returned
+ * device, at the first row that passed rule 2, and a mismatch skips rule 4. The first catalog of the build wins, so a
+ * caller lists shipped catalogs before local ones. A device without enum rows is returned
  * unchanged. `build` is undefined when the session holds no `system info`.
  */
 export function attachEnumOptions(

@@ -1,6 +1,12 @@
 import type { PortTypeCatalogPort } from '../../../application/port/out/port-type-catalog-port.js';
 import type { WorldMachineSessionPort } from '../../../application/port/out/world-machine-session-port.js';
-import type { PortTypeCatalog, PortTypeCatalogEntry, PortTypeCatalogType } from '../../../domain/catalog.js';
+import {
+  type CatalogSource,
+  type PortTypeCatalog,
+  type PortTypeCatalogEntry,
+  type PortTypeCatalogType,
+  selectCatalog,
+} from '../../../domain/catalog.js';
 import type { DeviceDetail } from '../../../domain/device.js';
 import { type CataloguedPorts, type PortClass, typedPorts } from '../../../domain/port-types.js';
 import shipped4067 from './port-types.4067.json' with { type: 'json' };
@@ -18,14 +24,31 @@ export const PORT_TYPE_CATALOG_4067: PortTypeCatalog = shipped4067 as PortTypeCa
  * (2026-11-17): its ports and classes, with the add words build 4069 accepted. Every verdict of the sample agreed.
  */
 export const PORT_TYPE_CATALOG_4069: PortTypeCatalog = shipped4069 as PortTypeCatalog;
-/** Every shipped catalog; the one of World Machine's build applies. */
-export const PORT_TYPE_CATALOGS: readonly PortTypeCatalog[] = [
-  PORT_TYPE_CATALOG_4067,
-  PORT_TYPE_CATALOG_4069,
+
+/** A port-type catalog with the source `selectCatalog` ranks it by. */
+export type SourcedPortTypeCatalog = { readonly catalog: PortTypeCatalog; readonly source: CatalogSource };
+
+const sourced = (catalog: PortTypeCatalog, origin: CatalogSource['origin']): SourcedPortTypeCatalog => ({
+  catalog,
+  source: { build: catalog.build, kind: catalog.kind, origin },
+});
+/** A catalog shipped with the server. */
+export const shipped = (catalog: PortTypeCatalog): SourcedPortTypeCatalog => sourced(catalog, 'shipped');
+/** A catalog built on this machine. */
+export const local = (catalog: PortTypeCatalog): SourcedPortTypeCatalog => sourced(catalog, 'local');
+
+/** Every shipped catalog; the best one of World Machine's build applies (selectCatalog). */
+export const PORT_TYPE_CATALOGS: readonly SourcedPortTypeCatalog[] = [
+  shipped(PORT_TYPE_CATALOG_4067),
+  shipped(PORT_TYPE_CATALOG_4069),
 ];
 
 /** Port types of nothing: the default of the reader and the wire editor (port-types plan decision D3). */
-export const NO_PORT_TYPES: PortTypeCatalogPort = { portsOf: () => undefined, portsOfAdded: () => undefined };
+export const NO_PORT_TYPES: PortTypeCatalogPort = {
+  portsOf: () => undefined,
+  portsOfAdded: () => undefined,
+  catalogInUse: () => undefined,
+};
 
 /** An own entry only: a catalog parsed from JSON still inherits `constructor` and `toString` from Object.prototype. */
 const own = <T>(record: Readonly<Record<string, T>>, key: string): T | undefined =>
@@ -62,9 +85,9 @@ function resolvePorts(catalog: PortTypeCatalog, entry: PortTypeCatalogType): Cat
  */
 export class WorldMachinePortTypes implements PortTypeCatalogPort {
   readonly #session: Pick<WorldMachineSessionPort, 'status'>;
-  readonly #catalogs: readonly PortTypeCatalog[];
+  readonly #catalogs: readonly SourcedPortTypeCatalog[];
 
-  constructor(session: Pick<WorldMachineSessionPort, 'status'>, catalogs: readonly PortTypeCatalog[]) {
+  constructor(session: Pick<WorldMachineSessionPort, 'status'>, catalogs: readonly SourcedPortTypeCatalog[]) {
     this.#session = session;
     this.#catalogs = catalogs;
   }
@@ -84,10 +107,17 @@ export class WorldMachinePortTypes implements PortTypeCatalogPort {
     return catalog === undefined || entry === undefined ? undefined : resolvePorts(catalog, entry);
   }
 
+  catalogInUse(): CatalogSource | undefined {
+    return this.#selected()?.source;
+  }
+
   /** The catalog of the build World Machine runs. */
   #current(): PortTypeCatalog | undefined {
-    const build = this.#session.status().systemInfo?.build;
-    return build === undefined ? undefined : this.#catalogs.find((catalog) => catalog.build === build);
+    return this.#selected()?.catalog;
+  }
+
+  #selected(): SourcedPortTypeCatalog | undefined {
+    return selectCatalog(this.#catalogs, this.#session.status().systemInfo?.build);
   }
 }
 

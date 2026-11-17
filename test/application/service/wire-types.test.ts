@@ -39,7 +39,11 @@ const stateOf = (...details: DeviceDetail[]): GraphState => ({
   devices: details.map(({ id, name, enabled, bypassed }) => ({ id, name, enabled, bypassed })),
   details,
 });
-const NO_TYPES: PortTypeCatalogPort = { portsOf: () => undefined, portsOfAdded: () => undefined };
+const NO_TYPES: PortTypeCatalogPort = {
+  portsOf: () => undefined,
+  portsOfAdded: () => undefined,
+  catalogInUse: () => undefined,
+};
 
 /** checkWireTypes over the steps planGraph makes for `raw` (port-types design section 6). */
 function check(
