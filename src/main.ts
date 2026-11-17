@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import { createMcpServer } from './adapter/in/mcp/create-server.js';
+import { FsLocalCatalogs } from './adapter/out/fs/fs-local-catalogs.js';
 import { FsGraphTemplateLoader } from './adapter/out/fs/graph-template-loader.js';
 import { FsPathPolicy } from './adapter/out/fs/path-policy.js';
 import { ENUM_CATALOGS } from './adapter/out/worldmachine/enum-options.js';
@@ -15,6 +16,7 @@ import { WorldMachineGraphReader } from './adapter/out/worldmachine/world-machin
 import { WorldMachineGroupEditor } from './adapter/out/worldmachine/world-machine-group-editor.js';
 import { WorldMachineParameterEditor } from './adapter/out/worldmachine/world-machine-parameter-editor.js';
 import {
+  local,
   PORT_TYPE_CATALOGS,
   WorldMachinePortTypes,
 } from './adapter/out/worldmachine/world-machine-port-types.js';
@@ -88,9 +90,20 @@ const session = new WorldMachineSession({
   startProcess: (bin, signal, onSpawn) =>
     WorldMachineProcess.start({ bin, readyTimeoutMs: READY_TIMEOUT_MS, logger, signal, onSpawn }),
 });
-// Port-types design section 7: the shipped catalog is wired here and in the live tests only (plan decision D3).
-const portTypes = new WorldMachinePortTypes(session, PORT_TYPE_CATALOGS);
-const reader = new WorldMachineGraphReader(session, ENUM_CATALOGS, portTypes);
+// Local catalogs are read once per process; a file that fails to parse is logged and ignored.
+const localCatalogs = new FsLocalCatalogs(config.catalogDir).load();
+for (const problem of localCatalogs.problems) logger.warn(`local catalog ignored: ${problem}`);
+// Port-types design section 7: the shipped and local catalogs are wired here and in the live tests only (plan decision D3).
+const portTypes = new WorldMachinePortTypes(
+  session,
+  [...PORT_TYPE_CATALOGS, ...localCatalogs.portTypeCatalogs.map(local)],
+  localCatalogs.problems,
+);
+const reader = new WorldMachineGraphReader(
+  session,
+  [...ENUM_CATALOGS, ...localCatalogs.enumCatalogs],
+  portTypes,
+);
 const writer = new WorldMachineProjectWriter(session);
 const devices = new WorldMachineDeviceEditor(session);
 const parameters = new WorldMachineParameterEditor(session);
