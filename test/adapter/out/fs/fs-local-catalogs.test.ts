@@ -66,4 +66,20 @@ describe('FsLocalCatalogs', () => {
     expect(loaded.portTypeCatalogs).toEqual([]);
     expect(loaded.problems).toEqual([expect.stringMatching(/4071\/port-types\.json: kind must be/)]);
   });
+
+  it('reports a catalog folder that is not a directory', () => {
+    const file = join(newDir(), 'catalogs');
+    writeFileSync(file, 'x');
+    const loaded = new FsLocalCatalogs(file).load();
+    expect(loaded.problems).toHaveLength(1);
+    expect(loaded.problems[0]).toContain(`${file}: `);
+  });
+
+  it('skips a folder whose name is not a canonical build number', () => {
+    const dir = newDir();
+    put(dir, '04071', 'port-types.json', JSON.stringify({ ...PORT_TYPE_CATALOG_4069, build: 4071 }));
+    const loaded = new FsLocalCatalogs(dir).load();
+    expect(loaded.portTypeCatalogs).toEqual([]);
+    expect(loaded.problems).toEqual([]);
+  });
 });

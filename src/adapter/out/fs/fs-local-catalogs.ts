@@ -37,20 +37,26 @@ export class FsLocalCatalogs implements LoadLocalCatalogsPort {
         problems.push(`${path}: ${error instanceof Error ? error.message : String(error)}`);
       }
     };
-    for (const entry of this.#builds()) {
+    for (const entry of this.#builds(problems)) {
       read(entry, 'enum-options.json', readEnumCatalog, enumCatalogs);
       read(entry, 'port-types.json', readPortTypeCatalog, portTypeCatalogs);
     }
     return { enumCatalogs, portTypeCatalogs, problems };
   }
 
-  #builds(): string[] {
+  #builds(problems: string[]): string[] {
     try {
       return readdirSync(this.#directory, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory() && /^\d+$/.test(entry.name))
+        .filter(
+          (entry) =>
+            entry.isDirectory() && /^\d+$/.test(entry.name) && String(Number(entry.name)) === entry.name,
+        )
         .map((entry) => entry.name)
         .sort();
-    } catch {
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        problems.push(`${this.#directory}: ${error instanceof Error ? error.message : String(error)}`);
+      }
       return [];
     }
   }
