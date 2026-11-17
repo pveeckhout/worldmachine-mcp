@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Prints the enum catalog of an `enum-options` transcript (enum-options design section 3). The build comes from the
 // `system info` capture beside it, test/fixtures/wm-<build>/raw/system-info.txt (ruling 1), never from a constant.
-// node scripts/build-enum-catalog.mjs test/fixtures/wm-4067/raw/enum-options.txt
-//   > src/adapter/out/worldmachine/enum-options.4067.json
+// node scripts/build-enum-catalog.mjs test/fixtures/wm-<build>/raw/enum-options.txt
+//   > src/adapter/out/worldmachine/enum-options.<build>.json (and add it to ENUM_CATALOGS in enum-options.ts)
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { parseEnumCapture } from './enum-catalog.mjs';

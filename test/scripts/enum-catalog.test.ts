@@ -5,7 +5,11 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parseEnumCapture, parseEnumCatalog } from '../../scripts/enum-catalog.mjs';
-import { ENUM_CATALOG } from '../../src/adapter/out/worldmachine/enum-options.js';
+import {
+  ENUM_CATALOG_4067,
+  ENUM_CATALOG_4069,
+  ENUM_CATALOGS,
+} from '../../src/adapter/out/worldmachine/enum-options.js';
 import { parseParamList } from '../../src/adapter/out/worldmachine/parsers/param-list.js';
 
 const raw = (name: string) =>
@@ -265,15 +269,25 @@ describe('scripts/build-enum-catalog.mjs (enum-options design section 3)', () =>
 
 describe('the shipped enum catalog (enum-options design section 3)', () => {
   it('is exactly what raw/enum-options.txt parses to (parity)', () => {
-    expect(ENUM_CATALOG).toStrictEqual(parseEnumCatalog(transcript, systemInfo));
+    expect(ENUM_CATALOG_4067).toStrictEqual(parseEnumCatalog(transcript, systemInfo));
+  });
+
+  it('ships the build 4069 catalog its transcript parses to (parity)', () => {
+    expect(ENUM_CATALOG_4069).toStrictEqual(parseEnumCatalog(raw4069('enum-options.txt'), systemInfo4069));
+  });
+
+  it('ships one catalog per build, 4067 and 4069', () => {
+    expect(ENUM_CATALOGS.map((catalog) => catalog.build)).toEqual([4067, 4069]);
   });
 
   it('holds the 68 types and 111 enum parameters of fact 85', () => {
-    expect(ENUM_CATALOG.build).toBe(4067);
-    expect(Object.keys(ENUM_CATALOG.types)).toHaveLength(68);
-    expect(Object.values(ENUM_CATALOG.types).flatMap((entry) => Object.keys(entry.enums))).toHaveLength(111);
-    expect(ENUM_CATALOG.types.Combiner?.enums.Method).toEqual(COMBINER_METHOD);
-    expect(ENUM_CATALOG.types.Combiner?.parameters).toEqual(COMBINER_PARAMETERS);
+    expect(ENUM_CATALOG_4067.build).toBe(4067);
+    expect(Object.keys(ENUM_CATALOG_4067.types)).toHaveLength(68);
+    expect(Object.values(ENUM_CATALOG_4067.types).flatMap((entry) => Object.keys(entry.enums))).toHaveLength(
+      111,
+    );
+    expect(ENUM_CATALOG_4067.types.Combiner?.enums.Method).toEqual(COMBINER_METHOD);
+    expect(ENUM_CATALOG_4067.types.Combiner?.parameters).toEqual(COMBINER_PARAMETERS);
   });
 
   it("agrees with the adapter's parseParamList on the enum rows of every captured param list", () => {
@@ -297,8 +311,8 @@ describe('the shipped enum catalog (enum-options design section 3)', () => {
         .filter((parameter) => parameter.type === 'enum')
         .map((parameter) => parameter.name);
       if (enumNames.length === 0) continue;
-      expect(Object.keys(ENUM_CATALOG.types[type]?.enums ?? {})).toEqual(enumNames);
-      expect(ENUM_CATALOG.types[type]?.parameters).toEqual(
+      expect(Object.keys(ENUM_CATALOG_4067.types[type]?.enums ?? {})).toEqual(enumNames);
+      expect(ENUM_CATALOG_4067.types[type]?.parameters).toEqual(
         parseParamList(output).map((parameter) => parameter.name),
       );
       compared.add(type);
@@ -306,6 +320,6 @@ describe('the shipped enum catalog (enum-options design section 3)', () => {
     // The only blocks without a header are the five `Device '<name>' has no parameters.` lines (l.4097, l.4422,
     // l.4461, l.4500, l.5485), and every catalog type was compared, so nothing passed by being skipped.
     expect(withoutHeader).toBe(5);
-    expect([...compared].sort()).toEqual(Object.keys(ENUM_CATALOG.types).sort());
+    expect([...compared].sort()).toEqual(Object.keys(ENUM_CATALOG_4067.types).sort());
   });
 });

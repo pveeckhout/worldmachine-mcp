@@ -3,7 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { FsPathPolicy } from '../../../../src/adapter/out/fs/path-policy.js';
-import { ENUM_CATALOG, type EnumCatalog } from '../../../../src/adapter/out/worldmachine/enum-options.js';
+import {
+  ENUM_CATALOG_4067,
+  type EnumCatalog,
+} from '../../../../src/adapter/out/worldmachine/enum-options.js';
 import { WorldMachineGraphReader } from '../../../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
 import {
   type PortTypeCatalog,
@@ -42,7 +45,7 @@ afterEach(async () => {
   await Promise.all(sessions.splice(0).map((session) => session.shutdown()));
 });
 
-function reader(extra: Record<string, string> = {}, catalog?: EnumCatalog) {
+function reader(extra: Record<string, string> = {}, catalog?: readonly EnumCatalog[]) {
   const record = recorder();
   const logger = captureLogger();
   const env = fakeEnv({ FAKE_WM_RECORD: record.path, ...extra });
@@ -326,7 +329,7 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
 
 describe('WorldMachineGraphReader enum options (enum-options design section 4)', () => {
   /** The first device of a blank project after `device add <type>`, read with `catalog` (the shipped one if omitted). */
-  async function added(type: string, catalog?: EnumCatalog) {
+  async function added(type: string, catalog?: readonly EnumCatalog[]) {
     const { reader: r, session } = reader({}, catalog);
     await session.execute(['project new blank force', `device add ${type}`]);
     return r.getDevice('#1');
@@ -344,10 +347,10 @@ describe('WorldMachineGraphReader enum options (enum-options design section 4)',
   });
 
   it('omits options and names both builds when World Machine is another build', async () => {
-    const device = await added('Combiner', { ...ENUM_CATALOG, build: 4066 });
+    const device = await added('Combiner', [{ ...ENUM_CATALOG_4067, build: 4066 }]);
     expect(device.parameters.find((p) => p.name === 'Method')).not.toHaveProperty('options');
     expect(device.enumOptionsNote).toEqual([
-      'enum options omitted: the catalog is from build 4066, World Machine is build 4067',
+      'enum options omitted: no catalog for World Machine build 4067 (catalogs: 4066)',
     ]);
   });
 
@@ -364,20 +367,24 @@ describe('WorldMachineGraphReader enum options (enum-options design section 4)',
   });
 
   it('says the parameter is unknown when the type has no entry for it', async () => {
-    const device = await added('Gradient', {
-      build: 4067,
-      types: { Gradient: { parameters: ['Direction', 'Width', 'Tiling'], enums: { Other: ['A'] } } },
-    });
+    const device = await added('Gradient', [
+      {
+        build: 4067,
+        types: { Gradient: { parameters: ['Direction', 'Width', 'Tiling'], enums: { Other: ['A'] } } },
+      },
+    ]);
     expect(device.enumOptionsNote).toEqual(["no enum options known for 'Tiling' of type 'Gradient'"]);
   });
 
   it('omits options when the current value is not listed', async () => {
-    const device = await added('Gradient', {
-      build: 4067,
-      types: {
-        Gradient: { parameters: ['Direction', 'Width', 'Tiling'], enums: { Tiling: ['Mirrored Repeat'] } },
+    const device = await added('Gradient', [
+      {
+        build: 4067,
+        types: {
+          Gradient: { parameters: ['Direction', 'Width', 'Tiling'], enums: { Tiling: ['Mirrored Repeat'] } },
+        },
       },
-    });
+    ]);
     expect(device.parameters.find((p) => p.name === 'Tiling')).toEqual({
       name: 'Tiling',
       type: 'enum',
@@ -425,7 +432,7 @@ describe('WorldMachineGraphReader enum options (enum-options design section 4)',
 
   it('gives a device without enum rows no note, even on another build', async () => {
     // Round ruling 1: a new Erosion has seventeen parameters and no enum (raw/enum-options.txt l.2737-2754, Task 4).
-    const device = await added('Erosion', { ...ENUM_CATALOG, build: 4066 });
+    const device = await added('Erosion', [{ ...ENUM_CATALOG_4067, build: 4066 }]);
     expect(device.parameters).toHaveLength(17);
     expect(device.parameters.some((p) => p.type === 'enum')).toBe(false);
     expect(device).not.toHaveProperty('enumOptionsNote');
@@ -437,7 +444,11 @@ describe('WorldMachineGraphReader port types (port-types design sections 5 and 6
   async function typedReader(catalog: PortTypeCatalog = SYNTHETIC_CATALOG) {
     const { session } = reader();
     await session.execute(['project new blank force', 'device add Gradient', 'device add Combiner']);
-    return new WorldMachineGraphReader(session, ENUM_CATALOG, new WorldMachinePortTypes(session, catalog));
+    return new WorldMachineGraphReader(
+      session,
+      [ENUM_CATALOG_4067],
+      new WorldMachinePortTypes(session, catalog),
+    );
   }
 
   it("types a device whose ports equal the catalog's", async () => {

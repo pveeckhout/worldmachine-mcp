@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { FsGraphTemplateLoader } from '../../src/adapter/out/fs/graph-template-loader.js';
 import { FsPathPolicy } from '../../src/adapter/out/fs/path-policy.js';
-import { ENUM_CATALOG } from '../../src/adapter/out/worldmachine/enum-options.js';
+import { ENUM_CATALOGS } from '../../src/adapter/out/worldmachine/enum-options.js';
 import { resolveExecutable } from '../../src/adapter/out/worldmachine/locator.js';
 import { throwIfFailed } from '../../src/adapter/out/worldmachine/raw-response.js';
 import { WorldMachineDeviceEditor } from '../../src/adapter/out/worldmachine/world-machine-device-editor.js';
@@ -47,7 +47,7 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
   // Port-types plan decision D3: the shared reader and wire editor carry the shipped catalog and port types, as
   // main.ts wires them.
   const portTypes = new WorldMachinePortTypes(session, PORT_TYPE_CATALOG);
-  const reader = new WorldMachineGraphReader(session, ENUM_CATALOG, portTypes);
+  const reader = new WorldMachineGraphReader(session, ENUM_CATALOGS, portTypes);
   const writer = new WorldMachineProjectWriter(session);
   const scene = new WorldMachineSceneEditor(session);
   const templates = new FsGraphTemplateLoader(new FsPathPolicy([liveRoot]));

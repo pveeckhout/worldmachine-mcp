@@ -6,7 +6,7 @@ import type { Scene } from '../../../domain/scene.js';
 import { buildCommand } from './command-builder.js';
 import { deviceInfoCommands } from './device-info-read.js';
 import { idOfReference, resolveDeviceReference } from './device-reference.js';
-import { attachEnumOptions, ENUM_CATALOG, type EnumCatalog } from './enum-options.js';
+import { attachEnumOptions, ENUM_CATALOGS, type EnumCatalog } from './enum-options.js';
 import { parseDeviceInfo } from './parsers/device-info.js';
 import { parseDeviceList } from './parsers/device-list.js';
 import { parseGroupList } from './parsers/group-list.js';
@@ -20,21 +20,22 @@ import type { WorldMachineSession } from './world-machine-session.js';
 
 export class WorldMachineGraphReader implements ProjectGraphReadPort {
   readonly #session: WorldMachineSession;
-  readonly #catalog: EnumCatalog;
+  readonly #catalogs: readonly EnumCatalog[];
   readonly #portTypes: PortTypeCatalogPort;
 
   /**
-   * `catalog`: the enum options getDevice attaches (enum-options design section 4); tests pass a small one.
+   * `catalogs`: the enum options getDevice attaches, from the one of World Machine's build (enum-options design
+   * section 4); tests pass a small one.
    * `portTypes`: the port types it attaches (port-types design section 6); none unless main.ts passes the shipped
    * catalog (port-types plan decision D3).
    */
   constructor(
     session: WorldMachineSession,
-    catalog: EnumCatalog = ENUM_CATALOG,
+    catalogs: readonly EnumCatalog[] = ENUM_CATALOGS,
     portTypes: PortTypeCatalogPort = NO_PORT_TYPES,
   ) {
     this.#session = session;
-    this.#catalog = catalog;
+    this.#catalogs = catalogs;
     this.#portTypes = portTypes;
   }
 
@@ -86,7 +87,7 @@ export class WorldMachineGraphReader implements ProjectGraphReadPort {
         portTypes: 'unknown',
       },
       this.#session.status().systemInfo?.build,
-      this.#catalog,
+      this.#catalogs,
     );
     // Port-types design section 6, also after the batch; the fingerprint is the domain's (plan decision D5).
     return attachPortTypes(read, this.#portTypes.portsOf(read.type));

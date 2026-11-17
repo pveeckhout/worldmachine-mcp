@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { FsPathPolicy } from '../../src/adapter/out/fs/path-policy.js';
-import { ENUM_CATALOG } from '../../src/adapter/out/worldmachine/enum-options.js';
+import { ENUM_CATALOG_4067 } from '../../src/adapter/out/worldmachine/enum-options.js';
 import { parseParamList } from '../../src/adapter/out/worldmachine/parsers/param-list.js';
 import { WorldMachineGraphReader } from '../../src/adapter/out/worldmachine/world-machine-graph-reader.js';
 import { WorldMachineParameterEditor } from '../../src/adapter/out/worldmachine/world-machine-parameter-editor.js';
@@ -1279,20 +1279,20 @@ describe('fake World Machine: enum options and parameters of added devices (raw/
     async (type) => {
       const [listed] = await (await one(type)).execute(['param list #1']);
       expect(parseParamList(listed?.output ?? []).map((parameter) => parameter.name)).toEqual(
-        ENUM_CATALOG.types[type]?.parameters,
+        ENUM_CATALOG_4067.types[type]?.parameters,
       );
     },
   );
 
   it('serves the three options the catalog lists for Gradient Tiling (l.3520-3532)', async () => {
     expect(await labels(await one('Gradient'), '#1.Tiling', 3)).toEqual(
-      ENUM_CATALOG.types.Gradient?.enums.Tiling,
+      ENUM_CATALOG_4067.types.Gradient?.enums.Tiling,
     );
   });
 
   it('serves the eleven options the catalog lists for Combiner Method (l.1572-1632)', async () => {
     expect(await labels(await one('Combiner'), '#1.Method', 11)).toEqual(
-      ENUM_CATALOG.types.Combiner?.enums.Method,
+      ENUM_CATALOG_4067.types.Combiner?.enums.Method,
     );
   });
 
@@ -1304,7 +1304,7 @@ describe('fake World Machine: enum options and parameters of added devices (raw/
 
   it('serves the two options the catalog lists for River Planform Type', async () => {
     expect(await labels(await one('River'), '#1.Planform Type', 2)).toEqual(
-      ENUM_CATALOG.types.River?.enums['Planform Type'],
+      ENUM_CATALOG_4067.types.River?.enums['Planform Type'],
     );
   });
 

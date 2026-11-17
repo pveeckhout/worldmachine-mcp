@@ -5,7 +5,7 @@ import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import { createMcpServer } from './adapter/in/mcp/create-server.js';
 import { FsGraphTemplateLoader } from './adapter/out/fs/graph-template-loader.js';
 import { FsPathPolicy } from './adapter/out/fs/path-policy.js';
-import { ENUM_CATALOG } from './adapter/out/worldmachine/enum-options.js';
+import { ENUM_CATALOGS } from './adapter/out/worldmachine/enum-options.js';
 import { resolveExecutable } from './adapter/out/worldmachine/locator.js';
 import { WorldMachineBuildResultReader } from './adapter/out/worldmachine/world-machine-build-result-reader.js';
 import { WorldMachineBuilder } from './adapter/out/worldmachine/world-machine-builder.js';
@@ -90,7 +90,7 @@ const session = new WorldMachineSession({
 });
 // Port-types design section 7: the shipped catalog is wired here and in the live tests only (plan decision D3).
 const portTypes = new WorldMachinePortTypes(session, PORT_TYPE_CATALOG);
-const reader = new WorldMachineGraphReader(session, ENUM_CATALOG, portTypes);
+const reader = new WorldMachineGraphReader(session, ENUM_CATALOGS, portTypes);
 const writer = new WorldMachineProjectWriter(session);
 const devices = new WorldMachineDeviceEditor(session);
 const parameters = new WorldMachineParameterEditor(session);
