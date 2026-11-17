@@ -30,7 +30,10 @@ function readPorts(
     if (!isObject(port) || typeof port.name !== 'string' || typeof port.class !== 'string') {
       throw new Error(`type '${name}' ${label} ${index + 1}: needs a name and a class`);
     }
-    const number = typeof port.port === 'number' ? port.port : index + 1;
+    const number = port.port;
+    if (typeof number !== 'number' || !Number.isInteger(number) || number <= 0) {
+      throw new Error(`type '${name}' ${label} ${index + 1}: port must be a positive integer`);
+    }
     if (!has(classes, port.class)) {
       throw new Error(`type '${name}' ${label} ${number}: no ${label} class '${port.class}'`);
     }

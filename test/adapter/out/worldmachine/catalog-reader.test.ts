@@ -53,6 +53,22 @@ describe('readPortTypeCatalog', () => {
     expect(() => readPortTypeCatalog(broken)).toThrow(/type 'Create Water' input 1: no input class 'nope'/);
   });
 
+  it('rejects a port without a number', () => {
+    const broken = clone(PORT_TYPE_CATALOG_4069);
+    delete broken.types['Create Water'].outputs[1].port;
+    expect(() => readPortTypeCatalog(broken)).toThrow(
+      "type 'Create Water' output 2: port must be a positive integer",
+    );
+  });
+
+  it('rejects a port whose number is a string', () => {
+    const broken = clone(PORT_TYPE_CATALOG_4069);
+    broken.types['Create Water'].inputs[0].port = '1';
+    expect(() => readPortTypeCatalog(broken)).toThrow(
+      "type 'Create Water' input 1: port must be a positive integer",
+    );
+  });
+
   it('rejects an input class naming an output class that does not exist', () => {
     const broken = clone(PORT_TYPE_CATALOG_4069);
     broken.inputClasses.i2 = ['nope'];
