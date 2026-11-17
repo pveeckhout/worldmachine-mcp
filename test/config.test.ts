@@ -13,6 +13,7 @@ describe('loadConfig', () => {
       logLevel: 'info',
       commandTimeoutMs: 15_000,
       idleTimeoutMs: 900_000,
+      catalogDir: expect.any(String),
     });
   });
 
@@ -36,6 +37,7 @@ describe('loadConfig', () => {
       logLevel: 'debug',
       commandTimeoutMs: 5000,
       idleTimeoutMs: 0,
+      catalogDir: expect.any(String),
     });
   });
 
@@ -77,5 +79,45 @@ describe('loadConfig', () => {
     );
     expect(config.commandTimeoutMs).toBe(2_147_483_647);
     expect(config.idleTimeoutMs).toBe(2_147_483_647);
+  });
+
+  describe('catalogDir', () => {
+    it('puts catalogs under XDG_CONFIG_HOME', () => {
+      expect(loadConfig({ XDG_CONFIG_HOME: '/x' }, '/w', '/h', 'linux').catalogDir).toBe(
+        '/x/worldmachine-mcp/catalogs',
+      );
+    });
+
+    it('ignores a blank or relative XDG_CONFIG_HOME', () => {
+      expect(loadConfig({ XDG_CONFIG_HOME: ' ' }, '/w', '/h', 'linux').catalogDir).toBe(
+        '/h/.config/worldmachine-mcp/catalogs',
+      );
+      expect(loadConfig({ XDG_CONFIG_HOME: 'rel' }, '/w', '/h', 'linux').catalogDir).toBe(
+        '/h/.config/worldmachine-mcp/catalogs',
+      );
+    });
+
+    it('falls back to ~/.config', () => {
+      expect(loadConfig({}, '/w', '/h', 'linux').catalogDir).toBe('/h/.config/worldmachine-mcp/catalogs');
+    });
+
+    it('uses Application Support on macOS', () => {
+      expect(loadConfig({}, '/w', '/h', 'darwin').catalogDir).toBe(
+        '/h/Library/Application Support/worldmachine-mcp/catalogs',
+      );
+    });
+
+    it('uses APPDATA on Windows', () => {
+      expect(loadConfig({ APPDATA: '/a' }, '/w', '/h', 'win32').catalogDir).toBe(
+        path.join('/a', 'worldmachine-mcp', 'catalogs'),
+      );
+      expect(loadConfig({}, '/w', '/h', 'win32').catalogDir).toBe(
+        path.join('/h', 'AppData', 'Roaming', 'worldmachine-mcp', 'catalogs'),
+      );
+    });
+
+    it('honours WORLD_MACHINE_CATALOG_DIR, relative to the working directory', () => {
+      expect(loadConfig({ WORLD_MACHINE_CATALOG_DIR: 'cat' }, '/w', '/h', 'linux').catalogDir).toBe('/w/cat');
+    });
   });
 });

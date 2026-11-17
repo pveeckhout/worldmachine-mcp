@@ -8,12 +8,14 @@ export type Config = {
   readonly logLevel: LogLevel;
   readonly commandTimeoutMs: number;
   readonly idleTimeoutMs: number;
+  readonly catalogDir: string;
 };
 
 export function loadConfig(
   env: Readonly<Record<string, string | undefined>>,
   cwd: string,
   home: string,
+  platform: NodeJS.Platform = process.platform,
 ): Config {
   return {
     bin: nonBlank(env.WORLD_MACHINE_BIN) ?? null,
@@ -27,6 +29,7 @@ export function loadConfig(
       1,
     ),
     idleTimeoutMs: integer('WORLD_MACHINE_IDLE_TIMEOUT_MS', env.WORLD_MACHINE_IDLE_TIMEOUT_MS, 900_000, 0),
+    catalogDir: catalogDir(env, cwd, home, platform),
   };
 }
 
@@ -45,6 +48,24 @@ function allowedRoots(value: string | undefined, cwd: string, home: string): rea
   const resolved = path.resolve(cwd);
   if (resolved === path.parse(resolved).root || resolved === path.resolve(home)) return null;
   return [resolved];
+}
+
+function catalogDir(
+  env: Readonly<Record<string, string | undefined>>,
+  cwd: string,
+  home: string,
+  platform: NodeJS.Platform,
+): string {
+  const configured = nonBlank(env.WORLD_MACHINE_CATALOG_DIR);
+  if (configured !== undefined) return path.resolve(cwd, configured);
+  const leaf = ['worldmachine-mcp', 'catalogs'] as const;
+  if (platform === 'darwin') return path.join(home, 'Library', 'Application Support', ...leaf);
+  if (platform === 'win32') {
+    return path.join(nonBlank(env.APPDATA) ?? path.join(home, 'AppData', 'Roaming'), ...leaf);
+  }
+  const xdg = nonBlank(env.XDG_CONFIG_HOME);
+  const base = xdg !== undefined && path.isAbsolute(xdg) ? xdg : path.join(home, '.config');
+  return path.join(base, ...leaf);
 }
 
 function logLevel(value: string | undefined): LogLevel {
