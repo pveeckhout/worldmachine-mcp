@@ -177,7 +177,7 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
 
   // Port-types design section 8. The lowlands trial saw a File Output refuse a Water System (backlog l.104); no capture
   // before raw/port-types.txt shows it.
-  it('reports a Water System wired into a File Output as a conflict and shows Create Water port types', async () => {
+  it('reports a Water System wired into a Height Output as a conflict and shows Create Water port types', async () => {
     await session.ensureRunning();
     throwIfFailed(await session.executeOne('project new blank force'));
     const view = await plan.planGraph({
@@ -185,8 +185,8 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
         version: 1,
         devices: [
           { name: 'Lake', type: 'Create Water' },
-          // raw/v3-rename-types.txt l.204-205: an accepted add word for a Height Output (B1 addendum ruling).
-          { name: 'Water Out', type: 'File Output', inputs: { '1': 'Lake.2' } },
+          // An add word of a Height Output on both builds; 4069 refuses `File Output` (wm-4069/raw/port-types-sample.txt).
+          { name: 'Water Out', type: 'Height Output', inputs: { '1': 'Lake.2' } },
         ],
       },
     });
