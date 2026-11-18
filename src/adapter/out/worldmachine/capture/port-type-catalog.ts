@@ -1,7 +1,12 @@
 // Parses the `port-types` capture of scripts/capture-fixtures.mjs into the port-type catalog of the port-types design
 // (docs/superpowers/specs/2026-10-13-worldmachine-mcp-port-types-design.md, section 4). One module for
 // scripts/build-port-type-catalog.mjs and its tests, so the shipped catalog and its parity test read a transcript alike.
-import type { PortTypeCatalog, PortTypeCatalogEntry } from '../../../../domain/catalog.js';
+import type {
+  MovedWord,
+  PortTypeCatalog,
+  PortTypeCatalogEntry,
+  SampleCheck,
+} from '../../../../domain/catalog.js';
 import { buildOfSystemInfo, transcriptSections } from './transcript.js';
 import { DEVICE_ROW, readWireList, type WireListPort } from './wire-list.js';
 
@@ -464,24 +469,7 @@ export function parsePortTypeCatalog(
   };
 }
 
-/** A moved add word: it gave another type in the base catalog than in the sample. */
-type MovedWord = { readonly word: string; readonly from: string; readonly to: string };
-
-/** The outcome of checking a `port-types-sample` against a strict base catalog. */
-export type SampleCheck =
-  | {
-      readonly agreed: true;
-      readonly catalog: PortTypeCatalog;
-      readonly omittedTypes: readonly string[];
-      readonly untypedTypes: readonly string[];
-      readonly movedWords: readonly MovedWord[];
-    }
-  | {
-      readonly agreed: false;
-      readonly disagreement: string;
-      readonly omittedTypes: readonly string[];
-      readonly untypedTypes: readonly string[];
-    };
+export type { MovedWord, SampleCheck };
 
 /**
  * Checks a `port-types-sample` transcript of a new build, with its `system info`, against the strict catalog `base`

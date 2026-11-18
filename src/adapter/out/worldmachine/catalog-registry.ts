@@ -1,4 +1,5 @@
 import { join, sep } from 'node:path';
+import type { ListCatalogsPort } from '../../../application/port/out/list-catalogs-port.js';
 import type { RegisterCatalogsPort } from '../../../application/port/out/register-catalogs-port.js';
 import type { EnumCatalog, SourcedPortTypeCatalog } from '../../../domain/catalog.js';
 
@@ -17,7 +18,7 @@ export type CatalogRegistryInit = {
  * The catalogs in force, read on every call by the port-type and enum readers. Shipped catalogs are never replaced;
  * `add` replaces the local ones of one build.
  */
-export class CatalogRegistry implements RegisterCatalogsPort {
+export class CatalogRegistry implements RegisterCatalogsPort, ListCatalogsPort {
   #portTypes: readonly SourcedPortTypeCatalog[];
   readonly #shippedEnums: readonly EnumCatalog[];
   #localEnums: readonly EnumCatalog[];

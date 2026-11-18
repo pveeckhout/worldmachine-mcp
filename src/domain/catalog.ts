@@ -210,3 +210,31 @@ export function checkDeviceTypes(types: readonly DeviceType[]): void {
       if (names.has(alias) && alias !== type.addName)
         throw new Error(`alias '${alias}' of '${type.addName}' names another type`);
 }
+
+/** What device type discovery found on a build (spec D2a); it never claims a complete list. */
+export type DeviceDiscovery = {
+  readonly types: readonly DeviceType[];
+  /** Known types not added on this build. */
+  readonly notReached: readonly string[];
+  /** false on a build without the ambiguity error (4067 and earlier): only the known lists were used. */
+  readonly listedByConsole: boolean;
+};
+
+/** A moved add word: it gave another type in the base catalog than in the sample. */
+export type MovedWord = { readonly word: string; readonly from: string; readonly to: string };
+
+/** The outcome of checking a `port-types-sample` against a strict base catalog. */
+export type SampleCheck =
+  | {
+      readonly agreed: true;
+      readonly catalog: PortTypeCatalog;
+      readonly omittedTypes: readonly string[];
+      readonly untypedTypes: readonly string[];
+      readonly movedWords: readonly MovedWord[];
+    }
+  | {
+      readonly agreed: false;
+      readonly disagreement: string;
+      readonly omittedTypes: readonly string[];
+      readonly untypedTypes: readonly string[];
+    };

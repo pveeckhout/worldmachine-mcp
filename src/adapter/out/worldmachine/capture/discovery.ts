@@ -1,18 +1,13 @@
 // Device type discovery through the console only (plan 3 task 5). Build 4069 answers `device add <tag>` for an
 // ambiguous tag with the names it matches, so every seed is tried as a tag and every listed name by its own name.
-import { checkDeviceTypes, type DeviceType } from '../../../../domain/catalog.js';
+import { checkDeviceTypes, type DeviceDiscovery, type DeviceType } from '../../../../domain/catalog.js';
 import type { DeviceSummary } from '../../../../domain/device.js';
 import { WorldMachineError } from '../../../../domain/errors.js';
 import { parseDeviceList } from '../parsers/device-list.js';
 import type { RawResponse } from '../raw-response.js';
 import type { Section } from './transcript.js';
 
-export type Discovery = {
-  readonly types: readonly DeviceType[];
-  /** Known types not added on this build. */
-  readonly notReached: readonly string[];
-  /** false on a build without the ambiguity error (4067 and earlier): only the known lists were used. */
-  readonly listedByConsole: boolean;
+export type Discovery = DeviceDiscovery & {
   /** For the transcript. */
   readonly sections: readonly Section[];
 };

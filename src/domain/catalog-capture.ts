@@ -46,40 +46,53 @@ export class CatalogCapture {
   private current: CapturePhase = 'discover';
   private done = 0;
   private total = 0;
-  private phaseStartedAt: Date;
-  private lastProgressAt: Date;
+  /** When this run first reported the current phase with a total; undefined before. */
+  private phaseStartedAt: Date | undefined;
+  /** The units of the current phase already done at that first report (a resumed run loads them from its transcript). */
+  private doneAtPhaseStart = 0;
   private outcome: CaptureOutcome | undefined;
 
   constructor(
     readonly build: number,
     readonly mode: CaptureMode,
-    startedAt: Date,
+    readonly startedAt: Date,
     private readonly phaseMinutes: Readonly<Record<CapturePhase, number>>,
-  ) {
-    this.phaseStartedAt = startedAt;
-    this.lastProgressAt = startedAt;
-  }
+  ) {}
 
+  /**
+   * The phase's clock starts at its first report in this run that has a total, so units loaded from a transcript are
+   * not timed. A report with a total of 0 enters the phase while its size is still unknown.
+   */
   progress(progress: CaptureProgress, now: Date): void {
+    if (!PHASES[this.mode].includes(progress.phase)) {
+      throw new Error(`${progress.phase} is not a phase of a ${this.mode} capture`);
+    }
     if (progress.phase !== this.current) {
       this.current = progress.phase;
-      this.phaseStartedAt = this.lastProgressAt;
+      this.phaseStartedAt = undefined;
+    }
+    if (this.phaseStartedAt === undefined && progress.total > 0) {
+      this.phaseStartedAt = now;
+      this.doneAtPhaseStart = progress.done;
     }
     this.done = progress.done;
     this.total = progress.total;
-    this.lastProgressAt = now;
   }
 
   finish(outcome: CaptureOutcome): void {
     this.outcome = outcome;
   }
 
-  /** Linear in done units of the current phase, plus the remaining phases' fixed estimates; undefined before any unit. */
+  /**
+   * Linear in the units of the current phase done in this run, plus the remaining phases' fixed estimates; undefined
+   * before this run has done a unit of the phase.
+   */
   minutesLeft(now: Date): number | undefined {
-    if (this.outcome !== undefined || this.done <= 0) return undefined;
+    const timed = this.done - this.doneAtPhaseStart;
+    if (this.outcome !== undefined || this.phaseStartedAt === undefined || timed <= 0) return undefined;
     const elapsed = Math.max(0, now.getTime() - this.phaseStartedAt.getTime());
     const remainingUnits = Math.max(0, this.total - this.done);
-    const currentMs = (elapsed / this.done) * remainingUnits;
+    const currentMs = (elapsed / timed) * remainingUnits;
     return Math.ceil(currentMs / MS_PER_MINUTE + this.minutesAfterCurrent());
   }
 
@@ -100,6 +113,7 @@ export class CatalogCapture {
     return phases.slice(index + 1).reduce((sum, phase) => sum + this.phaseMinutes[phase], 0);
   }
 
+  /** 100 only once installed; a cancelled, failed, or disagreed run stops at 99 at most. */
   private percent(): number {
     if (this.outcome?.kind === 'installed') return 100;
     const phases = PHASES[this.mode];
@@ -109,7 +123,8 @@ export class CatalogCapture {
     const before = phases.slice(0, index).reduce((sum, phase) => sum + this.phaseMinutes[phase], 0);
     const fraction = this.total > 0 ? Math.min(1, this.done / this.total) : 0;
     const percent = ((before + fraction * this.phaseMinutes[this.current]) / all) * 100;
-    return Math.min(100, Math.max(0, Math.round(percent)));
+    // Only an install completes a capture: a run that ended otherwise stays below 100.
+    return Math.min(this.outcome === undefined ? 100 : 99, Math.max(0, Math.round(percent)));
   }
 }
 
