@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { parsePortTypeCatalog } from '../../src/adapter/out/worldmachine/capture/port-type-catalog.js';
+import { nameClasses, parsePortTypeCatalog } from '../../src/adapter/out/worldmachine/capture/port-type-catalog.js';
 import { PORT_TYPE_CATALOG_4067 } from '../../src/adapter/out/worldmachine/world-machine-port-types.js';
 
 const systemInfo = readFileSync(new URL('../fixtures/wm-4067/raw/system-info.txt', import.meta.url), 'utf8');
@@ -647,5 +647,29 @@ describe('the shipped port-type catalog (port-types design section 4)', () => {
 
   it('is the catalog of build 4067', () => {
     expect(PORT_TYPE_CATALOG_4067?.build).toBe(4067);
+  });
+});
+
+describe('nameClasses (plan 3 task 4)', () => {
+  const transcripts = ['port-types.txt', 'port-types-resume.txt', 'port-types-self.txt'].map((file) =>
+    readFileSync(new URL(`../fixtures/wm-4067/raw/${file}`, import.meta.url), 'utf8'),
+  );
+  const unnamed = parsePortTypeCatalog(transcripts, systemInfo);
+
+  it('names classes after the reference catalog', () => {
+    expect(nameClasses(unnamed, PORT_TYPE_CATALOG_4067).outputClasses).toStrictEqual(
+      PORT_TYPE_CATALOG_4067.outputClasses,
+    );
+  });
+
+  it('generates a name for a class the reference lacks', () => {
+    const named = nameClasses(unnamed, { ...PORT_TYPE_CATALOG_4067, outputClasses: {} });
+    expect(Object.values(named.outputClasses)[0]).toMatch(/^class \S+: .+/);
+  });
+
+  it('generates names when there is no reference', () => {
+    const named = nameClasses(unnamed, undefined);
+    expect(Object.keys(named.outputClasses)).toStrictEqual(Object.keys(unnamed.outputClasses));
+    expect(Object.values(named.outputClasses).every((name) => /^class \S+: .+/.test(name))).toBe(true);
   });
 });

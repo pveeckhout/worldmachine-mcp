@@ -586,3 +586,35 @@ export function derivePortTypeCatalog(
   if (!check.agreed) throw new Error(check.disagreement);
   return check;
 }
+
+/** The `<type>.<output port name>` members of each output class of a catalog, by class id. */
+function classMembers(catalog: PortTypeCatalog): Map<string, string[]> {
+  const members = new Map<string, string[]>(Object.keys(catalog.outputClasses).map((id) => [id, []]));
+  for (const [type, entry] of Object.entries(catalog.types)) {
+    for (const output of entry.outputs) members.get(output.class)?.push(`${type}.${output.name}`);
+  }
+  return members;
+}
+
+/**
+ * Names the output classes of a catalog after a reference catalog: a class keeps the name of the reference class with
+ * exactly the same `Type.Output` members, else it is named `class <id>: <first three members>` plus `, ...` when it
+ * has more. Ids are unchanged.
+ */
+export function nameClasses(catalog: PortTypeCatalog, reference: PortTypeCatalog | undefined): PortTypeCatalog {
+  const referenceNames = new Map<string, string>();
+  if (reference !== undefined) {
+    for (const [id, members] of classMembers(reference)) {
+      const name = reference.outputClasses[id];
+      if (name !== undefined) referenceNames.set([...members].sort().join('\n'), name);
+    }
+  }
+  const outputClasses = Object.fromEntries(
+    [...classMembers(catalog)].map(([id, members]) => [
+      id,
+      referenceNames.get([...members].sort().join('\n')) ??
+        `class ${id}: ${members.slice(0, 3).join(', ')}${members.length > 3 ? ', ...' : ''}`,
+    ]),
+  );
+  return { ...catalog, outputClasses };
+}
