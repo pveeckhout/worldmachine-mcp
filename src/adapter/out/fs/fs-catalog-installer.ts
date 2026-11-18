@@ -1,4 +1,4 @@
-import { existsSync, linkSync, mkdirSync, renameSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, linkSync, mkdirSync, renameSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type {
   CatalogInstall,
@@ -9,6 +9,9 @@ import { readEnumCatalog, readPortTypeCatalog } from '../worldmachine/catalog-re
 import { writeFileAtomic } from './atomic-write.js';
 
 type Staged = { readonly name: string; readonly text: string };
+
+/** Filesystems without hard links: copy instead. */
+const NO_LINKS = new Set(['EPERM', 'ENOTSUP', 'EXDEV', 'ENOSYS']);
 
 const roundTrip = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 
@@ -54,13 +57,28 @@ export class FsCatalogInstaller implements InstallCatalogPort {
     const work = join(folder, '.install');
     rmSync(work, { recursive: true, force: true });
     mkdirSync(work, { recursive: true });
-    for (const file of staged) writeFileAtomic(join(work, file.name), file.text);
-
-    for (const file of staged) {
-      if (file.name === 'port-types.json') this.#corrections.retire(entry.build);
-      this.#replace(folder, work, file.name);
+    try {
+      for (const file of staged) writeFileAtomic(join(work, file.name), file.text);
+      for (const file of staged) {
+        this.#replace(folder, work, file.name);
+        if (file.name === 'port-types.json') this.#retire(entry.build);
+      }
+      writeFileAtomic(join(folder, 'capture.json'), `${JSON.stringify(entry.record, null, 2)}\n`);
+    } finally {
+      rmSync(work, { recursive: true, force: true });
     }
-    writeFileAtomic(join(folder, 'capture.json'), `${JSON.stringify(entry.record, null, 2)}\n`);
+  }
+
+  /** After the new catalog is live: the corrections were recorded against the old one. */
+  #retire(build: number): void {
+    try {
+      this.#corrections.retire(build);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `the new catalog is installed, but the corrections of build ${build} could not be moved aside: ${reason}`,
+      );
+    }
   }
 
   /** The live file stays in place until the new one is renamed over it, so a failure leaves one or the other. */
@@ -70,8 +88,18 @@ export class FsCatalogInstaller implements InstallCatalogPort {
       const previous = join(folder, name.replace(/\.json$/, '.previous.json'));
       const temp = `${previous}.${process.pid}.tmp`;
       rmSync(temp, { force: true });
-      linkSync(live, temp);
-      this.#rename(temp, previous);
+      try {
+        try {
+          linkSync(live, temp);
+        } catch (error) {
+          if (!NO_LINKS.has((error as NodeJS.ErrnoException).code ?? '')) throw error;
+          copyFileSync(live, temp);
+        }
+        this.#rename(temp, previous);
+      } catch (error) {
+        rmSync(temp, { force: true });
+        throw error;
+      }
     }
     this.#rename(join(work, name), live);
   }

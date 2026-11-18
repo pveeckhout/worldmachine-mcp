@@ -22,6 +22,10 @@ export type CatalogInstall = {
 };
 
 export interface InstallCatalogPort {
-  /** Validates, then installs. Throws Error naming the first failed check; nothing live changes then. */
+  /**
+   * Validates, then installs. Throws Error naming the first failed check; nothing live changes then.
+   * A failed validation changes nothing. The install itself is atomic per file, not across files: a failure midway can
+   * leave the new enum catalog beside the old port-type catalog, and installing again completes it.
+   */
   install(entry: CatalogInstall, runningBuild: number): void;
 }
