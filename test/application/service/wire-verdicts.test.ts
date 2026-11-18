@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { WireVerdicts } from '../../../src/application/service/wire-verdicts.js';
-import type { WireTyping } from '../../../src/domain/catalog.js';
+import { type ReportContext, WireVerdicts } from '../../../src/application/service/wire-verdicts.js';
+import type { VerdictReport, WireTyping } from '../../../src/domain/catalog.js';
 import { WorldMachineError } from '../../../src/domain/errors.js';
 import { sampleDerivedPortTypes, syntheticPortTypes } from '../../support/port-types.js';
 import { memoryRecorder } from '../../support/wire-verdicts.js';
@@ -94,5 +94,60 @@ describe('WireVerdicts', () => {
       verdicts.observeRefusal(new WorldMachineError('REFUSED', 'no'), 'connect_devices'),
     ).toBeUndefined();
     expect(verdicts.observeRefusal(new Error('boom'), 'connect_devices')).toBeUndefined();
+  });
+
+  describe('onReport', () => {
+    const collect = () => {
+      const calls: { report: VerdictReport; context: ReportContext }[] = [];
+      return {
+        calls,
+        onReport: (report: VerdictReport, context: ReportContext) => calls.push({ report, context }),
+      };
+    };
+
+    it('is called for a strict-catalog report with build, source, and the pair', () => {
+      const { calls, onReport } = collect();
+      new WireVerdicts(syntheticPortTypes, memoryRecorder(), now, onReport).observe(
+        typed('compatible'),
+        'refused',
+        'apply_graph',
+      );
+      expect(calls).toEqual([
+        {
+          report: expect.objectContaining({ outcome: 'reported', reason: 'strict catalog' }),
+          context: {
+            build: syntheticPortTypes.catalogInUse()?.build,
+            source: 'apply_graph',
+            output: water,
+            input: output,
+          },
+        },
+      ]);
+    });
+
+    it('is called when the store refuses the write', () => {
+      const { calls, onReport } = collect();
+      const throwingStore = {
+        record: () => {
+          throw new Error('were not loaded');
+        },
+      };
+      new WireVerdicts(sampleDerivedPortTypes, throwingStore, now, onReport).observe(
+        typed('compatible'),
+        'refused',
+        'connect_devices',
+      );
+      expect(calls).toHaveLength(1);
+      expect(calls[0]?.report.reason).toContain('were not loaded');
+      expect(calls[0]?.context.source).toBe('connect_devices');
+    });
+
+    it('is not called for a recorded verdict or when World Machine agreed', () => {
+      const { calls, onReport } = collect();
+      const verdicts = new WireVerdicts(sampleDerivedPortTypes, memoryRecorder(), now, onReport);
+      verdicts.observe(typed('compatible'), 'refused', 'apply_graph');
+      verdicts.observe(typed('compatible'), 'accepted', 'apply_graph');
+      expect(calls).toEqual([]);
+    });
   });
 });

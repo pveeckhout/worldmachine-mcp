@@ -64,6 +64,7 @@ import { UndoService } from './application/service/undo-service.js';
 import { UpdateDeviceParametersService } from './application/service/update-device-parameters-service.js';
 import { WireVerdicts } from './application/service/wire-verdicts.js';
 import { type Config, loadConfig } from './config.js';
+import { portKey } from './domain/catalog.js';
 import { createLogger } from './logger.js';
 import { createSignalShutdown } from './signal-shutdown.js';
 
@@ -98,6 +99,7 @@ for (const problem of localCatalogs.problems) logger.warn(`local catalog ignored
 // Port-types design section 7: the shipped and local catalogs are wired here and in the live tests only (plan decision D3).
 // One corrections store, shared by the plans (through portTypes) and the wire verdicts that record into it.
 const corrections = new FsPortTypeCorrections(config.catalogDir, logger);
+for (const problem of corrections.problems()) logger.warn(`port-type corrections ignored: ${problem}`);
 const portTypes = new WorldMachinePortTypes(
   session,
   [...PORT_TYPE_CATALOGS, ...localCatalogs.portTypeCatalogs.map(local)],
@@ -113,7 +115,17 @@ const writer = new WorldMachineProjectWriter(session);
 const devices = new WorldMachineDeviceEditor(session);
 const parameters = new WorldMachineParameterEditor(session);
 const wires = new WorldMachineWireEditor(session, portTypes);
-const verdicts = new WireVerdicts(portTypes, corrections);
+const verdicts = new WireVerdicts(
+  portTypes,
+  corrections,
+  undefined,
+  (report, { build, source, output, input }) => {
+    const pair = `${output === undefined ? '?' : portKey(output)} -> ${input === undefined ? '?' : portKey(input)}`;
+    const line = `port-type verdict not recorded: build ${build}, ${pair} ${report.verdict} (${source}): ${report.reason}`;
+    if (report.reason === 'adaptive device') logger.info(line);
+    else logger.warn(line);
+  },
+);
 const scene = new WorldMachineSceneEditor(session);
 const builder = new WorldMachineBuilder(session);
 const exporter = new WorldMachineExporter(session);
