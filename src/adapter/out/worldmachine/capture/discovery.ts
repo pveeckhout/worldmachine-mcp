@@ -1,6 +1,8 @@
 // Device type discovery through the console only (plan 3 task 5). Build 4069 answers `device add <tag>` for an
 // ambiguous tag with the names it matches, so every seed is tried as a tag and every listed name by its own name.
-import type { DeviceType } from '../../../../domain/catalog.js';
+import { checkDeviceTypes, type DeviceType } from '../../../../domain/catalog.js';
+import type { DeviceSummary } from '../../../../domain/device.js';
+import { WorldMachineError } from '../../../../domain/errors.js';
 import { parseDeviceList } from '../parsers/device-list.js';
 import type { RawResponse } from '../raw-response.js';
 import type { Section } from './transcript.js';
@@ -36,10 +38,27 @@ export async function discoverDeviceTypes(
   const sections: Section[] = [];
   const run = async (commands: readonly string[]): Promise<readonly RawResponse[]> => {
     const responses = await execute(commands);
+    if (responses.length < commands.length)
+      throw new Error(`World Machine answered ${responses.length} of ${commands.length} commands`);
     commands.forEach((command, i) => {
       sections.push({ command, lines: linesOf(responses[i] as RawResponse) });
     });
     return responses;
+  };
+  const listDevices = async (): Promise<DeviceSummary[]> =>
+    parseDeviceList(((await run(['device list']))[0] as RawResponse).output);
+  const deleteDevices = async (devices: readonly DeviceSummary[]): Promise<void> => {
+    if (devices.length === 0) return;
+    const responses = await run(devices.map((device) => `device delete #${device.id}`));
+    devices.forEach((device, i) => {
+      const lines = linesOf(responses[i] as RawResponse);
+      if (!lines.some((line) => line.trim() === `Deleted: #${device.id}`))
+        throw new WorldMachineError(
+          'WM_COMMAND_FAILED',
+          `World Machine did not delete device #${device.id} (${device.name}) added by discovery`,
+          lines.join('\n'),
+        );
+    });
   };
 
   const queue = [...new Set([...seeds.addWords, ...seeds.typeNames])];
@@ -59,31 +78,48 @@ export async function discoverDeviceTypes(
     }
   };
 
+  const known = new Set((await listDevices()).map((device) => device.id));
+
   while (queue.length > 0) {
     const words = queue.splice(0, BATCH);
-    const responses = await run([...words.map((word) => `device add ${word}`), 'device list']);
-    const addedWords: string[] = [];
-    words.forEach((word, i) => {
-      const lines = linesOf(responses[i] as RawResponse);
-      if (lines.some((line) => ADDED.test(line.trim()))) addedWords.push(word);
-      for (const name of lines.flatMap((line) => ambiguousMatches(line) ?? [])) {
-        listedByConsole = true;
-        if (!tried.has(name)) {
-          tried.add(name);
-          queue.push(name);
+    let fresh: DeviceSummary[] = [];
+    let failed = false;
+    try {
+      const responses = await run([...words.map((word) => `device add ${word}`), 'device list']);
+      const addedWords: string[] = [];
+      words.forEach((word, i) => {
+        const lines = linesOf(responses[i] as RawResponse);
+        if (lines.some((line) => ADDED.test(line.trim()))) addedWords.push(word);
+        for (const name of lines.flatMap((line) => ambiguousMatches(line) ?? [])) {
+          listedByConsole = true;
+          if (!tried.has(name)) {
+            tried.add(name);
+            queue.push(name);
+          }
         }
+      });
+      fresh = parseDeviceList((responses[words.length] as RawResponse).output).filter(
+        (device) => !known.has(device.id),
+      );
+      if (fresh.length !== addedWords.length)
+        throw new Error(`device list shows ${fresh.length} new devices after ${addedWords.length} adds`);
+      addedWords.forEach((word, i) => {
+        const device = fresh[i] as DeviceSummary;
+        record(word, device.kind ?? device.name);
+      });
+    } catch (error) {
+      failed = true;
+      // Still try to remove what the batch added; the original error is the one to report.
+      try {
+        const rows = fresh.length > 0 ? fresh : (await listDevices()).filter((d) => !known.has(d.id));
+        await deleteDevices(rows);
+      } catch {
+        // ignored: the original error follows
       }
-    });
-    const list = responses[words.length] as RawResponse;
-    const devices = addedWords.length === 0 && list.output.length === 0 ? [] : parseDeviceList(list.output);
-    if (devices.length < addedWords.length)
-      throw new Error(`device list shows ${devices.length} devices after ${addedWords.length} adds`);
-    const fresh = devices.slice(devices.length - addedWords.length);
-    addedWords.forEach((word, i) => {
-      const device = fresh[i];
-      if (device !== undefined) record(word, device.kind ?? device.name);
-    });
-    if (devices.length > 0) await run(devices.map((device) => `device delete #${device.id}`));
+      throw error;
+    } finally {
+      if (!failed) await deleteDevices(fresh);
+    }
   }
 
   const result: DeviceType[] = types.map((type) => ({
@@ -92,6 +128,7 @@ export async function discoverDeviceTypes(
     reached: true,
   }));
   const reachedNames = new Set(result.flatMap((type) => [type.addName, ...type.aliases]));
+  checkDeviceTypes(result);
   return {
     types: result,
     notReached: [...new Set(seeds.typeNames)].filter((name) => !reachedNames.has(name)),

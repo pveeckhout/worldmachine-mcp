@@ -11,10 +11,19 @@ type Reply = { output?: string[]; errors?: string[] };
  * A console that adds by exact device name or by a scripted tag, and lists what a batch added. `tags` maps a word to a
  * reply; `kinds` maps a word to the type its device has when that differs from the word.
  */
-function fakeConsole(tags: Record<string, Reply>, kinds: Record<string, string> = {}) {
+function fakeConsole(
+  tags: Record<string, Reply>,
+  kinds: Record<string, string> = {},
+  options: { existing?: string[]; failListAt?: number; deleteReply?: Reply } = {},
+) {
   const batches: string[][] = [];
-  let devices: { id: number; name: string; kind?: string }[] = [];
-  let next = 1;
+  let devices: { id: number; name: string; kind?: string }[] = (options.existing ?? []).map((name, i) => ({
+    id: i + 1,
+    name,
+  }));
+  let next = devices.length + 1;
+  let lists = 0;
+  const deleted: number[] = [];
   const execute = async (commands: readonly string[]): Promise<RawResponse[]> => {
     batches.push([...commands]);
     return commands.map((command): RawResponse => {
@@ -27,6 +36,7 @@ function fakeConsole(tags: Record<string, Reply>, kinds: Record<string, string> 
           devices.push({ id: next++, name: word, ...(kind === undefined ? {} : { kind }) });
         }
       } else if (command === 'device list') {
+        if (++lists === options.failListAt) throw new Error('console went away');
         reply = {
           output:
             devices.length === 0
@@ -38,13 +48,16 @@ function fakeConsole(tags: Record<string, Reply>, kinds: Record<string, string> 
         };
       } else if (command.startsWith('device delete #')) {
         const id = Number(command.slice('device delete #'.length));
-        devices = devices.filter((d) => d.id !== id);
-        reply = { output: [`Deleted: #${id}`] };
+        reply = options.deleteReply ?? { output: [`Deleted: #${id}`] };
+        if (options.deleteReply === undefined) {
+          devices = devices.filter((d) => d.id !== id);
+          deleted.push(id);
+        }
       }
       return { command, output: reply.output ?? [], errors: reply.errors ?? [] };
     });
   };
-  return { execute, batches };
+  return { execute, batches, deleted, devices: () => devices };
 }
 
 const added = (name: string): Reply => ({ output: [`Added '${name}'`] });
@@ -117,5 +130,48 @@ describe('discoverDeviceTypes', () => {
     const adds = c.batches.filter((b) => b[0]?.startsWith('device add '));
     expect(adds.map((b) => b.filter((x) => x.startsWith('device add ')).length)).toEqual([20, 5]);
     expect(c.batches.flat().filter((x) => x.startsWith('device delete ')).length).toBe(25);
+  });
+
+  it('never deletes a device that was there before', async () => {
+    const c = fakeConsole(
+      { Gradient: added('Gradient'), Nope: { output: ['Device type not found'] } },
+      {},
+      { existing: ['My Terrain'] },
+    );
+    const found = await discoverDeviceTypes(c.execute, { addWords: ['Nope', 'Gradient'], typeNames: [] });
+    expect(found.types.map((t) => t.addName)).toEqual(['Gradient']);
+    expect(c.deleted).toEqual([2]);
+    expect(c.devices().map((d) => d.name)).toEqual(['My Terrain']);
+  });
+
+  it('leaves an existing device alone when every add fails', async () => {
+    const c = fakeConsole({}, {}, { existing: ['My Terrain'] });
+    await discoverDeviceTypes(c.execute, { addWords: ['Nope'], typeNames: [] });
+    expect(c.deleted).toEqual([]);
+  });
+
+  it('removes what a failed batch added and rethrows the original error', async () => {
+    // list 1 is the starting list, list 2 the batch list that fails, list 3 the cleanup list.
+    const c = fakeConsole({ Gradient: added('Gradient') }, {}, { existing: ['Mine'], failListAt: 2 });
+    await expect(discoverDeviceTypes(c.execute, { addWords: ['Gradient'], typeNames: [] })).rejects.toThrow(
+      'console went away',
+    );
+    expect(c.devices().map((d) => d.name)).toEqual(['Mine']);
+  });
+
+  it('throws when a device delete is not confirmed', async () => {
+    const c = fakeConsole({ Gradient: added('Gradient') }, {}, { deleteReply: { errors: ['Error: busy'] } });
+    await expect(
+      discoverDeviceTypes(c.execute, { addWords: ['Gradient'], typeNames: [] }),
+    ).rejects.toMatchObject({
+      code: 'WM_COMMAND_FAILED',
+      message: expect.stringContaining('#1'),
+    });
+  });
+
+  it('throws a clear error when World Machine answers fewer commands', async () => {
+    await expect(
+      discoverDeviceTypes(async () => [], { addWords: ['Gradient'], typeNames: [] }),
+    ).rejects.toThrow(/answered 0 of 1/);
   });
 });
