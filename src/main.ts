@@ -7,6 +7,7 @@ import { FsLocalCatalogs } from './adapter/out/fs/fs-local-catalogs.js';
 import { FsPortTypeCorrections } from './adapter/out/fs/fs-port-type-corrections.js';
 import { FsGraphTemplateLoader } from './adapter/out/fs/graph-template-loader.js';
 import { FsPathPolicy } from './adapter/out/fs/path-policy.js';
+import { CatalogRegistry } from './adapter/out/worldmachine/catalog-registry.js';
 import { ENUM_CATALOGS } from './adapter/out/worldmachine/enum-options.js';
 import { resolveExecutable } from './adapter/out/worldmachine/locator.js';
 import { WorldMachineBuildResultReader } from './adapter/out/worldmachine/world-machine-build-result-reader.js';
@@ -100,17 +101,15 @@ for (const problem of localCatalogs.problems) logger.warn(`local catalog ignored
 // One corrections store, shared by the plans (through portTypes) and the wire verdicts that record into it.
 const corrections = new FsPortTypeCorrections(config.catalogDir, logger);
 for (const problem of corrections.problems()) logger.warn(`port-type corrections ignored: ${problem}`);
-const portTypes = new WorldMachinePortTypes(
-  session,
+// One live registry for both adapters: an installed catalog answers the next call (register-catalogs-port.ts).
+const catalogs = new CatalogRegistry(
   [...PORT_TYPE_CATALOGS, ...localCatalogs.portTypeCatalogs.map(local)],
-  localCatalogs.problems,
-  corrections,
-);
-const reader = new WorldMachineGraphReader(
-  session,
   [...ENUM_CATALOGS, ...localCatalogs.enumCatalogs],
-  portTypes,
+  localCatalogs.problems,
+  config.catalogDir,
 );
+const portTypes = new WorldMachinePortTypes(session, catalogs, [], corrections);
+const reader = new WorldMachineGraphReader(session, catalogs, portTypes);
 const writer = new WorldMachineProjectWriter(session);
 const devices = new WorldMachineDeviceEditor(session);
 const parameters = new WorldMachineParameterEditor(session);

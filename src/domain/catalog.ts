@@ -11,6 +11,9 @@ export type CatalogSource = {
   readonly origin: CatalogOrigin;
 };
 
+/** A port-type catalog with the source `selectCatalog` ranks it by. */
+export type SourcedPortTypeCatalog = { readonly catalog: PortTypeCatalog; readonly source: CatalogSource };
+
 /** Lookup order per build: shipped strict, local full, shipped sample-derived, local short. */
 function rank(source: CatalogSource): number {
   if (source.kind === 'strict') return source.origin === 'shipped' ? 0 : 1;

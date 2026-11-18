@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { FsPathPolicy } from '../../../../src/adapter/out/fs/path-policy.js';
+import { CatalogRegistry } from '../../../../src/adapter/out/worldmachine/catalog-registry.js';
 import {
   ENUM_CATALOG_4067,
   type EnumCatalog,
@@ -46,7 +47,7 @@ afterEach(async () => {
   await Promise.all(sessions.splice(0).map((session) => session.shutdown()));
 });
 
-function reader(extra: Record<string, string> = {}, catalog?: readonly EnumCatalog[]) {
+function reader(extra: Record<string, string> = {}, catalog?: readonly EnumCatalog[] | CatalogRegistry) {
   const record = recorder();
   const logger = captureLogger();
   const env = fakeEnv({ FAKE_WM_RECORD: record.path, ...extra });
@@ -330,7 +331,7 @@ describe('WorldMachineGraphReader device, scene, and project reads', () => {
 
 describe('WorldMachineGraphReader enum options (enum-options design section 4)', () => {
   /** The first device of a blank project after `device add <type>`, read with `catalog` (the shipped one if omitted). */
-  async function added(type: string, catalog?: readonly EnumCatalog[]) {
+  async function added(type: string, catalog?: readonly EnumCatalog[] | CatalogRegistry) {
     const { reader: r, session } = reader({}, catalog);
     await session.execute(['project new blank force', `device add ${type}`]);
     return r.getDevice('#1');
@@ -345,6 +346,19 @@ describe('WorldMachineGraphReader enum options (enum-options design section 4)',
       options: COMBINER_METHOD,
     });
     expect(device).not.toHaveProperty('enumOptionsNote');
+  });
+
+  it('attaches enum options added after startup', async () => {
+    const registry = new CatalogRegistry([], [{ ...ENUM_CATALOG_4067, build: 4066 }], [], '/catalogs');
+    const { reader: r, session } = reader({}, registry);
+    await session.execute(['project new blank force', 'device add Combiner']);
+    expect((await r.getDevice('#1')).parameters.find((p) => p.name === 'Method')).not.toHaveProperty(
+      'options',
+    );
+    registry.add(4067, { enumOptions: { ...ENUM_CATALOG_4067 } });
+    expect((await r.getDevice('#1')).parameters.find((p) => p.name === 'Method')).toMatchObject({
+      options: COMBINER_METHOD,
+    });
   });
 
   it('omits options and names both builds when World Machine is another build', async () => {

@@ -3,6 +3,7 @@ import type { ProjectGraphReadPort } from '../../../application/port/out/project
 import type { DeviceDetail, DeviceSummary } from '../../../domain/device.js';
 import type { ProjectOverview } from '../../../domain/project.js';
 import type { Scene } from '../../../domain/scene.js';
+import { CatalogRegistry } from './catalog-registry.js';
 import { buildCommand } from './command-builder.js';
 import { deviceInfoCommands } from './device-info-read.js';
 import { idOfReference, resolveDeviceReference } from './device-reference.js';
@@ -20,7 +21,7 @@ import type { WorldMachineSession } from './world-machine-session.js';
 
 export class WorldMachineGraphReader implements ProjectGraphReadPort {
   readonly #session: WorldMachineSession;
-  readonly #catalogs: readonly EnumCatalog[];
+  readonly #registry: CatalogRegistry;
   readonly #portTypes: PortTypeCatalogPort;
 
   /**
@@ -31,11 +32,12 @@ export class WorldMachineGraphReader implements ProjectGraphReadPort {
    */
   constructor(
     session: WorldMachineSession,
-    catalogs: readonly EnumCatalog[] = ENUM_CATALOGS,
+    catalogs: CatalogRegistry | readonly EnumCatalog[] = ENUM_CATALOGS,
     portTypes: PortTypeCatalogPort = NO_PORT_TYPES,
   ) {
     this.#session = session;
-    this.#catalogs = catalogs;
+    this.#registry =
+      catalogs instanceof CatalogRegistry ? catalogs : new CatalogRegistry([], catalogs, [], '');
     this.#portTypes = portTypes;
   }
 
@@ -87,7 +89,7 @@ export class WorldMachineGraphReader implements ProjectGraphReadPort {
         portTypes: 'unknown',
       },
       this.#session.status().systemInfo?.build,
-      this.#catalogs,
+      this.#registry.enumCatalogs(),
     );
     // Port-types design section 6, also after the batch; the fingerprint is the domain's (plan decision D5).
     return attachPortTypes(read, this.#portTypes.portsOf(read.type));

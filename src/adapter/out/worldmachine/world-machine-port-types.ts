@@ -8,11 +8,13 @@ import {
   type PortTypeCatalogEntry,
   type PortTypeCatalogType,
   pairKey,
+  type SourcedPortTypeCatalog,
   selectCatalog,
   type WireVerdict,
 } from '../../../domain/catalog.js';
 import type { DeviceDetail } from '../../../domain/device.js';
 import { type CataloguedPorts, type PortClass, typedPorts } from '../../../domain/port-types.js';
+import { CatalogRegistry } from './catalog-registry.js';
 import shipped4067 from './port-types.4067.json' with { type: 'json' };
 import shipped4069 from './port-types.4069.json' with { type: 'json' };
 
@@ -29,8 +31,7 @@ export const PORT_TYPE_CATALOG_4067: PortTypeCatalog = shipped4067 as PortTypeCa
  */
 export const PORT_TYPE_CATALOG_4069: PortTypeCatalog = shipped4069 as PortTypeCatalog;
 
-/** A port-type catalog with the source `selectCatalog` ranks it by. */
-export type SourcedPortTypeCatalog = { readonly catalog: PortTypeCatalog; readonly source: CatalogSource };
+export type { SourcedPortTypeCatalog };
 
 const sourced = (catalog: PortTypeCatalog, origin: CatalogSource['origin']): SourcedPortTypeCatalog => ({
   catalog,
@@ -100,19 +101,18 @@ function resolvePorts(catalog: PortTypeCatalog, entry: PortTypeCatalogType): Cat
  */
 export class WorldMachinePortTypes implements PortTypeCatalogPort {
   readonly #session: Pick<WorldMachineSessionPort, 'status'>;
-  readonly #catalogs: readonly SourcedPortTypeCatalog[];
-  readonly #problems: readonly string[];
+  readonly #registry: CatalogRegistry;
   readonly #corrections: PortTypeCorrectionsPort | undefined;
 
   constructor(
     session: Pick<WorldMachineSessionPort, 'status'>,
-    catalogs: readonly SourcedPortTypeCatalog[],
+    catalogs: CatalogRegistry | readonly SourcedPortTypeCatalog[],
     problems: readonly string[] = [],
     corrections?: PortTypeCorrectionsPort,
   ) {
     this.#session = session;
-    this.#catalogs = catalogs;
-    this.#problems = problems;
+    this.#registry =
+      catalogs instanceof CatalogRegistry ? catalogs : new CatalogRegistry(catalogs, [], problems, '');
     this.#corrections = corrections;
   }
 
@@ -146,7 +146,7 @@ export class WorldMachinePortTypes implements PortTypeCatalogPort {
   }
 
   problems(): readonly string[] {
-    return [...this.#problems, ...(this.#corrections?.problems() ?? [])];
+    return [...this.#registry.problems(), ...(this.#corrections?.problems() ?? [])];
   }
 
   /** The recorded verdicts of the running build; only a sample-derived catalog is corrected. */
@@ -163,7 +163,7 @@ export class WorldMachinePortTypes implements PortTypeCatalogPort {
   }
 
   #selected(): SourcedPortTypeCatalog | undefined {
-    return selectCatalog(this.#catalogs, this.#session.status().systemInfo?.build);
+    return selectCatalog(this.#registry.portTypeCatalogs(), this.#session.status().systemInfo?.build);
   }
 }
 
