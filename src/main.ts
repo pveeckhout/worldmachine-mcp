@@ -96,10 +96,13 @@ const session = new WorldMachineSession({
 const localCatalogs = new FsLocalCatalogs(config.catalogDir).load();
 for (const problem of localCatalogs.problems) logger.warn(`local catalog ignored: ${problem}`);
 // Port-types design section 7: the shipped and local catalogs are wired here and in the live tests only (plan decision D3).
+// One corrections store, shared by the plans (through portTypes) and the wire verdicts that record into it.
+const corrections = new FsPortTypeCorrections(config.catalogDir, logger);
 const portTypes = new WorldMachinePortTypes(
   session,
   [...PORT_TYPE_CATALOGS, ...localCatalogs.portTypeCatalogs.map(local)],
   localCatalogs.problems,
+  corrections,
 );
 const reader = new WorldMachineGraphReader(
   session,
@@ -110,7 +113,7 @@ const writer = new WorldMachineProjectWriter(session);
 const devices = new WorldMachineDeviceEditor(session);
 const parameters = new WorldMachineParameterEditor(session);
 const wires = new WorldMachineWireEditor(session, portTypes);
-const verdicts = new WireVerdicts(portTypes, new FsPortTypeCorrections(config.catalogDir, logger));
+const verdicts = new WireVerdicts(portTypes, corrections);
 const scene = new WorldMachineSceneEditor(session);
 const builder = new WorldMachineBuilder(session);
 const exporter = new WorldMachineExporter(session);

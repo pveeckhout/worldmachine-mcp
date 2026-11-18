@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   acceptsText,
   type CataloguedPorts,
+  correctedCompatibility,
   fingerprintMatches,
   type PortNames,
   refusalTypes,
@@ -9,6 +10,7 @@ import {
   uncheckedWire,
   wireCompatibility,
   wireConflictReason,
+  wireRefusedReason,
 } from '../../src/domain/port-types.js';
 
 // Synthetic classes (port-types plan decision D1): no port-type capture exists before plan Task 11.
@@ -108,6 +110,20 @@ describe('wireCompatibility (port-types design section 7)', () => {
   });
 });
 
+describe('correctedCompatibility (user-built catalogs, corrections)', () => {
+  it('lets an accepted correction make a wire compatible and a refused one incompatible', () => {
+    expect(correctedCompatibility('incompatible', 'accepted')).toBe('compatible');
+    expect(correctedCompatibility('compatible', 'refused')).toBe('incompatible');
+  });
+
+  it('leaves the answer alone without a correction, and an unchecked wire unchecked', () => {
+    expect(correctedCompatibility('compatible', undefined)).toBe('compatible');
+    expect(correctedCompatibility('incompatible', undefined)).toBe('incompatible');
+    expect(correctedCompatibility('unchecked', 'accepted')).toBe('unchecked');
+    expect(correctedCompatibility('unchecked', 'refused')).toBe('unchecked');
+  });
+});
+
 describe('port-type texts (port-types design section 6, plan decision D15)', () => {
   it('describes an input by the names of the classes it accepts, or as accepting nothing', () => {
     expect(acceptsText(TERRAIN_IN)).toBe('heightfield, mask');
@@ -117,6 +133,12 @@ describe('port-type texts (port-types design section 6, plan decision D15)', () 
   it('gives the conflict reason of plan_graph', () => {
     expect(wireConflictReason('Lake', WATER_OUT, 'Sea', TERRAIN_IN)).toBe(
       "'Lake' output 2 (water system) cannot feed 'Sea' input 1, which accepts heightfield, mask",
+    );
+  });
+
+  it('gives the reason of a wire World Machine refused on a build', () => {
+    expect(wireRefusedReason('Lake', WATER_OUT, 'Sea', TERRAIN_IN, 4069)).toBe(
+      "'Lake' output 2 (water system) cannot feed 'Sea' input 1: World Machine refused this pair on build 4069",
     );
   });
 

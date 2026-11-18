@@ -1,4 +1,4 @@
-import type { CatalogSource } from '../../../domain/catalog.js';
+import type { CatalogSource, PortRef, WireVerdict } from '../../../domain/catalog.js';
 import type { CataloguedPorts } from '../../../domain/port-types.js';
 
 /**
@@ -14,6 +14,15 @@ export interface PortTypeCatalogPort {
    * ruling B1), since another spelling of the same listed type is not known to give the same device.
    */
   portsOfAdded(addSpelling: string): CataloguedPorts | undefined;
+  /** The catalog type key of the entry `portsOfAdded` finds for the spelling; undefined when it finds none. */
+  typeOfAdded(addSpelling: string): string | undefined;
+  /**
+   * What World Machine's recorded verdict says of a pair of ports, from the corrections of the running build. Only a
+   * sample-derived catalog is corrected; a strict one, and a pair without a verdict, give undefined.
+   */
+  correctionOf(output: PortRef, input: PortRef): WireVerdict | undefined;
+  /** Whether the catalog in use is sample-derived and its build has at least one correction. */
+  hasCorrections(): boolean;
   /** The source of the catalog selected for the running build; undefined when none applies. */
   catalogInUse(): CatalogSource | undefined;
   /** Startup problems with local catalog files, each naming its file; empty when there are none. */

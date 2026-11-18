@@ -26,6 +26,7 @@ export class GetDeviceService implements GetDeviceQueryPort {
         status.systemInfo?.build,
         this.#portTypes.catalogInUse(),
         this.#portTypes.problems(),
+        this.#portTypes.hasCorrections(),
       ),
     };
   }

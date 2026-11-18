@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CatalogKind, CatalogOrigin, WireVerdict } from '../../src/domain/catalog.js';
 import {
+  catalogInfo,
   catalogLabel,
   correctionIndex,
   judgeVerdict,
@@ -103,5 +104,15 @@ describe('judgeVerdict', () => {
     expect(judgeVerdict('sample-derived', typed('unchecked'), 'refused')).toBeUndefined();
     const untyped = { output: undefined, input: output, predicted: 'unchecked' as const };
     expect(judgeVerdict('sample-derived', untyped, 'accepted')).toBeUndefined();
+  });
+});
+
+describe('catalogInfo', () => {
+  const shippedSample = { build: 4069, kind: 'sample-derived', origin: 'shipped' } as const;
+  it('says corrections apply', () => {
+    expect(catalogInfo(4069, shippedSample, [], true).corrections).toBe(true);
+  });
+  it('says none apply when the build has none', () => {
+    expect(catalogInfo(4069, shippedSample, [], false).corrections).toBe(false);
   });
 });

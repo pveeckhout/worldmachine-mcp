@@ -3,7 +3,9 @@ import {
   shipped,
   WorldMachinePortTypes,
 } from '../../src/adapter/out/worldmachine/world-machine-port-types.js';
+import type { PortTypeCorrectionsPort } from '../../src/application/port/out/port-type-corrections-port.js';
 import type { SessionStatus } from '../../src/application/port/out/world-machine-session-port.js';
+import type { WireVerdict } from '../../src/domain/catalog.js';
 
 /** raw/system-info.txt l.3-4, as WorldMachineSession.status() holds it. */
 export const SYSTEM_INFO = { build: 4067, buildName: 'Dragontail Peak', arch: 'x64-AVX2 (256-bit)' };
@@ -83,3 +85,25 @@ export const syntheticPortTypes = new WorldMachinePortTypes(statusOn(4067), [shi
 export const sampleDerivedPortTypes = new WorldMachinePortTypes(statusOn(4067), [
   shipped({ ...SYNTHETIC_CATALOG, kind: 'sample-derived' }),
 ]);
+
+/** A corrections store holding `verdicts` (pair key to verdict) for `build` only. */
+export const correctionsOf = (
+  build: number,
+  verdicts: Readonly<Record<string, WireVerdict>>,
+): PortTypeCorrectionsPort => ({
+  correctionsFor: (asked) => (asked === build ? new Map(Object.entries(verdicts)) : undefined),
+  problems: () => [],
+});
+
+/** SYNTHETIC_CATALOG on `build`, as `kind`, with the corrections of that build. */
+export const withCorrections = (
+  kind: 'strict' | 'sample-derived',
+  verdicts: Readonly<Record<string, WireVerdict>>,
+  build = 4069,
+): WorldMachinePortTypes =>
+  new WorldMachinePortTypes(
+    statusOn(build),
+    [shipped({ ...SYNTHETIC_CATALOG, build, kind })],
+    [],
+    correctionsOf(build, verdicts),
+  );

@@ -9,9 +9,16 @@ import {
   shipped as shippedCatalog,
   WorldMachinePortTypes,
 } from '../../../../src/adapter/out/worldmachine/world-machine-port-types.js';
+import { pairKey } from '../../../../src/domain/catalog.js';
 import type { DeviceDetail } from '../../../../src/domain/device.js';
 import { wireCompatibility } from '../../../../src/domain/port-types.js';
-import { SYNTHETIC_CATALOG, statusOn, syntheticPortTypes } from '../../../support/port-types.js';
+import {
+  correctionsOf,
+  SYNTHETIC_CATALOG,
+  statusOn,
+  syntheticPortTypes,
+  withCorrections,
+} from '../../../support/port-types.js';
 
 const HEIGHTFIELD = { id: 'o1', name: 'heightfield' };
 const WATER_SYSTEM = { id: 'o2', name: 'water system' };
@@ -98,6 +105,9 @@ describe('WorldMachinePortTypes (port-types design sections 5 and 7)', () => {
     expect(new WorldMachinePortTypes(statusOn(4067), []).portsOfAdded('Create Water')).toBeUndefined();
     expect(NO_PORT_TYPES.portsOf('Create Water')).toBeUndefined();
     expect(NO_PORT_TYPES.portsOfAdded('Create Water')).toBeUndefined();
+    expect(NO_PORT_TYPES.typeOfAdded('Create Water')).toBeUndefined();
+    expect(NO_PORT_TYPES.correctionOf({ type: 'a', port: 'b' }, { type: 'c', port: 'd' })).toBeUndefined();
+    expect(NO_PORT_TYPES.hasCorrections()).toBe(false);
   });
 
   it.each(['River', 'create water', 'constructor', 'toString'])(
@@ -213,5 +223,56 @@ describe('the shipped port-type catalogs on build 4069', () => {
   it('types no add word build 4069 refuses (wm-4069/raw/port-types-sample.txt l.3124)', () => {
     expect(on(4069).portsOfAdded('Height')).toBeUndefined();
     expect(on(4067).portsOfAdded('Height')).toBeDefined();
+  });
+});
+
+describe('WorldMachinePortTypes with corrections', () => {
+  const water = { type: 'Create Water', port: 'Water System' };
+  const heightIn = { type: 'Height Output', port: 'Primary Input' };
+  const verdicts = { [pairKey(water, heightIn)]: 'accepted' } as const;
+
+  it('names the catalog type of an add spelling', () => {
+    expect(syntheticPortTypes.typeOfAdded('File Output')).toBe('Height Output');
+    expect(syntheticPortTypes.typeOfAdded('Twist')).toBe('VDM Features');
+    expect(syntheticPortTypes.typeOfAdded('VDM Features')).toBeUndefined();
+    expect(syntheticPortTypes.typeOfAdded('constructor')).toBeUndefined();
+  });
+
+  it('answers the correction of a pair on a sample-derived catalog', () => {
+    const types = withCorrections('sample-derived', verdicts);
+    expect(types.correctionOf(water, heightIn)).toBe('accepted');
+    expect(types.correctionOf(heightIn, water)).toBeUndefined();
+    expect(types.hasCorrections()).toBe(true);
+  });
+
+  it('answers nothing on a strict catalog', () => {
+    const types = withCorrections('strict', verdicts);
+    expect(types.correctionOf(water, heightIn)).toBeUndefined();
+    expect(types.hasCorrections()).toBe(false);
+  });
+
+  it('has no corrections for another build, or an empty one', () => {
+    const catalog = [shippedCatalog({ ...SYNTHETIC_CATALOG, build: 4069, kind: 'sample-derived' })];
+    const other = new WorldMachinePortTypes(statusOn(4069), catalog, [], correctionsOf(4071, verdicts));
+    expect(other.correctionOf(water, heightIn)).toBeUndefined();
+    expect(other.hasCorrections()).toBe(false);
+    expect(withCorrections('sample-derived', {}).hasCorrections()).toBe(false);
+  });
+
+  it('has none without a corrections store', () => {
+    const types = new WorldMachinePortTypes(statusOn(4069), [
+      shippedCatalog({ ...SYNTHETIC_CATALOG, build: 4069, kind: 'sample-derived' }),
+    ]);
+    expect(types.correctionOf(water, heightIn)).toBeUndefined();
+    expect(types.hasCorrections()).toBe(false);
+  });
+
+  it('adds the corrections problems to its own', () => {
+    const store = {
+      correctionsFor: () => undefined,
+      problems: () => ['4069/port-type-corrections.json: bad'],
+    };
+    const types = new WorldMachinePortTypes(statusOn(4069), PORT_TYPE_CATALOGS, ['a.json: bad'], store);
+    expect(types.problems()).toEqual(['a.json: bad', '4069/port-type-corrections.json: bad']);
   });
 });

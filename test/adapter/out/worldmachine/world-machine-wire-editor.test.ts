@@ -828,6 +828,32 @@ describe('WorldMachineWireEditor.connect reports the catalog prediction (build 4
     ]);
   });
 
+  it('predicts with the recorded correction applied', async () => {
+    const s = scriptedSession(
+      {
+        'device list': [{ output: DEVICES }],
+        'wire list #2': [{ output: HEIGHT_OUTPUT }, { output: HEIGHT_OUTPUT_WIRED }],
+        'wire list #1': [{ output: GRADIENT }],
+        'wire connect #1 #2': [{ output: [connected()] }],
+      },
+      { build: 4069 },
+    );
+    const refusing: PortTypeCatalogPort = {
+      portsOf: (type) => portTypes4069.portsOf(type),
+      portsOfAdded: (word) => portTypes4069.portsOfAdded(word),
+      typeOfAdded: (word) => portTypes4069.typeOfAdded(word),
+      catalogInUse: () => portTypes4069.catalogInUse(),
+      problems: () => [],
+      hasCorrections: () => true,
+      correctionOf: () => 'refused',
+    };
+    const wire = await new WorldMachineWireEditor(s.session, refusing).connect(
+      { device: '#1' },
+      { device: '#2' },
+    );
+    expect(wire.typing?.predicted).toBe('incompatible');
+  });
+
   it('carries the typing on an incompatible-types refusal', async () => {
     const s = scriptedSession(
       {

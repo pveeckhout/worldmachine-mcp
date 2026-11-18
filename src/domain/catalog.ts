@@ -46,16 +46,17 @@ export type CatalogInfo = {
   readonly problems?: readonly string[];
 };
 
-/** The catalog info of a response; `corrections` is false until the corrections catalog exists (plan 2). */
+/** The catalog info of a response; `hasCorrections`: the catalog in use is sample-derived and its build has some. */
 export function catalogInfo(
   build: number | undefined,
   source: CatalogSource | undefined,
   problems: readonly string[],
+  hasCorrections: boolean,
 ): CatalogInfo {
   return {
     build: build ?? null,
     portTypes: source === undefined ? 'none' : catalogLabel(source),
-    corrections: false,
+    corrections: hasCorrections,
     ...(problems.length > 0 ? { problems } : {}),
   };
 }

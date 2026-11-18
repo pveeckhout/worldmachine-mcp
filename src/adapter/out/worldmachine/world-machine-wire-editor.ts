@@ -8,6 +8,7 @@ import type { WireConnection, WireDisconnection, WireEnd, WireEndpoint } from '.
 import {
   type CataloguedInput,
   type CataloguedOutput,
+  correctedCompatibility,
   type PortNames,
   refusalTypes,
   typedPorts,
@@ -193,10 +194,15 @@ export class WorldMachineWireEditor implements WireEditPort {
 
   /** What the catalog predicts for the wire; the one place the comparison is chosen. */
   #typing(plan: WirePlan, ends: WireCatalogEnds): WireTyping {
+    const output = ends.output === undefined ? undefined : { type: plan.sourceType, port: ends.output.name };
+    const input = { type: plan.destinationType, port: ends.input.name };
     return {
-      output: ends.output === undefined ? undefined : { type: plan.sourceType, port: ends.output.name },
-      input: { type: plan.destinationType, port: ends.input.name },
-      predicted: wireCompatibility(ends.output, ends.input),
+      output,
+      input,
+      predicted: correctedCompatibility(
+        wireCompatibility(ends.output, ends.input),
+        output === undefined ? undefined : this.#portTypes.correctionOf(output, input),
+      ),
     };
   }
 

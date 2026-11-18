@@ -147,6 +147,9 @@ describe('readGraphState session (one status read per plan)', () => {
         problems: () => [],
         portsOf: () => undefined,
         portsOfAdded: () => undefined,
+        typeOfAdded: () => undefined,
+        correctionOf: () => undefined,
+        hasCorrections: () => false,
       },
       NO_TEMPLATES,
     );

@@ -1,6 +1,8 @@
 // Port-types design sections 4-7: port types from a catalog captured once per World Machine build, since the console
 // reports none (design section 2). Pure: the version fingerprint, a wire's compatibility, and the texts.
 
+import type { WireVerdict } from './catalog.js';
+
 /** An output class (design section 4): output ports that the same inputs accept, by catalog id and name. */
 export type PortClass = { readonly id: string; readonly name: string };
 
@@ -61,6 +63,15 @@ export function wireCompatibility(
   return input.accepts.some((accepted) => accepted.id === output.type.id) ? 'compatible' : 'incompatible';
 }
 
+/** A recorded correction overrides the catalog's answer for a typed wire; an unchecked wire stays unchecked. */
+export function correctedCompatibility(
+  compatibility: WireCompatibility,
+  correction: WireVerdict | undefined,
+): WireCompatibility {
+  if (compatibility === 'unchecked' || correction === undefined) return compatibility;
+  return correction === 'accepted' ? 'compatible' : 'incompatible';
+}
+
 /** Design section 4, plan decision D15: the names of the classes an input accepts, or `nothing`. */
 export function acceptsText(input: CataloguedInput): string {
   return input.accepts.length === 0 ? 'nothing' : input.accepts.map((accepted) => accepted.name).join(', ');
@@ -74,6 +85,17 @@ export function wireConflictReason(
   input: CataloguedInput,
 ): string {
   return `'${source}' output ${output.port} (${output.type.name}) cannot feed '${destination}' input ${input.port}, which accepts ${acceptsText(input)}`;
+}
+
+/** The reason of a type finding for a wire the catalog allows but World Machine refused on `build`. */
+export function wireRefusedReason(
+  source: string,
+  output: CataloguedOutput,
+  destination: string,
+  input: CataloguedInput,
+  build: number,
+): string {
+  return `'${source}' output ${output.port} (${output.type.name}) cannot feed '${destination}' input ${input.port}: World Machine refused this pair on build ${build}`;
 }
 
 /** Design section 6: what a connect_devices refusal for `incompatible types?` gains when both ends are typed. */

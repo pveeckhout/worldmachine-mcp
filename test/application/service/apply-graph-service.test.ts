@@ -69,6 +69,9 @@ describe('ApplyGraphService with a World Machine that exits between steps', () =
       stub<ConstructorParameters<typeof ApplyGraphService>[6]>({
         portsOf: () => undefined,
         portsOfAdded: () => undefined,
+        typeOfAdded: () => undefined,
+        correctionOf: () => undefined,
+        hasCorrections: () => false,
         catalogInUse: () => undefined,
         problems: () => [],
       }),
@@ -181,6 +184,9 @@ describe('ApplyGraphService robustness', () => {
       stub<ConstructorParameters<typeof ApplyGraphService>[6]>({
         portsOf: () => undefined,
         portsOfAdded: () => undefined,
+        typeOfAdded: () => undefined,
+        correctionOf: () => undefined,
+        hasCorrections: () => false,
         catalogInUse: () => undefined,
         problems: () => [],
       }),
@@ -652,6 +658,9 @@ describe('ApplyGraphService unidentifiable wires (unidentifiable-wires design se
     const portTypes = {
       portsOf: () => undefined,
       portsOfAdded: () => undefined,
+      typeOfAdded: () => undefined,
+      correctionOf: () => undefined,
+      hasCorrections: () => false,
       catalogInUse: () => undefined,
       problems: () => [],
     };
@@ -845,6 +854,9 @@ describe('ApplyGraphService loops (wire-loops design section 4)', () => {
   const portTypes = {
     portsOf: () => undefined,
     portsOfAdded: () => undefined,
+    typeOfAdded: () => undefined,
+    correctionOf: () => undefined,
+    hasCorrections: () => false,
     catalogInUse: () => undefined,
     problems: () => [],
   };

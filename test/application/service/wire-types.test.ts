@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { PortTypeCatalogPort } from '../../../src/application/port/out/port-type-catalog-port.js';
 import { checkWireTypes } from '../../../src/application/service/wire-types.js';
+import { pairKey } from '../../../src/domain/catalog.js';
 import type { DeviceDetail } from '../../../src/domain/device.js';
 import { type GraphState, planGraph } from '../../../src/domain/graph-plan.js';
 import { type RawGraphSpec, validateGraphSpec } from '../../../src/domain/graph-spec.js';
-import { sampleDerivedPortTypes, syntheticPortTypes } from '../../support/port-types.js';
+import { sampleDerivedPortTypes, syntheticPortTypes, withCorrections } from '../../support/port-types.js';
 
 const EMPTY: GraphState = { projectPath: null, devices: [], details: [] };
 // raw/p2b-graph-edits.txt l.121-126: a Combiner's ports, here the existing #536.
@@ -44,6 +45,9 @@ const NO_TYPES: PortTypeCatalogPort = {
   portsOfAdded: () => undefined,
   catalogInUse: () => undefined,
   problems: () => [],
+  correctionOf: () => undefined,
+  typeOfAdded: () => undefined,
+  hasCorrections: () => false,
 };
 
 /** checkWireTypes over the steps planGraph makes for `raw` (port-types design section 6). */
@@ -226,5 +230,89 @@ describe('checkWireTypes (port-types design sections 5 and 6)', () => {
     );
     expect(found.conflicts).toEqual([]);
     expect(found.warnings).toEqual([{ entry: 'Combiner', reason: expect.stringContaining('cannot feed') }]);
+  });
+});
+
+describe('checkWireTypes with recorded corrections', () => {
+  const water = { type: 'Create Water', port: 'Water System' };
+  const existingWater = { type: 'Create Water', port: 'Existing Water' };
+  const heightIn = { type: 'Height Output', port: 'Primary Input' };
+  const gradient = { type: 'Gradient', port: 'Primary Output' };
+  const compatibleSpec: RawGraphSpec = {
+    version: 1,
+    devices: [
+      { name: 'Source', type: 'Gradient' },
+      { name: 'Out', type: 'Height Output', inputs: { '1': 'Source.1' } },
+    ],
+  };
+  const conflictSpec: RawGraphSpec = {
+    version: 1,
+    devices: [LAKE, { name: 'Out', type: 'Height Output', inputs: { '1': 'Lake.2' } }],
+  };
+
+  it('a refused correction turns a compatible wire into a warning', () => {
+    const types = withCorrections('sample-derived', { [pairKey(gradient, heightIn)]: 'refused' });
+    expect(check(compatibleSpec, EMPTY, types)).toEqual({
+      conflicts: [],
+      warnings: [
+        {
+          entry: 'Out',
+          reason:
+            "'Source' output 1 (heightfield) cannot feed 'Out' input 1: World Machine refused this pair on build 4069",
+        },
+      ],
+      uncheckedWires: [],
+    });
+  });
+
+  it('an accepted correction clears a warning', () => {
+    const types = withCorrections('sample-derived', { [pairKey(water, heightIn)]: 'accepted' });
+    expect(check(conflictSpec, EMPTY, types)).toEqual({ conflicts: [], warnings: [], uncheckedWires: [] });
+  });
+
+  it('keeps the warning when the correction is for another pair', () => {
+    const types = withCorrections('sample-derived', { [pairKey(water, existingWater)]: 'accepted' });
+    expect(check(conflictSpec, EMPTY, types).warnings).toHaveLength(1);
+  });
+
+  it('applies a correction to a wire between existing devices', () => {
+    const types = withCorrections('sample-derived', { [pairKey(gradient, heightIn)]: 'refused' });
+    const out: DeviceDetail = {
+      ...GRADIENT,
+      id: 600,
+      name: 'Out',
+      type: 'Height Output',
+      inputs: [
+        { port: 1, name: 'Primary Input' },
+        { port: 2, name: 'Metadata Input' },
+      ],
+      outputs: [],
+    };
+    const raw: RawGraphSpec = {
+      version: 1,
+      devices: [
+        { name: 'Gradient', type: 'Gradient' },
+        { name: 'Out', type: 'Height Output', inputs: { '1': 'Gradient.1' } },
+      ],
+    };
+    expect(check(raw, stateOf(GRADIENT, out), types).warnings).toHaveLength(1);
+  });
+
+  it('ignores corrections on a strict catalog', () => {
+    const types = withCorrections('strict', { [pairKey(water, heightIn)]: 'accepted' });
+    expect(types.correctionOf(water, heightIn)).toBeUndefined();
+    expect(check(conflictSpec, EMPTY, types).conflicts).toHaveLength(1);
+  });
+
+  it('keeps an unchecked wire unchecked whatever the correction says', () => {
+    const types = withCorrections('sample-derived', { [pairKey(gradient, heightIn)]: 'refused' });
+    const raw: RawGraphSpec = {
+      version: 1,
+      devices: [
+        { name: 'Source', type: 'Unknown Thing' },
+        { name: 'Out', type: 'Height Output', inputs: { '1': 'Source.1' } },
+      ],
+    };
+    expect(check(raw, EMPTY, types).warnings).toEqual([]);
   });
 });

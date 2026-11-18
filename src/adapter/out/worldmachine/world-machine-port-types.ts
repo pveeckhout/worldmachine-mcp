@@ -1,11 +1,15 @@
 import type { PortTypeCatalogPort } from '../../../application/port/out/port-type-catalog-port.js';
+import type { PortTypeCorrectionsPort } from '../../../application/port/out/port-type-corrections-port.js';
 import type { WorldMachineSessionPort } from '../../../application/port/out/world-machine-session-port.js';
 import {
   type CatalogSource,
+  type PortRef,
   type PortTypeCatalog,
   type PortTypeCatalogEntry,
   type PortTypeCatalogType,
+  pairKey,
   selectCatalog,
+  type WireVerdict,
 } from '../../../domain/catalog.js';
 import type { DeviceDetail } from '../../../domain/device.js';
 import { type CataloguedPorts, type PortClass, typedPorts } from '../../../domain/port-types.js';
@@ -47,6 +51,9 @@ export const PORT_TYPE_CATALOGS: readonly SourcedPortTypeCatalog[] = [
 export const NO_PORT_TYPES: PortTypeCatalogPort = {
   portsOf: () => undefined,
   portsOfAdded: () => undefined,
+  typeOfAdded: () => undefined,
+  correctionOf: () => undefined,
+  hasCorrections: () => false,
   catalogInUse: () => undefined,
   problems: () => [],
 };
@@ -61,6 +68,13 @@ const at = <T>(items: readonly T[], index: number): T => {
   if (item === undefined) throw new Error(`port types: no catalogued port at index ${index}`);
   return item;
 };
+
+/** The type key and entry whose add spellings include the word. */
+const addedEntry = (
+  catalog: PortTypeCatalog,
+  addSpelling: string,
+): readonly [string, PortTypeCatalogType] | undefined =>
+  Object.entries(catalog.types).find(([, candidate]) => candidate.added.includes(addSpelling));
 
 /** A catalogued type's ports with their classes resolved. */
 function resolvePorts(catalog: PortTypeCatalog, entry: PortTypeCatalogType): CataloguedPorts {
@@ -88,15 +102,18 @@ export class WorldMachinePortTypes implements PortTypeCatalogPort {
   readonly #session: Pick<WorldMachineSessionPort, 'status'>;
   readonly #catalogs: readonly SourcedPortTypeCatalog[];
   readonly #problems: readonly string[];
+  readonly #corrections: PortTypeCorrectionsPort | undefined;
 
   constructor(
     session: Pick<WorldMachineSessionPort, 'status'>,
     catalogs: readonly SourcedPortTypeCatalog[],
     problems: readonly string[] = [],
+    corrections?: PortTypeCorrectionsPort,
   ) {
     this.#session = session;
     this.#catalogs = catalogs;
     this.#problems = problems;
+    this.#corrections = corrections;
   }
 
   portsOf(deviceType: string): CataloguedPorts | undefined {
@@ -107,11 +124,21 @@ export class WorldMachinePortTypes implements PortTypeCatalogPort {
 
   portsOfAdded(addSpelling: string): CataloguedPorts | undefined {
     const catalog = this.#current();
-    const entry =
-      catalog === undefined
-        ? undefined
-        : Object.values(catalog.types).find((candidate) => candidate.added.includes(addSpelling));
-    return catalog === undefined || entry === undefined ? undefined : resolvePorts(catalog, entry);
+    const found = catalog === undefined ? undefined : addedEntry(catalog, addSpelling);
+    return catalog === undefined || found === undefined ? undefined : resolvePorts(catalog, found[1]);
+  }
+
+  typeOfAdded(addSpelling: string): string | undefined {
+    const catalog = this.#current();
+    return catalog === undefined ? undefined : addedEntry(catalog, addSpelling)?.[0];
+  }
+
+  correctionOf(output: PortRef, input: PortRef): WireVerdict | undefined {
+    return this.#verdicts()?.get(pairKey(output, input));
+  }
+
+  hasCorrections(): boolean {
+    return (this.#verdicts()?.size ?? 0) > 0;
   }
 
   catalogInUse(): CatalogSource | undefined {
@@ -119,7 +146,15 @@ export class WorldMachinePortTypes implements PortTypeCatalogPort {
   }
 
   problems(): readonly string[] {
-    return this.#problems;
+    return [...this.#problems, ...(this.#corrections?.problems() ?? [])];
+  }
+
+  /** The recorded verdicts of the running build; only a sample-derived catalog is corrected. */
+  #verdicts(): ReadonlyMap<string, WireVerdict> | undefined {
+    const selected = this.#selected();
+    return selected?.source.kind === 'sample-derived'
+      ? this.#corrections?.correctionsFor(selected.source.build)
+      : undefined;
   }
 
   /** The catalog of the build World Machine runs. */

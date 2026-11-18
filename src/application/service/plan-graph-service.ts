@@ -51,7 +51,12 @@ export class PlanGraphService implements PlanGraphQueryPort {
       possibleLoops: loops.possibleLoops,
       ...(fromTemplate ? { spec: raw } : {}),
       session: state.session,
-      catalog: catalogInfo(state.build, this.#portTypes.catalogInUse(), this.#portTypes.problems()),
+      catalog: catalogInfo(
+        state.build,
+        this.#portTypes.catalogInUse(),
+        this.#portTypes.problems(),
+        this.#portTypes.hasCorrections(),
+      ),
     };
   }
 }
