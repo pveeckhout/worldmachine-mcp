@@ -601,7 +601,10 @@ function classMembers(catalog: PortTypeCatalog): Map<string, string[]> {
  * exactly the same `Type.Output` members, else it is named `class <id>: <first three members>` plus `, ...` when it
  * has more. Ids are unchanged.
  */
-export function nameClasses(catalog: PortTypeCatalog, reference: PortTypeCatalog | undefined): PortTypeCatalog {
+export function nameClasses(
+  catalog: PortTypeCatalog,
+  reference: PortTypeCatalog | undefined,
+): PortTypeCatalog {
   const referenceNames = new Map<string, string>();
   if (reference !== undefined) {
     for (const [id, members] of classMembers(reference)) {
