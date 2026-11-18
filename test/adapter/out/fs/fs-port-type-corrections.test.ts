@@ -1,4 +1,12 @@
-import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -71,6 +79,44 @@ describe('FsPortTypeCorrections', () => {
     expect(store.correctionsFor(4067)).toBeUndefined();
   });
 
+  it('round-trips a port name that contains dots', () => {
+    const { dir, logger } = setup();
+    const library = { type: 'Library Output', port: 'Add Output...' };
+    new FsPortTypeCorrections(dir, logger).record({ ...refused, output: water, input: library });
+    const again = new FsPortTypeCorrections(dir, logger);
+    expect(again.problems()).toEqual([]);
+    expect(again.correctionsFor(4069)?.get(pairKey(water, library))).toBe('refused');
+  });
+
+  it('loads a symlinked build folder at startup and keeps its entry through a record', () => {
+    const { dir, logger, write, read } = setup();
+    const other = { ...refused, output: { type: 'Create Water', port: 'Terrain' } };
+    write('real/port-type-corrections.json', fileWith({}));
+    symlinkSync(join(dir, 'real'), join(dir, '4069'));
+    const store = new FsPortTypeCorrections(dir, logger);
+    expect(store.problems()).toEqual([]);
+    expect(store.correctionsFor(4069)?.get(pairKey(water, output))).toBe('refused');
+    store.record(other);
+    expect(JSON.parse(read(FILE)).corrections).toHaveLength(2);
+  });
+
+  it('keeps a file created after construction through the next record', () => {
+    const { dir, logger, write, read } = setup();
+    const store = new FsPortTypeCorrections(dir, logger);
+    write(FILE, fileWith({}));
+    store.record({ ...refused, output: { type: 'Create Water', port: 'Terrain' } });
+    expect(JSON.parse(read(FILE)).corrections).toHaveLength(2);
+    expect(store.correctionsFor(4069)?.get(pairKey(water, output))).toBe('refused');
+  });
+
+  it('refuses a record over a corrupt file created after construction', () => {
+    const { dir, logger, write, read } = setup();
+    const store = new FsPortTypeCorrections(dir, logger);
+    write(FILE, '{');
+    expect(() => store.record(refused)).toThrow(/were not loaded/);
+    expect(read(FILE)).toBe('{');
+  });
+
   it('reports a corrupt file and ignores it', () => {
     const { dir, logger, write } = setup();
     write(FILE, '{');
@@ -80,7 +126,6 @@ describe('FsPortTypeCorrections', () => {
   });
 
   it.each([
-    ['an output key with two dots', { output: 'A.B.C' }],
     ['an input key with no dot', { input: 'Nodot' }],
     ['an unknown verdict', { verdict: 'maybe' }],
     ['an unknown source', { source: 'magic' }],

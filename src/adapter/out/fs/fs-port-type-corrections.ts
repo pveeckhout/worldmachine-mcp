@@ -1,4 +1,4 @@
-import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PortTypeCorrectionsPort } from '../../../application/port/out/port-type-corrections-port.js';
 import type { RecordPortTypeCorrectionPort } from '../../../application/port/out/record-port-type-correction-port.js';
@@ -19,9 +19,9 @@ const SOURCES: readonly string[] = ['apply_graph', 'connect_devices'] satisfies 
 
 const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
-/** `Type.Port` with exactly one dot; the device type never contains one, the port name may contain spaces. */
+/** `Type.Port`, split on the first dot: a device type never contains one, a port name may (`Add Output...`). */
 function parseRef(value: unknown): PortRef {
-  if (typeof value !== 'string' || value.split('.').length !== 2) {
+  if (typeof value !== 'string' || !value.includes('.')) {
     throw new Error(`bad port key ${JSON.stringify(value)}`);
   }
   const dot = value.indexOf('.');
@@ -105,7 +105,8 @@ export class FsPortTypeCorrections implements RecordPortTypeCorrectionPort, Port
         `port-type corrections for build ${build} were not loaded: ${this.#failed.get(build)}; fix or move the file`,
       );
     }
-    const next = [...(this.#entries.get(build) ?? []), correction];
+    // The file on disk is the authority: another process or a hand edit may have changed it since startup.
+    const next = [...this.#readFromDisk(build, path), correction];
     mkdirSync(folder, { recursive: true });
     const text = `${JSON.stringify(
       {
@@ -128,14 +129,24 @@ export class FsPortTypeCorrections implements RecordPortTypeCorrectionPort, Port
     );
   }
 
+  /** The build's entries as the file holds them now; no file is an empty list, anything unreadable throws. */
+  #readFromDisk(build: number, path: string): PortTypeCorrection[] {
+    try {
+      return parseFile(JSON.parse(readFileSync(path, 'utf8')), build);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === 'ENOENT' || code === 'ENOTDIR') return [];
+      throw new Error(
+        `port-type corrections for build ${build} were not loaded: ${path}; fix or move the file`,
+      );
+    }
+  }
+
   #builds(): string[] {
     try {
-      return readdirSync(this.#directory, { withFileTypes: true })
-        .filter(
-          (entry) =>
-            entry.isDirectory() && /^\d+$/.test(entry.name) && String(Number(entry.name)) === entry.name,
-        )
-        .map((entry) => entry.name)
+      return readdirSync(this.#directory)
+        .filter((name) => /^\d+$/.test(name) && String(Number(name)) === name)
+        .filter((name) => this.#isFolder(name))
         .sort();
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
@@ -143,6 +154,20 @@ export class FsPortTypeCorrections implements RecordPortTypeCorrectionPort, Port
         this.#problems.push(`${this.#directory}: ${message(error)}`);
       }
       return [];
+    }
+  }
+
+  /** Follows symlinks; a stat error other than ENOENT marks the build failed, so a record cannot overwrite it. */
+  #isFolder(name: string): boolean {
+    const path = join(this.#directory, name);
+    try {
+      return statSync(path).isDirectory();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        this.#failed.set(Number(name), path);
+        this.#problems.push(`${path}: ${message(error)}`);
+      }
+      return false;
     }
   }
 }
