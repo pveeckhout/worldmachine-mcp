@@ -7,6 +7,7 @@ import {
 } from '../../../../src/adapter/out/worldmachine/world-machine-port-types.js';
 import { WorldMachineWireEditor } from '../../../../src/adapter/out/worldmachine/world-machine-wire-editor.js';
 import type { PortTypeCatalogPort } from '../../../../src/application/port/out/port-type-catalog-port.js';
+import { WorldMachineError } from '../../../../src/domain/errors.js';
 import { statusOn, syntheticPortTypes } from '../../../support/port-types.js';
 import { type Reply, scriptedSession } from '../../../support/scripted-session.js';
 
@@ -747,6 +748,20 @@ describe('WorldMachineWireEditor.connect on an incompatible-types refusal (port-
     });
     expect(s.batches).toEqual([['device list'], ['wire list #2'], ['wire connect #1 #2.2', 'wire list #2']]);
   });
+
+  it.each(['TIMEOUT', 'CRASHED', 'SHUTTING_DOWN'] as const)(
+    'rethrows %s from the source pre-read and sends no wire connect',
+    async (code) => {
+      const s = refused({ 'wire list #1': [{ output: GRADIENT_PORTS }] });
+      const real = s.session.executeOne.bind(s.session);
+      s.session.executeOne = async (command: string) => {
+        if (command === 'wire list #1') throw new WorldMachineError(code, 'gone');
+        return real(command);
+      };
+      await expect(connectGradient(s, syntheticPortTypes)).rejects.toMatchObject({ code });
+      expect(s.batches.flat().some((command) => command.startsWith('wire connect'))).toBe(false);
+    },
+  );
 
   it("keeps World Machine's refusal when the source's wire list fails (plan decision D9)", async () => {
     // Any error line: the read fails, which is all this test needs.

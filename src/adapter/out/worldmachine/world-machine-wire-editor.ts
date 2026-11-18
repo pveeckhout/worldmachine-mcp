@@ -168,7 +168,7 @@ export class WorldMachineWireEditor implements WireEditPort {
   /**
    * The catalogued ends of the wire, read before `wire connect` so they do not depend on the wire existing. Only when
    * a catalog is in use and the destination's input is typed; the source's `wire list` is read once for its port
-   * names. A WorldMachineError of that read leaves the connect untyped (plan decision D9).
+   * names. A WM_COMMAND_FAILED of that read leaves the connect untyped (plan decision D9); other codes are rethrown.
    */
   async #ends(plan: WirePlan): Promise<WireCatalogEnds | undefined> {
     if (this.#portTypes.catalogInUse() === undefined) return undefined;
@@ -183,7 +183,8 @@ export class WorldMachineWireEditor implements WireEditPort {
       throwIfFailed(listed);
       sourcePorts = parseWireList(listed.output);
     } catch (error) {
-      if (error instanceof WorldMachineError) return undefined;
+      // Only a reply the server could not use leaves the connect untyped; a dead or stopping session is not hidden.
+      if (error instanceof WorldMachineError && error.code === 'WM_COMMAND_FAILED') return undefined;
       throw error;
     }
     const output = typedPorts(sourcePorts, this.#portTypes.portsOf(plan.sourceType))?.outputs.find(
