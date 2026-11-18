@@ -28,7 +28,7 @@ import type { ListExportsView } from '../../../application/port/in/query/list-ex
 import type { GroupListView } from '../../../application/port/in/query/list-groups-query.js';
 import type { SnapshotListView } from '../../../application/port/in/query/list-snapshots-query.js';
 import type { PlanGraphView } from '../../../application/port/in/query/plan-graph-query.js';
-import type { CatalogInfo } from '../../../domain/catalog.js';
+import type { CatalogInfo, VerdictReport } from '../../../domain/catalog.js';
 import type {
   DeviceDetail,
   DeviceSummary,
@@ -340,10 +340,19 @@ export const updateDeviceParametersViewSchema = z.strictObject({
   session: sessionSummarySchema,
 }) satisfies z.ZodType<UpdateDeviceParametersView>;
 
+export const verdictReportSchema = z.strictObject({
+  pair: z.string(),
+  verdict: z.enum(['accepted', 'refused']),
+  predicted: z.enum(['compatible', 'incompatible']),
+  outcome: z.enum(['recorded', 'reported']),
+  reason: z.string().optional(),
+}) satisfies z.ZodType<VerdictReport>;
+
 export const connectDevicesViewSchema = z.strictObject({
   source: wireEndSchema,
   destination: wireEndSchema,
   created: z.boolean(),
+  verdict: verdictReportSchema.optional(),
   session: sessionSummarySchema,
 }) satisfies z.ZodType<ConnectDevicesView>;
 
@@ -698,5 +707,6 @@ export const applyGraphViewSchema = z.strictObject({
     .optional(),
   unidentifiableWires: z.array(z.string()),
   possibleLoops: z.array(z.string()),
+  verdicts: z.array(verdictReportSchema),
   session: sessionSummarySchema,
 }) satisfies z.ZodType<ApplyGraphView>;

@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest';
 import type { GraphTemplatePort } from '../../../src/application/port/out/graph-template-port.js';
 import { ApplyGraphService } from '../../../src/application/service/apply-graph-service.js';
 import { PlanGraphService } from '../../../src/application/service/plan-graph-service.js';
+import { WireVerdicts } from '../../../src/application/service/wire-verdicts.js';
+import type { WireTyping } from '../../../src/domain/catalog.js';
 import type { DeviceDetail } from '../../../src/domain/device.js';
 import { WorldMachineError } from '../../../src/domain/errors.js';
 import { planId } from '../../../src/domain/graph-plan.js';
 import { type RawGraphSpec, validateGraphSpec } from '../../../src/domain/graph-spec.js';
 import type { SessionSummary } from '../../../src/domain/session.js';
 import { sampleDerivedPortTypes, syntheticPortTypes } from '../../support/port-types.js';
+import { memoryRecorder, NO_VERDICTS } from '../../support/wire-verdicts.js';
 
 const NO_TEMPLATES: GraphTemplatePort = {
   load: async () => {
@@ -71,6 +74,7 @@ describe('ApplyGraphService with a World Machine that exits between steps', () =
       }),
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
       NO_TEMPLATES,
+      NO_VERDICTS,
     );
     const id = planId(validateGraphSpec(SPEC), { projectPath: null, devices: [], details: [] });
     const error = await service.applyGraph({ spec: SPEC, planId: id, keepSnapshot: false }).then(
@@ -182,6 +186,7 @@ describe('ApplyGraphService robustness', () => {
       }),
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
       NO_TEMPLATES,
+      NO_VERDICTS,
     );
     const id = planId(validateGraphSpec(SPEC), { projectPath: null, devices: [], details: [] });
     return { service, calls, id, control };
@@ -472,6 +477,7 @@ describe('ApplyGraphService scene step (revision 8)', () => {
       stub<ConstructorParameters<typeof ApplyGraphService>[6]>(syntheticPortTypes),
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>(scenes),
       NO_TEMPLATES,
+      NO_VERDICTS,
     );
     const id = planId(validateGraphSpec(spec), { projectPath: null, devices: [], details: [], scene });
     const error = await service.applyGraph({ spec, planId: id, keepSnapshot: false }).then(
@@ -536,6 +542,7 @@ describe('ApplyGraphService scene step (revision 8)', () => {
       stub<ConstructorParameters<typeof ApplyGraphService>[6]>(syntheticPortTypes),
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>(scenes),
       NO_TEMPLATES,
+      NO_VERDICTS,
     );
     const id = planId(validateGraphSpec(spec), { projectPath: null, devices: [], details: [], scene });
     const view = await service.applyGraph({ spec, planId: id, keepSnapshot: false });
@@ -585,6 +592,7 @@ describe('ApplyGraphService port types (port-types design section 6, plan decisi
       syntheticPortTypes,
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
       NO_TEMPLATES,
+      NO_VERDICTS,
     );
     const id = planId(validateGraphSpec(spec), { projectPath: null, devices: [], details: [] });
     await expect(service.applyGraph({ spec, planId: id, keepSnapshot: false })).rejects.toMatchObject({
@@ -672,6 +680,7 @@ describe('ApplyGraphService unidentifiable wires (unidentifiable-wires design se
       stub<ConstructorParameters<typeof ApplyGraphService>[6]>(portTypes),
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
       NO_TEMPLATES,
+      NO_VERDICTS,
     ).applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
     expect(view).toMatchObject({ applied: 2, diffError: 'read failed' });
     expect(view.unidentifiableWires).toEqual(plan.unidentifiableWires);
@@ -737,6 +746,7 @@ describe('ApplyGraphService sample-derived catalog warnings', () => {
       sampleDerivedPortTypes,
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
       NO_TEMPLATES,
+      NO_VERDICTS,
     );
     const id = planId(validateGraphSpec(spec), { projectPath: null, devices: [], details: [] });
     await service.applyGraph({ spec, planId: id, keepSnapshot: false });
@@ -789,6 +799,7 @@ describe('ApplyGraphService sample-derived catalog warnings', () => {
       sampleDerivedPortTypes,
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
       NO_TEMPLATES,
+      NO_VERDICTS,
     );
     const state = { projectPath: null, devices: await graph.listDevices(), details };
     const id = planId(validateGraphSpec(spec), state);
@@ -865,6 +876,7 @@ describe('ApplyGraphService loops (wire-loops design section 4)', () => {
       stub<ConstructorParameters<typeof ApplyGraphService>[6]>(portTypes),
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
       NO_TEMPLATES,
+      NO_VERDICTS,
     );
     const id = planId(validateGraphSpec(spec), state);
     await expect(service.applyGraph({ spec, planId: id, keepSnapshot: false })).rejects.toMatchObject({
@@ -919,8 +931,111 @@ describe('ApplyGraphService loops (wire-loops design section 4)', () => {
       stub<ConstructorParameters<typeof ApplyGraphService>[6]>(portTypes),
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
       NO_TEMPLATES,
+      NO_VERDICTS,
     ).applyGraph({ spec, planId: plan.planId, keepSnapshot: false });
     expect(view).toMatchObject({ applied: 1, diffError: 'read failed' });
     expect(view.possibleLoops).toEqual(plan.possibleLoops);
+  });
+});
+
+describe('ApplyGraphService verdicts', () => {
+  const stub = <T>(value: unknown): T => value as T;
+  const typing = (predicted: WireTyping['predicted']): WireTyping => ({
+    output: { type: 'Create Water', port: 'Water System' },
+    input: { type: 'Height Output', port: 'Primary Input' },
+    predicted,
+  });
+  const spec: RawGraphSpec = {
+    version: 1,
+    devices: [
+      { name: 'Lake', type: 'Create Water' },
+      { name: 'Combiner', type: 'Combiner', inputs: { '1': 'Lake.2' } },
+    ],
+  };
+  const apply = (connect: () => Promise<unknown>) => {
+    const store = memoryRecorder();
+    let adds = 0;
+    const kinds = ['Create Water', 'Combiner'];
+    const session = {
+      status: () => ({
+        executable: null,
+        session: { state: 'ready', binding: { kind: 'fresh' }, dirty: false } as SessionSummary,
+        generation: 1,
+      }),
+      exclusive: <T>(action: () => Promise<T>) => action(),
+    };
+    const service = new ApplyGraphService(
+      stub<ConstructorParameters<typeof ApplyGraphService>[0]>(session),
+      stub<ConstructorParameters<typeof ApplyGraphService>[1]>({
+        listDevices: async () => [],
+        getDevice: async (reference: string) => ({
+          id: Number(reference.slice(1)),
+          name: 'Read',
+          type: 'Read',
+          enabled: true,
+          bypassed: false,
+          parameters: [],
+          inputs: [],
+          outputs: [],
+          portTypes: 'unknown',
+        }),
+      }),
+      stub<ConstructorParameters<typeof ApplyGraphService>[2]>({
+        addDevice: async () => {
+          const kind = kinds[adds] as string;
+          adds += 1;
+          return { id: 100 + adds, name: adds === 1 ? 'Lake' : 'Combiner', kind, enabled: true };
+        },
+      }),
+      stub<ConstructorParameters<typeof ApplyGraphService>[3]>({ connect }),
+      stub<ConstructorParameters<typeof ApplyGraphService>[4]>({}),
+      stub<ConstructorParameters<typeof ApplyGraphService>[5]>({
+        list: async () => [],
+        create: async (name: string) => ({ index: 0, name }),
+        remove: async () => ({}),
+        restore: async () => ({}),
+      }),
+      sampleDerivedPortTypes,
+      stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
+      NO_TEMPLATES,
+      new WireVerdicts(sampleDerivedPortTypes, store),
+    );
+    const id = planId(validateGraphSpec(spec), { projectPath: null, devices: [], details: [] });
+    return { store, run: () => service.applyGraph({ spec, planId: id, keepSnapshot: false }) };
+  };
+
+  it('lists the verdicts of an apply', async () => {
+    const { store, run } = apply(async () => ({ created: true, typing: typing('incompatible') }));
+    const view = await run();
+    expect(view.verdicts).toEqual([
+      expect.objectContaining({ verdict: 'accepted', predicted: 'incompatible', outcome: 'recorded' }),
+    ]);
+    expect(store.recorded).toHaveLength(1);
+  });
+
+  it('lists no verdicts when World Machine agreed', async () => {
+    const { store, run } = apply(async () => ({ created: true, typing: typing('compatible') }));
+    expect((await run()).verdicts).toEqual([]);
+    expect(store.recorded).toEqual([]);
+  });
+
+  it('records a refusal even though the apply fails, and lists it in the failure', async () => {
+    const { store, run } = apply(async () => {
+      throw new WorldMachineError('WM_COMMAND_FAILED', 'incompatible types?', undefined, {
+        typing: typing('compatible'),
+      });
+    });
+    await expect(run()).rejects.toMatchObject({
+      code: 'APPLY_FAILED',
+      details: { verdicts: [expect.objectContaining({ verdict: 'refused', outcome: 'recorded' })] },
+    });
+    expect(store.recorded).toHaveLength(1);
+  });
+
+  it('answers a failure with an empty verdicts list when the step carried no typing', async () => {
+    const { run } = apply(async () => {
+      throw new WorldMachineError('WM_COMMAND_FAILED', 'nope');
+    });
+    await expect(run()).rejects.toMatchObject({ code: 'APPLY_FAILED', details: { verdicts: [] } });
   });
 });

@@ -30,6 +30,7 @@ import { WorldMachineError } from '../../../src/domain/errors.js';
 import type { RawGraphSpec } from '../../../src/domain/graph-spec.js';
 import { captureLogger, FAKE_WM, fakeEnv, recorder } from '../../support/fake-wm.js';
 import { SYNTHETIC_CATALOG } from '../../support/port-types.js';
+import { NO_VERDICTS } from '../../support/wire-verdicts.js';
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'graph-services-')));
 const sessions: WorldMachineSession[] = [];
@@ -78,6 +79,7 @@ function wired(extra: Record<string, string> = {}, catalog?: PortTypeCatalog) {
     portTypes,
     new WorldMachineSceneEditor(session),
     new FsGraphTemplateLoader(new FsPathPolicy([root])),
+    NO_VERDICTS,
   );
   return {
     record,
@@ -229,6 +231,7 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
       ],
       unidentifiableWires: [],
       possibleLoops: [],
+      verdicts: [],
       session: expect.objectContaining({ dirty: true }),
     });
     expect(await w.snapshots.list()).toEqual([]);
@@ -472,6 +475,7 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
       completedSteps: 2,
       rolledBack: true,
       snapshot: snapshotOf(plan.planId),
+      verdicts: [],
     });
     expect(error.message).toContain('restored');
     expect((await w.reader.listDevices()).map((device) => device.id)).toEqual(before);
@@ -553,6 +557,7 @@ describe('ApplyGraphService (spec v3 section 6)', () => {
       diff: [],
       unidentifiableWires: [],
       possibleLoops: [],
+      verdicts: [],
       session: expect.objectContaining({ state: 'ready' }),
     });
     expect(w.record.lines().filter((line) => line.startsWith('snapshot'))).toEqual([]);

@@ -1,3 +1,4 @@
+import type { VerdictReport } from '../../../../domain/catalog.js';
 import type { ErrorCode } from '../../../../domain/errors.js';
 import type { DiffEntry } from '../../../../domain/graph-diff.js';
 import type { PlanStep } from '../../../../domain/graph-plan.js';
@@ -25,6 +26,8 @@ export type ApplyGraphView = {
   readonly possibleLoops: readonly string[];
   /** Revision 8: the scene fields the apply changed; left out when none did. */
   readonly scene?: SceneDiff;
+  /** Each wire's verdict that contradicted the catalog; empty when none did. */
+  readonly verdicts: readonly VerdictReport[];
   readonly session: SessionSummary;
 };
 export type FailedStep = {
@@ -40,6 +43,8 @@ export type ApplyFailureDetails = {
   readonly completedSteps: number;
   readonly rolledBack: boolean;
   readonly snapshot: string;
+  /** Every verdict that contradicted the catalog before the failure, including the failed step's. */
+  readonly verdicts: readonly VerdictReport[];
 };
 export interface ApplyGraphCommandPort {
   applyGraph(command: ApplyGraphCommand): Promise<ApplyGraphView>;

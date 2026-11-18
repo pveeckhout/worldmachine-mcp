@@ -17,6 +17,7 @@ import { UpdateDeviceParametersService } from '../../../src/application/service/
 import { WorldMachineError } from '../../../src/domain/errors.js';
 import type { Scene } from '../../../src/domain/scene.js';
 import type { SessionSummary } from '../../../src/domain/session.js';
+import { NO_VERDICTS } from '../../support/wire-verdicts.js';
 
 const READY_DIRTY: SessionSummary = { state: 'ready', binding: { kind: 'fresh' }, dirty: true };
 const GRADIENT = { id: 1, name: 'Gradient', enabled: true, bypassed: false };
@@ -184,7 +185,7 @@ describe('edit services', () => {
   it('ConnectDevicesService and DisconnectDevicesService run inside exclusive', async () => {
     const f = fakes();
     const command = { source: { device: '#1', port: 1 }, destination: { device: '#2', port: 2 } };
-    expect(await new ConnectDevicesService(f.session, f.wires).connectDevices(command)).toEqual({
+    expect(await new ConnectDevicesService(f.session, f.wires, NO_VERDICTS).connectDevices(command)).toEqual({
       ...WIRE,
       created: true,
       session: READY_DIRTY,

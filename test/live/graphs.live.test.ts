@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { FsPortTypeCorrections } from '../../src/adapter/out/fs/fs-port-type-corrections.js';
 import { FsGraphTemplateLoader } from '../../src/adapter/out/fs/graph-template-loader.js';
 import { FsPathPolicy } from '../../src/adapter/out/fs/path-policy.js';
 import { ENUM_CATALOGS } from '../../src/adapter/out/worldmachine/enum-options.js';
@@ -23,6 +24,7 @@ import { WorldMachineSnapshotEditor } from '../../src/adapter/out/worldmachine/w
 import { WorldMachineWireEditor } from '../../src/adapter/out/worldmachine/world-machine-wire-editor.js';
 import { ApplyGraphService } from '../../src/application/service/apply-graph-service.js';
 import { PlanGraphService } from '../../src/application/service/plan-graph-service.js';
+import { WireVerdicts } from '../../src/application/service/wire-verdicts.js';
 import { WorldMachineError } from '../../src/domain/errors.js';
 import type { RawGraphSpec } from '../../src/domain/graph-spec.js';
 import { captureLogger } from '../support/fake-wm.js';
@@ -34,6 +36,8 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
   const logger = captureLogger();
   // describe.skipIf still runs this body at collection, so only create the directory when the run is live.
   const liveRoot = LIVE ? mkdtempSync(join(tmpdir(), 'wm-live-v3-')) : '';
+  // Never the user's catalog folder: corrections go to a folder of their own.
+  const correctionsDir = LIVE ? mkdtempSync(join(tmpdir(), 'wm-live-corrections-')) : '';
   const session = new WorldMachineSession({
     executable,
     defaultProject: undefined,
@@ -64,6 +68,7 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
     portTypes,
     new WorldMachineSceneEditor(session),
     templates,
+    new WireVerdicts(portTypes, new FsPortTypeCorrections(correctionsDir, logger)),
   );
   const names = async () => (await reader.listDevices()).map((device) => device.name);
   const planAndApply = async (spec: RawGraphSpec) => {
@@ -77,6 +82,7 @@ describe.skipIf(!LIVE)('live World Machine plan_graph and apply_graph (spec v3 s
       await session.shutdown();
     } finally {
       rmSync(liveRoot, { recursive: true, force: true });
+      rmSync(correctionsDir, { recursive: true, force: true });
     }
   }, 60_000);
 

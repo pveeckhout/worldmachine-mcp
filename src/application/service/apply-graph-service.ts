@@ -1,3 +1,4 @@
+import type { VerdictReport } from '../../domain/catalog.js';
 import type { DeviceDetail } from '../../domain/device.js';
 import { foldCase } from '../../domain/device-name.js';
 import { type ErrorCode, WorldMachineError, worldMachineText } from '../../domain/errors.js';
@@ -33,6 +34,7 @@ import type { SessionStatus, WorldMachineSessionPort } from '../port/out/world-m
 import { readGraphState } from './read-graph-state.js';
 import { resolveGraphSpec } from './resolve-graph-spec.js';
 import { checkWireTypes } from './wire-types.js';
+import type { WireVerdicts } from './wire-verdicts.js';
 
 /** What a step names in a message: its device, or the scene (revision 8). */
 const stepTarget = (step: PlanStep): string => (step.op === 'set-scene' ? 'the scene' : `'${step.device}'`);
@@ -49,6 +51,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
   readonly #portTypes: PortTypeCatalogPort;
   readonly #scenes: SceneEditPort;
   readonly #templates: GraphTemplatePort;
+  readonly #verdicts: WireVerdicts;
 
   constructor(
     session: WorldMachineSessionPort,
@@ -60,6 +63,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
     portTypes: PortTypeCatalogPort,
     scenes: SceneEditPort,
     templates: GraphTemplatePort,
+    verdicts: WireVerdicts,
   ) {
     this.#session = session;
     this.#graph = graph;
@@ -70,6 +74,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
     this.#portTypes = portTypes;
     this.#scenes = scenes;
     this.#templates = templates;
+    this.#verdicts = verdicts;
   }
 
   /**
@@ -114,6 +119,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
           diff: [],
           unidentifiableWires: unidentifiable,
           possibleLoops: loops.possibleLoops,
+          verdicts: [],
           session: state.session,
         };
       }
@@ -131,6 +137,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
       const start = this.#session.status();
       const added = new Map<string, number>();
       const applied: { scene?: Scene } = {};
+      const verdicts: VerdictReport[] = [];
       for (const [index, step] of plan.steps.entries()) {
         try {
           // A World Machine that exited between steps restarts silently on the next command, on another project.
@@ -140,7 +147,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
               'World Machine exited before this step; the remaining steps were not sent',
             );
           }
-          await this.#run(step, added, applied);
+          await this.#run(step, added, applied, verdicts);
         } catch (error) {
           if (!(error instanceof WorldMachineError)) {
             throw await this.#internalFailure(
@@ -154,7 +161,20 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
               start,
             );
           }
-          throw await this.#failed(error, index, plan.steps.length, step, snapshot, spec, id, start);
+          // Observed before the restore, which would not change what World Machine said.
+          const refusal = this.#verdicts.observeRefusal(error, 'apply_graph');
+          if (refusal !== undefined) verdicts.push(refusal);
+          throw await this.#failed(
+            error,
+            index,
+            plan.steps.length,
+            step,
+            snapshot,
+            spec,
+            id,
+            start,
+            verdicts,
+          );
         }
       }
       const lostAfterApply = (code: ErrorCode, detail: string): WorldMachineError =>
@@ -188,6 +208,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
           ...scene,
           unidentifiableWires: unidentifiable,
           possibleLoops: loops.possibleLoops,
+          verdicts,
           session: this.#session.status().session,
         };
       }
@@ -203,13 +224,19 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
         ...scene,
         unidentifiableWires: unidentifiable,
         possibleLoops: loops.possibleLoops,
+        verdicts,
         session: this.#session.status().session,
       };
     });
   }
 
   /** One step through the edit ports, every device as `#<id>`; `added` maps spec names to the ids adds returned. */
-  async #run(step: PlanStep, added: Map<string, number>, applied: { scene?: Scene }): Promise<void> {
+  async #run(
+    step: PlanStep,
+    added: Map<string, number>,
+    applied: { scene?: Scene },
+    verdicts: VerdictReport[],
+  ): Promise<void> {
     const ref = (device: string, id: number | undefined): string => {
       const resolved = id ?? added.get(foldCase(device));
       // planGraph orders adds before every step that uses the added device.
@@ -282,12 +309,15 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
         }
         return;
       }
-      case 'connect':
-        await this.#wires.connect(
+      case 'connect': {
+        const wire = await this.#wires.connect(
           { device: ref(step.source.device, step.source.id), port: step.source.port },
           { device: ref(step.device, step.id), port: step.port },
         );
+        const report = this.#verdicts.observe(wire.typing, 'accepted', 'apply_graph');
+        if (report !== undefined) verdicts.push(report);
         return;
+      }
     }
   }
 
@@ -301,6 +331,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
     spec: GraphSpec,
     before: string,
     start: SessionStatus,
+    verdicts: readonly VerdictReport[],
   ): Promise<WorldMachineError> {
     const text =
       error.worldMachineMessage === undefined
@@ -319,6 +350,7 @@ export class ApplyGraphService implements ApplyGraphCommandPort {
       completedSteps: index,
       rolledBack,
       snapshot,
+      verdicts: [...verdicts],
     };
     const outcome =
       error.code === 'CRASHED'

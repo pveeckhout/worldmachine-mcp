@@ -46,6 +46,7 @@ import { UpdateDeviceParametersService } from '../../../src/application/service/
 import { NOT_BUILT_HINT } from '../../../src/domain/build-result.js';
 import type { WorldMachineError } from '../../../src/domain/errors.js';
 import { captureLogger, FAKE_WM, fakeEnv, recorder, waitUntil } from '../../support/fake-wm.js';
+import { NO_VERDICTS } from '../../support/wire-verdicts.js';
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'build-guard-')));
 const sessions: WorldMachineSession[] = [];
@@ -172,7 +173,7 @@ describe('the build guard across the command tools (spec v2a section 4)', () => 
       [
         'connect_devices',
         () =>
-          new ConnectDevicesService(session, wires).connectDevices({
+          new ConnectDevicesService(session, wires, NO_VERDICTS).connectDevices({
             source: { device: '#1' },
             destination: { device: '#2' },
           }),

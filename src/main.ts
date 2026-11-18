@@ -4,6 +4,7 @@ import { homedir } from 'node:os';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import { createMcpServer } from './adapter/in/mcp/create-server.js';
 import { FsLocalCatalogs } from './adapter/out/fs/fs-local-catalogs.js';
+import { FsPortTypeCorrections } from './adapter/out/fs/fs-port-type-corrections.js';
 import { FsGraphTemplateLoader } from './adapter/out/fs/graph-template-loader.js';
 import { FsPathPolicy } from './adapter/out/fs/path-policy.js';
 import { ENUM_CATALOGS } from './adapter/out/worldmachine/enum-options.js';
@@ -61,6 +62,7 @@ import { SetGroupEnabledService } from './application/service/set-group-enabled-
 import { StopBuildService } from './application/service/stop-build-service.js';
 import { UndoService } from './application/service/undo-service.js';
 import { UpdateDeviceParametersService } from './application/service/update-device-parameters-service.js';
+import { WireVerdicts } from './application/service/wire-verdicts.js';
 import { type Config, loadConfig } from './config.js';
 import { createLogger } from './logger.js';
 import { createSignalShutdown } from './signal-shutdown.js';
@@ -108,6 +110,7 @@ const writer = new WorldMachineProjectWriter(session);
 const devices = new WorldMachineDeviceEditor(session);
 const parameters = new WorldMachineParameterEditor(session);
 const wires = new WorldMachineWireEditor(session, portTypes);
+const verdicts = new WireVerdicts(portTypes, new FsPortTypeCorrections(config.catalogDir, logger));
 const scene = new WorldMachineSceneEditor(session);
 const builder = new WorldMachineBuilder(session);
 const exporter = new WorldMachineExporter(session);
@@ -137,7 +140,7 @@ const handle = serveStdio(() =>
     setDeviceBypassed: new SetDeviceBypassedService(session, devices),
     deleteDevice: new DeleteDeviceService(session, devices),
     updateDeviceParameters: new UpdateDeviceParametersService(session, parameters),
-    connectDevices: new ConnectDevicesService(session, wires),
+    connectDevices: new ConnectDevicesService(session, wires, verdicts),
     disconnectDevices: new DisconnectDevicesService(session, wires),
     configureScene: new ConfigureSceneService(session, scene),
     buildProject: new BuildProjectService(
@@ -177,6 +180,7 @@ const handle = serveStdio(() =>
       portTypes,
       scene,
       templates,
+      verdicts,
     ),
     currentSession: () => session.status().session,
   }),

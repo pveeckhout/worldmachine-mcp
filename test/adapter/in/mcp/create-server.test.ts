@@ -203,6 +203,7 @@ function deps(overrides: Partial<McpDependencies> = {}): McpDependencies {
         diff: [],
         unidentifiableWires: [],
         possibleLoops: [],
+        verdicts: [],
         session: READY,
       }),
     },
@@ -558,6 +559,7 @@ describe('createMcpServer', () => {
       diff: [{ device: 'Ridges', change: 'changed', id: 12, name: { before: 'Mountain', after: 'Ridges' } }],
       unidentifiableWires: [],
       possibleLoops: [],
+      verdicts: [],
       session: READY,
     };
     const client = await connect(
@@ -634,6 +636,7 @@ describe('createMcpServer', () => {
               diff: [],
               unidentifiableWires: [],
               possibleLoops: [],
+              verdicts: [],
               session: READY,
             };
           },
@@ -745,6 +748,7 @@ describe('createMcpServer', () => {
       ],
       unidentifiableWires: [],
       possibleLoops: [],
+      verdicts: [],
       session: READY_DIRTY,
     } as const;
     const client = await connect(deps({ applyGraph: { applyGraph: async () => view } }));
@@ -767,6 +771,7 @@ describe('createMcpServer', () => {
       possibleLoops: [
         "'Eroded' input 1 from 'Combiner' output 1 may close a loop through 'Erosion', whose wires cannot be told apart",
       ],
+      verdicts: [],
       session: READY_DIRTY,
     } as const;
     const client = await connect(deps({ applyGraph: { applyGraph: async () => view } }));
