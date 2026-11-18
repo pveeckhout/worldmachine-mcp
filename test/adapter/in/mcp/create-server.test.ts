@@ -156,6 +156,17 @@ function deps(overrides: Partial<McpDependencies> = {}): McpDependencies {
     },
     getBuildStatus: { getBuildStatus: async () => ({ build: null, previewRunning: false, session: READY }) },
     stopBuild: { stopBuild: async () => ({ stopped: null, session: READY }) },
+    captureCatalog: {
+      start: async (c) => ({
+        build: 4071,
+        mode: c.mode,
+        phase: 'discover',
+        percent: 0,
+        minutesLeft: undefined,
+      }),
+    },
+    getCatalogCaptureStatus: { status: async () => null },
+    cancelCatalogCapture: { cancel: async () => null },
     listExports: {
       listExports: async () => ({
         projectFolder: '/r',
@@ -238,12 +249,15 @@ async function connect(dependencies: McpDependencies): Promise<Client> {
 }
 
 describe('createMcpServer', () => {
-  it('registers all thirty-three tools as closed-world, the ten read tools as read-only', async () => {
+  it('registers all thirty-seven tools as closed-world, the eleven read tools as read-only', async () => {
     const { tools } = await (await connect(deps())).listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual([
       'add_device',
       'apply_graph',
       'build_project',
+      'cancel_catalog_capture',
+      'capture_catalog',
+      'catalog_capture_status',
       'configure_scene',
       'connect_devices',
       'create_project',
@@ -276,6 +290,7 @@ describe('createMcpServer', () => {
       'update_device_parameters',
     ]);
     const readTools = [
+      'catalog_capture_status',
       'get_build_status',
       'get_device',
       'get_scene',
@@ -487,6 +502,57 @@ describe('createMcpServer', () => {
     const client = await connect(deps({ planGraph: { planGraph: async () => view as never } }));
     const result = await client.callTool({ name: 'plan_graph', arguments: { spec: GRAPH_SPEC } });
     expect(result.isError).toBe(true);
+  });
+
+  it('starts a capture with the defaults, and reports no capture as null', async () => {
+    const modes: unknown[] = [];
+    const client = await connect(
+      deps({
+        captureCatalog: {
+          start: async (c) => {
+            modes.push(c);
+            return { build: 4071, mode: c.mode, phase: 'discover', percent: 0, minutesLeft: undefined };
+          },
+        },
+      }),
+    );
+    const started = await client.callTool({ name: 'capture_catalog', arguments: {} });
+    expect(started.isError).toBeFalsy();
+    expect(modes).toEqual([{ mode: 'short', discardOpenProject: false }]);
+    expect(
+      (await client.callTool({ name: 'catalog_capture_status', arguments: {} })).structuredContent,
+    ).toEqual({
+      capture: null,
+    });
+    expect(
+      (await client.callTool({ name: 'cancel_catalog_capture', arguments: {} })).structuredContent,
+    ).toEqual({
+      capture: null,
+    });
+  });
+
+  it('returns CAPTURING as a tool error while a capture runs', async () => {
+    const client = await connect(
+      deps({
+        listDevices: {
+          listDevices: async () => {
+            throw new WorldMachineError('CAPTURING', 'World Machine is capturing the catalog of build 4071');
+          },
+        },
+      }),
+    );
+    const result = await client.callTool({ name: 'list_devices', arguments: {} });
+    expect(result.isError).toBe(true);
+    expect(JSON.stringify(result.content)).toContain('CAPTURING');
+  });
+
+  it('describes the capture tools', async () => {
+    const { tools } = await (await connect(deps())).listTools();
+    const text = (name: string) => tools.find((tool) => tool.name === name)?.description ?? '';
+    expect(text('capture_catalog')).toMatch(/background/);
+    expect(text('capture_catalog')).toMatch(/never starts one on its own/);
+    expect(text('capture_catalog')).toMatch(/crash/);
+    expect(text('cancel_catalog_capture')).toMatch(/transcript/);
   });
 
   it('refuses a plan view without unidentifiableWires (unidentifiable-wires design section 4)', async () => {

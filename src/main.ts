@@ -3,10 +3,13 @@ import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import { createMcpServer } from './adapter/in/mcp/create-server.js';
+import { FsCatalogInstaller } from './adapter/out/fs/fs-catalog-installer.js';
 import { FsLocalCatalogs } from './adapter/out/fs/fs-local-catalogs.js';
 import { FsPortTypeCorrections } from './adapter/out/fs/fs-port-type-corrections.js';
 import { FsGraphTemplateLoader } from './adapter/out/fs/graph-template-loader.js';
 import { FsPathPolicy } from './adapter/out/fs/path-policy.js';
+import { CAPTURE_MINUTES, PHASE_MINUTES } from './adapter/out/worldmachine/capture/durations.js';
+import { WorldMachineCatalogCapturer } from './adapter/out/worldmachine/capture/world-machine-catalog-capturer.js';
 import { CatalogRegistry } from './adapter/out/worldmachine/catalog-registry.js';
 import { ENUM_CATALOGS } from './adapter/out/worldmachine/enum-options.js';
 import { resolveExecutable } from './adapter/out/worldmachine/locator.js';
@@ -31,6 +34,7 @@ import { WorldMachineWireEditor } from './adapter/out/worldmachine/world-machine
 import { AddDeviceService } from './application/service/add-device-service.js';
 import { ApplyGraphService } from './application/service/apply-graph-service.js';
 import { BuildProjectService } from './application/service/build-project-service.js';
+import { CatalogCaptureService } from './application/service/catalog-capture-service.js';
 import { ConfigureSceneService } from './application/service/configure-scene-service.js';
 import { ConnectDevicesService } from './application/service/connect-devices-service.js';
 import { CreateProjectService } from './application/service/create-project-service.js';
@@ -135,13 +139,29 @@ const results = new WorldMachineBuildResultReader(session);
 // Build-status-check design section 6: one record, shared by build_project and get_build_status.
 const lastFullBuild = new LastFullBuildRecord();
 
+// One capture service for the three capture tools: it holds the running capture. The session is also the lease source.
+const capturer = new WorldMachineCatalogCapturer({ serverVersion: version });
+const catalogCapture = new CatalogCaptureService(
+  {
+    session,
+    leases: session,
+    capturer,
+    transcripts: capturer,
+    catalogs,
+    installer: new FsCatalogInstaller(config.catalogDir, corrections),
+    registry: catalogs,
+  },
+  { catalogDir: config.catalogDir, serverVersion: version, phaseMinutes: PHASE_MINUTES },
+  (name, fields) => logger.info(`catalog capture ${name}: ${JSON.stringify(fields)}`),
+);
+
 const handle = serveStdio(() =>
   createMcpServer({
     version,
     logger,
     getStatus: new GetStatusService(session),
     listDevices: new ListDevicesService(session, reader),
-    getDevice: new GetDeviceService(session, reader, portTypes),
+    getDevice: new GetDeviceService(session, reader, portTypes, CAPTURE_MINUTES),
     getScene: new GetSceneService(session, reader),
     inspectProject: new InspectProjectService(session, reader),
     openProject: new OpenProjectService(session, pathPolicy, writer),
@@ -184,7 +204,7 @@ const handle = serveStdio(() =>
     organizeDevices: new OrganizeDevicesService(session, devices),
     listGroups: new ListGroupsService(session, groups),
     setGroupEnabled: new SetGroupEnabledService(session, groups),
-    planGraph: new PlanGraphService(session, reader, portTypes, templates),
+    planGraph: new PlanGraphService(session, reader, portTypes, templates, CAPTURE_MINUTES),
     applyGraph: new ApplyGraphService(
       session,
       reader,
@@ -197,6 +217,9 @@ const handle = serveStdio(() =>
       templates,
       verdicts,
     ),
+    captureCatalog: catalogCapture,
+    getCatalogCaptureStatus: catalogCapture,
+    cancelCatalogCapture: catalogCapture,
     currentSession: () => session.status().session,
   }),
 );

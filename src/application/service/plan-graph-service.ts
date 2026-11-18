@@ -1,4 +1,4 @@
-import { catalogInfo } from '../../domain/catalog.js';
+import { type CaptureMinutes, catalogInfo } from '../../domain/catalog.js';
 import { planGraph, planId } from '../../domain/graph-plan.js';
 import { validateGraphSpec } from '../../domain/graph-spec.js';
 import { wireLoops } from '../../domain/wire-loops.js';
@@ -17,13 +17,16 @@ export class PlanGraphService implements PlanGraphQueryPort {
   readonly #graph: ProjectGraphReadPort;
   readonly #portTypes: PortTypeCatalogPort;
   readonly #templates: GraphTemplatePort;
+  readonly #captureMinutes: CaptureMinutes | undefined;
 
   constructor(
     session: WorldMachineSessionPort,
     graph: ProjectGraphReadPort,
     portTypes: PortTypeCatalogPort,
     templates: GraphTemplatePort,
+    captureMinutes?: CaptureMinutes,
   ) {
+    this.#captureMinutes = captureMinutes;
     this.#session = session;
     this.#graph = graph;
     this.#portTypes = portTypes;
@@ -56,6 +59,7 @@ export class PlanGraphService implements PlanGraphQueryPort {
         this.#portTypes.catalogInUse(),
         this.#portTypes.problems(),
         this.#portTypes.hasCorrections(),
+        this.#captureMinutes,
       ),
     };
   }

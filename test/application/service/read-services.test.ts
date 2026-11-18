@@ -85,6 +85,21 @@ describe('get_device catalog info', () => {
   });
 });
 
+describe('get_device capture offer', () => {
+  it('offers a capture with the injected minutes on an uncatalogued build', async () => {
+    const at4071 = sessionAt(4071);
+    const view = await new GetDeviceService(
+      at4071,
+      graph,
+      new WorldMachinePortTypes(at4071, PORT_TYPE_CATALOGS),
+      { short: 11, full: 285 },
+    ).getDevice({ device: '#1' });
+    expect(view.catalog.capture).toMatch(
+      /^No catalog for build 4071\. capture_catalog .*about 11 min.*about 285 min/,
+    );
+  });
+});
+
 describe('read services', () => {
   it('return the read result with the session state', async () => {
     expect(await new GetDeviceService(session, graph, noCatalog).getDevice({ device: '#1' })).toEqual({

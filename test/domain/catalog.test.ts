@@ -128,6 +128,19 @@ describe('catalogInfo', () => {
   it('says none apply when the build has none', () => {
     expect(catalogInfo(4069, shippedSample, [], false).corrections).toBe(false);
   });
+  const minutes = { short: 11, full: 285 };
+  it('offers a capture on an uncatalogued build', () => {
+    expect(catalogInfo(4071, undefined, [], false, minutes).capture).toBe(
+      'No catalog for build 4071. capture_catalog can capture one: short (about 11 min) or full (about 285 min). World Machine is busy for the whole run and closes the open project first; keep the mouse pointer off its window.',
+    );
+  });
+  it('makes no offer when a catalog is in use', () => {
+    expect(catalogInfo(4069, shippedSample, [], false, minutes).capture).toBeUndefined();
+  });
+  it('makes no offer when the build is unknown or no minutes are given', () => {
+    expect(catalogInfo(undefined, undefined, [], false, minutes).capture).toBeUndefined();
+    expect(catalogInfo(4071, undefined, [], false).capture).toBeUndefined();
+  });
 });
 
 describe('checkDeviceTypes', () => {

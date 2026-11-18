@@ -29,6 +29,7 @@ import type { GroupListView } from '../../../application/port/in/query/list-grou
 import type { SnapshotListView } from '../../../application/port/in/query/list-snapshots-query.js';
 import type { PlanGraphView } from '../../../application/port/in/query/plan-graph-query.js';
 import type { CatalogInfo, VerdictReport } from '../../../domain/catalog.js';
+import type { CaptureOutcome } from '../../../domain/catalog-capture.js';
 import type {
   DeviceDetail,
   DeviceSummary,
@@ -86,6 +87,47 @@ export const listDevicesInputSchema = z.object({
 });
 
 export const noInputSchema = z.object({});
+
+export const captureCatalogInputSchema = z.object({
+  mode: z
+    .enum(['short', 'full'])
+    .default('short')
+    .describe('short: enum options and a port-type sample; full: every output wired to every input'),
+  discardOpenProject: z
+    .boolean()
+    .default(false)
+    .describe('Close the open project even when it has unsaved changes'),
+});
+
+const captureOutcomeSchema = z.discriminatedUnion('kind', [
+  z.strictObject({
+    kind: z.literal('installed'),
+    installed: z.array(z.enum(['enum-options', 'port-types'])),
+    notes: z.array(z.string()),
+  }),
+  z.strictObject({
+    kind: z.literal('sample-disagreed'),
+    disagreement: z.string(),
+    installed: z.array(z.literal('enum-options')),
+    notes: z.array(z.string()),
+  }),
+  z.strictObject({ kind: z.literal('failed'), reason: z.string() }),
+  z.strictObject({ kind: z.literal('cancelled') }),
+]) satisfies z.ZodType<CaptureOutcome>;
+
+const captureViewFields = {
+  build: z.number().int(),
+  mode: z.enum(['short', 'full']),
+  phase: z.enum(['discover', 'enum', 'sample', 'probe', 'validate', 'install']),
+  percent: z.number().int(),
+  minutesLeft: z.number().int().optional(),
+  outcome: captureOutcomeSchema.optional(),
+};
+
+export const captureViewSchema = z.strictObject(captureViewFields);
+
+/** The capture view, or `{ capture: null }` when there is none. */
+export const captureStatusViewSchema = z.union([captureViewSchema, z.strictObject({ capture: z.null() })]);
 
 const portLinkSchema = z.strictObject({
   device: z.string(),
@@ -164,6 +206,7 @@ export const catalogInfoSchema = z.strictObject({
   portTypes: z.enum(['shipped', 'local full', 'local short', 'none']),
   corrections: z.boolean(),
   problems: z.array(z.string()).optional(),
+  capture: z.string().optional(),
 }) satisfies z.ZodType<CatalogInfo>;
 
 export const deviceViewSchema = z.strictObject({

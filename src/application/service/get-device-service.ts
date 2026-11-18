@@ -1,4 +1,4 @@
-import { catalogInfo } from '../../domain/catalog.js';
+import { type CaptureMinutes, catalogInfo } from '../../domain/catalog.js';
 import type { DeviceView, GetDeviceQuery, GetDeviceQueryPort } from '../port/in/query/get-device-query.js';
 import type { PortTypeCatalogPort } from '../port/out/port-type-catalog-port.js';
 import type { ProjectGraphReadPort } from '../port/out/project-graph-read-port.js';
@@ -8,8 +8,15 @@ export class GetDeviceService implements GetDeviceQueryPort {
   readonly #session: WorldMachineSessionPort;
   readonly #graph: ProjectGraphReadPort;
   readonly #portTypes: PortTypeCatalogPort;
+  readonly #captureMinutes: CaptureMinutes | undefined;
 
-  constructor(session: WorldMachineSessionPort, graph: ProjectGraphReadPort, portTypes: PortTypeCatalogPort) {
+  constructor(
+    session: WorldMachineSessionPort,
+    graph: ProjectGraphReadPort,
+    portTypes: PortTypeCatalogPort,
+    captureMinutes?: CaptureMinutes,
+  ) {
+    this.#captureMinutes = captureMinutes;
     this.#session = session;
     this.#graph = graph;
     this.#portTypes = portTypes;
@@ -27,6 +34,7 @@ export class GetDeviceService implements GetDeviceQueryPort {
         this.#portTypes.catalogInUse(),
         this.#portTypes.problems(),
         this.#portTypes.hasCorrections(),
+        this.#captureMinutes,
       ),
     };
   }

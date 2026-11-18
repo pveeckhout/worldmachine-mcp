@@ -67,7 +67,12 @@ export type CatalogInfo = {
   readonly corrections: boolean;
   /** Startup problems with local catalog files; left out when none. */
   readonly problems?: readonly string[];
+  /** The offer to capture a catalog; left out unless the build is known and has no port-type catalog. */
+  readonly capture?: string;
 };
+
+/** Estimated whole-run minutes per capture mode, as the caller knows them. */
+export type CaptureMinutes = { readonly short: number; readonly full: number };
 
 /** The catalog info of a response; `hasCorrections`: the catalog in use is sample-derived and its build has some. */
 export function catalogInfo(
@@ -75,12 +80,18 @@ export function catalogInfo(
   source: CatalogSource | undefined,
   problems: readonly string[],
   hasCorrections: boolean,
+  captureMinutes?: CaptureMinutes,
 ): CatalogInfo {
+  const offer =
+    captureMinutes !== undefined && source === undefined && build !== undefined
+      ? `No catalog for build ${build}. capture_catalog can capture one: short (about ${captureMinutes.short} min) or full (about ${captureMinutes.full} min). World Machine is busy for the whole run and closes the open project first; keep the mouse pointer off its window.`
+      : undefined;
   return {
     build: build ?? null,
     portTypes: source === undefined ? 'none' : catalogLabel(source),
     corrections: hasCorrections,
     ...(problems.length > 0 ? { problems } : {}),
+    ...(offer === undefined ? {} : { capture: offer }),
   };
 }
 

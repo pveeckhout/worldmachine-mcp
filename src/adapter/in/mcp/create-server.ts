@@ -2,6 +2,7 @@ import { McpServer, type ServerContext } from '@modelcontextprotocol/server';
 import type { AddDeviceCommandPort } from '../../../application/port/in/command/add-device-command.js';
 import type { ApplyGraphCommandPort } from '../../../application/port/in/command/apply-graph-command.js';
 import type { BuildProjectCommandPort } from '../../../application/port/in/command/build-project-command.js';
+import type { CancelCatalogCapturePort } from '../../../application/port/in/command/cancel-catalog-capture-command.js';
 import type {
   ConfigureSceneCommand,
   ConfigureSceneCommandPort,
@@ -22,10 +23,12 @@ import type { SaveProjectCommandPort } from '../../../application/port/in/comman
 import type { SetDeviceBypassedCommandPort } from '../../../application/port/in/command/set-device-bypassed-command.js';
 import type { SetDeviceEnabledCommandPort } from '../../../application/port/in/command/set-device-enabled-command.js';
 import type { SetGroupEnabledCommandPort } from '../../../application/port/in/command/set-group-enabled-command.js';
+import type { StartCatalogCapturePort } from '../../../application/port/in/command/start-catalog-capture-command.js';
 import type { StopBuildCommandPort } from '../../../application/port/in/command/stop-build-command.js';
 import type { UndoCommandPort } from '../../../application/port/in/command/undo-command.js';
 import type { UpdateDeviceParametersCommandPort } from '../../../application/port/in/command/update-device-parameters-command.js';
 import type { GetBuildStatusQueryPort } from '../../../application/port/in/query/get-build-status-query.js';
+import type { GetCatalogCaptureStatusPort } from '../../../application/port/in/query/get-catalog-capture-status-query.js';
 import type { GetDeviceQueryPort } from '../../../application/port/in/query/get-device-query.js';
 import type { GetSceneQueryPort } from '../../../application/port/in/query/get-scene-query.js';
 import type { GetStatusQueryPort } from '../../../application/port/in/query/get-status-query.js';
@@ -47,6 +50,8 @@ import {
   buildProjectInputSchema,
   buildProjectViewSchema,
   buildStatusViewSchema,
+  captureCatalogInputSchema,
+  captureStatusViewSchema,
   configureSceneInputSchema,
   configureSceneViewSchema,
   connectDevicesViewSchema,
@@ -128,6 +133,9 @@ export type McpDependencies = {
   readonly setGroupEnabled: SetGroupEnabledCommandPort;
   readonly planGraph: PlanGraphQueryPort;
   readonly applyGraph: ApplyGraphCommandPort;
+  readonly captureCatalog: StartCatalogCapturePort;
+  readonly getCatalogCaptureStatus: GetCatalogCaptureStatusPort;
+  readonly cancelCatalogCapture: CancelCatalogCapturePort;
   readonly currentSession: () => SessionSummary;
   readonly logger: Logger;
 };
@@ -643,6 +651,54 @@ export function createMcpServer(deps: McpDependencies): McpServer {
           keepSnapshot: keep_snapshot ?? false,
         }),
       ),
+  );
+
+  server.registerTool(
+    'capture_catalog',
+    {
+      title: 'Capture catalog',
+      description:
+        'Capture the enum options and port types of the running World Machine build, for a build that has no catalog. mode short (default) captures the enum options and samples the port types against the closest strict catalog (about 11 min); mode full also wires every output to every input (hours). It refuses a build that has a strict catalog, and refuses short when the build has any port-type catalog. The capture runs in the background: this returns at once with its progress, and catalog_capture_status follows it. World Machine is busy for the whole run, and every tool that needs World Machine is refused with CAPTURING until it ends; the server never starts one on its own. It closes the open project first, so it refuses when that has unsaved changes unless discardOpenProject is true; keep the mouse pointer off the World Machine window. A finished catalog is installed under the catalog folder and answers the next call without a restart. If World Machine crashes, the run ends with failed, and starting again resumes from the kept transcript; a crash inside a multi-pair batch can take two more starts to get past.',
+      inputSchema: captureCatalogInputSchema,
+      outputSchema: captureStatusViewSchema,
+      annotations: COMMAND,
+    },
+    ({ mode, discardOpenProject }) =>
+      respond(deps, 'capture_catalog', () => deps.captureCatalog.start({ mode, discardOpenProject })),
+  );
+
+  server.registerTool(
+    'catalog_capture_status',
+    {
+      title: 'Catalog capture status',
+      description:
+        'Report the running catalog capture (build, mode, phase, percent, minutes left), or the last finished one with its outcome until the next start. Returns { capture: null } when none has run since the server started. Does not need World Machine, so it answers while a capture runs.',
+      inputSchema: noInputSchema,
+      outputSchema: captureStatusViewSchema,
+      annotations: READ_ONLY,
+    },
+    () =>
+      respond(deps, 'catalog_capture_status', async () => {
+        const view = await deps.getCatalogCaptureStatus.status({});
+        return view ?? { capture: null };
+      }),
+  );
+
+  server.registerTool(
+    'cancel_catalog_capture',
+    {
+      title: 'Cancel catalog capture',
+      description:
+        'Cancel the running catalog capture. It waits for the batch in flight and the close-out, so it can take a minute or more. The transcript is kept, so the next capture_catalog of the same build and mode resumes it. Returns the final view, or { capture: null } when none runs.',
+      inputSchema: noInputSchema,
+      outputSchema: captureStatusViewSchema,
+      annotations: IDEMPOTENT_COMMAND,
+    },
+    () =>
+      respond(deps, 'cancel_catalog_capture', async () => {
+        const view = await deps.cancelCatalogCapture.cancel({});
+        return view ?? { capture: null };
+      }),
   );
 
   return server;
