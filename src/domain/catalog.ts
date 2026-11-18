@@ -188,3 +188,22 @@ export function judgeVerdict(
   if (kind === 'strict') return { ...base, outcome: 'reported', reason: 'strict catalog' };
   return { ...base, outcome: 'recorded' };
 }
+
+/**
+ * A device type a capture found: the name `device add` takes for it, the other names that add the same type, and
+ * whether this build added it (a known type it could not add is listed with `reached: false`).
+ */
+export type DeviceType = {
+  readonly addName: string;
+  readonly aliases: readonly string[];
+  readonly reached: boolean;
+};
+
+/** Throws when an alias names another type of the list (spec D2a invariant). */
+export function checkDeviceTypes(types: readonly DeviceType[]): void {
+  const names = new Set(types.map((type) => type.addName));
+  for (const type of types)
+    for (const alias of type.aliases)
+      if (names.has(alias) && alias !== type.addName)
+        throw new Error(`alias '${alias}' of '${type.addName}' names another type`);
+}

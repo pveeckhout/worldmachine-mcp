@@ -3,6 +3,7 @@ import type { CatalogKind, CatalogOrigin, WireVerdict } from '../../src/domain/c
 import {
   catalogInfo,
   catalogLabel,
+  checkDeviceTypes,
   closestStrictBase,
   correctionIndex,
   judgeVerdict,
@@ -126,5 +127,24 @@ describe('catalogInfo', () => {
   });
   it('says none apply when the build has none', () => {
     expect(catalogInfo(4069, shippedSample, [], false).corrections).toBe(false);
+  });
+});
+
+describe('checkDeviceTypes', () => {
+  it('rejects an alias that names another type', () => {
+    expect(() =>
+      checkDeviceTypes([
+        { addName: 'Clamp', aliases: ['Levels'], reached: true },
+        { addName: 'Levels', aliases: [], reached: true },
+      ]),
+    ).toThrow(/alias 'Levels' of 'Clamp' names another type/);
+  });
+  it('accepts types whose aliases are their own', () => {
+    expect(() =>
+      checkDeviceTypes([
+        { addName: 'Clamp', aliases: ['Rescale (Clamp)'], reached: true },
+        { addName: 'Levels', aliases: [], reached: false },
+      ]),
+    ).not.toThrow();
   });
 });
