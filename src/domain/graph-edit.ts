@@ -1,3 +1,4 @@
+import type { WireTyping } from './catalog.js';
 import type { DeviceSummary } from './device.js';
 
 /** A device as an edit result names it: its stable id and its current name. */
@@ -53,6 +54,8 @@ export type WireConnection = {
   readonly destination: WireEnd;
   /** false when the wire already existed and nothing was sent. */
   readonly created: boolean;
+  /** What the catalog predicted for the wire; only on a created wire, and only when a catalog is in use. */
+  readonly typing?: WireTyping;
 };
 
 export type WireDisconnection = {

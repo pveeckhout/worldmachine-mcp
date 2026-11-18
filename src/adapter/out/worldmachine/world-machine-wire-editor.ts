@@ -1,10 +1,18 @@
 import type { PortTypeCatalogPort } from '../../../application/port/out/port-type-catalog-port.js';
 import type { WireEditPort } from '../../../application/port/out/wire-edit-port.js';
+import type { WireTyping } from '../../../domain/catalog.js';
 import type { DeviceSummary, InputPort, OutputPort } from '../../../domain/device.js';
 import { listedName } from '../../../domain/device-name.js';
 import { WorldMachineError } from '../../../domain/errors.js';
 import type { WireConnection, WireDisconnection, WireEnd, WireEndpoint } from '../../../domain/graph-edit.js';
-import { type PortNames, refusalTypes, typedPorts } from '../../../domain/port-types.js';
+import {
+  type CataloguedInput,
+  type CataloguedOutput,
+  type PortNames,
+  refusalTypes,
+  typedPorts,
+  wireCompatibility,
+} from '../../../domain/port-types.js';
 import { resolveWireSource, sharedNameClause, sourceCandidates } from '../../../domain/wire-source.js';
 import { buildCommand } from './command-builder.js';
 import { listAllDevices } from './device-lookup.js';
@@ -41,6 +49,8 @@ type WirePlan = {
   readonly destinationType: string;
   readonly destinationPorts: PortNames;
 };
+
+type WireCatalogEnds = { readonly output: CataloguedOutput | undefined; readonly input: CataloguedInput };
 
 const argument = (id: number, port: number | undefined): string =>
   port === undefined ? `#${id}` : `#${id}.${port}`;
@@ -89,6 +99,7 @@ export class WorldMachineWireEditor implements WireEditPort {
     // An existing wire changes nothing (idempotent, spec section 7). An input wired from another device is sent, and
     // World Machine itself refuses it (fact 34).
     if (plan.present) return { ...ends, created: false };
+    const catalogEnds = await this.#ends(plan);
     const responses = await this.#session.execute([
       buildCommand(['wire', 'connect', plan.sourceArgument, plan.destinationArgument]),
       plan.listDestination,
@@ -97,7 +108,7 @@ export class WorldMachineWireEditor implements WireEditPort {
     const after = requireFrame(responses[1]);
     // Port-types design section 6: no pre-check; World Machine decides, and its refusal gains the types.
     if (connected.errors.some((line) => line.trimEnd() === INCOMPATIBLE))
-      throw await this.#incompatible(plan, connected);
+      throw this.#incompatible(plan, connected, catalogEnds);
     throwIfFailed(connected);
     this.#session.markDirty();
     // raw/p2b-graph-edits.txt l.22-23; with explicit ports raw/p2c-edits.txt l.108-109 (spec facts 26 and 34).
@@ -114,7 +125,9 @@ export class WorldMachineWireEditor implements WireEditPort {
         connected.output.join('\n') || undefined,
       );
     }
-    return { ...ends, created: true };
+    return catalogEnds === undefined
+      ? { ...ends, created: true }
+      : { ...ends, created: true, typing: this.#typing(plan, catalogEnds) };
   }
 
   async disconnect(source: WireEndpoint, destination: WireEndpoint): Promise<WireDisconnection> {
@@ -152,36 +165,57 @@ export class WorldMachineWireEditor implements WireEditPort {
   }
 
   /**
-   * Port-types design section 6 and plan decision D9: World Machine's refusal, as throwIfFailed gives it, with
-   * `: output <p> is <type>; input <q> accepts <names>` appended when both ends are typed. The destination's ports are
-   * the plan's `wire list`; the source's come from one `wire list` read now, only when the destination's input is
-   * typed. A WorldMachineError of that read leaves the refusal as World Machine gave it.
+   * The catalogued ends of the wire, read before `wire connect` so they do not depend on the wire existing. Only when
+   * a catalog is in use and the destination's input is typed; the source's `wire list` is read once for its port
+   * names. A WorldMachineError of that read leaves the connect untyped (plan decision D9).
    */
-  async #incompatible(plan: WirePlan, connected: RawResponse): Promise<WorldMachineError> {
-    const refusal = (types: string) =>
-      new WorldMachineError(
-        'WM_COMMAND_FAILED',
-        `World Machine rejected "${connected.command}"${types}`,
-        connected.errors.join('\n'),
-      );
+  async #ends(plan: WirePlan): Promise<WireCatalogEnds | undefined> {
+    if (this.#portTypes.catalogInUse() === undefined) return undefined;
     const input = typedPorts(
       plan.destinationPorts,
       this.#portTypes.portsOf(plan.destinationType),
     )?.inputs.find((candidate) => candidate.port === plan.destination.port);
-    if (input === undefined) return refusal('');
+    if (input === undefined) return undefined;
     let sourcePorts: PortNames;
     try {
       const listed = await this.#session.executeOne(buildCommand(['wire', 'list', `#${plan.source.id}`]));
       throwIfFailed(listed);
       sourcePorts = parseWireList(listed.output);
     } catch (error) {
-      if (error instanceof WorldMachineError) return refusal('');
+      if (error instanceof WorldMachineError) return undefined;
       throw error;
     }
     const output = typedPorts(sourcePorts, this.#portTypes.portsOf(plan.sourceType))?.outputs.find(
       (candidate) => candidate.port === plan.source.port,
     );
-    return refusal(output === undefined ? '' : refusalTypes(output, input));
+    return { output, input };
+  }
+
+  /** What the catalog predicts for the wire; the one place the comparison is chosen. */
+  #typing(plan: WirePlan, ends: WireCatalogEnds): WireTyping {
+    return {
+      output: ends.output === undefined ? undefined : { type: plan.sourceType, port: ends.output.name },
+      input: { type: plan.destinationType, port: ends.input.name },
+      predicted: wireCompatibility(ends.output, ends.input),
+    };
+  }
+
+  /**
+   * Port-types design section 6 and plan decision D9: World Machine's refusal, as throwIfFailed gives it, with
+   * `: output <p> is <type>; input <q> accepts <names>` appended when both ends are typed, and the typing as details.
+   */
+  #incompatible(
+    plan: WirePlan,
+    connected: RawResponse,
+    ends: WireCatalogEnds | undefined,
+  ): WorldMachineError {
+    const types = ends?.output === undefined ? '' : refusalTypes(ends.output, ends.input);
+    return new WorldMachineError(
+      'WM_COMMAND_FAILED',
+      `World Machine rejected "${connected.command}"${types}`,
+      connected.errors.join('\n'),
+      ends === undefined ? undefined : { typing: this.#typing(plan, ends) },
+    );
   }
 
   /** `device list`, the destination's `wire list`, and the candidates' when needed, all before any change. */

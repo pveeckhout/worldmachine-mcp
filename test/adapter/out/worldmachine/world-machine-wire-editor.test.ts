@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { NO_PORT_TYPES } from '../../../../src/adapter/out/worldmachine/world-machine-port-types.js';
+import {
+  NO_PORT_TYPES,
+  PORT_TYPE_CATALOG_4069,
+  shipped,
+  WorldMachinePortTypes,
+} from '../../../../src/adapter/out/worldmachine/world-machine-port-types.js';
 import { WorldMachineWireEditor } from '../../../../src/adapter/out/worldmachine/world-machine-wire-editor.js';
 import type { PortTypeCatalogPort } from '../../../../src/application/port/out/port-type-catalog-port.js';
-import { syntheticPortTypes } from '../../../support/port-types.js';
+import { statusOn, syntheticPortTypes } from '../../../support/port-types.js';
 import { type Reply, scriptedSession } from '../../../support/scripted-session.js';
 
 // raw/p2b-graph-edits.txt l.17-19.
@@ -719,8 +724,8 @@ describe('WorldMachineWireEditor.connect on an incompatible-types refusal (port-
     expect(s.batches).toEqual([
       ['device list'],
       ['wire list #2'],
-      ['wire connect #1 #2.2', 'wire list #2'],
       ['wire list #1'],
+      ['wire connect #1 #2.2', 'wire list #2'],
     ]);
     expect(s.dirtyMarks()).toBe(0);
   });
@@ -751,5 +756,158 @@ describe('WorldMachineWireEditor.connect on an incompatible-types refusal (port-
       message: REFUSED,
       worldMachineMessage: INCOMPATIBLE,
     });
+  });
+});
+
+describe('WorldMachineWireEditor.connect reports the catalog prediction (build 4069)', () => {
+  const INCOMPATIBLE = 'Error: Error: Failed to create connection (incompatible types?)';
+  const portTypes4069 = new WorldMachinePortTypes(statusOn(4069), [shipped(PORT_TYPE_CATALOG_4069)]);
+  const DEVICES = [
+    'Devices (2 total):',
+    '  #1     Gradient                ',
+    '  #2     Height Output           ',
+  ];
+  const WATER_DEVICES = [
+    'Devices (2 total):',
+    '  #1     Create Water            ',
+    '  #2     Height Output           ',
+  ];
+  const HEIGHT_OUTPUT = [
+    "Connections for '#2':",
+    '  Inputs:',
+    '    [1] Primary Input <- (none)',
+    '    [2] Metadata Input <- (none)',
+    '  Outputs:',
+  ];
+  const HEIGHT_OUTPUT_WIRED = [
+    "Connections for '#2':",
+    '  Inputs:',
+    "    [1] Primary Input <- 'Gradient' [1]",
+    '    [2] Metadata Input <- (none)',
+    '  Outputs:',
+  ];
+  const GRADIENT = ["Connections for '#1':", '  Inputs:', '  Outputs:', '    [1] Primary Output -> (none)'];
+  const CREATE_WATER = [
+    "Connections for '#1':",
+    '  Inputs:',
+    '    [1] Terrain      <- (none)',
+    '    [2] Existing Water <- (none)',
+    '    [3] Precipitation Map <- (none)',
+    '  Outputs:',
+    '    [1] Terrain      -> (none)',
+    '    [2] Water System -> (none)',
+    '    [3] Tributary Mask -> (none)',
+    '    [4] Lake Mask    -> (none)',
+  ];
+  const connected = (port = '1') => `Connected '#1' [${port}] -> '#2' [1]`;
+
+  it('reports the typed ends and the prediction of a created wire', async () => {
+    const s = scriptedSession(
+      {
+        'device list': [{ output: DEVICES }],
+        'wire list #2': [{ output: HEIGHT_OUTPUT }, { output: HEIGHT_OUTPUT_WIRED }],
+        'wire list #1': [{ output: GRADIENT }],
+        'wire connect #1 #2': [{ output: [connected()] }],
+      },
+      { build: 4069 },
+    );
+    const wire = await new WorldMachineWireEditor(s.session, portTypes4069).connect(
+      { device: '#1' },
+      { device: '#2' },
+    );
+    expect(wire.typing).toStrictEqual({
+      output: { type: 'Gradient', port: 'Primary Output' },
+      input: { type: 'Height Output', port: 'Primary Input' },
+      predicted: 'compatible',
+    });
+    expect(s.batches).toEqual([
+      ['device list'],
+      ['wire list #2'],
+      ['wire list #1'],
+      ['wire connect #1 #2', 'wire list #2'],
+    ]);
+  });
+
+  it('carries the typing on an incompatible-types refusal', async () => {
+    const s = scriptedSession(
+      {
+        'device list': [{ output: WATER_DEVICES }],
+        'wire list #2': [{ output: HEIGHT_OUTPUT }, { output: HEIGHT_OUTPUT }],
+        'wire list #1': [{ output: CREATE_WATER }],
+        'wire connect #1.2 #2': [{ errors: [INCOMPATIBLE] }],
+      },
+      { build: 4069 },
+    );
+    const error = await new WorldMachineWireEditor(s.session, portTypes4069)
+      .connect({ device: '#1', port: 2 }, { device: '#2' })
+      .catch((caught: unknown) => caught);
+    expect(error).toMatchObject({
+      code: 'WM_COMMAND_FAILED',
+      details: {
+        typing: {
+          output: { type: 'Create Water', port: 'Water System' },
+          input: { type: 'Height Output', port: 'Primary Input' },
+          predicted: 'incompatible',
+        },
+      },
+    });
+    expect(s.batches).toEqual([
+      ['device list'],
+      ['wire list #2'],
+      ['wire list #1'],
+      ['wire connect #1.2 #2', 'wire list #2'],
+    ]);
+  });
+
+  it('attaches no typing to another refusal', async () => {
+    const s = scriptedSession(
+      {
+        'device list': [{ output: DEVICES }],
+        'wire list #2': [{ output: HEIGHT_OUTPUT }, { output: HEIGHT_OUTPUT }],
+        'wire list #1': [{ output: GRADIENT }],
+        'wire connect #1 #2': [{ errors: ["Error: Error: Input port not found on '#2'"] }],
+      },
+      { build: 4069 },
+    );
+    const error = await new WorldMachineWireEditor(s.session, portTypes4069)
+      .connect({ device: '#1' }, { device: '#2' })
+      .catch((caught: unknown) => caught);
+    expect(error).toMatchObject({ code: 'WM_COMMAND_FAILED' });
+    expect(error).not.toHaveProperty('details.typing');
+  });
+
+  it('sends the connect without typing when the source wire list fails', async () => {
+    const s = scriptedSession(
+      {
+        'device list': [{ output: DEVICES }],
+        'wire list #2': [{ output: HEIGHT_OUTPUT }, { output: HEIGHT_OUTPUT_WIRED }],
+        'wire list #1': [{ errors: ["Error: Error: Output port not found on '#1'"] }],
+        'wire connect #1 #2': [{ output: [connected()] }],
+      },
+      { build: 4069 },
+    );
+    const wire = await new WorldMachineWireEditor(s.session, portTypes4069).connect(
+      { device: '#1' },
+      { device: '#2' },
+    );
+    expect(wire.created).toBe(true);
+    expect(wire.typing).toBeUndefined();
+  });
+
+  it('reads no source wire list when no catalog is in use', async () => {
+    const s = scriptedSession(
+      {
+        'device list': [{ output: DEVICES }],
+        'wire list #2': [{ output: HEIGHT_OUTPUT }, { output: HEIGHT_OUTPUT_WIRED }],
+        'wire connect #1 #2': [{ output: [connected()] }],
+      },
+      { build: 4071 },
+    );
+    const wire = await new WorldMachineWireEditor(
+      s.session,
+      new WorldMachinePortTypes(statusOn(4071), [shipped(PORT_TYPE_CATALOG_4069)]),
+    ).connect({ device: '#1' }, { device: '#2' });
+    expect(wire.typing).toBeUndefined();
+    expect(s.batches).toEqual([['device list'], ['wire list #2'], ['wire connect #1 #2', 'wire list #2']]);
   });
 });
