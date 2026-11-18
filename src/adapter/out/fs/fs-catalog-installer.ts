@@ -26,12 +26,15 @@ export class FsCatalogInstaller implements InstallCatalogPort {
   readonly #directory: string;
   readonly #corrections: RetirePortTypeCorrectionsPort;
   readonly #rename: typeof renameSync;
+  readonly #remove: typeof rmSync;
 
   constructor(
     directory: string,
     corrections: RetirePortTypeCorrectionsPort,
     rename: typeof renameSync = renameSync,
+    remove: typeof rmSync = rmSync,
   ) {
+    this.#remove = remove;
     this.#directory = directory;
     this.#corrections = corrections;
     this.#rename = rename;
@@ -65,7 +68,11 @@ export class FsCatalogInstaller implements InstallCatalogPort {
       }
       writeFileAtomic(join(folder, 'capture.json'), `${JSON.stringify(entry.record, null, 2)}\n`);
     } finally {
-      rmSync(work, { recursive: true, force: true });
+      try {
+        this.#remove(work, { recursive: true, force: true });
+      } catch {
+        // Best effort: a cleanup failure must not hide the install's own error.
+      }
     }
   }
 

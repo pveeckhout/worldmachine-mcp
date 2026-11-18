@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, type rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -171,5 +171,17 @@ describe('FsCatalogInstaller', () => {
       /new catalog is installed.*corrections of build 4071 could not be moved aside.*locked/,
     );
     expect(read('4071/port-types.json')).toContain('Heightfield');
+  });
+
+  it('reports the install failure even when the cleanup fails too', () => {
+    const { dir, corrections } = setup();
+    const rename = (() => {
+      throw new Error('disk gone');
+    }) as typeof renameSync;
+    const remove = (() => {
+      throw new Error('cleanup failed');
+    }) as typeof rmSync;
+    const installer = new FsCatalogInstaller(dir, corrections, rename, remove);
+    expect(() => installer.install(entry(), 4071)).toThrow('disk gone');
   });
 });
