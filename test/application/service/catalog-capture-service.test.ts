@@ -56,6 +56,7 @@ const agreed = (): CaptureResult => ({
   },
   discovery: DISCOVERY,
   refusedWords: ['Brightness'],
+  enumGaps: [],
 });
 const disagreed = (): CaptureResult => ({
   enumOptions: ENUMS,
@@ -67,6 +68,7 @@ const disagreed = (): CaptureResult => ({
   },
   discovery: DISCOVERY,
   refusedWords: [],
+  enumGaps: [],
 });
 
 type Script = (
@@ -99,13 +101,14 @@ function fakes(
   const discarded: string[] = [];
   const events: [string, Record<string, unknown>][] = [];
   let held: (() => string) | undefined;
+  let build = options.build ?? BUILD;
   let released = 0;
   const session: WorldMachineSessionPort = {
     ensureRunning: async () => void calls.push('ensureRunning'),
     status: () => ({
       executable: '/wm',
       session: { state: 'ready', binding: { kind: 'fresh' }, dirty: options.dirty ?? false },
-      systemInfo: { build: options.build ?? BUILD, buildName: 'Next', arch: 'x64' },
+      systemInfo: { build, buildName: 'Next', arch: 'x64' },
     }),
     shutdown: async () => undefined,
     forgetReopen: () => undefined,
@@ -180,6 +183,9 @@ function fakes(
     events,
     released: () => released,
     held: () => held,
+    setBuild: (running: number) => {
+      build = running;
+    },
   };
 }
 
@@ -315,6 +321,18 @@ describe('CatalogCaptureService', () => {
     expect(f.runs[0]?.workDir).toBe(join('/catalogs', String(BUILD), '.capture-full'));
     expect(f.installs[0]?.record).not.toHaveProperty('baseBuild');
     expect(f.registered[0]?.[1].portTypes?.source).toEqual({ build: BUILD, kind: 'strict', origin: 'local' });
+  });
+
+  it('passes the build World Machine runs at install time, not the build the run started on', async () => {
+    const f: ReturnType<typeof fakes> = fakes({
+      script: async () => {
+        f.setBuild(4072);
+        return agreed();
+      },
+    });
+    await f.service.start(short);
+    await finished(f.service);
+    expect(f.calls).toContain('install 4072');
   });
 
   it('cancels between batches and keeps the transcript', async () => {

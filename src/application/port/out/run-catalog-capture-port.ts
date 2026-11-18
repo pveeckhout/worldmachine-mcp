@@ -20,6 +20,8 @@ export type CaptureResult = {
   readonly discovery: DeviceDiscovery;
   /** Words the enum capture could not add. */
   readonly refusedWords: readonly string[];
+  /** `<type>.<parameter>` enum rows that gave no range error; their types are left out of `enumOptions`. */
+  readonly enumGaps: readonly string[];
 };
 
 export interface RunCatalogCapturePort {

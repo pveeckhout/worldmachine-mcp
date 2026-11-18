@@ -22,6 +22,7 @@ import type {
 import type { DeviceDiscovery, PortTypeCatalog, SampleCheck } from '../../../../domain/catalog.js';
 import type { CaptureMode, CapturePhase, CaptureProgress } from '../../../../domain/catalog-capture.js';
 import { WorldMachineError } from '../../../../domain/errors.js';
+import { writeFileAtomic } from '../../fs/atomic-write.js';
 import { discoverDeviceTypes } from './discovery.js';
 import { parseEnumCapture } from './enum-catalog.js';
 import { ADD_BY_NAME, ENUM_TYPES } from './enum-words.js';
@@ -44,7 +45,18 @@ export type CapturerOptions = {
   readonly now?: () => Date;
 };
 
-type ResumeFile = { readonly build: number; readonly mode: CaptureMode; readonly serverVersion: string };
+/**
+ * The format of the working folder's transcripts and markers. Raise it whenever a marker or verdict line changes: a
+ * folder of another format is set aside, not resumed. The server version is recorded but never compared.
+ */
+export const TRANSCRIPT_FORMAT = 1;
+
+type ResumeFile = {
+  readonly build: number;
+  readonly mode: CaptureMode;
+  readonly serverVersion: string;
+  readonly transcriptFormat: number;
+};
 
 /** A `device list` row with its listed type (fact 81: the kind, or else the name). */
 type Row = { readonly id: number; readonly name: string; readonly type: string };
@@ -83,6 +95,7 @@ const TWIN = /^\(twin #(\d+) #(\d+)\)$/;
 const VERDICT = /^#(\d+)\.(\d+) /;
 const SETUP_COMPLETE = '(setup complete)';
 const NOT_ADDED = 'not added';
+const NO_RANGE = 'no range error';
 
 const linesOf = (reply: ConsoleReply | undefined): string[] =>
   reply === undefined ? [] : [...reply.output, ...reply.errors];
@@ -103,9 +116,15 @@ const firstOfEachType = (devices: readonly PortDevice[]): PortDevice[] =>
 const pairKey = (source: ProbeSource, target: { id: number; port: number }): string =>
   `${source.id}.${source.port}>${target.id}.${target.port}`;
 
-/** A batch that ended World Machine, or hung it: the run ends and the pair it was on is not sent blindly again. */
-const lostWorldMachine = (error: unknown): boolean =>
-  error instanceof WorldMachineError && (error.code === 'CRASHED' || error.code === 'TIMEOUT');
+const hasCode = (error: unknown, code: 'CRASHED' | 'TIMEOUT'): boolean =>
+  error instanceof WorldMachineError && error.code === code;
+
+/** Moves a working folder aside as `<folder>.stale-<stamp>` and returns the new path. */
+function setAside(workDir: string, stamp: string): string {
+  const aside = join(dirname(workDir), `${basename(workDir)}.stale-${stamp}`);
+  renameSync(workDir, aside);
+  return aside;
+}
 
 export class WorldMachineCatalogCapturer implements RunCatalogCapturePort, DiscardCaptureTranscriptPort {
   readonly #serverVersion: string;
@@ -135,7 +154,10 @@ export class WorldMachineCatalogCapturer implements RunCatalogCapturePort, Disca
     rmSync(workDir, { recursive: true, force: true });
   }
 
-  /** A working folder of another build or mode, or without a readable resume file, is moved aside, never mixed in. */
+  /**
+   * A working folder of another build, mode, or transcript format, or without a readable resume file, is moved aside,
+   * never mixed in.
+   */
   #prepare(run: CaptureRun): void {
     const resumeFile = join(run.workDir, 'resume.json');
     if (existsSync(run.workDir)) {
@@ -145,11 +167,22 @@ export class WorldMachineCatalogCapturer implements RunCatalogCapturePort, Disca
       } catch {
         resume = undefined;
       }
-      if (resume?.build === run.build && resume.mode === run.mode) return;
-      renameSync(run.workDir, join(dirname(run.workDir), `${basename(run.workDir)}.stale-${this.#stamp()}`));
+      if (
+        resume?.build === run.build &&
+        resume.mode === run.mode &&
+        resume.transcriptFormat === TRANSCRIPT_FORMAT
+      ) {
+        return;
+      }
+      setAside(run.workDir, this.#stamp());
     }
     mkdirSync(run.workDir, { recursive: true });
-    const resume: ResumeFile = { build: run.build, mode: run.mode, serverVersion: this.#serverVersion };
+    const resume: ResumeFile = {
+      build: run.build,
+      mode: run.mode,
+      serverVersion: this.#serverVersion,
+      transcriptFormat: TRANSCRIPT_FORMAT,
+    };
     writeFileSync(resumeFile, `${JSON.stringify(resume)}\n`);
   }
 
@@ -228,7 +261,12 @@ class Capture {
   async #discover(): Promise<DeviceDiscovery> {
     const saved = this.#path('discovery.json');
     if (existsSync(saved)) {
-      const discovery = JSON.parse(readFileSync(saved, 'utf8')) as DeviceDiscovery;
+      const discovery = this.#fromWorkFolder('discovery.json', () => {
+        const read = JSON.parse(readFileSync(saved, 'utf8')) as Partial<DeviceDiscovery>;
+        if (!Array.isArray(read.types) || !Array.isArray(read.notReached))
+          throw new Error('no types or notReached list');
+        return read as DeviceDiscovery;
+      });
       this.#report('discover', 1, 1);
       return discovery;
     }
@@ -247,28 +285,32 @@ class Capture {
       return replies;
     }, this.spec.known);
     const { types, notReached, listedByConsole } = discovery;
-    writeFileSync(saved, `${JSON.stringify({ types, notReached, listedByConsole }, null, 2)}\n`);
+    writeFileAtomic(saved, `${JSON.stringify({ types, notReached, listedByConsole }, null, 2)}\n`);
     this.#report('discover', Math.max(adds, seeds), Math.max(adds, seeds));
     return { types, notReached, listedByConsole };
   }
 
   /**
    * The `enumOptions` scenario, one unit per word: its sections are appended once the unit is done, followed by an
-   * `(enum <word>)` section naming the listed type it gave, `duplicate <type>`, or `not added`. A resumed run skips
-   * the words with such a section. A type already captured is deleted at once, so the catalog never has it twice.
+   * `(enum <word>)` section naming the listed type it gave, `duplicate <type>`, `not added`, or `no range error` with
+   * the rows that gave none. A resumed run skips the words with such a section. A type already captured is deleted at
+   * once, so the catalog never has it twice. A type with an enum row without a range error is left out of the
+   * transcript, as the parser needs every label of every row (capture-fixtures.mjs l.3457-3460 records and goes on).
    */
   async #enumOptions(
     discovery: DeviceDiscovery,
-  ): Promise<Pick<CaptureResult, 'enumOptions' | 'refusedWords'>> {
+  ): Promise<Pick<CaptureResult, 'enumOptions' | 'refusedWords' | 'enumGaps'>> {
     const file = 'enum.txt';
     const finished = new Map<string, string>();
     const captured = new Set<string>();
-    for (const { command, lines } of transcriptSections(this.#read(file))) {
+    const enumGaps: string[] = [];
+    for (const { command, lines } of this.#fromWorkFolder(file, () => transcriptSections(this.#read(file)))) {
       const unit = ENUM_UNIT.exec(command);
       if (unit === null) continue;
       const outcome = lines[0] ?? '';
       finished.set(unit[1] as string, outcome);
       if (outcome.startsWith('type ')) captured.add(outcome.slice('type '.length));
+      if (outcome === NO_RANGE) enumGaps.push(...lines.slice(1));
     }
     const words = [...new Set([...ENUM_TYPES, ...discovery.types.map((type) => type.addName)])];
     let done = words.filter((word) => finished.has(word)).length;
@@ -305,23 +347,34 @@ class Capture {
         outcome = [`duplicate ${device.type}`];
         sections.length = 0;
       } else {
-        await this.#enumsOf(device, record);
+        const gaps = await this.#enumsOf(device, record);
         record(await this.#send([`device delete #${device.id}`]));
-        captured.add(device.type);
-        outcome = [`type ${device.type}`];
+        if (gaps.length > 0) {
+          outcome = [NO_RANGE, ...gaps.map((name) => `${device.type}.${name}`)];
+          enumGaps.push(...outcome.slice(1));
+          sections.length = 0;
+        } else {
+          captured.add(device.type);
+          outcome = [`type ${device.type}`];
+        }
       }
       this.#append(file, [...sections, { command: `(enum ${word})`, lines: outcome }]);
       finished.set(word, outcome[0] as string);
       this.#report('enum', ++done, words.length);
     }
 
-    const { catalog } = parseEnumCapture(this.#read(file), this.#systemInfo);
+    const { catalog } = this.#fromWorkFolder(file, () =>
+      parseEnumCapture(this.#read(file), this.#systemInfo),
+    );
     const refusedWords = words.filter((word) => finished.get(word) === NOT_ADDED);
-    return { enumOptions: catalog, refusedWords };
+    return { enumOptions: catalog, refusedWords, enumGaps };
   }
 
-  /** The `param list` of a new device, then per enum row its range and every label (capture-fixtures.mjs). */
-  async #enumsOf(device: Row, record: (replies: readonly ConsoleReply[]) => void): Promise<void> {
+  /**
+   * The `param list` of a new device, then per enum row its range and every label (capture-fixtures.mjs). Returns the
+   * enum rows that gave no range error.
+   */
+  async #enumsOf(device: Row, record: (replies: readonly ConsoleReply[]) => void): Promise<string[]> {
     const ref = `#${device.id}`;
     const listed = await this.#send([`param list ${ref}`]);
     record(listed);
@@ -329,6 +382,7 @@ class Capture {
       const row = PARAM_ROW.exec(line);
       return row !== null && row[2] === 'enum' ? [row[1] as string] : [];
     });
+    const gaps: string[] = [];
     for (const name of enums) {
       const probe = await this.#send([`param get ${ref}.${name}`, `param set "${ref}.${name}" 9999`]);
       record(probe);
@@ -336,7 +390,8 @@ class Capture {
         .map((line) => RANGE.exec(line.trimEnd()))
         .find((match) => match !== null);
       if (range === undefined || range === null) {
-        throw new Error(`type '${device.type}', parameter '${name}': no range error for index 9999`);
+        gaps.push(name);
+        continue;
       }
       const last = Number(range[1]);
       if (last < 0) continue;
@@ -349,6 +404,7 @@ class Capture {
         ),
       );
     }
+    return gaps;
   }
 
   /**
@@ -362,7 +418,7 @@ class Capture {
     const phase: CapturePhase = full ? 'probe' : 'sample';
     const file = full ? 'probe.txt' : 'sample.txt';
     this.#report(phase, 0, 0);
-    let setup = readSetup(this.#read(file), full);
+    let setup = this.#fromWorkFolder(file, () => readSetup(this.#read(file), full));
     if (setup === undefined) {
       writeFileSync(this.#path(file), '');
       setup = await this.#recordSetup(file, words, full);
@@ -371,7 +427,7 @@ class Capture {
     }
 
     const units = probeUnits(setup, full);
-    const { done, suspects } = readProbes(this.#read(file));
+    const { done, suspects } = this.#fromWorkFolder(file, () => readProbes(this.#read(file)));
     const total = units.reduce((sum, unit) => sum + unit.targets.length, 0);
     let answered = units.reduce(
       (sum, unit) => sum + unit.targets.filter((target) => done.has(pairKey(unit.source, target))).length,
@@ -388,7 +444,8 @@ class Capture {
         try {
           replies = await this.#send(batch, Math.max(60_000, batch.length * 1_000));
         } catch (error) {
-          if (lostWorldMachine(error)) this.#recordLoss(file, from, chunk, sent);
+          if (hasCode(error, 'CRASHED')) this.#recordLoss(file, from, chunk, sent);
+          else if (hasCode(error, 'TIMEOUT')) this.#recordSuspects(file, from, chunk);
           throw error;
         }
         let at = 0;
@@ -406,13 +463,16 @@ class Capture {
     }
 
     const transcript = this.#read(file);
+    const base = this.spec.base;
     if (!full) {
-      if (this.spec.base === undefined) throw new Error('a short capture needs a strict base catalog');
-      return checkSample(this.spec.base, transcript, this.#systemInfo) satisfies SampleCheck;
+      if (base === undefined) throw new Error('a short capture needs a strict base catalog');
+      return this.#fromWorkFolder(
+        file,
+        () => checkSample(base, transcript, this.#systemInfo) satisfies SampleCheck,
+      );
     }
-    const catalog: PortTypeCatalog = nameClasses(
-      parsePortTypeCatalog([transcript], this.#systemInfo),
-      this.spec.base,
+    const catalog: PortTypeCatalog = this.#fromWorkFolder(file, () =>
+      nameClasses(parsePortTypeCatalog([transcript], this.#systemInfo), base),
     );
     return { agreed: true, catalog };
   }
@@ -420,7 +480,8 @@ class Capture {
   /**
    * Port-types design section 3, crashes and resumes. The lease gives no answers of a batch World Machine did not
    * finish, so only a one-pair batch tells which pair it was on: that pair is `crashed`, a hole, and never sent again.
-   * A longer batch leaves its pairs suspect; the next run sends them one per batch.
+   * A longer batch leaves its pairs suspect; the next run sends them one per batch. Only CRASHED comes here: a
+   * timeout says nothing about the pair (capture-fixtures.mjs l.3532-3533 stops without a verdict).
    */
   #recordLoss(file: string, from: string, chunk: readonly ProbeTarget[], sent: readonly string[][]): void {
     const crashed = chunk.length === 1 ? crashedTarget(sent, 0) : undefined;
@@ -430,9 +491,34 @@ class Capture {
         { command: `(probe ${from})`, lines: [`#${target.id}.${target.port} ${CRASHED}`] },
       ]);
     } else {
-      this.#append(file, [
-        { command: `(suspect ${from})`, lines: chunk.map((other) => `#${other.id}.${other.port}`) },
-      ]);
+      this.#recordSuspects(file, from, chunk);
+    }
+  }
+
+  /** The pairs of a batch World Machine did not answer: sent again, one per batch, by the next run. */
+  #recordSuspects(file: string, from: string, chunk: readonly ProbeTarget[]): void {
+    this.#append(file, [
+      { command: `(suspect ${from})`, lines: chunk.map((other) => `#${other.id}.${other.port}`) },
+    ]);
+  }
+
+  /**
+   * Reads the working folder's own files. When they cannot be parsed, every later run would fail the same way, so the
+   * folder is moved aside and the next capture starts over; the failure names both paths.
+   */
+  #fromWorkFolder<T>(what: string, read: () => T): T {
+    try {
+      return read();
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      const folder = this.spec.workDir;
+      let moved: string;
+      try {
+        moved = `it was moved to ${setAside(folder, this.stamp)}, and the next capture starts over`;
+      } catch {
+        moved = 'delete it to start over';
+      }
+      throw new Error(`cannot read ${what} in the capture's working folder ${folder} (${reason}); ${moved}`);
     }
   }
 
@@ -518,10 +604,10 @@ class Capture {
       if (missing !== undefined) difference = `no twin #${missing.id} of type '${missing.of.type}'`;
     }
     if (difference !== undefined) {
-      const aside = `${file.replace(/\.txt$/, '')}.stale-${this.stamp}.txt`;
-      renameSync(this.#path(file), this.#path(aside));
+      const aside = this.#path(`${file.replace(/\.txt$/, '')}.stale-${this.stamp}.txt`);
+      renameSync(this.#path(file), aside);
       throw new Error(
-        `cannot resume ${file}: World Machine gave other devices than the recorded run (${difference}); it was moved to ${aside}, and the next capture starts this phase again`,
+        `cannot resume ${this.#path(file)}: World Machine gave other devices than the recorded run (${difference}); it was moved to ${aside}, and the next capture starts this phase again`,
       );
     }
     this.#append(file, [

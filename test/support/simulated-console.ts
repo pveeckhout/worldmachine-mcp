@@ -93,6 +93,10 @@ export type SimulatedConsoleOptions = {
   readonly build?: number;
   /** Rejects this batch, and every later one, with CRASHED; given the batch's commands and its index. */
   readonly crashWhen?: (commands: readonly string[], index: number) => boolean;
+  /** Rejects this batch only with TIMEOUT, as when World Machine answers too slowly. */
+  readonly timeoutWhen?: (commands: readonly string[], index: number) => boolean;
+  /** A listed type whose enum rows confirm `param set ... 9999` instead of giving the range error. */
+  readonly noRangeFor?: string;
 };
 
 /** One simulated World Machine and a lease on it; `batches` records every batch sent, `crashed` once it crashed. */
@@ -171,6 +175,8 @@ export function simulatedConsole(options: SimulatedConsoleOptions = {}) {
       const index = Number(match[3]);
       if (d === undefined) return err(command, 'Error: Error: no such device');
       const labels = labelsOf(d, name);
+      if (index >= labels.length && typeOf(d.listed) === options.noRangeFor)
+        return out(command, `Set #${d.id}.${name} = ${index}`);
       if (index >= labels.length)
         return err(command, `Error: Error: Enum index out of range (0-${labels.length - 1}): ${index}`);
       d.values.set(name, index);
@@ -237,6 +243,9 @@ export function simulatedConsole(options: SimulatedConsoleOptions = {}) {
       if (crashed || options.crashWhen?.(commands, index)) {
         crashed = true;
         throw new WorldMachineError('CRASHED', 'World Machine exited unexpectedly');
+      }
+      if (options.timeoutWhen?.(commands, index)) {
+        throw new WorldMachineError('TIMEOUT', 'World Machine did not answer in time');
       }
       return commands.map(answer);
     },

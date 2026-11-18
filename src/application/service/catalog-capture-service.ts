@@ -220,6 +220,9 @@ export class CatalogCaptureService
     };
 
     capture.progress({ phase: 'validate', done: 0, total: 1 }, this.#now());
+    // The installer checks the catalogs against the World Machine running now, not the one the run started on.
+    const runningBuild = this.#ports.session.status().systemInfo?.build;
+    if (runningBuild === undefined) throw new Error('World Machine did not report its build at install time');
     this.#ports.installer.install(
       {
         build: run.build,
@@ -227,7 +230,7 @@ export class CatalogCaptureService
         ...(portTypes === undefined ? {} : { portTypes }),
         record,
       },
-      run.build,
+      runningBuild,
     );
     capture.progress({ phase: 'install', done: 1, total: 1 }, this.#now());
     this.#ports.registry.add(run.build, {
@@ -251,6 +254,9 @@ export class CatalogCaptureService
         : []),
       ...(result.refusedWords.length > 0
         ? [`add words World Machine refused: ${result.refusedWords.join(', ')}`]
+        : []),
+      ...(result.enumGaps.length > 0
+        ? [`enum rows without a range error, their types left out: ${result.enumGaps.join(', ')}`]
         : []),
       ...(discovery.notReached.length > 0
         ? [`known types not added: ${discovery.notReached.join(', ')}`]

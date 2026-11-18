@@ -2,7 +2,10 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFil
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { WorldMachineCatalogCapturer } from '../../../../../src/adapter/out/worldmachine/capture/world-machine-catalog-capturer.js';
+import {
+  TRANSCRIPT_FORMAT,
+  WorldMachineCatalogCapturer,
+} from '../../../../../src/adapter/out/worldmachine/capture/world-machine-catalog-capturer.js';
 import {
   ENUM_CATALOG_4067,
   ENUM_CATALOG_4069,
@@ -97,6 +100,7 @@ describe('WorldMachineCatalogCapturer', () => {
       build: 4069,
       mode: 'short',
       serverVersion: '0.1.0-test',
+      transcriptFormat: TRANSCRIPT_FORMAT,
     });
     for (const file of ['discover.txt', 'enum.txt', 'sample.txt'])
       expect(readFileSync(join(run.workDir, file), 'utf8')).toMatch(/^>>> /);
@@ -188,6 +192,90 @@ describe('WorldMachineCatalogCapturer', () => {
     // A fresh run: discovery ran again.
     expect(wm.batches.some(discoveryBatch)).toBe(true);
     expect(result.enumOptions.build).toBe(4071);
+  });
+
+  it('treats a timeout as unknown: the pair is sent again, never recorded as crashed', async () => {
+    const workDir = workDirOf(4069, 'full');
+    const probes = (batches: readonly string[][]) => batches.filter((b) => b[0]?.startsWith('wire connect '));
+    let seen = 0;
+    const first = simulatedConsole({
+      crashWhen: (commands) => commands[0]?.startsWith('wire connect ') === true && ++seen === 2,
+    });
+    await expect(capturer.run(fullRun(workDir), first.lease, () => {}, go())).rejects.toMatchObject({
+      code: 'CRASHED',
+    });
+    const suspect = (probes(first.batches)[1] as string[]).filter((c) => c.startsWith('wire connect '));
+    const slow = suspect[0] as string;
+
+    // The second run sends the first suspect pair alone, and World Machine times out on it.
+    const second = simulatedConsole({ timeoutWhen: (commands) => commands[0] === slow });
+    await expect(capturer.run(fullRun(workDir), second.lease, () => {}, go())).rejects.toMatchObject({
+      code: 'TIMEOUT',
+    });
+    expect(
+      probes(second.batches)
+        .at(-1)
+        ?.filter((c) => c.startsWith('wire connect ')),
+    ).toEqual([slow]);
+    expect(readFileSync(join(workDir, 'probe.txt'), 'utf8')).not.toMatch(/ crashed$/m);
+
+    // The third run sends it again and completes.
+    const third = simulatedConsole();
+    const result = await capturer.run(fullRun(workDir), third.lease, () => {}, go());
+    expect(third.sent()).toContain(slow);
+    expect(result.portTypes).toMatchObject({ agreed: true, catalog: { build: 4069, kind: 'strict' } });
+  });
+
+  it.each([
+    [
+      'another mode',
+      JSON.stringify({ build: 4069, mode: 'full', serverVersion: 'x', transcriptFormat: TRANSCRIPT_FORMAT }),
+    ],
+    [
+      'another transcript format',
+      JSON.stringify({ build: 4069, mode: 'short', serverVersion: 'x', transcriptFormat: -1 }),
+    ],
+    ['an unreadable resume file', '{"build": 40'],
+  ])('does not resume a working folder with %s', async (_case, resume) => {
+    const workDir = workDirOf(4069, 'short');
+    mkdirSync(workDir, { recursive: true });
+    writeFileSync(join(workDir, 'resume.json'), resume);
+    writeFileSync(join(workDir, 'discovery.json'), '{"types":[],"notReached":[],"listedByConsole":false}');
+    const wm = simulatedConsole();
+    await capturer.run(shortRun(4069, workDir), wm.lease, () => {}, go());
+    const stale = readdirSync(join(workDir, '..')).filter((name) => name.startsWith('.capture-short.stale-'));
+    expect(stale).toHaveLength(1);
+    expect(JSON.parse(readFileSync(join(workDir, 'resume.json'), 'utf8'))).toMatchObject({
+      build: 4069,
+      mode: 'short',
+      transcriptFormat: TRANSCRIPT_FORMAT,
+    });
+    expect(wm.batches.some(discoveryBatch)).toBe(true);
+  });
+
+  it('sets a working folder it cannot read aside and names it in the failure', async () => {
+    const workDir = workDirOf(4069, 'short');
+    mkdirSync(workDir, { recursive: true });
+    const resume = { build: 4069, mode: 'short', serverVersion: 'x', transcriptFormat: TRANSCRIPT_FORMAT };
+    writeFileSync(join(workDir, 'resume.json'), JSON.stringify(resume));
+    writeFileSync(join(workDir, 'discovery.json'), '{"types":[');
+    const wm = simulatedConsole();
+    const failure = capturer.run(shortRun(4069, workDir), wm.lease, () => {}, go());
+    await expect(failure).rejects.toThrow(workDir);
+    expect(existsSync(workDir)).toBe(false);
+    const stale = readdirSync(join(workDir, '..')).filter((name) => name.startsWith('.capture-short.stale-'));
+    expect(stale).toHaveLength(1);
+    expect(wm.batches.slice(-2)).toEqual([['project close force'], ['project new blank force']]);
+  });
+
+  it('leaves a type without a range error out of the enum catalog and goes on', async () => {
+    const wm = simulatedConsole({ noRangeFor: 'Blur' });
+    const result = await capturer.run(shortRun(4069), wm.lease, () => {}, go());
+    expect(result.enumOptions.types.Blur).toBeUndefined();
+    expect(result.enumGaps).toEqual(expect.arrayContaining([expect.stringMatching(/^Blur\./)]));
+    expect(result.enumOptions.types['Advanced Perlin']).toStrictEqual(
+      ENUM_CATALOG_4069.types['Advanced Perlin'],
+    );
   });
 
   it('refuses a World Machine of another build than the run', async () => {

@@ -97,6 +97,11 @@ describe('CatalogCapture', () => {
     expect(at({ kind: 'failed', reason: 'x' })).toBe(99);
     expect(at({ kind: 'cancelled' })).toBe(99);
   });
+  it('stays below 100 percent while running, so the percent never goes back', () => {
+    const c = new CatalogCapture(4071, 'short', t(0), PHASE_MINUTES);
+    c.progress({ phase: 'install', done: 1, total: 1 }, t(0));
+    expect(c.view(t(0)).percent).toBe(99);
+  });
   it('reports the outcome once finished', () => {
     const c = new CatalogCapture(4071, 'short', t(0), PHASE_MINUTES);
     c.finish({ kind: 'cancelled' });

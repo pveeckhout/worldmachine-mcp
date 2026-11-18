@@ -113,7 +113,7 @@ export class CatalogCapture {
     return phases.slice(index + 1).reduce((sum, phase) => sum + this.phaseMinutes[phase], 0);
   }
 
-  /** 100 only once installed; a cancelled, failed, or disagreed run stops at 99 at most. */
+  /** 100 only once installed; a running, cancelled, failed, or disagreed capture reads 99 at most. */
   private percent(): number {
     if (this.outcome?.kind === 'installed') return 100;
     const phases = PHASES[this.mode];
@@ -123,8 +123,8 @@ export class CatalogCapture {
     const before = phases.slice(0, index).reduce((sum, phase) => sum + this.phaseMinutes[phase], 0);
     const fraction = this.total > 0 ? Math.min(1, this.done / this.total) : 0;
     const percent = ((before + fraction * this.phaseMinutes[this.current]) / all) * 100;
-    // Only an install completes a capture: a run that ended otherwise stays below 100.
-    return Math.min(this.outcome === undefined ? 100 : 99, Math.max(0, Math.round(percent)));
+    // Only an install completes a capture: running, or ended any other way, it stays below 100, so it never goes back.
+    return Math.min(99, Math.max(0, Math.round(percent)));
   }
 }
 
