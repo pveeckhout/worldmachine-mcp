@@ -1096,4 +1096,48 @@ describe('WorldMachineSession lease', () => {
     await waitUntil(() => record.lines().includes('EXIT'));
     expect(s.status().session.state).toBe('notRunning');
   });
+
+  it('refuses a lease while a full build runs', async () => {
+    const { session: s } = session({ FAKE_WM_BUILD_MS: '60000' });
+    await s.ensureRunning();
+    s.buildTracker()?.expect('full');
+    await s.executeOne('build start');
+    expect(() => s.lease(() => '')).toThrow(
+      expect.objectContaining({ code: 'REFUSED', message: expect.stringMatching(/build/i) }),
+    );
+  });
+
+  it('lets SHUTTING_DOWN win over CAPTURING', async () => {
+    const { session: s } = session();
+    s.lease(() => 'busy');
+    void s.shutdown();
+    expect(() => s.assertAcceptingCalls()).toThrow(expect.objectContaining({ code: 'SHUTTING_DOWN' }));
+  });
+
+  it('accepts a lease right after an exclusive action settled', async () => {
+    const { session: s } = session();
+    await s.exclusive(async () => 1);
+    expect(() => s.lease(() => 'busy')).not.toThrow();
+  });
+
+  it('rejects lease.execute and ignores bindFresh after release', async () => {
+    const { session: s } = session();
+    const lease = s.lease(() => 'busy');
+    lease.release();
+    await expect(lease.execute(['system info'])).rejects.toMatchObject({ code: 'REFUSED' });
+    lease.bindFresh();
+    expect(s.status().session).toEqual({ state: 'notRunning' });
+  });
+
+  it('ends the lease when World Machine crashes, without restarting it', async () => {
+    const { session: s, record } = session({ FAKE_WM_CRASH_ON: 'device list' });
+    const lease = s.lease(() => 'busy');
+    await lease.execute(['system info']);
+    await expect(lease.execute(['device list'])).rejects.toMatchObject({ code: 'CRASHED' });
+    await expect(lease.execute(['system info'])).rejects.toMatchObject({ code: 'CRASHED' });
+    expect(record.lines().filter((line) => line === 'START')).toHaveLength(1);
+    lease.release();
+    await expect(s.executeOne('system info')).resolves.toBeDefined();
+    expect(record.lines().filter((line) => line === 'START')).toHaveLength(2);
+  });
 });

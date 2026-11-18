@@ -105,8 +105,8 @@ export class WorldMachineSession implements WorldMachineSessionPort, LeaseSessio
 
   /** Throws SHUTTING_DOWN once shutdown began; callers check it before any precondition (spec section 6). */
   assertAcceptingCalls(): void {
-    this.#assertNotLeased();
     this.#assertNotShutDown();
+    this.#assertNotLeased();
   }
 
   #assertNotShutDown(): void {
@@ -120,15 +120,31 @@ export class WorldMachineSession implements WorldMachineSessionPort, LeaseSessio
   lease(busy: () => string): SessionLease {
     this.#assertNotLeased();
     this.#assertNotShutDown();
+    if (this.#tracker?.running) throw new WorldMachineError('REFUSED', BUILD_RUNNING);
     if (this.#inFlight > 0 || this.#exclusivePending > 0)
       throw new WorldMachineError('REFUSED', 'Another call is running; retry when it has finished');
     this.#leaseBusy = busy;
     this.#clearIdleTimer();
     let held = true;
+    // The process the lease first used; once it is gone the lease is over (the server never restarts it mid-run).
+    let used = false;
+    let generation = 0;
     return {
-      execute: (commands, timeoutMs) => {
-        if (!held) return Promise.reject(new WorldMachineError('REFUSED', 'The lease was released'));
-        return this.#execute(commands, timeoutMs);
+      execute: async (commands, timeoutMs) => {
+        if (!held) throw new WorldMachineError('REFUSED', 'The lease was released');
+        if (used && (this.#state.kind !== 'ready' || this.#generation !== generation))
+          throw new WorldMachineError(
+            'CRASHED',
+            'World Machine ended during the lease; release it and start again',
+          );
+        try {
+          return await this.#execute(commands, timeoutMs);
+        } finally {
+          if (!used) {
+            used = true;
+            generation = this.#generation;
+          }
+        }
       },
       bindFresh: () => {
         if (held) this.bind({ kind: 'fresh' });
@@ -154,18 +170,20 @@ export class WorldMachineSession implements WorldMachineSessionPort, LeaseSessio
   exclusive<T>(action: () => Promise<T>): Promise<T> {
     if (this.#leaseBusy) return Promise.reject(new WorldMachineError('CAPTURING', this.#leaseBusy()));
     this.#exclusivePending++;
-    const run = this.#exclusiveTail.then(() => {
-      // Checked when the action would start, so actions queued before the stop are refused too (spec section 6).
-      this.assertAcceptingCalls();
-      // Spec v2a section 4: every command use case is refused while a full or tiled build runs. A preview does
-      // not count: World Machine starts previews on its own after edits (fact 42).
-      if (this.#tracker?.running) throw new WorldMachineError('REFUSED', BUILD_RUNNING);
-      return action();
+    const run = this.#exclusiveTail.then(async () => {
+      try {
+        // Checked when the action would start, so actions queued before the stop are refused too (spec section 6).
+        this.assertAcceptingCalls();
+        // Spec v2a section 4: every command use case is refused while a full or tiled build runs. A preview does
+        // not count: World Machine starts previews on its own after edits (fact 42).
+        if (this.#tracker?.running) throw new WorldMachineError('REFUSED', BUILD_RUNNING);
+        return await action();
+      } finally {
+        // Before `run` settles, so a caller that awaits it can take a lease at once.
+        this.#exclusivePending--;
+      }
     });
     this.#exclusiveTail = run.catch(() => undefined);
-    void this.#exclusiveTail.then(() => {
-      this.#exclusivePending--;
-    });
     return run;
   }
 
