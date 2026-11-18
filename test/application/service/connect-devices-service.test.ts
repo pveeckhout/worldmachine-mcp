@@ -25,7 +25,6 @@ const WIRE = {
   created: true,
 };
 const command = { source: { device: '#1' }, destination: { device: '#2' } };
-const command2 = command;
 
 describe('ConnectDevicesService verdicts', () => {
   it('records a refusal, rethrows with the verdict added to the details', async () => {
@@ -79,7 +78,7 @@ describe('ConnectDevicesService verdicts', () => {
       wires,
       new WireVerdicts(sampleDerivedPortTypes, store),
     );
-    const view = await service.connectDevices(command2);
+    const view = await service.connectDevices(command);
     expect(view).toEqual({
       ...WIRE,
       verdict: expect.objectContaining({ verdict: 'accepted', outcome: 'recorded' }),

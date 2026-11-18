@@ -53,6 +53,14 @@ describe('WireVerdicts', () => {
     expect(store.recorded).toEqual([]);
   });
 
+  it('answers undefined and records nothing when no catalog is in use', () => {
+    const store = memoryRecorder();
+    const none = { ...sampleDerivedPortTypes, catalogInUse: () => undefined };
+    const verdicts = new WireVerdicts(none as unknown as typeof sampleDerivedPortTypes, store, now);
+    expect(verdicts.observe(typed('compatible'), 'refused', 'apply_graph')).toBeUndefined();
+    expect(store.recorded).toEqual([]);
+  });
+
   it('answers undefined without typing', () => {
     const store = memoryRecorder();
     expect(

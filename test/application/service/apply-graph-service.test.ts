@@ -953,7 +953,13 @@ describe('ApplyGraphService verdicts', () => {
     ],
   };
   const apply = (connect: () => Promise<unknown>) => {
+    const order: string[] = [];
     const store = memoryRecorder();
+    const record = store.record;
+    store.record = (correction) => {
+      order.push('record');
+      record(correction);
+    };
     let adds = 0;
     const kinds = ['Create Water', 'Combiner'];
     const session = {
@@ -993,7 +999,10 @@ describe('ApplyGraphService verdicts', () => {
         list: async () => [],
         create: async (name: string) => ({ index: 0, name }),
         remove: async () => ({}),
-        restore: async () => ({}),
+        restore: async () => {
+          order.push('restore');
+          return {};
+        },
       }),
       sampleDerivedPortTypes,
       stub<ConstructorParameters<typeof ApplyGraphService>[7]>({}),
@@ -1001,7 +1010,7 @@ describe('ApplyGraphService verdicts', () => {
       new WireVerdicts(sampleDerivedPortTypes, store),
     );
     const id = planId(validateGraphSpec(spec), { projectPath: null, devices: [], details: [] });
-    return { store, run: () => service.applyGraph({ spec, planId: id, keepSnapshot: false }) };
+    return { store, order, run: () => service.applyGraph({ spec, planId: id, keepSnapshot: false }) };
   };
 
   it('lists the verdicts of an apply', async () => {
@@ -1030,6 +1039,16 @@ describe('ApplyGraphService verdicts', () => {
       details: { verdicts: [expect.objectContaining({ verdict: 'refused', outcome: 'recorded' })] },
     });
     expect(store.recorded).toHaveLength(1);
+  });
+
+  it('records a refusal before the restore runs', async () => {
+    const { order, run } = apply(async () => {
+      throw new WorldMachineError('WM_COMMAND_FAILED', 'incompatible types?', undefined, {
+        typing: typing('compatible'),
+      });
+    });
+    await run().catch(() => undefined);
+    expect(order).toEqual(['record', 'restore']);
   });
 
   it('answers a failure with an empty verdicts list when the step carried no typing', async () => {
