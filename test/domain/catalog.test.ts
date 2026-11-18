@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { CatalogKind, CatalogOrigin } from '../../src/domain/catalog.js';
-import { catalogLabel, selectCatalog } from '../../src/domain/catalog.js';
+import type { CatalogKind, CatalogOrigin, WireVerdict } from '../../src/domain/catalog.js';
+import { catalogLabel, correctionIndex, pairKey, selectCatalog } from '../../src/domain/catalog.js';
 
 const c = (build: number, kind: CatalogKind, origin: CatalogOrigin) => ({ source: { build, kind, origin } });
 
@@ -34,5 +34,24 @@ describe('catalogLabel', () => {
     expect(catalogLabel({ build: 4071, kind: 'sample-derived', origin: 'local' })).toBe('local short');
     expect(catalogLabel({ build: 4071, kind: 'strict', origin: 'local' })).toBe('local full');
     expect(catalogLabel({ build: 4069, kind: 'sample-derived', origin: 'shipped' })).toBe('shipped');
+  });
+});
+
+describe('port-type corrections', () => {
+  const water = { type: 'Create Water', port: 'Water System' };
+  const output = { type: 'Height Output', port: 'Input' };
+  it('keys a pair by type and port name', () => {
+    expect(pairKey(water, output)).toBe('Create Water.Water System->Height Output.Input');
+  });
+  it('the last verdict of a pair wins in the index', () => {
+    const corr = (verdict: WireVerdict) => ({
+      build: 4069,
+      output: water,
+      input: output,
+      verdict,
+      source: 'apply_graph' as const,
+      at: '',
+    });
+    expect(correctionIndex([corr('refused'), corr('accepted')]).get(pairKey(water, output))).toBe('accepted');
   });
 });

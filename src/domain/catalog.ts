@@ -96,3 +96,34 @@ export type EnumCatalog = {
     >
   >;
 };
+
+/** One end of a wire: device type and port name. */
+export type PortRef = { readonly type: string; readonly port: string };
+export type WireVerdict = 'accepted' | 'refused';
+export type VerdictSource = 'apply_graph' | 'connect_devices';
+export type PortTypeCorrection = {
+  readonly build: number;
+  readonly output: PortRef;
+  readonly input: PortRef;
+  readonly verdict: WireVerdict;
+  readonly source: VerdictSource;
+  readonly at: string;
+};
+
+/** `Type.Output`, as in port-type-names.4067.json. */
+export function portKey(ref: PortRef): string {
+  return `${ref.type}.${ref.port}`;
+}
+
+export function pairKey(output: PortRef, input: PortRef): string {
+  return `${portKey(output)}->${portKey(input)}`;
+}
+
+/** The verdict per pair; a later correction of the same pair replaces an earlier one. */
+export function correctionIndex(
+  corrections: readonly PortTypeCorrection[],
+): ReadonlyMap<string, WireVerdict> {
+  const index = new Map<string, WireVerdict>();
+  for (const c of corrections) index.set(pairKey(c.output, c.input), c.verdict);
+  return index;
+}
