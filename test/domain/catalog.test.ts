@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { CatalogKind, CatalogOrigin, WireVerdict } from '../../src/domain/catalog.js';
-import { catalogLabel, correctionIndex, pairKey, selectCatalog } from '../../src/domain/catalog.js';
+import {
+  catalogLabel,
+  correctionIndex,
+  judgeVerdict,
+  pairKey,
+  selectCatalog,
+} from '../../src/domain/catalog.js';
+import type { WireCompatibility } from '../../src/domain/port-types.js';
 
 const c = (build: number, kind: CatalogKind, origin: CatalogOrigin) => ({ source: { build, kind, origin } });
 
@@ -53,5 +60,48 @@ describe('port-type corrections', () => {
       at: '',
     });
     expect(correctionIndex([corr('refused'), corr('accepted')]).get(pairKey(water, output))).toBe('accepted');
+  });
+});
+
+describe('judgeVerdict', () => {
+  const water = { type: 'Create Water', port: 'Water System' };
+  const output = { type: 'Height Output', port: 'Input' };
+  const typed = (predicted: WireCompatibility) => ({ output: water, input: output, predicted });
+  it('records a refusal the sample-derived catalog called compatible', () => {
+    expect(judgeVerdict('sample-derived', typed('compatible'), 'refused')).toMatchObject({
+      outcome: 'recorded',
+      verdict: 'refused',
+    });
+  });
+  it('records an acceptance the sample-derived catalog called a conflict', () => {
+    expect(judgeVerdict('sample-derived', typed('incompatible'), 'accepted')).toMatchObject({
+      outcome: 'recorded',
+    });
+  });
+  it('says nothing when World Machine agrees', () => {
+    expect(judgeVerdict('sample-derived', typed('compatible'), 'accepted')).toBeUndefined();
+    expect(judgeVerdict('sample-derived', typed('incompatible'), 'refused')).toBeUndefined();
+  });
+  it('only reports a contradiction of a strict catalog', () => {
+    expect(judgeVerdict('strict', typed('compatible'), 'refused')).toMatchObject({
+      outcome: 'reported',
+      reason: 'strict catalog',
+    });
+  });
+  it('never records a pair with an adaptive end', () => {
+    const fed = {
+      output: { type: 'Combiner', port: 'Output' },
+      input: output,
+      predicted: 'compatible' as const,
+    };
+    expect(judgeVerdict('sample-derived', fed, 'refused')).toMatchObject({
+      outcome: 'reported',
+      reason: 'adaptive device',
+    });
+  });
+  it('says nothing for an unchecked wire', () => {
+    expect(judgeVerdict('sample-derived', typed('unchecked'), 'refused')).toBeUndefined();
+    const untyped = { output: undefined, input: output, predicted: 'unchecked' as const };
+    expect(judgeVerdict('sample-derived', untyped, 'accepted')).toBeUndefined();
   });
 });

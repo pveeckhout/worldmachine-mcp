@@ -1,3 +1,5 @@
+import type { WireCompatibility } from './port-types.js';
+
 /** Whether a catalog comes from a full probe run (strict) or from a sample checked against a strict base. */
 export type CatalogKind = 'strict' | 'sample-derived';
 /** Where a catalog comes from: shipped with the server, or built on this machine. */
@@ -126,4 +128,42 @@ export function correctionIndex(
   const index = new Map<string, WireVerdict>();
   for (const c of corrections) index.set(pairKey(c.output, c.input), c.verdict);
   return index;
+}
+
+/** Devices that may take their type from their inputs; their wires are never corrected. */
+export const ADAPTIVE_TYPES: ReadonlySet<string> = new Set(['Chooser', 'Combiner', 'Layers', 'Router']);
+
+/** What the connect showed: both ends' refs when typed, the catalog's prediction (with corrections applied). */
+export type WireTyping = {
+  readonly output: PortRef | undefined;
+  readonly input: PortRef | undefined;
+  readonly predicted: WireCompatibility;
+};
+
+export type VerdictReport = {
+  readonly pair: string;
+  readonly verdict: WireVerdict;
+  readonly predicted: 'compatible' | 'incompatible';
+  readonly outcome: 'recorded' | 'reported';
+  /** Why it was only reported: 'strict catalog' or 'adaptive device'. Absent when recorded. */
+  readonly reason?: string;
+};
+
+/** undefined when World Machine agreed with the prediction, or the wire was unchecked with no typed end at all. */
+export function judgeVerdict(
+  kind: CatalogKind | undefined,
+  typing: WireTyping,
+  verdict: WireVerdict,
+): VerdictReport | undefined {
+  const { output, input, predicted } = typing;
+  if (predicted === 'unchecked') return undefined;
+  if ((verdict === 'accepted') === (predicted === 'compatible')) return undefined;
+  const pair = `${output ? portKey(output) : '?'}->${input ? portKey(input) : '?'}`;
+  const base = { pair, verdict, predicted };
+  const adaptive =
+    (output !== undefined && ADAPTIVE_TYPES.has(output.type)) ||
+    (input !== undefined && ADAPTIVE_TYPES.has(input.type));
+  if (adaptive) return { ...base, outcome: 'reported', reason: 'adaptive device' };
+  if (kind === 'strict') return { ...base, outcome: 'reported', reason: 'strict catalog' };
+  return { ...base, outcome: 'recorded' };
 }
