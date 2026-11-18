@@ -349,7 +349,10 @@ describe('WorldMachineGraphReader enum options (enum-options design section 4)',
   });
 
   it('attaches enum options added after startup', async () => {
-    const registry = new CatalogRegistry([], [{ ...ENUM_CATALOG_4067, build: 4066 }], [], '/catalogs');
+    const registry = new CatalogRegistry({
+      shippedEnums: [{ ...ENUM_CATALOG_4067, build: 4066 }],
+      catalogDir: '/catalogs',
+    });
     const { reader: r, session } = reader({}, registry);
     await session.execute(['project new blank force', 'device add Combiner']);
     expect((await r.getDevice('#1')).parameters.find((p) => p.name === 'Method')).not.toHaveProperty(

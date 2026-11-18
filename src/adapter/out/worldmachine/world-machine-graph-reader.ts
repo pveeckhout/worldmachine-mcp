@@ -27,6 +27,7 @@ export class WorldMachineGraphReader implements ProjectGraphReadPort {
   /**
    * `catalogs`: the enum options getDevice attaches, from the one of World Machine's build (enum-options design
    * section 4); tests pass a small one.
+   * `catalogs` may be a live CatalogRegistry or an array (treated as shipped, never replaced).
    * `portTypes`: the port types it attaches (port-types design section 6); none unless main.ts passes the shipped
    * catalog (port-types plan decision D3).
    */
@@ -37,7 +38,9 @@ export class WorldMachineGraphReader implements ProjectGraphReadPort {
   ) {
     this.#session = session;
     this.#registry =
-      catalogs instanceof CatalogRegistry ? catalogs : new CatalogRegistry([], catalogs, [], '');
+      catalogs instanceof CatalogRegistry
+        ? catalogs
+        : new CatalogRegistry({ shippedEnums: catalogs, catalogDir: '' });
     this.#portTypes = portTypes;
   }
 

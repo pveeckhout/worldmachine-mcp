@@ -102,12 +102,13 @@ for (const problem of localCatalogs.problems) logger.warn(`local catalog ignored
 const corrections = new FsPortTypeCorrections(config.catalogDir, logger);
 for (const problem of corrections.problems()) logger.warn(`port-type corrections ignored: ${problem}`);
 // One live registry for both adapters: an installed catalog answers the next call (register-catalogs-port.ts).
-const catalogs = new CatalogRegistry(
-  [...PORT_TYPE_CATALOGS, ...localCatalogs.portTypeCatalogs.map(local)],
-  [...ENUM_CATALOGS, ...localCatalogs.enumCatalogs],
-  localCatalogs.problems,
-  config.catalogDir,
-);
+const catalogs = new CatalogRegistry({
+  portTypes: [...PORT_TYPE_CATALOGS, ...localCatalogs.portTypeCatalogs.map(local)],
+  shippedEnums: ENUM_CATALOGS,
+  localEnums: localCatalogs.enumCatalogs,
+  problems: localCatalogs.problems,
+  catalogDir: config.catalogDir,
+});
 const portTypes = new WorldMachinePortTypes(session, catalogs, [], corrections);
 const reader = new WorldMachineGraphReader(session, catalogs, portTypes);
 const writer = new WorldMachineProjectWriter(session);

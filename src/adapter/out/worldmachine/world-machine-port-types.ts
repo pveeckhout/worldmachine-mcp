@@ -104,6 +104,7 @@ export class WorldMachinePortTypes implements PortTypeCatalogPort {
   readonly #registry: CatalogRegistry;
   readonly #corrections: PortTypeCorrectionsPort | undefined;
 
+  /** `problems` applies to an array of catalogs only; a registry's own problems take precedence. */
   constructor(
     session: Pick<WorldMachineSessionPort, 'status'>,
     catalogs: CatalogRegistry | readonly SourcedPortTypeCatalog[],
@@ -112,7 +113,9 @@ export class WorldMachinePortTypes implements PortTypeCatalogPort {
   ) {
     this.#session = session;
     this.#registry =
-      catalogs instanceof CatalogRegistry ? catalogs : new CatalogRegistry(catalogs, [], problems, '');
+      catalogs instanceof CatalogRegistry
+        ? catalogs
+        : new CatalogRegistry({ portTypes: catalogs, problems, catalogDir: '' });
     this.#corrections = corrections;
   }
 
