@@ -10,6 +10,8 @@ import { parseSceneList, parseSceneShow } from '../../../../src/adapter/out/worl
 import { parseSnapshotList } from '../../../../src/adapter/out/worldmachine/parsers/snapshot-list.js';
 import { parseWireList } from '../../../../src/adapter/out/worldmachine/parsers/wire-list.js';
 import type { BuildProjectCommand } from '../../../../src/application/port/in/command/build-project-command.js';
+import { ConnectDevicesService } from '../../../../src/application/service/connect-devices-service.js';
+import { WireVerdicts } from '../../../../src/application/service/wire-verdicts.js';
 import { NOT_BUILT_HINT } from '../../../../src/domain/build-result.js';
 import type { DeviceDetail } from '../../../../src/domain/device.js';
 import { WorldMachineError } from '../../../../src/domain/errors.js';
@@ -17,6 +19,8 @@ import type { ProjectOverview } from '../../../../src/domain/project.js';
 import type { Scene } from '../../../../src/domain/scene.js';
 import type { SessionSummary } from '../../../../src/domain/session.js';
 import { createLogger, type Logger } from '../../../../src/logger.js';
+import { sampleDerivedPortTypes } from '../../../support/port-types.js';
+import { memoryRecorder } from '../../../support/wire-verdicts.js';
 import { fixtureLines, rawFrame } from '../../out/worldmachine/parsers/fixture.js';
 
 const READY = { state: 'ready', binding: { kind: 'fresh' }, dirty: false } as const;
@@ -815,6 +819,65 @@ describe('createMcpServer', () => {
       ...details,
       session: READY,
     });
+  });
+
+  it('reports a refused connect_devices with its verdict and without the typing', async () => {
+    const typing = {
+      output: { type: 'Create Water', port: 'Water System' },
+      input: { type: 'Height Output', port: 'Primary Input' },
+      predicted: 'compatible',
+    };
+    const wires = {
+      connect: async () => {
+        throw new WorldMachineError('WM_COMMAND_FAILED', 'incompatible types?', 'wm said no', { typing });
+      },
+    };
+    const sessionStub = {
+      status: () => ({ executable: null, session: READY, generation: 1 }),
+      exclusive: <T>(action: () => Promise<T>) => action(),
+    };
+    const service = new ConnectDevicesService(
+      sessionStub as never,
+      wires as never,
+      new WireVerdicts(sampleDerivedPortTypes, memoryRecorder()),
+    );
+    const client = await connect(deps({ connectDevices: service }));
+    const result = await client.callTool({
+      name: 'connect_devices',
+      arguments: { source: '#1', destination: '#2' },
+    });
+    expect(result.isError).toBe(true);
+    const payload = JSON.parse((result.content as { text: string }[])[0]?.text ?? '');
+    expect(payload).toMatchObject({
+      code: 'WM_COMMAND_FAILED',
+      verdict: { verdict: 'refused', outcome: 'recorded' },
+    });
+    expect(payload).not.toHaveProperty('typing');
+  });
+
+  it('reports the verdicts of an APPLY_FAILED beside the other details', async () => {
+    const verdicts = [
+      { pair: 'A.B -> C.D', verdict: 'refused', predicted: 'compatible', outcome: 'recorded' },
+    ];
+    const client = await connect(
+      deps({
+        applyGraph: {
+          applyGraph: async () => {
+            throw new WorldMachineError('APPLY_FAILED', 'Step 1 of 1 failed', undefined, {
+              completedSteps: 0,
+              rolledBack: true,
+              verdicts,
+            });
+          },
+        },
+      }),
+    );
+    const result = await client.callTool({
+      name: 'apply_graph',
+      arguments: { spec: GRAPH_SPEC, plan_id: PLAN_ID },
+    });
+    const payload = JSON.parse((result.content as { text: string }[])[0]?.text ?? '');
+    expect(payload).toMatchObject({ code: 'APPLY_FAILED', verdicts });
   });
 
   it('marks save_project as destructive and the other commands as not destructive', async () => {

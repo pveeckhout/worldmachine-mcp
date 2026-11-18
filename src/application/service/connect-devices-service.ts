@@ -27,8 +27,10 @@ export class ConnectDevicesService implements ConnectDevicesCommandPort {
       } catch (error) {
         const verdict = this.#verdicts.observeRefusal(error, 'connect_devices');
         if (verdict === undefined || !(error instanceof WorldMachineError)) throw error;
+        // The typing is the catalog's prediction, an internal shape; the verdict is what the caller sees.
+        const { typing: _typing, ...details } = error.details ?? {};
         throw new WorldMachineError(error.code, error.message, error.worldMachineMessage, {
-          ...error.details,
+          ...details,
           verdict,
         });
       }

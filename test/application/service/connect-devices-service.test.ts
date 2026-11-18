@@ -27,7 +27,7 @@ const WIRE = {
 const command = { source: { device: '#1' }, destination: { device: '#2' } };
 
 describe('ConnectDevicesService verdicts', () => {
-  it('records a refusal, rethrows with the verdict added to the details', async () => {
+  it('records a refusal, rethrows with the verdict added to the details and the typing dropped', async () => {
     const store = memoryRecorder();
     const refusal = new WorldMachineError('WM_COMMAND_FAILED', 'incompatible types?', 'wm said no', {
       typing,
@@ -48,8 +48,9 @@ describe('ConnectDevicesService verdicts', () => {
       code: 'WM_COMMAND_FAILED',
       message: 'incompatible types?',
       worldMachineMessage: 'wm said no',
-      details: { typing, verdict: { verdict: 'refused', outcome: 'recorded' } },
+      details: { verdict: { verdict: 'refused', outcome: 'recorded' } },
     });
+    expect((error as WorldMachineError).details).not.toHaveProperty('typing');
     expect(store.recorded).toHaveLength(1);
   });
 
