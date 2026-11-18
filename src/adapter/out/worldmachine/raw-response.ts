@@ -1,10 +1,7 @@
+import type { ConsoleReply } from '../../../application/port/out/lease-session-port.js';
 import { WorldMachineError } from '../../../domain/errors.js';
 
-export type RawResponse = {
-  readonly command: string;
-  readonly output: readonly string[];
-  readonly errors: readonly string[];
-};
+export type RawResponse = ConsoleReply;
 
 export function throwIfFailed(response: RawResponse): void {
   if (response.errors.length > 0) {
