@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PortTypeCorrectionsPort } from '../../../application/port/out/port-type-corrections-port.js';
 import type { RecordPortTypeCorrectionPort } from '../../../application/port/out/record-port-type-correction-port.js';
@@ -6,7 +6,6 @@ import {
   correctionIndex,
   type PortRef,
   type PortTypeCorrection,
-  pairKey,
   portKey,
   type VerdictSource,
   type WireVerdict,
@@ -26,7 +25,9 @@ function parseRef(value: unknown): PortRef {
     throw new Error(`bad port key ${JSON.stringify(value)}`);
   }
   const dot = value.indexOf('.');
-  return { type: value.slice(0, dot), port: value.slice(dot + 1) };
+  const ref = { type: value.slice(0, dot), port: value.slice(dot + 1) };
+  if (ref.type === '' || ref.port === '') throw new Error(`bad port key ${JSON.stringify(value)}`);
+  return ref;
 }
 
 function parseFile(json: unknown, build: number): PortTypeCorrection[] {
@@ -63,17 +64,18 @@ export class FsPortTypeCorrections implements RecordPortTypeCorrectionPort, Port
   readonly #entries = new Map<number, PortTypeCorrection[]>();
   readonly #failed = new Map<number, string>();
   readonly #problems: string[] = [];
+  #directoryFailure: string | undefined;
 
   constructor(directory: string, logger: Logger) {
     this.#directory = directory;
     this.#logger = logger;
     for (const name of this.#builds()) {
       const path = join(directory, name, FILE);
-      if (!existsSync(path)) continue;
       const build = Number(name);
       try {
         this.#entries.set(build, parseFile(JSON.parse(readFileSync(path, 'utf8')), build));
       } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
         this.#failed.set(build, path);
         this.#problems.push(`${path}: ${message(error)}`);
       }
@@ -93,6 +95,11 @@ export class FsPortTypeCorrections implements RecordPortTypeCorrectionPort, Port
     const { build } = correction;
     const folder = join(this.#directory, String(build));
     const path = join(folder, FILE);
+    if (this.#directoryFailure !== undefined) {
+      throw new Error(
+        `port-type corrections for build ${build} were not loaded: ${this.#directoryFailure}; fix or move the file`,
+      );
+    }
     if (this.#failed.has(build)) {
       throw new Error(
         `port-type corrections for build ${build} were not loaded: ${this.#failed.get(build)}; fix or move the file`,
@@ -117,7 +124,7 @@ export class FsPortTypeCorrections implements RecordPortTypeCorrectionPort, Port
     writeFileAtomic(path, text);
     this.#entries.set(build, next);
     this.#logger.info(
-      `port-type correction: build ${build}, ${pairKey(correction.output, correction.input).replace('->', ' -> ')} ${correction.verdict} (${correction.source})`,
+      `port-type correction: build ${build}, ${portKey(correction.output)} -> ${portKey(correction.input)} ${correction.verdict} (${correction.source})`,
     );
   }
 
@@ -132,6 +139,7 @@ export class FsPortTypeCorrections implements RecordPortTypeCorrectionPort, Port
         .sort();
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        this.#directoryFailure = this.#directory;
         this.#problems.push(`${this.#directory}: ${message(error)}`);
       }
       return [];

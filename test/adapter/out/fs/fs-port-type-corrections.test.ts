@@ -1,7 +1,7 @@
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { FsPortTypeCorrections } from '../../../../src/adapter/out/fs/fs-port-type-corrections.js';
 import { type PortTypeCorrection, pairKey } from '../../../../src/domain/catalog.js';
 import { captureLogger } from '../../../support/fake-wm.js';
@@ -131,10 +131,60 @@ describe('FsPortTypeCorrections', () => {
     );
   });
 
-  it('parses names with spaces by splitting on the first dot', () => {
-    const { dir, logger } = setup();
-    new FsPortTypeCorrections(dir, logger).record(refused);
-    const raw = JSON.parse(readFileSync(join(dir, FILE), 'utf8'));
-    expect(raw.corrections[0].output).toBe('Create Water.Water System');
+  it('does not overwrite a file whose second entry is bad', () => {
+    const { dir, logger, write, read } = setup();
+    const good = {
+      output: 'Create Water.Water System',
+      input: 'Height Output.Input',
+      verdict: 'refused',
+      source: 'apply_graph',
+      at: 'x',
+    };
+    const text = JSON.stringify({ build: 4069, corrections: [good, { ...good, verdict: 'maybe' }] });
+    write(FILE, text);
+    const store = new FsPortTypeCorrections(dir, logger);
+    expect(store.correctionsFor(4069)).toBeUndefined();
+    expect(() => store.record(refused)).toThrow(/were not loaded/);
+    expect(read(FILE)).toBe(text);
+  });
+
+  it.each([
+    ['an empty type', { output: '.Port' }],
+    ['an empty port', { input: 'Type.' }],
+  ])('treats %s as a corrupt file', (_name, entry) => {
+    const { dir, logger, write } = setup();
+    write(FILE, fileWith(entry));
+    expect(new FsPortTypeCorrections(dir, logger).problems()).toHaveLength(1);
+  });
+
+  describe('unreadable storage', () => {
+    const restore: string[] = [];
+    afterEach(() => {
+      for (const path of restore.splice(0)) chmodSync(path, 0o700);
+    });
+
+    it('refuses every record when the directory cannot be listed', () => {
+      const { dir, logger, write, read } = setup();
+      write(FILE, '{"build":4069,"corrections":[]}');
+      restore.push(dir);
+      chmodSync(dir, 0o300);
+      const store = new FsPortTypeCorrections(dir, logger);
+      expect(store.problems()).toEqual([expect.stringContaining(dir)]);
+      expect(() => store.record(refused)).toThrow(/were not loaded: .*fix or move/);
+      chmodSync(dir, 0o700);
+      expect(read(FILE)).toBe('{"build":4069,"corrections":[]}');
+    });
+
+    it('treats an unreadable corrections file as failed to load', () => {
+      const { dir, logger, write, read } = setup();
+      write(FILE, '{"build":4069,"corrections":[]}');
+      restore.push(join(dir, FILE));
+      chmodSync(join(dir, FILE), 0o000);
+      const store = new FsPortTypeCorrections(dir, logger);
+      expect(store.problems()).toEqual([expect.stringContaining('4069/port-type-corrections.json')]);
+      expect(() => store.record(refused)).toThrow(/were not loaded/);
+      chmodSync(join(dir, FILE), 0o600);
+      expect(read(FILE)).toBe('{"build":4069,"corrections":[]}');
+    });
   });
 });
