@@ -1,3 +1,4 @@
+import type { LeaseSessionPort, SessionLease } from '../../../application/port/out/lease-session-port.js';
 import type { PathPolicyPort } from '../../../application/port/out/path-policy-port.js';
 import type {
   SessionStatus,
@@ -52,7 +53,7 @@ const KEEP_DURING_SHUTDOWN = new Set<ErrorCode>([
   'UNEXPECTED_OUTPUT',
 ]);
 
-export class WorldMachineSession implements WorldMachineSessionPort {
+export class WorldMachineSession implements WorldMachineSessionPort, LeaseSessionPort {
   readonly #options: SessionOptions;
   #state: SessionState = { kind: 'notRunning' };
   #starting: Promise<void> | undefined;
@@ -78,6 +79,10 @@ export class WorldMachineSession implements WorldMachineSessionPort {
   #inFlight = 0;
   #shutDown = false;
   #exclusiveTail: Promise<unknown> = Promise.resolve();
+  /** Exclusive actions called and not yet settled; a lease is refused while any exist. */
+  #exclusivePending = 0;
+  /** The wording of the CAPTURING refusal while a lease is held; undefined otherwise. */
+  #leaseBusy: (() => string) | undefined;
   /** The project the next start opens instead of the default project (spec section 6); that start forgets it. */
   #reopen: string | undefined;
   /** Build-status-check design section 6 and plan decision D4: see projectRevision(). */
@@ -100,7 +105,41 @@ export class WorldMachineSession implements WorldMachineSessionPort {
 
   /** Throws SHUTTING_DOWN once shutdown began; callers check it before any precondition (spec section 6). */
   assertAcceptingCalls(): void {
+    this.#assertNotLeased();
+    this.#assertNotShutDown();
+  }
+
+  #assertNotShutDown(): void {
     if (this.#shutDown) throw new WorldMachineError('SHUTTING_DOWN', SHUTTING_DOWN_MESSAGE);
+  }
+
+  #assertNotLeased(): void {
+    if (this.#leaseBusy) throw new WorldMachineError('CAPTURING', this.#leaseBusy());
+  }
+
+  lease(busy: () => string): SessionLease {
+    this.#assertNotLeased();
+    this.#assertNotShutDown();
+    if (this.#inFlight > 0 || this.#exclusivePending > 0)
+      throw new WorldMachineError('REFUSED', 'Another call is running; retry when it has finished');
+    this.#leaseBusy = busy;
+    this.#clearIdleTimer();
+    let held = true;
+    return {
+      execute: (commands, timeoutMs) => {
+        if (!held) return Promise.reject(new WorldMachineError('REFUSED', 'The lease was released'));
+        return this.#execute(commands, timeoutMs);
+      },
+      bindFresh: () => {
+        if (held) this.bind({ kind: 'fresh' });
+      },
+      release: () => {
+        if (!held) return;
+        held = false;
+        this.#leaseBusy = undefined;
+        this.#armIdleTimer();
+      },
+    };
   }
 
   forgetReopen(): void {
@@ -113,6 +152,8 @@ export class WorldMachineSession implements WorldMachineSessionPort {
   }
 
   exclusive<T>(action: () => Promise<T>): Promise<T> {
+    if (this.#leaseBusy) return Promise.reject(new WorldMachineError('CAPTURING', this.#leaseBusy()));
+    this.#exclusivePending++;
     const run = this.#exclusiveTail.then(() => {
       // Checked when the action would start, so actions queued before the stop are refused too (spec section 6).
       this.assertAcceptingCalls();
@@ -122,10 +163,22 @@ export class WorldMachineSession implements WorldMachineSessionPort {
       return action();
     });
     this.#exclusiveTail = run.catch(() => undefined);
+    void this.#exclusiveTail.then(() => {
+      this.#exclusivePending--;
+    });
     return run;
   }
 
   ensureRunning(): Promise<void> {
+    try {
+      this.#assertNotLeased();
+    } catch (error) {
+      return Promise.reject(error);
+    }
+    return this.#ensureRunning();
+  }
+
+  #ensureRunning(): Promise<void> {
     if (this.#state.kind === 'ready') return Promise.resolve();
     // Checked before a start is created, so no start is left without a caller; it also outranks the dialog below.
     if (this.#shutDown) return Promise.reject(new WorldMachineError('SHUTTING_DOWN', SHUTTING_DOWN_MESSAGE));
@@ -145,10 +198,15 @@ export class WorldMachineSession implements WorldMachineSessionPort {
   /** `timeoutMs` replaces the command timeout for this batch (see `CommandQueue.execute`). */
   async execute(commands: readonly string[], timeoutMs?: number): Promise<readonly RawResponse[]> {
     this.assertAcceptingCalls();
+    return this.#execute(commands, timeoutMs);
+  }
+
+  async #execute(commands: readonly string[], timeoutMs?: number): Promise<readonly RawResponse[]> {
+    this.#assertNotShutDown();
     this.#inFlight++;
     this.#clearIdleTimer();
     try {
-      await this.ensureRunning();
+      await this.#ensureRunning();
       const proc = this.#process;
       const queue = this.#queue;
       if (!queue) throw new WorldMachineError('CRASHED', 'World Machine is not running');
@@ -466,7 +524,13 @@ export class WorldMachineSession implements WorldMachineSessionPort {
 
   #armIdleTimer(): void {
     this.#clearIdleTimer();
-    if (this.#options.idleTimeoutMs <= 0 || this.#inFlight > 0 || this.#state.kind !== 'ready') return;
+    if (
+      this.#options.idleTimeoutMs <= 0 ||
+      this.#inFlight > 0 ||
+      this.#leaseBusy ||
+      this.#state.kind !== 'ready'
+    )
+      return;
     // Spec v2a section 5: no idle quit while a full or tiled build runs; the tracker re-arms the timer at its end.
     if (this.#tracker?.running) return;
     this.#idleTimer = setTimeout(() => void this.#onIdle(), this.#options.idleTimeoutMs);
@@ -480,7 +544,7 @@ export class WorldMachineSession implements WorldMachineSessionPort {
 
   async #onIdle(): Promise<void> {
     const state = this.#state;
-    if (state.kind !== 'ready' || this.#inFlight > 0 || this.#tracker?.running) return;
+    if (state.kind !== 'ready' || this.#inFlight > 0 || this.#leaseBusy || this.#tracker?.running) return;
     if (state.dirty) {
       this.#options.logger.warn('Idle timeout reached with unsaved changes; World Machine stays open');
       return;

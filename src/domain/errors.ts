@@ -7,7 +7,8 @@ export type ErrorCode =
   | 'CRASHED'
   | 'UNEXPECTED_OUTPUT'
   | 'SHUTTING_DOWN'
-  | 'APPLY_FAILED';
+  | 'APPLY_FAILED'
+  | 'CAPTURING';
 
 export class WorldMachineError extends Error {
   readonly code: ErrorCode;

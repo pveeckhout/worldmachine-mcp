@@ -1027,3 +1027,73 @@ describe("WorldMachineSession and the 'Recover crashed session' dialog (fact 73)
     });
   });
 });
+
+describe('WorldMachineSession lease', () => {
+  it('refuses other calls while a lease is held', async () => {
+    const { session: s } = session();
+    await s.ensureRunning();
+    const lease = s.lease(() => 'capturing build 4071');
+    const refused = { code: 'CAPTURING', message: 'capturing build 4071' };
+    await expect(s.executeOne('system info')).rejects.toMatchObject(refused);
+    await expect(s.ensureRunning()).rejects.toMatchObject(refused);
+    await expect(s.exclusive(async () => 1)).rejects.toMatchObject(refused);
+    expect(() => s.assertAcceptingCalls()).toThrow(expect.objectContaining(refused));
+    expect(s.status().session.state).toBe('ready');
+    lease.release();
+    await expect(s.executeOne('system info')).resolves.toBeDefined();
+  });
+
+  it('refuses a second lease with CAPTURING', () => {
+    const { session: s } = session();
+    s.lease(() => 'busy');
+    expect(() => s.lease(() => 'other')).toThrow(
+      expect.objectContaining({ code: 'CAPTURING', message: 'busy' }),
+    );
+  });
+
+  it('refuses a lease while another tool holds the session', () => {
+    const { session: s } = session();
+    void s.exclusive(() => new Promise(() => {}));
+    expect(() => s.lease(() => '')).toThrow(expect.objectContaining({ code: 'REFUSED' }));
+  });
+
+  it('refuses a lease while a call is in flight', async () => {
+    const { session: s } = session({ FAKE_WM_DELAY_ON: 'device list', FAKE_WM_DELAY_MS: '300' });
+    await s.ensureRunning();
+    const running = s.executeOne('device list');
+    expect(() => s.lease(() => '')).toThrow(expect.objectContaining({ code: 'REFUSED' }));
+    await running;
+  });
+
+  it("runs the lease holder's commands and binds a fresh project", async () => {
+    const { session: s } = session();
+    const lease = s.lease(() => 'busy');
+    const responses = await lease.execute(['system info']);
+    expect(responses).toHaveLength(1);
+    lease.bindFresh();
+    expect(s.status().session).toEqual({ state: 'ready', binding: { kind: 'fresh' }, dirty: false });
+    lease.release();
+  });
+
+  it('releases more than once without harm', async () => {
+    const { session: s } = session();
+    const lease = s.lease(() => 'busy');
+    lease.release();
+    const next = s.lease(() => 'next');
+    lease.release();
+    await expect(s.executeOne('system info')).rejects.toMatchObject({ code: 'CAPTURING' });
+    next.release();
+  });
+
+  it('keeps World Machine running past the idle timeout during a lease, then idles again', async () => {
+    const { session: s, record } = session({}, { idleTimeoutMs: 150 });
+    const lease = s.lease(() => 'busy');
+    await lease.execute(['system info']);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(record.lines()).not.toContain('system quit force');
+    expect(s.status().session.state).toBe('ready');
+    lease.release();
+    await waitUntil(() => record.lines().includes('EXIT'));
+    expect(s.status().session.state).toBe('notRunning');
+  });
+});
