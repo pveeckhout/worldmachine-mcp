@@ -1,10 +1,16 @@
-import { renameSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, fsyncSync, openSync, renameSync, rmSync, writeSync } from 'node:fs';
 
-/** Whole-file write: `<path>.<pid>.tmp` in the same folder, then rename over the target. */
+/** Whole-file write: `<path>.<pid>.tmp` in the same folder, synced, then renamed over the target. */
 export function writeFileAtomic(path: string, text: string): void {
   const temp = `${path}.${process.pid}.tmp`;
   try {
-    writeFileSync(temp, text);
+    const fd = openSync(temp, 'w');
+    try {
+      writeSync(fd, text);
+      fsyncSync(fd);
+    } finally {
+      closeSync(fd);
+    }
     renameSync(temp, path);
   } catch (error) {
     try {
