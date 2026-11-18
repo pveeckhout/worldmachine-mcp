@@ -16,8 +16,9 @@ if (basePath === undefined || samplePath === undefined) {
   process.exit(2);
 }
 try {
-  const { catalog, omittedTypes, movedWords } = derivePortTypeCatalog(
-    JSON.parse(readFileSync(basePath, 'utf8')),
+  const base = JSON.parse(readFileSync(basePath, 'utf8'));
+  const { catalog, omittedTypes, untypedTypes, movedWords } = derivePortTypeCatalog(
+    base,
     readFileSync(samplePath, 'utf8'),
     readFileSync(join(dirname(samplePath), 'system-info.txt'), 'utf8'),
   );
@@ -25,6 +26,8 @@ try {
   // An omitted type has no port types on the new build; stderr names it, so the gap is never silent.
   for (const type of omittedTypes)
     process.stderr.write(`omitted type '${type}': the sample did not add it\n`);
+  for (const type of untypedTypes)
+    process.stderr.write(`untyped type '${type}': not in the build ${base.build} catalog\n`);
   for (const { word, from, to } of movedWords) {
     process.stderr.write(`moved add word '${word}': gives '${to}', not '${from}'\n`);
   }

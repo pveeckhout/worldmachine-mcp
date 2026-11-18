@@ -3,6 +3,7 @@ import type { CatalogKind, CatalogOrigin, WireVerdict } from '../../src/domain/c
 import {
   catalogInfo,
   catalogLabel,
+  closestStrictBase,
   correctionIndex,
   judgeVerdict,
   pairKey,
@@ -34,6 +35,17 @@ describe('selectCatalog', () => {
   it('keeps input order on ties', () => {
     const a = c(4067, 'strict', 'local');
     expect(selectCatalog([a, c(4067, 'strict', 'local')], 4067)).toBe(a);
+  });
+});
+
+describe('closestStrictBase', () => {
+  it('takes the highest strict build below as the base', () => {
+    const s = (build: number, kind: CatalogKind) => ({ source: { build, kind, origin: 'shipped' as const } });
+    expect(
+      closestStrictBase([s(4067, 'strict'), s(4069, 'sample-derived'), s(4070, 'strict')], 4071)?.source
+        .build,
+    ).toBe(4070);
+    expect(closestStrictBase([s(4067, 'strict')], 4060)?.source.build).toBe(4067);
   });
 });
 

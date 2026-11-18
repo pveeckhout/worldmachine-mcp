@@ -31,6 +31,26 @@ export function selectCatalog<T extends { readonly source: CatalogSource }>(
   return best;
 }
 
+/** The strict candidate to check a sample of `build` against: the highest build below it, else the lowest. */
+export function closestStrictBase<T extends { readonly source: CatalogSource }>(
+  candidates: readonly T[],
+  build: number,
+): T | undefined {
+  const strict = candidates.filter((candidate) => candidate.source.kind === 'strict');
+  const pick = (list: readonly T[], better: (a: number, b: number) => boolean): T | undefined =>
+    list.reduce<T | undefined>(
+      (best, candidate) =>
+        best === undefined || better(candidate.source.build, best.source.build) ? candidate : best,
+      undefined,
+    );
+  return (
+    pick(
+      strict.filter((candidate) => candidate.source.build < build),
+      (a, b) => a > b,
+    ) ?? pick(strict, (a, b) => a < b)
+  );
+}
+
 /** How a catalog is described to the user. */
 export function catalogLabel(source: CatalogSource): 'shipped' | 'local full' | 'local short' {
   if (source.origin === 'shipped') return 'shipped';

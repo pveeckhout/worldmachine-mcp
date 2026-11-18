@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
+  checkSample,
   derivePortTypeCatalog,
   type PortTypeCatalogData,
 } from '../../src/adapter/out/worldmachine/capture/port-type-catalog.js';
@@ -77,11 +78,19 @@ describe('derivePortTypeCatalog (build 4069 from the build 4067 catalog)', () =>
     );
   });
 
-  it('fails when the sample adds a type the base catalog lacks', () => {
+  it('names a sampled type the base lacks instead of failing', () => {
     const { 'Create Water': _, ...types } = base.types;
-    expect(() => derivePortTypeCatalog({ ...base, types }, sample, systemInfo)).toThrow(
-      /type 'Create Water': not in the build 4067 catalog/,
-    );
+    const check = checkSample({ ...base, types }, sample, systemInfo);
+    expect(check).toMatchObject({ agreed: true, untypedTypes: ['Create Water'] });
+    expect(check.agreed && check.catalog.types['Create Water']).toBeFalsy();
+  });
+  it('names untyped types even when the sample disagrees', () => {
+    const { 'Create Water': _, ...types } = base.types;
+    expect(checkSample({ ...base, types }, flippedVerdict(), systemInfo)).toMatchObject({
+      agreed: false,
+      untypedTypes: ['Create Water'],
+      disagreement: expect.stringContaining('but the build 4067 catalog says connected'),
+    });
   });
 
   it('lists an add word under the type it gives on the new build, and reports the move', () => {

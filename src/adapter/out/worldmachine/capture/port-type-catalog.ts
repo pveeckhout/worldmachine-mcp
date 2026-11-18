@@ -464,24 +464,36 @@ export function parsePortTypeCatalog(
   };
 }
 
+/** A moved add word: it gave another type in the base catalog than in the sample. */
+type MovedWord = { readonly word: string; readonly from: string; readonly to: string };
+
+/** The outcome of checking a `port-types-sample` against a strict base catalog. */
+export type SampleCheck =
+  | {
+      readonly agreed: true;
+      readonly catalog: PortTypeCatalog;
+      readonly omittedTypes: readonly string[];
+      readonly untypedTypes: readonly string[];
+      readonly movedWords: readonly MovedWord[];
+    }
+  | {
+      readonly agreed: false;
+      readonly disagreement: string;
+      readonly omittedTypes: readonly string[];
+      readonly untypedTypes: readonly string[];
+    };
+
 /**
- * `{ catalog, omittedTypes, movedWords }`: the catalog of another build derived from the full catalog `base` of one build and a
- * `port-types-sample` transcript of the new build with its `system info` (build 4069, 2026-11-17; a full run takes
- * hours). The new catalog keeps the classes and ports of `base`, keeps only the types the sample added, and lists as
- * `added` only the words that gave each type in the sample. Every listed type must show the ports of `base` and every
- * verdict must follow from the classes of `base`; otherwise it throws, so the derived catalog rests only on what the
- * sample measured. `omittedTypes` are the types of `base` the sample did not add; `movedWords` the add words that gave
- * another type than in `base` (`Surface` gives a Material on 4069, port-types-sample.txt l.14491-14492).
+ * Checks a `port-types-sample` transcript of a new build, with its `system info`, against the strict catalog `base`
+ * (build 4069, 2026-11-17; a full run takes hours). Agreed: the derived catalog keeps the classes and ports of `base`,
+ * keeps only the types the sample added, and lists as `added` only the words that gave each type in the sample. Not
+ * agreed: `disagreement` names the first listed type with other ports than `base`, else the first verdict that
+ * contradicts the classes of `base`. `omittedTypes` are the types of `base` the sample did not add; `untypedTypes` the
+ * types the sample added that `base` lacks (they get no entry, and no check); `movedWords` the add words that gave
+ * another type than in `base` (`Surface` gives a Material on 4069, port-types-sample.txt l.14491-14492). A base that is
+ * not strict, or a sample that does not read, throws.
  */
-export function derivePortTypeCatalog(
-  base: PortTypeCatalogData,
-  sample: string,
-  systemInfo: string,
-): {
-  catalog: PortTypeCatalogData;
-  omittedTypes: string[];
-  movedWords: { word: string; from: string; to: string }[];
-} {
+export function checkSample(base: PortTypeCatalog, sample: string, systemInfo: string): SampleCheck {
   if (base.kind !== 'strict')
     throw new Error(
       `base catalog of build ${base.build} is ${base.kind}; only a strict catalog can be a base`,
@@ -489,40 +501,50 @@ export function derivePortTypeCatalog(
   const build = buildOfSystemInfo(systemInfo);
   const { devices, verdicts } = readTranscript(sample);
   const all = [...devices.values()];
-  const movedWords: { word: string; from: string; to: string }[] = [];
+  const known = (type: string | undefined): type is string =>
+    type !== undefined && Object.hasOwn(base.types, type);
+  const untypedTypes = [...new Set(all.filter((device) => !known(device.type)).map((device) => device.type))];
+  const omittedTypes = Object.keys(base.types).filter((type) => !all.some((device) => device.type === type));
+  const movedWords: MovedWord[] = [];
   const typeOfWord = new Map(
     Object.entries(base.types).flatMap(([type, entry]) =>
       entry.added.map((word): [string, string] => [word, type]),
     ),
   );
+  let disagreement: string | undefined;
   for (const device of all) {
-    const entry = Object.hasOwn(base.types, device.type) ? base.types[device.type] : undefined;
-    if (entry === undefined) throw new Error(`type '${device.type}': not in the build ${base.build} catalog`);
+    const entry = known(device.type) ? base.types[device.type] : undefined;
+    if (entry === undefined) continue;
     const listed = typeOfWord.get(device.word);
     if (listed !== undefined && listed !== device.type) {
       movedWords.push({ word: device.word, from: listed, to: device.type });
     }
-    if (shape(device) !== shape(entry)) {
-      throw new Error(`type '${device.type}': other ports than in the build ${base.build} catalog`);
+    if (disagreement === undefined && shape(device) !== shape(entry)) {
+      disagreement = `type '${device.type}': other ports than in the build ${base.build} catalog`;
     }
   }
-  for (const [key, verdict] of verdicts) {
-    if (verdict === 'crashed') continue;
-    const [from, to] = key.split('>').map((ref) => ref.split('.')) as [string[], string[]];
-    const typeOf = (id: string | undefined) => base.types[devices.get(id as string)?.type as string];
-    const output = typeOf(from[0])?.outputs.find((port) => port.port === Number(from[1]));
-    const input = typeOf(to[0])?.inputs.find((port) => port.port === Number(to[1]));
-    const expected = (base.inputClasses[(input as PortTypeCatalogEntry).class] as readonly string[]).includes(
-      (output as PortTypeCatalogEntry).class,
-    )
-      ? 'connected'
-      : 'refused';
-    if (verdict !== expected) {
-      throw new Error(
-        `#${key.replace('>', ' -> #')}: ${verdict} on build ${build}, but the build ${base.build} catalog says ${expected}`,
-      );
+  if (disagreement === undefined) {
+    for (const [key, verdict] of verdicts) {
+      if (verdict === 'crashed') continue;
+      const [from, to] = key.split('>').map((ref) => ref.split('.')) as [string[], string[]];
+      const typeOf = (id: string | undefined) => {
+        const type = devices.get(id as string)?.type;
+        return known(type) ? base.types[type] : undefined;
+      };
+      const output = typeOf(from[0])?.outputs.find((port) => port.port === Number(from[1]));
+      const input = typeOf(to[0])?.inputs.find((port) => port.port === Number(to[1]));
+      // A pair with an untyped end has nothing to be checked against.
+      if (output === undefined || input === undefined) continue;
+      const expected = (base.inputClasses[input.class] as readonly string[]).includes(output.class)
+        ? 'connected'
+        : 'refused';
+      if (verdict !== expected) {
+        disagreement = `#${key.replace('>', ' -> #')}: ${verdict} on build ${build}, but the build ${base.build} catalog says ${expected}`;
+        break;
+      }
     }
   }
+  if (disagreement !== undefined) return { agreed: false, disagreement, omittedTypes, untypedTypes };
   const types: Record<
     string,
     { added: string[]; inputs: readonly PortTypeCatalogEntry[]; outputs: readonly PortTypeCatalogEntry[] }
@@ -532,6 +554,7 @@ export function derivePortTypeCatalog(
     if (words.length > 0) types[type] = { added: words, inputs: entry.inputs, outputs: entry.outputs };
   }
   return {
+    agreed: true,
     catalog: {
       build,
       kind: 'sample-derived',
@@ -539,7 +562,27 @@ export function derivePortTypeCatalog(
       inputClasses: base.inputClasses,
       types,
     },
-    omittedTypes: Object.keys(base.types).filter((type) => !Object.hasOwn(types, type)),
+    omittedTypes,
+    untypedTypes,
     movedWords,
   };
+}
+
+/**
+ * `{ catalog, omittedTypes, movedWords }` of `checkSample`, for the script: a disagreement throws its message. A type
+ * the base lacks is no longer an error; it is in `untypedTypes`.
+ */
+export function derivePortTypeCatalog(
+  base: PortTypeCatalogData,
+  sample: string,
+  systemInfo: string,
+): {
+  catalog: PortTypeCatalogData;
+  omittedTypes: readonly string[];
+  untypedTypes: readonly string[];
+  movedWords: readonly MovedWord[];
+} {
+  const check = checkSample(base, sample, systemInfo);
+  if (!check.agreed) throw new Error(check.disagreement);
+  return check;
 }
