@@ -4,7 +4,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { parseEnumCapture, parseEnumCatalog } from '../../scripts/enum-catalog.mjs';
+import {
+  parseEnumCapture,
+  parseEnumCatalog,
+} from '../../src/adapter/out/worldmachine/capture/enum-catalog.js';
 import {
   ENUM_CATALOG_4067,
   ENUM_CATALOG_4069,

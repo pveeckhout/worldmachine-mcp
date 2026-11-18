@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { parsePortTypeCatalog } from '../../scripts/port-type-catalog.mjs';
+import { parsePortTypeCatalog } from '../../src/adapter/out/worldmachine/capture/port-type-catalog.js';
 import { PORT_TYPE_CATALOG_4067 } from '../../src/adapter/out/worldmachine/world-machine-port-types.js';
 
 const systemInfo = readFileSync(new URL('../fixtures/wm-4067/raw/system-info.txt', import.meta.url), 'utf8');

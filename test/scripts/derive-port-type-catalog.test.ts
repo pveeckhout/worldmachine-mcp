@@ -4,7 +4,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { derivePortTypeCatalog, type PortTypeCatalogData } from '../../scripts/port-type-catalog.mjs';
+import {
+  derivePortTypeCatalog,
+  type PortTypeCatalogData,
+} from '../../src/adapter/out/worldmachine/capture/port-type-catalog.js';
 import {
   PORT_TYPE_CATALOG_4067,
   PORT_TYPE_CATALOG_4069,

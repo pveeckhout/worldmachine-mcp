@@ -21,11 +21,10 @@
     "prepublishOnly": "npm run build",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "biome check .",
-    "pretest": "npm run build",
     "test": "vitest run",
     "check:fixtures": "node scripts/check-fixtures.mjs",
     "capture-fixtures": "node scripts/capture-fixtures.mjs",
-    "check": "npm run typecheck && npm run lint && npm run test && npm run check:fixtures"
+    "check": "npm run build && npm run typecheck && npm run lint && npm run test && npm run check:fixtures"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.0",

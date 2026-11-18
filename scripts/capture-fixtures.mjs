@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Records raw World Machine CLI transcripts for parser fixtures and for spec items V1-V8.
-// Needs a licensed local World Machine. Usage: WORLD_MACHINE_BIN=/path/to/wm npm run capture-fixtures
+// Needs a licensed local World Machine and a built package (the parsers come from dist). Usage:
+//   npm run build && WORLD_MACHINE_BIN=/path/to/wm npm run capture-fixtures
 import { spawn } from 'node:child_process';
 import {
   existsSync,
@@ -15,6 +16,7 @@ import {
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
+import { render } from '../dist/adapter/out/worldmachine/capture/transcript.js';
 import {
   acceptedAddWords,
   CRASHED,
@@ -241,16 +243,6 @@ function newFiles(root, depth, since) {
       return [];
     }
   });
-}
-
-function render(sections) {
-  const block = (command, lines) => [`>>> ${scrub(command)}`, ...lines, '<<<'].join('\n');
-  return `${sections
-    .flatMap(({ command, lines, unsolicited }) => [
-      ...(unsolicited ? [block('(printed between batches)', unsolicited)] : []),
-      block(command, lines),
-    ])
-    .join('\n')}\n`;
 }
 
 function devices(lines) {
@@ -3951,7 +3943,7 @@ try {
       // scripts/build-enum-catalog.mjs reads the build from it.
       if (only.length > 0 && existsSync(join(outDir, 'system-info.txt'))) continue;
     }
-    writeFileSync(join(outDir, `${name}.txt`), render(sections));
+    writeFileSync(join(outDir, `${name}.txt`), render(sections, scrub));
     console.log(`captured ${name}`);
     check(name, sections);
   }

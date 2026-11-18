@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readWireList } from '../../scripts/wire-list.mjs';
+import { readWireList } from '../../src/adapter/out/worldmachine/capture/wire-list.js';
 
 /**
  * Synthetic wire list lines in the shape of raw/create-water.txt l.122-133: port names are space-padded and each row

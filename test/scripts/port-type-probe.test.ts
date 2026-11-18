@@ -9,7 +9,7 @@ import {
   probeCommands,
   probeVerdict,
   readProbeWireList,
-} from '../../scripts/port-type-probe.mjs';
+} from '../../src/adapter/out/worldmachine/capture/port-type-probe.js';
 
 // Codex round 1 rulings B3 and S2. Small ids for raw/create-water-sea.txt l.194-195: a Gradient's output 1 into a
 // Create Water's three inputs.
