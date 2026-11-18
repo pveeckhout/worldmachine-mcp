@@ -232,4 +232,43 @@ describe('FsPortTypeCorrections', () => {
       expect(read(FILE)).toBe('{"build":4069,"corrections":[]}');
     });
   });
+
+  describe('retire', () => {
+    const PREVIOUS = '4069/port-type-corrections.previous.json';
+
+    it('moves the file aside and forgets the build', () => {
+      const { dir, logger, read } = setup();
+      const store = new FsPortTypeCorrections(dir, logger);
+      store.record(refused);
+      store.retire(4069);
+      expect(readdirSync(join(dir, '4069'))).toEqual(['port-type-corrections.previous.json']);
+      expect(JSON.parse(read(PREVIOUS)).corrections).toHaveLength(1);
+      expect(store.correctionsFor(4069)).toBeUndefined();
+    });
+
+    it('replaces an older previous file and is a no-op without a file', () => {
+      const { dir, logger, write, read } = setup();
+      write(PREVIOUS, 'old');
+      const store = new FsPortTypeCorrections(dir, logger);
+      expect(() => store.retire(4069)).not.toThrow();
+      expect(read(PREVIOUS)).toBe('old');
+      store.record(refused);
+      store.retire(4069);
+      expect(JSON.parse(read(PREVIOUS)).build).toBe(4069);
+    });
+
+    it('moves a corrupt file aside, clears its problem, and lets record work again', () => {
+      const { dir, logger, write, read } = setup();
+      write(FILE, '{');
+      write('4070/port-type-corrections.json', '{');
+      const store = new FsPortTypeCorrections(dir, logger);
+      expect(store.problems()).toHaveLength(2);
+      store.retire(4069);
+      expect(read(PREVIOUS)).toBe('{');
+      expect(store.problems()).toEqual([expect.stringContaining('4070/')]);
+      store.record(refused);
+      expect(JSON.parse(read(FILE)).corrections).toHaveLength(1);
+      expect(() => store.record({ ...refused, build: 4070 })).toThrow(/were not loaded/);
+    });
+  });
 });

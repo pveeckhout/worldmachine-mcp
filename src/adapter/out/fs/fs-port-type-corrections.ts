@@ -1,7 +1,8 @@
-import { mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, renameSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PortTypeCorrectionsPort } from '../../../application/port/out/port-type-corrections-port.js';
 import type { RecordPortTypeCorrectionPort } from '../../../application/port/out/record-port-type-correction-port.js';
+import type { RetirePortTypeCorrectionsPort } from '../../../application/port/out/retire-port-type-corrections-port.js';
 import {
   correctionIndex,
   type PortRef,
@@ -58,7 +59,9 @@ function parseFile(json: unknown, build: number): PortTypeCorrection[] {
 }
 
 /** `<directory>/<build>/port-type-corrections.json`, loaded at construction, rewritten whole on each record. */
-export class FsPortTypeCorrections implements RecordPortTypeCorrectionPort, PortTypeCorrectionsPort {
+export class FsPortTypeCorrections
+  implements RecordPortTypeCorrectionPort, PortTypeCorrectionsPort, RetirePortTypeCorrectionsPort
+{
   readonly #directory: string;
   readonly #logger: Logger;
   readonly #entries = new Map<number, PortTypeCorrection[]>();
@@ -89,6 +92,22 @@ export class FsPortTypeCorrections implements RecordPortTypeCorrectionPort, Port
 
   problems(): readonly string[] {
     return this.#problems;
+  }
+
+  retire(build: number): void {
+    const folder = join(this.#directory, String(build));
+    try {
+      renameSync(join(folder, FILE), join(folder, 'port-type-corrections.previous.json'));
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') throw error;
+    }
+    this.#entries.delete(build);
+    this.#failed.delete(build);
+    const prefix = `${folder}/`;
+    for (let i = this.#problems.length - 1; i >= 0; i -= 1) {
+      if (this.#problems[i]?.startsWith(prefix)) this.#problems.splice(i, 1);
+    }
   }
 
   record(correction: PortTypeCorrection): void {
