@@ -486,8 +486,17 @@ git commit -m "feat(session): lease the session to one long job"
   ```
 - Order: validate both catalogs (build equals `runningBuild` and `entry.build`; each passes the startup reader after a
   JSON round trip), write each new file into `<dir>/<build>/.install/` (atomic), then per file: rename the live one to
-  `<name>.previous.json` (replacing an older `.previous`), rename the new one into place. A port-type install renames
-  `port-type-corrections.json` to `port-type-corrections.previous.json`. `capture.json` is written last.
+  `<name>.previous.json` (replacing an older `.previous`), rename the new one into place. A port-type install moves the
+  corrections aside through `RetirePortTypeCorrectionsPort.retire(build)` (below), never by renaming the file itself.
+  `capture.json` is written last.
+- Amendment (plan 2 final review, Important 3): the corrections store owns its file. Add
+  `src/application/port/out/retire-port-type-corrections-port.ts` with
+  `export interface RetirePortTypeCorrectionsPort { retire(build: number): void; }`, implemented by
+  `FsPortTypeCorrections`: rename `port-type-corrections.json` to `port-type-corrections.previous.json` (replacing an
+  older one; ENOENT is a no-op), then drop the build's in-memory entries, failure mark, and problems.
+  `FsCatalogInstaller` takes the port as a constructor argument; `main.ts` passes the one shared `FsPortTypeCorrections`.
+  Extra tests: `retire` leaves only the `.previous` file and `correctionsFor(build)` is undefined; a corrupt
+  corrections file is moved aside too, and `record` works again afterwards.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -522,6 +531,72 @@ Expected: PASS
 ```bash
 git add src/application/port/out/install-catalog-port.ts src/adapter/out/fs test/adapter/out/fs
 git commit -m "feat(capture): validate and install a captured catalog"
+```
+
+### Task 8a: The live catalog registry (amendment, plan 1 final review Important 2)
+
+Spec Goal 3 and the sequence diagram (the installed catalog answers the next call): an install must take effect
+without a restart. Plan 1 hands catalog arrays to `WorldMachinePortTypes` and `WorldMachineGraphReader` once, at
+startup.
+
+**Files:**
+- Create: `src/adapter/out/worldmachine/catalog-registry.ts`
+- Create: `src/application/port/out/register-catalogs-port.ts`
+- Modify: `src/adapter/out/worldmachine/world-machine-port-types.ts`, `src/adapter/out/worldmachine/world-machine-graph-reader.ts`, `src/main.ts`
+- Test: `test/adapter/out/worldmachine/catalog-registry.test.ts`, plus one test each in the port-types and graph-reader tests
+
+**Interfaces:**
+- Produces:
+  ```ts
+  export interface RegisterCatalogsPort {
+    /** Replaces the local catalogs of `build` with these and clears that build's local load problems. */
+    add(build: number, catalogs: { readonly enumOptions?: EnumCatalog; readonly portTypes?: SourcedPortTypeCatalog }): void;
+  }
+  export class CatalogRegistry implements RegisterCatalogsPort {
+    constructor(portTypes: readonly SourcedPortTypeCatalog[], enums: readonly EnumCatalog[], problems: readonly string[]);
+    portTypeCatalogs(): readonly SourcedPortTypeCatalog[];
+    enumCatalogs(): readonly EnumCatalog[];
+    problems(): readonly string[];
+  }
+  ```
+- `WorldMachinePortTypes` and `WorldMachineGraphReader` read the registry on every call instead of holding arrays
+  (constructor takes the registry; keep an array overload or a `CatalogRegistry` built from arrays for the existing
+  tests). Shipped catalogs are never replaced; selection rules (plan 1 `selectCatalog`, shipped enum wins) unchanged.
+- A problem line belongs to a build when it starts with `<catalogDir>/<build>/`; `add` drops those lines only.
+- `CatalogCaptureService` (Task 9) calls `add` after a successful install, with the same objects it installed.
+
+- [ ] **Step 1: Write the failing tests**
+
+```ts
+it('a catalog added after startup answers the next lookup', () => {
+  const registry = new CatalogRegistry([], [], []);
+  const portTypes = new WorldMachinePortTypes(sessionAt(4071), registry);
+  expect(portTypes.catalogInUse()).toBeUndefined();
+  registry.add(4071, { portTypes: localShort4071 });
+  expect(portTypes.catalogInUse()).toMatchObject({ build: 4071, origin: 'local' });
+});
+it('clears the load problems of the added build only', () => { /* problems for 4071 and 4072; add 4071; only 4072's remain */ });
+it('never replaces a shipped catalog', () => { /* add a local 4067 port-type catalog: catalogInUse on 4067 stays shipped strict */ });
+it('the graph reader attaches enum options added after startup', async () => { /* enum catalog for 4071 added later appears in get_device */ });
+```
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run: `npx vitest run test/adapter/out/worldmachine`
+Expected: FAIL
+
+- [ ] **Step 3: Implement; `main.ts` builds one registry from the shipped and local catalogs and passes it to both adapters**
+
+- [ ] **Step 4: Run the full check**
+
+Run: `npm run check`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src test
+git commit -m "feat(catalog): make installed catalogs live without a restart"
 ```
 
 ### Task 9: Running a capture
@@ -575,7 +650,7 @@ git commit -m "feat(capture): validate and install a captured catalog"
   `captureRefusal`, refuses `REFUSED` when the session is dirty and `discardOpenProject` is false (the message says the
   open project is closed first), takes the lease, starts `run` without awaiting it, and returns the first view. When
   `run` settles it validates and installs per the outcome rules (agreed: both files; disagreed: enum only;
-  full: both), releases the lease, and keeps the finished `CatalogCapture` for `status` until the next start.
+  full: both), registers what it installed through `RegisterCatalogsPort.add` (Task 8a), releases the lease, and keeps the finished `CatalogCapture` for `status` until the next start.
   The service takes `onEvent: (name: string, fields: Record<string, unknown>) => void` as its last constructor
   argument; `main.ts` passes one that logs at `info`, so the application layer needs no logger.
   `<workDir>` is removed after an install; a `resume.json` of another build or mode is renamed to
