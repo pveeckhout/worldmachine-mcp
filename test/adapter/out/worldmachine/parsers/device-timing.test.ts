@@ -42,13 +42,23 @@ describe('isBuiltAtResolution (fact 93)', () => {
     expect(isBuiltAtResolution(1, none, 2049)).toBe(false);
   });
 
-  // Build 4070 (wm-4070/raw/build-resolution-timing.txt l.60-67, l.102-110): lower levels read `downsampled from <N>px`.
+  // Build 4070 (wm-4070/raw/build-resolution-timing.txt l.78-85, l.121-129): lower levels read `downsampled from <N>px`.
   it('reads levels downsampled from the built level as lower levels (build 4070)', () => {
     const at1024 = rawFrame('build-resolution-timing.txt', 'debug devicetiming #1', 0, '4070');
-    const at2049 = rawFrame('build-resolution-timing.txt', 'debug devicetiming #1', 2, '4070');
+    const at2049 = rawFrame('build-resolution-timing.txt', 'debug devicetiming #1', 1, '4070');
     expect(isBuiltAtResolution(1, at1024, 1024)).toBe(true);
     expect(isBuiltAtResolution(1, at2049, 2049)).toBe(true);
     expect(isBuiltAtResolution(1, at2049, 4097)).toBe(false);
+  });
+
+  // Build 4070 (wm-4070/raw/build-not-built-timing.txt l.81-92, l.183-190): the River graph's Height Output and River
+  // have no finished results, as on build 4067; the plain graph's Height Output is built.
+  it('reads the River graph as not built and the plain graph as built (build 4070)', () => {
+    const timing4070 = (device: number, occurrence = 0) =>
+      rawFrame('build-not-built-timing.txt', `debug devicetiming #${device}`, occurrence, '4070');
+    expect(isBuiltAtResolution(3, timing4070(3), 513)).toBe(false);
+    expect(isBuiltAtResolution(2, timing4070(2), 513)).toBe(false);
+    expect(isBuiltAtResolution(2, timing4070(2, 1), 513)).toBe(true);
   });
 
   it('reads the id from the end of a title whose name holds a quote and an id (Review Focus 5)', () => {

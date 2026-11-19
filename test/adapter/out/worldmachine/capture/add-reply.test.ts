@@ -13,7 +13,7 @@ describe('addOutcome (capture-fixtures freshDevice)', () => {
     expect(addOutcome('File Output', reply)).toEqual({ kind: 'added' });
   });
 
-  it('retries an ambiguous File Output as Height Output (wm-4070/raw/build-not-built-timing.txt l.23-24)', () => {
+  it('retries an ambiguous File Output as Height Output (wm-4070/raw/build-not-built-timing.txt l.25-26)', () => {
     const reply = rawFrame('build-not-built-timing.txt', 'device add File Output', 0, '4070');
     expect(addOutcome('File Output', reply)).toEqual({ kind: 'retry', word: 'Height Output' });
   });

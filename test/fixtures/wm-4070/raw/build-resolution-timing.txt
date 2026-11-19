@@ -27,11 +27,20 @@ Devices (1 total):
   #1     Gradient                
 
 <<<
->>> wire connect #1 #1
-Error: Error: Input port not found on '#1'
+>>> device add Height Output
+Added 'Height Output'
 <<<
->>> param set #1.filename <WORK>/resolution-height.png
-Error: Error: Parameter 'filename' not found on device '#1'.
+>>> device list
+Devices (2 total):
+  #1     Gradient                
+  #2     Height Output           
+
+<<<
+>>> wire connect #1 #2
+Connected '#1' [1] -> '#2' [1]
+<<<
+>>> param set #2.filename <WORK>/resolution-height.png
+Set #2.filename = <WORK>/resolution-height.png
 <<<
 >>> scene resolution 1024
 Set scene resolution to 1024
@@ -57,13 +66,13 @@ Scene 'Main Extents' (index 0 of 1):
 Build started.
 No build running.
 <<<
->>> debug devicetiming #1
-Build timing for 'Gradient' (#1), per result level:
+>>> debug devicetiming #2
+Build timing for 'Height Output' (#2), per result level:
 Device                           Prepare  Activate   Distrib     Total
 128px                          downsampled from 1024px
 256px                          downsampled from 1024px
 512px                          downsampled from 1024px
-1024px                               0ms       7ms       0ms       7ms
+1024px                               0ms       1ms       0ms       1ms
 Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
 <<<
 >>> debug devicetiming #1
@@ -72,7 +81,7 @@ Device                           Prepare  Activate   Distrib     Total
 128px                          downsampled from 1024px
 256px                          downsampled from 1024px
 512px                          downsampled from 1024px
-1024px                               0ms       7ms       0ms       7ms
+1024px                               0ms       6ms       1ms       7ms
 Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
 <<<
 >>> scene resolution 2049
@@ -90,23 +99,23 @@ Scene 'Main Extents' (index 0 of 1):
 >>> build start
 [Build Event] Prohibiting system sleep
 [Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
 <<<
 >>> (waited 1000 ms)
-[Build Event] *** Build Ended ***
 [Build Event] System allowed to sleep again
 <<<
 >>> build status
 Build started.
 No build running.
 <<<
->>> debug devicetiming #1
-Build timing for 'Gradient' (#1), per result level:
+>>> debug devicetiming #2
+Build timing for 'Height Output' (#2), per result level:
 Device                           Prepare  Activate   Distrib     Total
 129px                          downsampled from 2049px
 257px                          downsampled from 2049px
 513px                          downsampled from 2049px
 1025px                         downsampled from 2049px
-2049px                               0ms      16ms       0ms      16ms
+2049px                               0ms       1ms       0ms       1ms
 Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
 <<<
 >>> debug devicetiming #1
@@ -116,7 +125,7 @@ Device                           Prepare  Activate   Distrib     Total
 257px                          downsampled from 2049px
 513px                          downsampled from 2049px
 1025px                         downsampled from 2049px
-2049px                               0ms      16ms       0ms      16ms
+2049px                               0ms      15ms       3ms      18ms
 Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
 <<<
 >>> project close force

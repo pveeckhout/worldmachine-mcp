@@ -1,6 +1,7 @@
 // The answer to a `device add <word>` of scripts/capture-fixtures.mjs (freshDevice). It used to take the newest listed
 // device without reading the answer, so a refused add went on with a device that was already there
-// (wm-4070/raw/build-not-built-timing.txt l.23-32: `File Output` refused, then `#2` wired to itself).
+// (wm-4070/raw/build-not-built-timing.txt as first captured, e307e3e l.23-32: `File Output` refused, then `#2`
+// wired to itself).
 import { ambiguousMatches } from './discovery.js';
 
 const ADDED = /^Added '.*'$/;
@@ -8,7 +9,7 @@ const ADDED = /^Added '.*'$/;
 /**
  * The word to add instead when a word is ambiguous. Build 4067 added a Height Output for `File Output`
  * (wm-4067/raw/v3-rename-types.txt l.204-205); build 4069 and later refuse that word
- * (wm-4070/raw/build-not-built-timing.txt l.23-24).
+ * (wm-4070/raw/build-not-built-timing.txt l.25-26).
  */
 export const ADD_FALLBACK: Readonly<Record<string, string>> = { 'File Output': 'Height Output' };
 
