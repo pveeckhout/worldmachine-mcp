@@ -1,5 +1,5 @@
 import { mkdirSync, readdirSync, readFileSync, renameSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import type { PortTypeCorrectionsPort } from '../../../application/port/out/port-type-corrections-port.js';
 import type { RecordPortTypeCorrectionPort } from '../../../application/port/out/record-port-type-correction-port.js';
 import type { RetirePortTypeCorrectionsPort } from '../../../application/port/out/retire-port-type-corrections-port.js';
@@ -104,7 +104,7 @@ export class FsPortTypeCorrections
     }
     this.#entries.delete(build);
     this.#failed.delete(build);
-    const prefix = `${folder}/`;
+    const prefix = `${folder}${sep}`;
     for (let i = this.#problems.length - 1; i >= 0; i -= 1) {
       if (this.#problems[i]?.startsWith(prefix)) this.#problems.splice(i, 1);
     }

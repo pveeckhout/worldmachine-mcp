@@ -176,7 +176,10 @@ export class CatalogCaptureService
     } catch (error) {
       outcome = controller.signal.aborted
         ? { kind: 'cancelled' }
-        : { kind: 'failed', reason: reasonOf(error) };
+        : {
+            kind: 'failed',
+            reason: `${reasonOf(error)} (the next capture of build ${run.build} in mode ${run.mode} resumes from ${run.workDir}; delete that folder to start over)`,
+          };
     } finally {
       try {
         lease.release();
@@ -259,6 +262,10 @@ export class CatalogCaptureService
       ...(result.enumGaps.length > 0
         ? [`enum rows without a range error, their types left out: ${result.enumGaps.join(', ')}`]
         : []),
+      ...result.timedOutPairs.map(
+        (pair) =>
+          `pair ${pair} timed out 3 times; it is recorded as a hole (crashed), so its verdict is unknown`,
+      ),
       ...(discovery.notReached.length > 0
         ? [`known types not added: ${discovery.notReached.join(', ')}`]
         : []),

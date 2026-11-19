@@ -57,6 +57,7 @@ const agreed = (): CaptureResult => ({
   discovery: DISCOVERY,
   refusedWords: ['Brightness'],
   enumGaps: [],
+  timedOutPairs: [],
 });
 const disagreed = (): CaptureResult => ({
   enumOptions: ENUMS,
@@ -69,6 +70,7 @@ const disagreed = (): CaptureResult => ({
   discovery: DISCOVERY,
   refusedWords: [],
   enumGaps: [],
+  timedOutPairs: [],
 });
 
 type Script = (
@@ -388,7 +390,10 @@ describe('CatalogCaptureService', () => {
     });
     await f.service.start(short);
     const view = await finished(f.service);
-    expect(view.outcome).toEqual({ kind: 'failed', reason: 'World Machine exited unexpectedly' });
+    expect(view.outcome).toEqual({
+      kind: 'failed',
+      reason: expect.stringMatching(/^World Machine exited unexpectedly \(/),
+    });
     expect(view.percent).toBeLessThan(100);
     expect(f.released()).toBe(1);
     expect(f.discarded).toEqual([]);
@@ -398,9 +403,41 @@ describe('CatalogCaptureService', () => {
         build: BUILD,
         mode: 'short',
         outcome: 'failed',
-        reason: 'World Machine exited unexpectedly',
+        reason: expect.stringMatching(/^World Machine exited unexpectedly \(/),
       }),
     ]);
+  });
+
+  it('names the working folder in every failure, and that deleting it starts over', async () => {
+    const f = fakes({
+      script: async () => {
+        throw new WorldMachineError('TIMEOUT', 'World Machine did not answer in time');
+      },
+    });
+    await f.service.start(full);
+    const view = await finished(f.service);
+    const folder = join('/catalogs', String(BUILD), '.capture-full');
+    expect(view.outcome).toEqual({
+      kind: 'failed',
+      reason: `World Machine did not answer in time (the next capture of build ${BUILD} in mode full resumes from ${folder}; delete that folder to start over)`,
+    });
+  });
+
+  it('notes each pair that timed out three times and became a hole', async () => {
+    const strict: PortTypeCatalog = { ...PORT_TYPE_CATALOG_4067, build: BUILD };
+    const f = fakes({
+      script: async () => ({
+        ...agreed(),
+        portTypes: { agreed: true, catalog: strict },
+        timedOutPairs: ['#3.0 (Blur) -> #7.1 (Erosion)'],
+      }),
+    });
+    await f.service.start(full);
+    const view = await finished(f.service);
+    const notes = view.outcome?.kind === 'installed' ? view.outcome.notes : [];
+    expect(notes).toContain(
+      'pair #3.0 (Blur) -> #7.1 (Erosion) timed out 3 times; it is recorded as a hole (crashed), so its verdict is unknown',
+    );
   });
 
   it('ends failed when the capturer throws at once', async () => {
@@ -410,7 +447,10 @@ describe('CatalogCaptureService', () => {
       },
     });
     await f.service.start(short);
-    expect((await finished(f.service)).outcome).toEqual({ kind: 'failed', reason: 'no working folder' });
+    expect((await finished(f.service)).outcome).toEqual({
+      kind: 'failed',
+      reason: expect.stringMatching(/^no working folder \(/),
+    });
     expect(f.released()).toBe(1);
   });
 
@@ -423,7 +463,7 @@ describe('CatalogCaptureService', () => {
     await f.service.start(short);
     expect((await finished(f.service)).outcome).toEqual({
       kind: 'failed',
-      reason: 'type Blur has no outputs list',
+      reason: expect.stringMatching(/^type Blur has no outputs list \(/),
     });
     expect(f.registered).toEqual([]);
     expect(f.discarded).toEqual([]);

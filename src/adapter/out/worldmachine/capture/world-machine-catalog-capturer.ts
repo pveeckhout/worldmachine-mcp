@@ -91,6 +91,9 @@ const AMBIGUOUS_ADD = /matches multiple devices/;
 const ENUM_UNIT = /^\(enum (.+)\)$/;
 const PROBE = /^\(probe #(\d+)\.(\d+)\)$/;
 const SUSPECT = /^\(suspect #(\d+)\.(\d+)\)$/;
+const TIMEOUT = /^\(timeout #(\d+)\.(\d+)\)$/;
+/** A pair sent alone that times out this many times, across runs, is recorded as a hole so a capture can finish. */
+const TIMEOUTS_BEFORE_HOLE = 3;
 const TWIN = /^\(twin #(\d+) #(\d+)\)$/;
 const VERDICT = /^#(\d+)\.(\d+) /;
 const SETUP_COMPLETE = '(setup complete)';
@@ -216,8 +219,8 @@ class Capture {
     const discovery = await this.#discover();
     const enumCapture = await this.#enumOptions(discovery);
     const words = [...new Set([...this.spec.known.addWords, ...discovery.types.map((type) => type.addName)])];
-    const portTypes = await this.#portTypes(words);
-    return { ...enumCapture, portTypes, discovery };
+    const { portTypes, timedOutPairs } = await this.#portTypes(words);
+    return { ...enumCapture, portTypes, discovery, timedOutPairs };
   }
 
   /** Every run ends on a fresh blank project; after a crash World Machine is gone and this does nothing. */
@@ -413,7 +416,7 @@ class Capture {
    * resumed after its `(setup complete)` section by adding the same words again (unrecorded) and checking World
    * Machine gives the same device list.
    */
-  async #portTypes(words: readonly string[]): Promise<CaptureResult['portTypes']> {
+  async #portTypes(words: readonly string[]): Promise<Pick<CaptureResult, 'portTypes' | 'timedOutPairs'>> {
     const full = this.spec.mode === 'full';
     const phase: CapturePhase = full ? 'probe' : 'sample';
     const file = full ? 'probe.txt' : 'sample.txt';
@@ -427,7 +430,7 @@ class Capture {
     }
 
     const units = probeUnits(setup, full);
-    const { done, suspects } = this.#fromWorkFolder(file, () => readProbes(this.#read(file)));
+    const { done, suspects, timeouts } = this.#fromWorkFolder(file, () => readProbes(this.#read(file)));
     const total = units.reduce((sum, unit) => sum + unit.targets.length, 0);
     let answered = units.reduce(
       (sum, unit) => sum + unit.targets.filter((target) => done.has(pairKey(unit.source, target))).length,
@@ -445,7 +448,16 @@ class Capture {
           replies = await this.#send(batch, Math.max(60_000, batch.length * 1_000));
         } catch (error) {
           if (hasCode(error, 'CRASHED')) this.#recordLoss(file, from, chunk, sent);
-          else if (hasCode(error, 'TIMEOUT')) this.#recordSuspects(file, from, chunk);
+          else if (hasCode(error, 'TIMEOUT')) {
+            this.#recordSuspects(file, from, chunk);
+            const hole = this.#recordTimeout(file, unit.source, chunk, timeouts, setup);
+            if (hole !== undefined) {
+              throw new WorldMachineError(
+                'TIMEOUT',
+                `${(error as Error).message}; pair ${hole} timed out ${TIMEOUTS_BEFORE_HOLE} times; it is recorded as a hole (crashed), and the next capture goes past it`,
+              );
+            }
+          }
           throw error;
         }
         let at = 0;
@@ -463,18 +475,46 @@ class Capture {
     }
 
     const transcript = this.#read(file);
+    const timedOutPairs = [...readProbes(transcript).timeouts]
+      .filter(([, count]) => count >= TIMEOUTS_BEFORE_HOLE)
+      .map(([key]) => describePair(key, setup));
     const base = this.spec.base;
     if (!full) {
       if (base === undefined) throw new Error('a short capture needs a strict base catalog');
-      return this.#fromWorkFolder(
+      const check = this.#fromWorkFolder(
         file,
         () => checkSample(base, transcript, this.#systemInfo) satisfies SampleCheck,
       );
+      return { portTypes: check, timedOutPairs };
     }
     const catalog: PortTypeCatalog = this.#fromWorkFolder(file, () =>
       nameClasses(parsePortTypeCatalog([transcript], this.#systemInfo), base),
     );
-    return { agreed: true, catalog };
+    return { portTypes: { agreed: true, catalog }, timedOutPairs };
+  }
+
+  /**
+   * A pair sent alone that timed out: counted in a `(timeout ...)` section. A timeout says nothing about the pair, but
+   * World Machine is ended on each one, so a pair that always hangs it would stop every run at the same place. At the
+   * third timeout of the same pair it is recorded as `crashed`, a hole; returns the pair's description then.
+   */
+  #recordTimeout(
+    file: string,
+    source: ProbeSource,
+    chunk: readonly ProbeTarget[],
+    timeouts: Map<string, number>,
+    setup: Setup,
+  ): string | undefined {
+    const [target] = chunk;
+    if (chunk.length !== 1 || target === undefined) return undefined;
+    const from = `#${source.id}.${source.port}`;
+    const key = pairKey(source, target);
+    const count = (timeouts.get(key) ?? 0) + 1;
+    timeouts.set(key, count);
+    this.#append(file, [{ command: `(timeout ${from})`, lines: [`#${target.id}.${target.port}`] }]);
+    if (count < TIMEOUTS_BEFORE_HOLE) return undefined;
+    this.#append(file, [{ command: `(probe ${from})`, lines: [`#${target.id}.${target.port} ${CRASHED}`] }]);
+    return describePair(key, setup);
   }
 
   /**
@@ -681,11 +721,29 @@ function chunks<T>(items: readonly T[], alone: (item: T) => boolean): T[][] {
   return result;
 }
 
-/** The pairs a transcript has a verdict for (`crashed` included), and the pairs a lost batch left suspect. */
-function readProbes(transcript: string): { done: Set<string>; suspects: Set<string> } {
+/**
+ * The pairs a transcript has a verdict for (`crashed` included), the pairs a lost batch left suspect, and how often
+ * each pair sent alone timed out.
+ */
+function readProbes(transcript: string): {
+  done: Set<string>;
+  suspects: Set<string>;
+  timeouts: Map<string, number>;
+} {
   const done = new Set<string>();
   const suspects = new Set<string>();
+  const timeouts = new Map<string, number>();
   for (const { command, lines } of transcriptSections(transcript)) {
+    const timeout = TIMEOUT.exec(command);
+    if (timeout !== null) {
+      for (const line of lines) {
+        const target = VERDICT.exec(`${line} `);
+        if (target === null) continue;
+        const key = `${timeout[1]}.${timeout[2]}>${target[1]}.${target[2]}`;
+        timeouts.set(key, (timeouts.get(key) ?? 0) + 1);
+      }
+      continue;
+    }
     const probe = PROBE.exec(command) ?? SUSPECT.exec(command);
     if (probe === null) continue;
     const into = command.startsWith('(probe ') ? done : suspects;
@@ -694,7 +752,21 @@ function readProbes(transcript: string): { done: Set<string>; suspects: Set<stri
       if (target !== null) into.add(`${probe[1]}.${probe[2]}>${target[1]}.${target[2]}`);
     }
   }
-  return { done, suspects };
+  return { done, suspects, timeouts };
+}
+
+/** A pair key `<id>.<port>><id>.<port>` for the user: `#<id>.<port> (<type>) -> #<id>.<port> (<type>)`. */
+function describePair(key: string, setup: Setup): string {
+  const types = new Map<number, string>([
+    ...setup.probed.map((device): [number, string] => [device.id, device.type]),
+    ...setup.twins.map((twin): [number, string] => [twin.id, twin.of.type]),
+  ]);
+  const end = (ref: string) => {
+    const type = types.get(Number(ref.split('.')[0]));
+    return type === undefined ? `#${ref}` : `#${ref} (${type})`;
+  };
+  const [from, to] = key.split('>') as [string, string];
+  return `${end(from)} -> ${end(to)}`;
 }
 
 /** The setup of a port-type transcript, or undefined when it has no `(setup complete)` section. */

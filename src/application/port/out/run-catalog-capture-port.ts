@@ -22,6 +22,8 @@ export type CaptureResult = {
   readonly refusedWords: readonly string[];
   /** `<type>.<parameter>` enum rows that gave no range error; their types are left out of `enumOptions`. */
   readonly enumGaps: readonly string[];
+  /** Pairs recorded as holes after timing out alone three times, as `#<id>.<port> (<type>) -> #<id>.<port> (<type>)`. */
+  readonly timedOutPairs: readonly string[];
 };
 
 export interface RunCatalogCapturePort {

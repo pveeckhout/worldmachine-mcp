@@ -129,7 +129,7 @@ export class WorldMachineBuilder implements BuildPort {
   /**
    * Runs a wait. A shutdown ends World Machine and the wait with it, and the shutdown's own `build stop` ends a run
    * as well; both are SHUTTING_DOWN, not a crash or a missing confirmation (decision D14), on a failure and after
-   * a success alike.
+   * a success alike. A capture that took the lease once the wait succeeded does not undo it: the build did end.
    */
   async #untilSettled<T>(wait: () => Promise<T>): Promise<T> {
     let result: T;
@@ -139,7 +139,11 @@ export class WorldMachineBuilder implements BuildPort {
       this.#session.assertAcceptingCalls();
       throw error;
     }
-    this.#session.assertAcceptingCalls();
+    try {
+      this.#session.assertAcceptingCalls();
+    } catch (error) {
+      if (!(error instanceof WorldMachineError && error.code === 'CAPTURING')) throw error;
+    }
     return result;
   }
 

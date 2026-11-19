@@ -226,6 +226,45 @@ describe('WorldMachineCatalogCapturer', () => {
     expect(result.portTypes).toMatchObject({ agreed: true, catalog: { build: 4069, kind: 'strict' } });
   });
 
+  it('records a lone pair that timed out three times as a hole, so the capture can finish', async () => {
+    const workDir = workDirOf(4069, 'full');
+    const probes = (batches: readonly string[][]) => batches.filter((b) => b[0]?.startsWith('wire connect '));
+    let seen = 0;
+    const first = simulatedConsole({
+      crashWhen: (commands) => commands[0]?.startsWith('wire connect ') === true && ++seen === 2,
+    });
+    await expect(capturer.run(fullRun(workDir), first.lease, () => {}, go())).rejects.toMatchObject({
+      code: 'CRASHED',
+    });
+    const slow = (probes(first.batches)[1] as string[]).find((c) => c.startsWith('wire connect ')) as string;
+
+    // Two runs time out on the pair alone: it stays unknown and is sent again.
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      const again = simulatedConsole({ timeoutWhen: (commands) => commands[0] === slow });
+      await expect(capturer.run(fullRun(workDir), again.lease, () => {}, go())).rejects.toMatchObject({
+        code: 'TIMEOUT',
+      });
+      expect(again.sent()).toContain(slow);
+      expect(readFileSync(join(workDir, 'probe.txt'), 'utf8')).not.toMatch(/ crashed$/m);
+    }
+
+    // The third timeout records it as a hole, and the failure says so.
+    const third = simulatedConsole({ timeoutWhen: (commands) => commands[0] === slow });
+    await expect(capturer.run(fullRun(workDir), third.lease, () => {}, go())).rejects.toMatchObject({
+      code: 'TIMEOUT',
+      message: expect.stringMatching(/timed out 3 times; it is recorded as a hole/),
+    });
+    expect(readFileSync(join(workDir, 'probe.txt'), 'utf8')).toMatch(/ crashed$/m);
+
+    // The next run never sends it again, completes, and names the pair.
+    const fourth = simulatedConsole();
+    const result = await capturer.run(fullRun(workDir), fourth.lease, () => {}, go());
+    expect(fourth.sent()).not.toContain(slow);
+    expect(result.portTypes).toMatchObject({ agreed: true, catalog: { build: 4069, kind: 'strict' } });
+    expect(result.timedOutPairs).toHaveLength(1);
+    expect(result.timedOutPairs[0]).toMatch(/^#\d+\.\d+ \(.+\) -> #\d+\.\d+ \(.+\)$/);
+  });
+
   it.each([
     [
       'another mode',

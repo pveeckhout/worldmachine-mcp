@@ -11,7 +11,7 @@ import { WorldMachineProcess } from '../../../../src/adapter/out/worldmachine/wo
 import { WorldMachineSession } from '../../../../src/adapter/out/worldmachine/world-machine-session.js';
 import { GROUP_BUILD_NEEDS_GROUP } from '../../../../src/application/port/out/build-port.js';
 import { StopBuildService } from '../../../../src/application/service/stop-build-service.js';
-import type { WorldMachineError } from '../../../../src/domain/errors.js';
+import { WorldMachineError } from '../../../../src/domain/errors.js';
 import { captureLogger, FAKE_WM, fakeEnv, recorder, waitUntil } from '../../../support/fake-wm.js';
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'builder-')));
@@ -327,5 +327,25 @@ describe('WorldMachineBuilder (spec v2a section 5)', () => {
     expect(await build.previewRunning()).toBe(false);
     expect(build.current()).toBeUndefined();
     await waitUntil(() => session.buildTracker()?.running === false);
+  });
+});
+
+describe('WorldMachineBuilder wait after a capture took the lease', () => {
+  /** A session whose tracked build has ended, and which now refuses calls with `code`. */
+  const refusing = (code: 'CAPTURING' | 'SHUTTING_DOWN') =>
+    ({
+      buildTracker: () => ({ ended: async () => true }),
+      assertAcceptingCalls: () => {
+        throw new WorldMachineError(code, `refused with ${code}`);
+      },
+    }) as unknown as WorldMachineSession;
+
+  it('reports a build that ended before a capture took the lease as ended', async () => {
+    expect(await new WorldMachineBuilder(refusing('CAPTURING')).waitForEnd('full', 1_000)).toBe(true);
+  });
+
+  it('still fails with SHUTTING_DOWN after a successful wait', async () => {
+    const error = await failure(new WorldMachineBuilder(refusing('SHUTTING_DOWN')).waitForEnd('full', 1_000));
+    expect(error.code).toBe('SHUTTING_DOWN');
   });
 });
