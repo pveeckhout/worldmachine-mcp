@@ -294,6 +294,39 @@ describe('CatalogCaptureService', () => {
     expect(f.events.map(([name]) => name)).toEqual(['catalog_capture_started', 'catalog_capture_finished']);
   });
 
+  it.each([
+    [true, 'some types that no catalog knows were reached through ambiguous tags, not necessarily all'],
+    [
+      false,
+      'this build does not name the types an ambiguous tag matches, so only the known types were tried',
+    ],
+  ])('never claims a complete type list (ambiguous tags named types: %s)', async (named, detail) => {
+    const f = fakes({
+      script: async () => ({ ...agreed(), discovery: { ...DISCOVERY, listedByConsole: named } }),
+    });
+    await f.service.start(short);
+    const view = await finished(f.service);
+    expect(f.installs[0]?.record).toMatchObject({
+      discoveryIncomplete: true,
+      ambiguousTagsNamedTypes: named,
+    });
+    const notes = view.outcome?.kind === 'installed' ? view.outcome.notes : [];
+    expect(notes).toContain(
+      `discovery is incomplete for this build: World Machine has no command that lists device types; ${detail}`,
+    );
+  });
+
+  it('says discovery is incomplete when the sample disagrees, and suggests a full run', async () => {
+    const f = fakes({ script: async () => disagreed() });
+    await f.service.start(short);
+    const view = await finished(f.service);
+    const notes = view.outcome?.kind === 'sample-disagreed' ? view.outcome.notes : [];
+    expect(notes).toContain(
+      'the sample disagreed with the base catalog, so no port types are used for this build; capture_catalog mode full captures them',
+    );
+    expect(notes.some((note) => note.startsWith('discovery is incomplete for this build'))).toBe(true);
+  });
+
   it('installs only enum options when the sample disagrees', async () => {
     const f = fakes({ script: async () => disagreed() });
     await f.service.start(short);

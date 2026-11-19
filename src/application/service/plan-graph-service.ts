@@ -5,6 +5,7 @@ import { wireLoops } from '../../domain/wire-loops.js';
 import { unidentifiableWires } from '../../domain/wire-prediction.js';
 import type { PlanGraphQuery, PlanGraphQueryPort, PlanGraphView } from '../port/in/query/plan-graph-query.js';
 import type { GraphTemplatePort } from '../port/out/graph-template-port.js';
+import type { ListCatalogsPort } from '../port/out/list-catalogs-port.js';
 import type { PortTypeCatalogPort } from '../port/out/port-type-catalog-port.js';
 import type { ProjectGraphReadPort } from '../port/out/project-graph-read-port.js';
 import type { WorldMachineSessionPort } from '../port/out/world-machine-session-port.js';
@@ -18,6 +19,8 @@ export class PlanGraphService implements PlanGraphQueryPort {
   readonly #portTypes: PortTypeCatalogPort;
   readonly #templates: GraphTemplatePort;
   readonly #captureMinutes: CaptureMinutes | undefined;
+  /** For the capture offer: whether the build has enum options. */
+  readonly #catalogs: ListCatalogsPort | undefined;
 
   constructor(
     session: WorldMachineSessionPort,
@@ -25,8 +28,10 @@ export class PlanGraphService implements PlanGraphQueryPort {
     portTypes: PortTypeCatalogPort,
     templates: GraphTemplatePort,
     captureMinutes?: CaptureMinutes,
+    catalogs?: ListCatalogsPort,
   ) {
     this.#captureMinutes = captureMinutes;
+    this.#catalogs = catalogs;
     this.#session = session;
     this.#graph = graph;
     this.#portTypes = portTypes;
@@ -60,6 +65,7 @@ export class PlanGraphService implements PlanGraphQueryPort {
         this.#portTypes.problems(),
         this.#portTypes.hasCorrections(),
         this.#captureMinutes,
+        this.#catalogs?.enumCatalogs().some((catalog) => catalog.build === state.build) ?? false,
       ),
     };
   }

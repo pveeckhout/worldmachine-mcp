@@ -10,7 +10,10 @@ export type CaptureRecord = {
   readonly sampleCheck?: 'agreed' | string;
   readonly notCaptured: readonly string[];
   readonly untypedTypes: readonly string[];
-  readonly discoveryIncomplete: boolean;
+  /** Always true: no console command lists device types, so discovery never claims a complete list (spec D2a). */
+  readonly discoveryIncomplete: true;
+  /** Whether an ambiguous tag made World Machine name the types it matches (4069 and later); some types, not all. */
+  readonly ambiguousTagsNamedTypes: boolean;
   readonly deviceTypes: readonly DeviceType[];
 };
 

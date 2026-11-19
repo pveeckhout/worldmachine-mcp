@@ -74,18 +74,36 @@ export type CatalogInfo = {
 /** Estimated whole-run minutes per capture mode, as the caller knows them. */
 export type CaptureMinutes = { readonly short: number; readonly full: number };
 
-/** The catalog info of a response; `hasCorrections`: the catalog in use is sample-derived and its build has some. */
+const CAPTURE_WARNING =
+  'World Machine is busy for the whole run and closes the open project first; keep the mouse pointer off its window.';
+
+/** The offer to capture what the build lacks; undefined when it has port types or the build or minutes are unknown. */
+function captureOffer(
+  build: number | undefined,
+  source: CatalogSource | undefined,
+  captureMinutes: CaptureMinutes | undefined,
+  hasEnumOptions: boolean,
+): string | undefined {
+  if (captureMinutes === undefined || source !== undefined || build === undefined) return undefined;
+  // A build with enum options and no port types is most likely one whose short sample disagreed: only full helps.
+  if (hasEnumOptions)
+    return `No port types for build ${build}; it has enum options only. capture_catalog mode full can capture the port types (about ${captureMinutes.full} min); a short capture would check the same sample again. ${CAPTURE_WARNING}`;
+  return `No catalog for build ${build}. capture_catalog can capture one: short (about ${captureMinutes.short} min) or full (about ${captureMinutes.full} min). ${CAPTURE_WARNING}`;
+}
+
+/**
+ * The catalog info of a response; `hasCorrections`: the catalog in use is sample-derived and its build has some;
+ * `hasEnumOptions`: an enum-options catalog of the build is in force.
+ */
 export function catalogInfo(
   build: number | undefined,
   source: CatalogSource | undefined,
   problems: readonly string[],
   hasCorrections: boolean,
   captureMinutes?: CaptureMinutes,
+  hasEnumOptions = false,
 ): CatalogInfo {
-  const offer =
-    captureMinutes !== undefined && source === undefined && build !== undefined
-      ? `No catalog for build ${build}. capture_catalog can capture one: short (about ${captureMinutes.short} min) or full (about ${captureMinutes.full} min). World Machine is busy for the whole run and closes the open project first; keep the mouse pointer off its window.`
-      : undefined;
+  const offer = captureOffer(build, source, captureMinutes, hasEnumOptions);
   return {
     build: build ?? null,
     portTypes: source === undefined ? 'none' : catalogLabel(source),
@@ -227,7 +245,10 @@ export type DeviceDiscovery = {
   readonly types: readonly DeviceType[];
   /** Known types not added on this build. */
   readonly notReached: readonly string[];
-  /** false on a build without the ambiguity error (4067 and earlier): only the known lists were used. */
+  /**
+   * Whether an ambiguous tag made World Machine name the types it matches (4069 and later). It never means the list
+   * is complete: no console command lists device types. false on 4067 and earlier: only the known lists were used.
+   */
   readonly listedByConsole: boolean;
 };
 

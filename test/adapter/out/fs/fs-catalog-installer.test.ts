@@ -32,7 +32,8 @@ const entry = (build = 4071, extra = ''): CatalogInstall => ({
     serverVersion: '0.0.0',
     notCaptured: [],
     untypedTypes: [],
-    discoveryIncomplete: false,
+    discoveryIncomplete: true,
+    ambiguousTagsNamedTypes: true,
     deviceTypes: [],
   },
 });

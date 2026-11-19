@@ -161,7 +161,7 @@ const handle = serveStdio(() =>
     logger,
     getStatus: new GetStatusService(session),
     listDevices: new ListDevicesService(session, reader),
-    getDevice: new GetDeviceService(session, reader, portTypes, CAPTURE_MINUTES),
+    getDevice: new GetDeviceService(session, reader, portTypes, CAPTURE_MINUTES, catalogs),
     getScene: new GetSceneService(session, reader),
     inspectProject: new InspectProjectService(session, reader),
     openProject: new OpenProjectService(session, pathPolicy, writer),
@@ -204,7 +204,7 @@ const handle = serveStdio(() =>
     organizeDevices: new OrganizeDevicesService(session, devices),
     listGroups: new ListGroupsService(session, groups),
     setGroupEnabled: new SetGroupEnabledService(session, groups),
-    planGraph: new PlanGraphService(session, reader, portTypes, templates, CAPTURE_MINUTES),
+    planGraph: new PlanGraphService(session, reader, portTypes, templates, CAPTURE_MINUTES, catalogs),
     applyGraph: new ApplyGraphService(
       session,
       reader,

@@ -215,7 +215,8 @@ export class CatalogCaptureService
       ...(run.mode === 'short' ? { sampleCheck: disagreement ?? 'agreed' } : {}),
       notCaptured: discovery.notReached,
       untypedTypes: sample?.untypedTypes ?? [],
-      discoveryIncomplete: !discovery.listedByConsole,
+      discoveryIncomplete: true,
+      ambiguousTagsNamedTypes: discovery.listedByConsole,
       deviceTypes,
     };
 
@@ -261,9 +262,16 @@ export class CatalogCaptureService
       ...(discovery.notReached.length > 0
         ? [`known types not added: ${discovery.notReached.join(', ')}`]
         : []),
-      ...(discovery.listedByConsole
+      `discovery is incomplete for this build: World Machine has no command that lists device types; ${
+        discovery.listedByConsole
+          ? 'some types that no catalog knows were reached through ambiguous tags, not necessarily all'
+          : 'this build does not name the types an ambiguous tag matches, so only the known types were tried'
+      }`,
+      ...(disagreement === undefined
         ? []
-        : ['this build does not list device types; only the known ones were tried']),
+        : [
+            'the sample disagreed with the base catalog, so no port types are used for this build; capture_catalog mode full captures them',
+          ]),
     ];
     if (disagreement !== undefined) {
       return { kind: 'sample-disagreed', disagreement, installed: ['enum-options'], notes };

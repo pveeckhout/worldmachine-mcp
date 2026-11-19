@@ -134,6 +134,11 @@ describe('catalogInfo', () => {
       'No catalog for build 4071. capture_catalog can capture one: short (about 11 min) or full (about 285 min). World Machine is busy for the whole run and closes the open project first; keep the mouse pointer off its window.',
     );
   });
+  it('recommends a full capture on a build with enum options but no port types', () => {
+    expect(catalogInfo(4071, undefined, [], false, minutes, true).capture).toBe(
+      'No port types for build 4071; it has enum options only. capture_catalog mode full can capture the port types (about 285 min); a short capture would check the same sample again. World Machine is busy for the whole run and closes the open project first; keep the mouse pointer off its window.',
+    );
+  });
   it('makes no offer when a catalog is in use', () => {
     expect(catalogInfo(4069, shippedSample, [], false, minutes).capture).toBeUndefined();
   });

@@ -61,6 +61,30 @@ const shape = (device: {
     [device.inputs, device.outputs].map((ports) => ports?.map(({ port, name }) => [port, name])),
   );
 
+/**
+ * The first port that differs between a sampled device and its base entry, for a disagreement message:
+ * `output 2 is 'Water Body' on build 4069, 'Water System' in the build 4067 catalog`; a missing port reads `none`.
+ */
+function portDifference(
+  device: { readonly inputs: readonly WireListPort[]; readonly outputs: readonly WireListPort[] },
+  entry: { readonly inputs: readonly WireListPort[]; readonly outputs: readonly WireListPort[] },
+  build: number,
+  baseBuild: number,
+): string | undefined {
+  const label = (port: WireListPort | undefined) => (port === undefined ? 'none' : `'${port.name}'`);
+  for (const side of ['input', 'output'] as const) {
+    const sampled = side === 'input' ? device.inputs : device.outputs;
+    const based = side === 'input' ? entry.inputs : entry.outputs;
+    for (let i = 0; i < Math.max(sampled.length, based.length); i += 1) {
+      const [mine, theirs] = [sampled[i], based[i]];
+      if (mine?.port === theirs?.port && mine?.name === theirs?.name) continue;
+      const port = mine?.port ?? theirs?.port;
+      return `${side} ${port} is ${label(mine)} on build ${build}, ${label(theirs)} in the build ${baseBuild} catalog`;
+    }
+  }
+  return undefined;
+}
+
 /** A port for messages: `'<type>.<name>'`. */
 const named = (port: Port) => `'${port.device.type}.${port.name}'`;
 /** Design section 4: a class without a names entry is named by its first port in catalog order. */
@@ -508,7 +532,8 @@ export function checkSample(base: PortTypeCatalog, sample: string, systemInfo: s
       movedWords.push({ word: device.word, from: listed, to: device.type });
     }
     if (disagreement === undefined && shape(device) !== shape(entry)) {
-      disagreement = `type '${device.type}': other ports than in the build ${base.build} catalog`;
+      const difference = portDifference(device, entry, build, base.build);
+      disagreement = `type '${device.type}': other ports than in the build ${base.build} catalog${difference === undefined ? '' : `: ${difference}`}`;
     }
   }
   if (disagreement === undefined) {

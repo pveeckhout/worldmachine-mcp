@@ -71,6 +71,13 @@ describe('derivePortTypeCatalog (build 4069 from the build 4067 catalog)', () =>
       /type '.*': other ports than in the build 4067 catalog/,
     );
   });
+  it('names the ports that differ in a type disagreement', () => {
+    const renamed = sample.replace('[2] Water System -> ', '[2] Water Body -> ');
+    const check = checkSample(base, renamed, systemInfo);
+    expect(check.agreed ? undefined : check.disagreement).toBe(
+      "type 'Create Water': other ports than in the build 4067 catalog: output 2 is 'Water Body' on build 4069, 'Water System' in the build 4067 catalog",
+    );
+  });
 
   it('fails when a verdict contradicts the classes of the base catalog', () => {
     expect(() => derivePortTypeCatalog(base, flippedVerdict(), systemInfo)).toThrow(

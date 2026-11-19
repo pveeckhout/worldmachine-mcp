@@ -98,6 +98,18 @@ describe('get_device capture offer', () => {
       /^No catalog for build 4071\. capture_catalog .*about 11 min.*about 285 min/,
     );
   });
+
+  it('recommends a full capture when the build has enum options but no port types', async () => {
+    const at4071 = sessionAt(4071);
+    const view = await new GetDeviceService(
+      at4071,
+      graph,
+      new WorldMachinePortTypes(at4071, PORT_TYPE_CATALOGS),
+      { short: 11, full: 285 },
+      { portTypeCatalogs: () => PORT_TYPE_CATALOGS, enumCatalogs: () => [{ build: 4071, types: {} }] },
+    ).getDevice({ device: '#1' });
+    expect(view.catalog.capture).toMatch(/^No port types for build 4071; .*mode full .*about 285 min/);
+  });
 });
 
 describe('read services', () => {
