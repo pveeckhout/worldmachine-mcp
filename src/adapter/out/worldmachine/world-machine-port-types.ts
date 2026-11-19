@@ -17,6 +17,7 @@ import { type CataloguedPorts, type PortClass, typedPorts } from '../../../domai
 import { CatalogRegistry } from './catalog-registry.js';
 import shipped4067 from './port-types.4067.json' with { type: 'json' };
 import shipped4069 from './port-types.4069.json' with { type: 'json' };
+import shipped4070 from './port-types.4070.json' with { type: 'json' };
 
 export type { PortTypeCatalog, PortTypeCatalogEntry };
 
@@ -30,6 +31,11 @@ export const PORT_TYPE_CATALOG_4067: PortTypeCatalog = shipped4067 as PortTypeCa
  * (2026-11-17): its ports and classes, with the add words build 4069 accepted. Every verdict of the sample agreed.
  */
 export const PORT_TYPE_CATALOG_4069: PortTypeCatalog = shipped4069 as PortTypeCatalog;
+/**
+ * Shipped with the server: the 4067 catalog checked against wm-4070/raw/port-types-sample.txt and derived from it
+ * (2026-11-19). Its ports and classes equal 4069's; build 4070 also accepts the add words Placement and Distance.
+ */
+export const PORT_TYPE_CATALOG_4070: PortTypeCatalog = shipped4070 as PortTypeCatalog;
 
 export type { SourcedPortTypeCatalog };
 
@@ -46,6 +52,7 @@ export const local = (catalog: PortTypeCatalog): SourcedPortTypeCatalog => sourc
 export const PORT_TYPE_CATALOGS: readonly SourcedPortTypeCatalog[] = [
   shipped(PORT_TYPE_CATALOG_4067),
   shipped(PORT_TYPE_CATALOG_4069),
+  shipped(PORT_TYPE_CATALOG_4070),
 ];
 
 /** Port types of nothing: the default of the reader and the wire editor (port-types plan decision D3). */

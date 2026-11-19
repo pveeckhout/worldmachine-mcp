@@ -3,6 +3,7 @@ import type { DeviceDetail, Parameter } from '../../../domain/device.js';
 
 import shipped4067 from './enum-options.4067.json' with { type: 'json' };
 import shipped4069 from './enum-options.4069.json' with { type: 'json' };
+import shipped4070 from './enum-options.4070.json' with { type: 'json' };
 
 export type { EnumCatalog };
 
@@ -10,8 +11,14 @@ export type { EnumCatalog };
 export const ENUM_CATALOG_4067: EnumCatalog = shipped4067;
 /** Shipped with the server: wm-4069/raw/enum-options.txt, captured 2026-11-17. */
 export const ENUM_CATALOG_4069: EnumCatalog = shipped4069;
+/** Shipped with the server: wm-4070/raw/enum-options.txt, captured 2026-11-19 (every type as on 4069). */
+export const ENUM_CATALOG_4070: EnumCatalog = shipped4070;
 /** Every shipped catalog; getDevice uses the one of World Machine's build. */
-export const ENUM_CATALOGS: readonly EnumCatalog[] = [ENUM_CATALOG_4067, ENUM_CATALOG_4069];
+export const ENUM_CATALOGS: readonly EnumCatalog[] = [
+  ENUM_CATALOG_4067,
+  ENUM_CATALOG_4069,
+  ENUM_CATALOG_4070,
+];
 
 /** An own entry only: a catalog parsed from JSON still inherits `constructor` and `toString` from Object.prototype. */
 const own = <T>(record: Readonly<Record<string, T>>, key: string): T | undefined =>

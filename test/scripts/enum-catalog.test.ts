@@ -11,6 +11,7 @@ import {
 import {
   ENUM_CATALOG_4067,
   ENUM_CATALOG_4069,
+  ENUM_CATALOG_4070,
   ENUM_CATALOGS,
 } from '../../src/adapter/out/worldmachine/enum-options.js';
 import { parseParamList } from '../../src/adapter/out/worldmachine/parsers/param-list.js';
@@ -279,8 +280,16 @@ describe('the shipped enum catalog (enum-options design section 3)', () => {
     expect(ENUM_CATALOG_4069).toStrictEqual(parseEnumCatalog(raw4069('enum-options.txt'), systemInfo4069));
   });
 
-  it('ships one catalog per build, 4067 and 4069', () => {
-    expect(ENUM_CATALOGS.map((catalog) => catalog.build)).toEqual([4067, 4069]);
+  it('ships the build 4070 catalog its transcript parses to (parity)', () => {
+    const raw4070 = (name: string) =>
+      readFileSync(new URL(`../fixtures/wm-4070/raw/${name}`, import.meta.url), 'utf8');
+    expect(ENUM_CATALOG_4070).toStrictEqual(
+      parseEnumCatalog(raw4070('enum-options.txt'), raw4070('system-info.txt')),
+    );
+  });
+
+  it('ships one catalog per build, 4067, 4069, and 4070', () => {
+    expect(ENUM_CATALOGS.map((catalog) => catalog.build)).toEqual([4067, 4069, 4070]);
   });
 
   it('holds the 68 types and 111 enum parameters of fact 85', () => {
