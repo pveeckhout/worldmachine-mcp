@@ -16,6 +16,7 @@ import {
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
+import { addOutcome } from '../dist/adapter/out/worldmachine/capture/add-reply.js';
 import { render } from '../dist/adapter/out/worldmachine/capture/transcript.js';
 import {
   acceptedAddWords,
@@ -266,7 +267,10 @@ function params(lines) {
 async function freshDevice(sections, type) {
   const added = await run([`device add ${type}`, 'device list']);
   sections.push(...added);
-  return newest(added[1].lines);
+  const outcome = addOutcome(type, added[0].lines);
+  if (outcome.kind === 'added') return newest(added[1].lines);
+  if (outcome.kind === 'retry') return freshDevice(sections, outcome.word);
+  throw new Error(`device add ${type} added no device: ${added[0].lines.join(' | ')}`);
 }
 
 const scenarios = [
