@@ -42,6 +42,15 @@ describe('isBuiltAtResolution (fact 93)', () => {
     expect(isBuiltAtResolution(1, none, 2049)).toBe(false);
   });
 
+  // Build 4070 (wm-4070/raw/build-resolution-timing.txt l.60-67, l.102-110): lower levels read `downsampled from <N>px`.
+  it('reads levels downsampled from the built level as lower levels (build 4070)', () => {
+    const at1024 = rawFrame('build-resolution-timing.txt', 'debug devicetiming #1', 0, '4070');
+    const at2049 = rawFrame('build-resolution-timing.txt', 'debug devicetiming #1', 2, '4070');
+    expect(isBuiltAtResolution(1, at1024, 1024)).toBe(true);
+    expect(isBuiltAtResolution(1, at2049, 2049)).toBe(true);
+    expect(isBuiltAtResolution(1, at2049, 4097)).toBe(false);
+  });
+
   it('reads the id from the end of a title whose name holds a quote and an id (Review Focus 5)', () => {
     expect(isBuiltAtResolution(5, [title("It's (#2)", 5), COLUMNS, NONE, LEGEND], 513)).toBe(false);
   });

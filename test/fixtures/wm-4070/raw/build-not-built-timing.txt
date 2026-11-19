@@ -1,0 +1,187 @@
+>>> project new blank force
+Created new blank project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 513
+Set scene resolution to 513
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> device add River
+Added 'River'
+<<<
+>>> device list
+Devices (2 total):
+  #1     Gradient                
+  #2     River                   
+
+<<<
+>>> device add File Output
+Error: Error: Tag 'File Output' matches multiple devices: Height Output, VDM Output
+<<<
+>>> device list
+Devices (2 total):
+  #1     Gradient                
+  #2     River                   
+
+<<<
+>>> wire connect #1 #2.1
+Connected '#1' [1] -> '#2' [1]
+<<<
+>>> wire connect #2.1 #2
+Error: Error: Input '#2' is already connected. Disconnect first.
+<<<
+>>> param set #2.filename <WORK>/river-height.png
+Error: Error: Parameter 'filename' not found on device '#2'.
+<<<
+>>> build status
+No build running.
+<<<
+>>> export list
+No File Output devices in project.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> debug devicetiming
+Build timing, best result per device (1 device, sorted by total):
+Device                           Prepare  Activate   Distrib     Total
+Gradient                             0ms       2ms       1ms       3ms
+(sum)                                0ms       2ms       1ms       3ms
+Activate is 66% of the summed device time. 'debug devicetiming <device>' lists every result level.
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #2
+'River' has no build results yet.
+<<<
+>>> debug devicetiming #2
+'River' has no build results yet.
+<<<
+>>> debug devicetiming #1
+Build timing for 'Gradient' (#1), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                          downsampled from 513px
+257px                          downsampled from 513px
+513px                                0ms       2ms       1ms       3ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug viewtargets
+View target model:
+  raw state:      selected=none locked=none entity=none refs={} targets=[]
+  build targets:  (none)
+Previewer:
+  last request:   (nothing requested yet)
+  last targets:   (none)
+  worker:         idle, no preview source, idle [background previews paused]
+  preview source: none (a retarget would be dropped; needs a fresh preview)
+Build targets differing from the previewer's last targets means a change never reached it.
+'debug set debug.viewtargets 1' traces every change as it happens; 0 or 'debug unset' turns it off.
+<<<
+>>> (river: files in work)
+dir with space
+<<<
+>>> project new blank force
+Created new blank project.
+[Info       ] Closing current project
+<<<
+>>> scene resolution 513
+Set scene resolution to 513
+<<<
+>>> device add Gradient
+Added 'Gradient'
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> device add File Output
+Error: Error: Tag 'File Output' matches multiple devices: Height Output, VDM Output
+<<<
+>>> device list
+Devices (1 total):
+  #1     Gradient                
+
+<<<
+>>> wire connect #1 #1
+Error: Error: Input port not found on '#1'
+<<<
+>>> param set #1.filename <WORK>/plain-height.png
+Error: Error: Parameter 'filename' not found on device '#1'.
+<<<
+>>> build status
+No build running.
+<<<
+>>> export list
+No File Output devices in project.
+<<<
+>>> build start
+[Build Event] Prohibiting system sleep
+[Build Event] *** Build Starting ***
+[Build Event] *** Build Ended ***
+<<<
+>>> (waited 1000 ms)
+[Build Event] System allowed to sleep again
+<<<
+>>> build status
+Build started.
+No build running.
+<<<
+>>> debug devicetiming
+Build timing, best result per device (1 device, sorted by total):
+Device                           Prepare  Activate   Distrib     Total
+Gradient                             0ms       1ms       0ms       1ms
+(sum)                                0ms       1ms       0ms       1ms
+Activate is 100% of the summed device time. 'debug devicetiming <device>' lists every result level.
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #1
+Build timing for 'Gradient' (#1), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                          downsampled from 513px
+257px                          downsampled from 513px
+513px                                0ms       1ms       0ms       1ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug devicetiming #1
+Build timing for 'Gradient' (#1), per result level:
+Device                           Prepare  Activate   Distrib     Total
+129px                          downsampled from 513px
+257px                          downsampled from 513px
+513px                                0ms       1ms       0ms       1ms
+Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.
+<<<
+>>> debug viewtargets
+View target model:
+  raw state:      selected=none locked=none entity=none refs={} targets=[]
+  build targets:  (none)
+Previewer:
+  last request:   (nothing requested yet)
+  last targets:   (none)
+  worker:         idle, no preview source, idle [background previews paused]
+  preview source: none (a retarget would be dropped; needs a fresh preview)
+Build targets differing from the previewer's last targets means a change never reached it.
+'debug set debug.viewtargets 1' traces every change as it happens; 0 or 'debug unset' turns it off.
+<<<
+>>> (plain: files in work)
+dir with space
+<<<
+>>> project close force
+Project closed.
+[Info       ] Closing current project
+<<<

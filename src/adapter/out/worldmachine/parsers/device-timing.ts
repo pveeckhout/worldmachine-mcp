@@ -8,6 +8,9 @@ const COLUMNS = /^Device\s+Prepare\s+Activate\s+Distrib\s+Total$/;
 const NONE = '(no finished results)';
 // A result level and four times in ms (l.87-89, l.170-172); plan decision B11 accepts nothing else.
 const RESULT = /^\d+px(?:\s+\d+ms){4}$/;
+// Build 4070 (wm-4070/raw/build-resolution-timing.txt l.63-65): a level below the built one reads
+// `<N>px  downsampled from <M>px`; only the built level keeps its times.
+const DOWNSAMPLED = /^\d+px\s+downsampled from \d+px$/;
 // l.76, verbatim.
 const LEGEND =
   "Prepare = input clone/validate/rescale, Activate = the device's own work (the workview number), Distrib = output hand-off to children.";
@@ -32,8 +35,8 @@ export function isBuiltAtResolution(id: number, output: readonly string[], resol
     legend === LEGEND &&
     rows.length > 0;
   if (framed && rows.length === 1 && rows[0]?.trim() === NONE) return false;
-  if (framed && rows.every((row) => RESULT.test(row))) {
-    return rows.some((row) => row.startsWith(`${resolution}px`));
+  if (framed && rows.every((row) => RESULT.test(row) || DOWNSAMPLED.test(row))) {
+    return rows.some((row) => RESULT.test(row) && row.startsWith(`${resolution}px`));
   }
   throw unexpectedOutput(`debug devicetiming #${id}`, output);
 }
